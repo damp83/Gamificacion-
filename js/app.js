@@ -112,38 +112,49 @@ function renderMap() {
 
   const siteList = $('#site-list');
   siteList.innerHTML = '';
-  const site = DIG_SITES.kaldros;
-  const header = document.createElement('div');
-  header.className = 'site-header';
-  header.innerHTML = `<span class="site-icon">${site.icon}</span>
-    <div><h3>${site.name}</h3><p>${site.subject} · ${site.desc}</p></div>`;
-  siteList.appendChild(header);
 
-  for (const branchId of activeBranches()) {
-    const b = branchInfo(branchId);
-    const strata = S.dig_sites.kaldros[branchId].strata;
-    const mastered = STRATA_ORDER.filter(s => strata[s].mastery >= 0.8).length;
-    const card = document.createElement('button');
-    card.className = 'branch-card';
-    card.innerHTML = `<span class="branch-icon">${b.icon}</span>
-      <div class="branch-info">
-        <strong>${b.name}</strong>
-        <div class="branch-strata-dots">${STRATA_ORDER.map(s => {
-          const st = strata[s];
-          const cls = st.mastery >= 0.8 ? 'dot-mastered' : st.status === 'locked' ? 'dot-locked' : 'dot-open';
-          return `<span class="dot ${cls}" title="${STRATA_META[s].label}"></span>`;
-        }).join('')}</div>
-        <small>${mastered}/${STRATA_ORDER.length} estratos dominados</small>
-      </div><span class="branch-go">⛏️</span>`;
-    card.addEventListener('click', () => openBranch(branchId));
-    siteList.appendChild(card);
+  const sites = sitesEnabled().filter(site => branchesEnabledOf(site).length);
+  if (!sites.length) {
+    siteList.innerHTML = `<div class="dialog bruno"><span class="dialog-avatar">🧔🏻‍♂️</span>
+      <div class="dialog-text"><strong>Prof. Bruno Ocaña</strong>
+      <p>«Todavía no hay ningún yacimiento abierto… ¡habré perdido los mapas otra vez!
+      En cuanto el docente prepare uno, aparecerá aquí.»</p></div></div>`;
+    return;
+  }
+
+  for (const site of sites) {
+    const header = document.createElement('div');
+    header.className = 'site-header';
+    header.innerHTML = `<span class="site-icon">${site.icon}</span>
+      <div><h3>${site.name}</h3><p>${site.subject}${site.desc ? ' · ' + site.desc : ''}</p></div>`;
+    siteList.appendChild(header);
+
+    for (const b of branchesEnabledOf(site)) {
+      const strata = branchState(b.id).strata;
+      const withContent = STRATA_ORDER.filter(sId => stratumHasContent(b, sId));
+      const mastered = withContent.filter(sId => strata[sId].mastery >= 0.8).length;
+      const card = document.createElement('button');
+      card.className = 'branch-card';
+      card.innerHTML = `<span class="branch-icon">${b.icon}</span>
+        <div class="branch-info">
+          <strong>${b.name}</strong>
+          <div class="branch-strata-dots">${withContent.map(sId => {
+            const st = strata[sId];
+            const cls = st.mastery >= 0.8 ? 'dot-mastered' : st.status === 'locked' ? 'dot-locked' : 'dot-open';
+            return `<span class="dot ${cls}" title="${STRATA_META[sId].label}"></span>`;
+          }).join('')}</div>
+          <small>${mastered}/${withContent.length} estratos dominados</small>
+        </div><span class="branch-go">⛏️</span>`;
+      card.addEventListener('click', () => openBranch(b.id));
+      siteList.appendChild(card);
+    }
   }
 
   /* Encargo del Bazar: repaso espaciado con excusa narrativa */
   const bazar = $('#bazar-card');
   const target = bestBazarTarget();
   if (target && target.cover > 0.1 && S.daily.bazar_today < ECO().bazarPerDay) {
-    const b = branchInfo(target.branchId);
+    const b = branchDef(target.branchId);
     const meta = STRATA_META[target.stratumId];
     bazar.innerHTML = `<div class="bazar-inner">
       <span class="bazar-icon">🧺</span>
@@ -151,7 +162,7 @@ function renderMap() {
       <p>«${meta.name}» de ${b.name} se está cubriendo de arena… Un repaso rápido lo redescubrirá. (+10–15 🪙)</p></div>
       <button class="btn btn-secondary" id="btn-bazar">Repasar</button></div>`;
     $('#btn-bazar').addEventListener('click', () => {
-      startMission(target.branchId, target.stratumId, 'bazar');
+      if (!startMission(target.branchId, target.stratumId, 'bazar')) { toast('Ese encargo ya no está disponible.'); return; }
       renderMissionScreen();
       show('mission');
     });
@@ -166,34 +177,48 @@ function renderMap() {
 let currentBranch = null;
 function openBranch(branchId) {
   currentBranch = branchId;
-  const b = branchInfo(branchId);
+  const b = branchDef(branchId);
+  if (!b) { show('map'); return; }
   $('#branch-title').textContent = `${b.icon} ${b.name}`;
-  $('#branch-desc').textContent = b.desc + ' Cuanto más profundo excaves, mayor es el tesoro.';
+  $('#branch-desc').textContent = (b.desc || '') + ' Cuanto más profundo excaves, mayor es el tesoro.';
   const list = $('#strata-list');
   list.innerHTML = '';
-  const strata = S.dig_sites.kaldros[branchId].strata;
+  const strata = branchState(branchId).strata;
+
   STRATA_ORDER.forEach((sId, i) => {
-    const st = strata[sId];
     const meta = STRATA_META[sId];
+    const hasContent = stratumHasContent(b, sId);
+    const st = strata[sId];
     const cover = sandCover(st);
+    const locked = st.status === 'locked';
     const row = document.createElement('button');
-    row.className = 'stratum-row' + (st.status === 'locked' ? ' locked' : '');
-    row.disabled = st.status === 'locked';
+    row.className = 'stratum-row' + (locked || !hasContent ? ' locked' : '');
+    row.disabled = locked || !hasContent;
     const masteryPct = Math.round(st.mastery * 100);
+
+    let detail;
+    if (!hasContent) {
+      /* pozo del docente a medio llenar: se dice, no se finge que está bloqueado */
+      detail = '<small>Este estrato todavía no tiene retos preparados</small>';
+    } else if (locked) {
+      detail = '<small>Se abre al dominar (≥80%) el estrato de arriba</small>';
+    } else {
+      detail = `<div class="mastery-bar"><div class="mastery-fill${st.mastery >= 0.8 ? ' gold' : ''}" style="width:${masteryPct}%"></div></div>
+        <small>Dominio: ${masteryPct}%${st.mastery >= 0.9 ? ' · ya excavado (PE al 10%)' : ''}${cover > 0.2 ? ' · 🏜️ cubierto de arena' : ''}</small>`;
+    }
+
     row.innerHTML = `
       <span class="stratum-depth">Estrato ${i + 1}</span>
-      <span class="stratum-icon">${st.status === 'locked' ? '🔒' : meta.icon}</span>
-      <div class="stratum-info">
-        <strong>${meta.label} · «${meta.name}»</strong>
-        ${st.status === 'locked'
-          ? `<small>Se abre al dominar (≥80%) el estrato de arriba</small>`
-          : `<div class="mastery-bar"><div class="mastery-fill${st.mastery >= 0.8 ? ' gold' : ''}" style="width:${masteryPct}%"></div></div>
-             <small>Dominio: ${masteryPct}%${st.mastery >= 0.9 ? ' · ya excavado (PE al 10%)' : ''}${cover > 0.2 ? ' · 🏜️ cubierto de arena' : ''}</small>`}
-      </div>
-      <span class="stratum-go">${st.status === 'locked' ? '' : '⛏️'}</span>`;
-    if (st.status !== 'locked') {
+      <span class="stratum-icon">${!hasContent ? '📭' : locked ? '🔒' : meta.icon}</span>
+      <div class="stratum-info"><strong>${meta.label} · «${meta.name}»</strong>${detail}</div>
+      <span class="stratum-go">${locked || !hasContent ? '' : '⛏️'}</span>`;
+
+    if (!row.disabled) {
       row.addEventListener('click', () => {
-        startMission(branchId, sId, 'expedition');
+        if (!startMission(branchId, sId, 'expedition')) {
+          toast('Ese estrato aún no tiene retos preparados.');
+          return;
+        }
         renderMissionScreen();
         show('mission');
       });
@@ -205,7 +230,7 @@ function openBranch(branchId) {
 
 /* ── Misión ── */
 function renderMissionScreen() {
-  const b = branchInfo(mission.branchId);
+  const b = branchDef(mission.branchId);
   const meta = STRATA_META[mission.stratumId];
   $('#mission-title').textContent = mission.kind === 'bazar'
     ? `🧺 Encargo: ${meta.name}`
@@ -458,10 +483,11 @@ function renderDashboard() {
 
   /* mastery por estrato */
   let html = '';
-  for (const branchId of DIG_SITES.kaldros.branches) {
-    const b = BRANCHES[branchId];
+  for (const branchId of playableBranchIds()) {
+    const b = branchDef(branchId);
     html += `<div class="dash-branch"><strong>${b.icon} ${b.name}</strong><div class="dash-strata">`;
     for (const sId of STRATA_ORDER) {
+      if (!stratumHasContent(b, sId)) continue;
       const st = getStratum(branchId, sId);
       const key = `${branchId}.${sId}`;
       const err = S.metrics.errors_by_skill[key];
@@ -482,28 +508,16 @@ function renderDashboard() {
   if (acc !== null && acc < 0.6) signals.push('⚠️ Precisión por debajo del canal de flujo: el motor ya bajó la dificultad; considerar repaso guiado.');
   if (S.daily.missions_today >= ECO().fatigueThreshold) signals.push('ℹ️ Fatiga de expedición activa hoy: las misiones extra dan 50% de PE.');
   const decayed = [];
-  for (const branchId of DIG_SITES.kaldros.branches) {
+  for (const branchId of playableBranchIds()) {
     for (const sId of STRATA_ORDER) {
+      if (!stratumHasContent(branchDef(branchId), sId)) continue;
       const st = getStratum(branchId, sId);
-      if (st.status === 'mastered' && sandCover(st) > 0.3) decayed.push(`${BRANCHES[branchId].name} · ${STRATA_META[sId].label}`);
+      if (st.status === 'mastered' && sandCover(st) > 0.3) decayed.push(`${branchDef(branchId).name} · ${STRATA_META[sId].label}`);
     }
   }
   if (decayed.length) signals.push(`🏜️ Estratos cubriéndose de arena (repaso recomendado): ${decayed.join(', ')}.`);
   if (!signals.length) signals.push('✅ Sin alertas: el alumno trabaja en su zona de flujo.');
   $('#dashboard-signals').innerHTML = signals.map(s => `<div class="signal-row">${s}</div>`).join('');
-}
-
-/* ── Pozos: nombre y disponibilidad los puede cambiar el docente ── */
-function branchInfo(id) {
-  const b = BRANCHES[id];
-  const o = (ATLAS_CONFIG.branchOverrides || {})[id] || {};
-  return { ...b, name: o.name || b.name, desc: o.desc || b.desc };
-}
-function activeBranches() {
-  return DIG_SITES.kaldros.branches.filter(id => {
-    const o = (ATLAS_CONFIG.branchOverrides || {})[id] || {};
-    return o.enabled !== false;
-  });
 }
 
 /* ── Cuadrilla de Excavación ── */

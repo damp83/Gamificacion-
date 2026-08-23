@@ -307,41 +307,92 @@ const fracciones = {
   }
 };
 
-/* ═══════════════ CATÁLOGO DE POZOS (Ruinas de Kaldros) ═══════════════ */
-const BRANCHES = {
-  numeracion: {
-    id: 'numeracion',
-    name: 'La Bóveda de los Números',
-    icon: '🔢',
-    desc: 'Una cámara llena de cerraduras numéricas. Domina los números grandes para abrirlas todas.',
-    generators: numeracion
-  },
-  sumas_llevando: {
-    id: 'sumas_llevando',
-    name: 'El Reloj de Engranajes',
-    icon: '⚙️',
-    desc: 'Un reloj gigante que solo gira con sumas exactas. ¡Cuidado con las llevadas!',
-    generators: sumas_llevando
-  },
-  fracciones: {
-    id: 'fracciones',
-    name: 'La Balanza del Mercader',
-    icon: '⚖️',
-    desc: 'Repartos, raciones y vasijas partidas. Aquí el tesoro se divide en partes iguales.',
-    generators: fracciones
-  }
-};
+/* ═══════════════ CONTENIDO COMO DATOS ═══════════════
+   Los tres pozos de fábrica traen generadores procedurales (retos infinitos).
+   Los que cree el docente traen un banco de retos escritos por él. Toda la
+   estructura —yacimientos, pozos, qué trae cada estrato— vive en la config,
+   así que se puede montar entera desde el Panel de Configuración. */
 
-const DIG_SITES = {
-  kaldros: {
+const BUILTIN_GENERATORS = { numeracion, sumas_llevando, fracciones };
+
+/* Semilla: lo que hay antes de que el docente toque nada */
+function defaultSites() {
+  return [{
     id: 'kaldros',
     name: 'Ruinas de Kaldros',
     subject: 'Matemáticas',
     icon: '🏛️',
     desc: 'Templo de engranajes, relojes y bóvedas numéricas.',
-    branches: ['numeracion', 'sumas_llevando', 'fracciones']
+    enabled: true,
+    branches: [
+      { id: 'numeracion', name: 'La Bóveda de los Números', icon: '🔢', source: 'builtin', enabled: true,
+        desc: 'Una cámara llena de cerraduras numéricas. Domina los números grandes para abrirlas todas.' },
+      { id: 'sumas_llevando', name: 'El Reloj de Engranajes', icon: '⚙️', source: 'builtin', enabled: true,
+        desc: 'Un reloj gigante que solo gira con sumas exactas. ¡Cuidado con las llevadas!' },
+      { id: 'fracciones', name: 'La Balanza del Mercader', icon: '⚖️', source: 'builtin', enabled: true,
+        desc: 'Repartos, raciones y vasijas partidas. Aquí el tesoro se divide en partes iguales.' }
+    ]
+  }];
+}
+
+/* ── Consultas sobre la estructura configurada ── */
+function sitesAll()     { return ATLAS_CONFIG.sites || []; }
+function sitesEnabled() { return sitesAll().filter(s => s.enabled !== false); }
+function siteById(id)   { return sitesAll().find(s => s.id === id) || null; }
+function branchesOf(site)        { return (site.branches || []); }
+function branchesEnabledOf(site) { return branchesOf(site).filter(b => b.enabled !== false && branchPlayable(b)); }
+
+/* Localiza un pozo y su yacimiento por id de pozo */
+function findBranch(branchId) {
+  for (const site of sitesAll()) {
+    const b = branchesOf(site).find(x => x.id === branchId);
+    if (b) return { site, branch: b };
   }
-};
+  return null;
+}
+function branchDef(branchId) { const f = findBranch(branchId); return f ? f.branch : null; }
+function siteOfBranch(branchId) { const f = findBranch(branchId); return f ? f.site : null; }
+
+/* ¿Hay retos para este estrato? Un pozo del docente puede estar a medio llenar. */
+function stratumHasContent(branch, stratumId) {
+  if (!branch) return false;
+  if (branch.source === 'builtin') return !!BUILTIN_GENERATORS[branch.id];
+  return (((branch.bank || {})[stratumId]) || []).length > 0;
+}
+/* Un pozo es jugable si al menos su primer estrato tiene retos */
+function branchPlayable(branch) {
+  return stratumHasContent(branch, STRATA_ORDER[0]);
+}
+
+/* ── Servir un reto ──
+   Los pozos de fábrica generan uno nuevo cada vez. Los del docente sacan del
+   banco evitando repetir dentro de la misma misión, y barajan las opciones
+   para que no se memorice la posición de la respuesta. */
+function makeQuestion(branch, stratumId, tier, usedIdx) {
+  if (branch.source === 'builtin') {
+    return BUILTIN_GENERATORS[branch.id][stratumId](tier);
+  }
+  const bank = ((branch.bank || {})[stratumId]) || [];
+  if (!bank.length) return null;
+
+  let pool = bank.map((q, i) => i).filter(i => !(usedIdx || []).includes(i));
+  if (!pool.length) pool = bank.map((q, i) => i);   /* banco agotado: se recicla */
+  const idx = pick(pool);
+  if (usedIdx) usedIdx.push(idx);
+
+  const q = bank[idx];
+  const correct = q.options[q.answer];
+  const shuffled = shuffle(q.options.slice());
+  return {
+    question: q.question,
+    options: shuffled,
+    answer: shuffled.indexOf(correct),
+    hint1: q.hint1 || 'Léelo otra vez con calma: la pista está en el enunciado.',
+    hint2: q.hint2 || 'Descarta primero las respuestas que seguro que no son.',
+    explanation: q.explanation || `La respuesta correcta es «${correct}».`,
+    bankIndex: idx
+  };
+}
 
 /* ═══════════════ ALMACÉN ═══════════════
    El catálogo vive en la configuración del docente (js/config.js y el

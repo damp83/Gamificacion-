@@ -39,10 +39,17 @@ function startMission(branchId, stratumId, kind) {
     tier: 2,                      /* se fija justo debajo, con entryTier() */
     resolved: []                  /* true/false primer intento por pregunta */
   };
+  const def = branchDef(branchId);
+  if (!def || !stratumHasContent(def, stratumId)) { mission = null; return null; }
+
   const total = mission.kind === 'bazar' ? ECO().bazarQuestions : ECO().missionQuestions;
-  const gen = BRANCHES[branchId].generators[stratumId];
   mission.tier = entryTier(branchId, stratumId);
-  for (let i = 0; i < total; i++) mission.questions.push(gen(mission.tier));
+  mission.usedIdx = [];   /* para no repetir retos del banco dentro de la misión */
+  for (let i = 0; i < total; i++) {
+    const q = makeQuestion(def, stratumId, mission.tier, mission.usedIdx);
+    if (q) mission.questions.push(q);
+  }
+  if (!mission.questions.length) { mission = null; return null; }
   nextQuestion();
   return mission;
 }
@@ -80,9 +87,9 @@ function answerQuestion(optionIndex) {
 /* Restaurar hallazgo: reintentar una variante del reto fallado.
    Premia la metacognición con 5 🪙 (máx. 5/día, PRD §2.4). */
 function restoreQuestion() {
-  const gen = BRANCHES[mission.branchId].generators[mission.stratumId];
   /* misma dificultad que el reto fallado: restaurar es reintentar, no escalar */
-  const variant = gen(mission.tier);
+  const variant = makeQuestion(branchDef(mission.branchId), mission.stratumId, mission.tier, mission.usedIdx)
+    || mission.current;
   mission.questions[mission.index] = variant;
   mission.current = variant;
   mission.questionStart = Date.now();

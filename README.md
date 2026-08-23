@@ -109,7 +109,7 @@ Los comportamientos, sus valores y sus topes diarios se editan en `js/config.js`
 | 📅 Curso y trimestres | Nombre del curso y las fechas de los tres trimestres |
 | 🏅 Comportamientos, tareas y actividades | Crear, editar y retirar reconocimientos: icono, nombre, Doblones, tope diario y categoría |
 | 🛖 Cuadrillas de excavación | Crear equipos, asignar alumnos, fijar la meta común y la aportación |
-| 🏛️ Yacimientos y pozos | Renombrar los pozos, cambiar su descripción y ocultar los que aún no toquen |
+| 🏛️ Yacimientos y pozos | **Crear yacimientos y pozos nuevos y escribir los retos de cada estrato**, además de renombrar y ocultar |
 | 🏪 Almacén | Añadir, retirar y reajustar precios de los artículos cosméticos |
 | ⚖️ Economía | Retos por misión, Doblones de cada fuente, topes diarios, fatiga, bolsa inicial… |
 | 🔐 Acceso y nube | PIN del panel y datos de Appwrite |
@@ -124,6 +124,30 @@ Tres cosas que conviene saber:
 - **Los ajustes viven en la tablet donde los haces.** Para replicarlos, usa Copia de seguridad → copiar, y pégalo en las demás. No se sincronizan solos: hacerlo exigiría permisos de escritura compartidos que, sin una cuenta de docente real, cualquier alumno podría usar.
 - **Retirar algo del catálogo no borra lo ya ganado.** Si quitas un reconocimiento, los méritos que ya concediste siguen en el diario de los niños. Igual con el almacén: quien compró una prenda la conserva.
 - **Restaurar los valores de fábrica solo borra tus ajustes**, nunca el progreso de los alumnos.
+
+## Crear tus propios yacimientos y retos
+
+La sección **🏛️ Yacimientos y pozos** del panel edita toda la estructura del contenido:
+
+1. **Yacimientos** — crea los que faltan del PRD (Biblioteca de Arena para Lengua, Valle Fósil para Naturales, Puerto de las Mil Banderas para Sociales) con su nombre, materia, icono y ambientación.
+2. **Pozos** — cada yacimiento tiene los pozos que quieras (una rama de contenido cada uno).
+3. **Retos por estrato** — dentro de un pozo tuyo, una pestaña por cada nivel de Bloom. Escribes la pregunta, cuatro respuestas, cuál es la correcta, la explicación que lee quien falla y las dos pistas de Kira.
+
+Para cargar muchos de golpe, el **alta masiva** acepta una línea por reto:
+
+```
+pregunta | correcta | otra | otra | otra | explicación
+```
+
+La primera respuesta es la correcta; al alumno se le barajan, así que nunca aprende a pulsar siempre en el mismo sitio. Las líneas mal formadas se descartan **diciéndote cuáles**, en vez de tragárselas.
+
+Tres comportamientos que conviene conocer:
+
+- **Los tres pozos de fábrica generan retos infinitos por sí solos** (números, sumas con llevada, fracciones): puedes renombrarlos y ocultarlos, pero sus retos no se editan porque no existen escritos en ninguna parte — se calculan en cada partida y se adaptan a la dificultad del niño.
+- **Un estrato sin retos se le explica al alumno** («todavía no tiene retos preparados»), nunca aparece como bloqueado sin motivo. Y el desbloqueo salta por encima de los estratos vacíos, así que un pozo a medio llenar no corta el camino.
+- **Lo que no se puede jugar no se ofrece:** un yacimiento sin pozos, o un pozo sin retos, no aparece en el mapa del niño.
+
+Con menos de 6 retos en un estrato el alumno repetirá alguno dentro de la misma misión; a partir de 6 no.
 
 ## Cuadrillas de excavación (equipos)
 

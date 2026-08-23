@@ -83,11 +83,9 @@ function migrateState(s) {
 
 function defaultState(name) {
   const digSites = {};
-  for (const siteId in DIG_SITES) {
-    digSites[siteId] = {};
-    for (const branchId of DIG_SITES[siteId].branches) {
-      digSites[siteId][branchId] = { strata: defaultStrata() };
-    }
+  for (const site of sitesAll()) {
+    digSites[site.id] = {};
+    for (const b of branchesOf(site)) digSites[site.id][b.id] = { strata: defaultStrata() };
   }
   return {
     schema_version: 2,
@@ -275,8 +273,28 @@ function earnXp(n) {
 }
 
 /* ── Mastery y desbloqueo de estratos ── */
+/* Un pozo creado por el docente después de que el niño empezara no tiene
+   hueco en su diario: se le crea al vuelo la primera vez que se toca. */
+function ensureBranchState(branchId) {
+  const site = siteOfBranch(branchId);
+  if (!site) return null;
+  if (!S.dig_sites[site.id]) S.dig_sites[site.id] = {};
+  if (!S.dig_sites[site.id][branchId]) S.dig_sites[site.id][branchId] = { strata: defaultStrata() };
+  return S.dig_sites[site.id][branchId];
+}
+function branchState(branchId) { return ensureBranchState(branchId); }
 function getStratum(branchId, stratumId) {
-  return S.dig_sites.kaldros[branchId].strata[stratumId];
+  const bs = ensureBranchState(branchId);
+  if (!bs) return null;
+  if (!bs.strata[stratumId]) bs.strata = { ...defaultStrata(), ...bs.strata };
+  return bs.strata[stratumId];
+}
+
+/* Todos los pozos jugables ahora mismo, de todos los yacimientos activos */
+function playableBranchIds() {
+  const out = [];
+  for (const site of sitesEnabled()) for (const b of branchesEnabledOf(site)) out.push(b.id);
+  return out;
 }
 /* Mastery = precisión media de las últimas MASTERY_WINDOW sesiones del estrato.
    Se exige un mínimo de 2 sesiones para que una sola tanda afortunada no
@@ -312,11 +330,18 @@ function updateMastery(branchId, stratumId, sessionAccuracy) {
     trimesterBucket().strata++;
   }
 
-  /* desbloqueo por prerrequisito cognitivo (mastery ≥80%), PRD §3.1 */
+  /* desbloqueo por prerrequisito cognitivo (mastery ≥80%), PRD §3.1.
+     Si el estrato siguiente aún no tiene retos escritos, se abre el primero
+     que sí los tenga: un pozo a medio llenar no debe cortar el camino. */
+  const def = branchDef(branchId);
   const idx = STRATA_ORDER.indexOf(stratumId);
-  if (st.mastery >= 0.8 && idx < STRATA_ORDER.length - 1) {
-    const next = getStratum(branchId, STRATA_ORDER[idx + 1]);
-    if (next.status === 'locked') next.status = 'available';
+  if (st.mastery >= 0.8) {
+    for (let i = idx + 1; i < STRATA_ORDER.length; i++) {
+      if (!stratumHasContent(def, STRATA_ORDER[i])) continue;
+      const next = getStratum(branchId, STRATA_ORDER[i]);
+      if (next.status === 'locked') next.status = 'available';
+      break;
+    }
   }
   saveState();
 }
@@ -329,7 +354,7 @@ function sandCover(st) {
 /* Estrato dominado con más arena → candidato a Encargo del Bazar */
 function bestBazarTarget() {
   let best = null;
-  for (const branchId of DIG_SITES.kaldros.branches) {
+  for (const branchId of playableBranchIds()) {
     for (const sId of STRATA_ORDER) {
       const st = getStratum(branchId, sId);
       if (st.status === 'mastered' || (st.status === 'in_progress' && st.mastery >= 0.5)) {
@@ -344,8 +369,10 @@ function bestBazarTarget() {
 /* % del mapa dibujado = estratos dominados / estratos totales */
 function mapRevealPct() {
   let total = 0, mastered = 0;
-  for (const branchId of DIG_SITES.kaldros.branches) {
+  for (const branchId of playableBranchIds()) {
+    const def = branchDef(branchId);
     for (const sId of STRATA_ORDER) {
+      if (!stratumHasContent(def, sId)) continue;  /* lo que no existe no cuenta */
       total++;
       if (getStratum(branchId, sId).mastery >= 0.8) mastered++;
     }

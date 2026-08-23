@@ -558,3 +558,53 @@ button:disabled { cursor: not-allowed; opacity: .55; }
 }
 .modal-actions { display: flex; gap: .6rem; justify-content: center; flex-wrap: wrap; }
 .modal-actions .btn { flex: 1; min-width: 120px; }
+
+/* ══════════ EDITOR DE YACIMIENTOS Y RETOS ══════════ */
+.cfg-site.cfg-off { opacity: .6; }
+.cfg-toggle {
+  background: var(--parchment-dark); border: none; border-radius: 10px;
+  padding: .4rem .7rem; font-size: .82rem; font-weight: 700; color: var(--leather);
+  align-self: flex-start;
+}
+.cfg-sublist {
+  display: flex; flex-direction: column; gap: .5rem;
+  margin-top: .3rem; padding-left: .6rem; border-left: 3px solid var(--parchment-dark);
+}
+.cfg-branch {
+  background: var(--parchment); border-radius: 12px; padding: .55rem;
+  display: flex; flex-direction: column; gap: .4rem;
+}
+.cfg-tag {
+  font-size: .72rem; color: var(--ink-soft); background: var(--parchment-dark);
+  border-radius: 999px; padding: .2rem .6rem; white-space: nowrap;
+}
+.cfg-tag-warn { background: #f4e3c8; color: #7d2d1c; }
+
+.cfg-bank-title { margin: .2rem 0 .5rem; }
+.cfg-strata-tabs { display: flex; flex-wrap: wrap; gap: .35rem; }
+.cfg-strat-tab {
+  background: var(--card); border: 2px solid var(--parchment-dark); border-radius: var(--radius);
+  padding: .4rem .7rem; font-size: .8rem; font-weight: 700; color: var(--ink-soft);
+  display: flex; align-items: center; gap: .35rem;
+}
+.cfg-strat-tab.active { background: var(--leather-dark); color: var(--gold); border-color: var(--leather-dark); }
+.cfg-count {
+  background: rgba(0,0,0,.12); border-radius: 999px; padding: 0 .4rem;
+  font-size: .72rem; font-variant-numeric: tabular-nums;
+}
+.cfg-strat-tab.active .cfg-count { background: rgba(255,255,255,.2); }
+
+.cfg-q { border-left: 4px solid var(--brass); }
+.cfg-q-head { justify-content: space-between; }
+.cfg-q-num {
+  background: var(--brass); color: #fff; border-radius: 999px;
+  width: 1.6rem; height: 1.6rem; display: grid; place-items: center;
+  font-size: .8rem; font-weight: 700;
+}
+.cfg-opt-row { gap: .5rem; }
+.cfg-opt-row input[type="radio"] { width: 20px; height: 20px; flex: 0 0 auto; accent-color: var(--jungle); }
+.cfg-opt-row .cfg-q-opt { flex: 1; }
+.cfg-body code {
+  background: var(--parchment-dark); border-radius: 5px; padding: .05rem .3rem;
+  font-size: .82em; word-break: break-word;
+}

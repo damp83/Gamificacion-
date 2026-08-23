@@ -222,49 +222,288 @@ function cfgEquipos(body) {
   });
 }
 
-/* ══════════ YACIMIENTOS Y POZOS ══════════ */
+/* ══════════ YACIMIENTOS, POZOS Y RETOS ══════════
+   Tres niveles de edición: yacimientos → pozos → banco de retos por estrato.
+   Los pozos de fábrica generan retos infinitos por sí solos; los que crees tú
+   sirven los retos que escribas. */
+
+let cfgOpenSite = null;    /* yacimiento desplegado */
+let cfgEditBranch = null;  /* {siteId, branchId} cuyo banco se está editando */
+let cfgEditStratum = STRATA_ORDER[0];
+
+function writeSites(sites, msg) { cfgSave('sites', sites, msg); }
+function sitesCopy() { return deepClone(ATLAS_CONFIG.sites || []); }
+
 function cfgYacimientos(body) {
-  const ov = ATLAS_CONFIG.branchOverrides || {};
+  if (cfgEditBranch) return cfgBancoRetos(body);
+
+  const sites = ATLAS_CONFIG.sites || [];
   body.innerHTML = `
-    <p class="cfg-intro">Puedes renombrar los pozos para que hablen como tu aula, o desactivar
-    los que aún no hayáis empezado. Los retos se generan solos: desactivar un pozo lo esconde
-    del mapa, no borra el progreso.</p>
+    <p class="cfg-intro">Puedes crear <strong>yacimientos</strong> nuevos (Lengua, Naturales,
+    Sociales…), añadirles <strong>pozos</strong> y escribir tú los retos de cada estrato.
+    Los tres pozos de fábrica generan retos infinitos solos: se pueden renombrar y ocultar,
+    pero sus retos no se editan.</p>
+
     <div class="cfg-list">
-      ${DIG_SITES.kaldros.branches.map(id => {
-        const b = BRANCHES[id];
-        const o = ov[id] || {};
-        const on = o.enabled !== false;
-        return `<div class="cfg-card">
+      ${sites.map((site, si) => {
+        const open = cfgOpenSite === site.id;
+        return `<div class="cfg-card cfg-site${site.enabled === false ? ' cfg-off' : ''}">
           <div class="cfg-row">
-            <span class="cfg-big-icon">${b.icon}</span>
-            <input type="text" class="cfg-br-name" data-id="${id}" value="${o.name || b.name}">
-            <label class="cfg-switch">Activo <input type="checkbox" class="cfg-br-on" data-id="${id}"${on ? ' checked' : ''}></label>
+            <input type="text" class="cfg-si-icon" data-si="${si}" value="${site.icon}" maxlength="4">
+            <input type="text" class="cfg-si-name" data-si="${si}" value="${site.name}">
+            <button class="cfg-del" data-delsite="${si}" title="Eliminar yacimiento">🗑️</button>
           </div>
-          <textarea class="cfg-br-desc" data-id="${id}" rows="2">${o.desc || b.desc}</textarea>
+          <div class="cfg-row">
+            <label>Materia <input type="text" class="cfg-si-subject" data-si="${si}" value="${site.subject || ''}"></label>
+            <label class="cfg-switch">Activo
+              <input type="checkbox" class="cfg-si-on" data-si="${si}"${site.enabled !== false ? ' checked' : ''}></label>
+          </div>
+          <textarea class="cfg-si-desc" data-si="${si}" rows="2" placeholder="Ambientación del yacimiento">${site.desc || ''}</textarea>
+          <button class="cfg-toggle" data-open="${site.id}">${open ? '▾' : '▸'} ${branchesOf(site).length} pozo(s)</button>
+          ${open ? `<div class="cfg-sublist">
+            ${branchesOf(site).map((b, bi) => {
+              const total = STRATA_ORDER.reduce((n, sId) => n + (((b.bank || {})[sId]) || []).length, 0);
+              const listos = STRATA_ORDER.filter(sId => stratumHasContent(b, sId)).length;
+              return `<div class="cfg-branch">
+                <div class="cfg-row">
+                  <input type="text" class="cfg-b2-icon" data-si="${si}" data-bi="${bi}" value="${b.icon}" maxlength="4">
+                  <input type="text" class="cfg-b2-name" data-si="${si}" data-bi="${bi}" value="${b.name}">
+                  <button class="cfg-del" data-delbranch="${si}:${bi}" title="Eliminar pozo">🗑️</button>
+                </div>
+                <textarea class="cfg-b2-desc" data-si="${si}" data-bi="${bi}" rows="2">${b.desc || ''}</textarea>
+                <div class="cfg-row">
+                  <label class="cfg-switch">Activo
+                    <input type="checkbox" class="cfg-b2-on" data-si="${si}" data-bi="${bi}"${b.enabled !== false ? ' checked' : ''}></label>
+                  ${b.source === 'builtin'
+                    ? '<span class="cfg-tag">Retos automáticos · infinitos</span>'
+                    : `<button class="btn btn-secondary btn-small" data-bank="${site.id}:${b.id}">✏️ Retos (${total})</button>
+                       <span class="cfg-tag${listos ? '' : ' cfg-tag-warn'}">${listos}/4 estratos listos</span>`}
+                </div>
+              </div>`;
+            }).join('') || '<p class="cfg-hint">Este yacimiento aún no tiene pozos.</p>'}
+            <button class="btn btn-secondary btn-small" data-addbranch="${si}">➕ Nuevo pozo</button>
+          </div>` : ''}
         </div>`;
       }).join('')}
-    </div>`;
+    </div>
+    <button class="btn btn-secondary btn-small" id="cfg-add-site">➕ Nuevo yacimiento</button>`;
 
-  const write = (id, key, val) => {
-    const ov2 = deepClone(ATLAS_CONFIG.branchOverrides || {});
-    ov2[id] = ov2[id] || {};
-    ov2[id][key] = val;
-    cfgSave('branchOverrides', ov2);
-  };
-  $$('.cfg-br-name').forEach(el => onInput(el, e => write(e.target.dataset.id, 'name', e.target.value)));
-  $$('.cfg-br-desc').forEach(el => onInput(el, e => write(e.target.dataset.id, 'desc', e.target.value)));
-  $$('.cfg-br-on').forEach(el => onInput(el, e => {
-    const enabledCount = DIG_SITES.kaldros.branches.filter(id => {
-      const o = (ATLAS_CONFIG.branchOverrides || {})[id] || {};
-      return o.enabled !== false;
-    }).length;
-    if (!e.target.checked && enabledCount <= 1) {
+  /* ── yacimientos ── */
+  const wSite = (si, key, val) => { const l = sitesCopy(); l[si][key] = val; writeSites(l, false); };
+  $$('.cfg-si-icon').forEach(el => onInput(el, e => wSite(+e.target.dataset.si, 'icon', e.target.value || '🏛️')));
+  $$('.cfg-si-name').forEach(el => onInput(el, e => wSite(+e.target.dataset.si, 'name', e.target.value || 'Yacimiento')));
+  $$('.cfg-si-subject').forEach(el => onInput(el, e => wSite(+e.target.dataset.si, 'subject', e.target.value)));
+  $$('.cfg-si-desc').forEach(el => onInput(el, e => wSite(+e.target.dataset.si, 'desc', e.target.value)));
+  $$('.cfg-si-on').forEach(el => onInput(el, e => {
+    const si = +e.target.dataset.si;
+    if (!e.target.checked && countPlayable(si) === countPlayableTotal()) {
       e.target.checked = true;
-      toast('Debe quedar al menos un pozo activo: si no, no habría nada que excavar.');
+      toast('Debe quedar al menos un yacimiento jugable: si no, no habría nada que excavar.');
       return;
     }
-    write(e.target.dataset.id, 'enabled', e.target.checked);
+    wSite(si, 'enabled', e.target.checked);
   }));
+  $$('[data-delsite]').forEach(el => el.addEventListener('click', async () => {
+    const si = +el.dataset.delsite;
+    const l = sitesCopy();
+    if (!(await askConfirm(`¿Eliminar «${l[si].name}» y todos sus pozos? El progreso ya logrado por los alumnos se conserva en su diario.`, 'Eliminar'))) return;
+    l.splice(si, 1);
+    if (!l.length) { toast('No puedes quedarte sin ningún yacimiento.'); return; }
+    writeSites(l, 'Yacimiento eliminado ✓');
+  }));
+  $('#cfg-add-site').addEventListener('click', () => {
+    const l = sitesCopy();
+    const id = slugify('yacimiento', 'site');
+    l.push({ id, name: 'Yacimiento nuevo', subject: 'Materia', icon: '🏛️', desc: '', enabled: true, branches: [] });
+    cfgOpenSite = id;
+    writeSites(l, 'Yacimiento creado: añádele un pozo ✓');
+  });
+  $$('.cfg-toggle').forEach(el => el.addEventListener('click', () => {
+    cfgOpenSite = cfgOpenSite === el.dataset.open ? null : el.dataset.open;
+    renderTeacherConfig();
+  }));
+
+  /* ── pozos ── */
+  const wBranch = (si, bi, key, val) => { const l = sitesCopy(); l[si].branches[bi][key] = val; writeSites(l, false); };
+  $$('.cfg-b2-icon').forEach(el => onInput(el, e => wBranch(+e.target.dataset.si, +e.target.dataset.bi, 'icon', e.target.value || '⛏️')));
+  $$('.cfg-b2-name').forEach(el => onInput(el, e => wBranch(+e.target.dataset.si, +e.target.dataset.bi, 'name', e.target.value || 'Pozo')));
+  $$('.cfg-b2-desc').forEach(el => onInput(el, e => wBranch(+e.target.dataset.si, +e.target.dataset.bi, 'desc', e.target.value)));
+  $$('.cfg-b2-on').forEach(el => onInput(el, e => {
+    const si = +e.target.dataset.si, bi = +e.target.dataset.bi;
+    if (!e.target.checked && countPlayableTotal() <= 1) {
+      e.target.checked = true;
+      toast('Debe quedar al menos un pozo jugable: si no, no habría nada que excavar.');
+      return;
+    }
+    wBranch(si, bi, 'enabled', e.target.checked);
+  }));
+  $$('[data-delbranch]').forEach(el => el.addEventListener('click', async () => {
+    const [si, bi] = el.dataset.delbranch.split(':').map(Number);
+    const l = sitesCopy();
+    const b = l[si].branches[bi];
+    if (!(await askConfirm(`¿Eliminar el pozo «${b.name}»${b.source === 'builtin' ? '' : ' y sus retos'}? El progreso ya logrado se conserva.`, 'Eliminar'))) return;
+    l[si].branches.splice(bi, 1);
+    writeSites(l, 'Pozo eliminado ✓');
+  }));
+  $$('[data-addbranch]').forEach(el => el.addEventListener('click', () => {
+    const si = +el.dataset.addbranch;
+    const l = sitesCopy();
+    l[si].branches.push({
+      id: slugify('pozo', 'branch'), name: 'Pozo nuevo', icon: '⛏️', desc: '',
+      enabled: true, source: 'bank', bank: { recordar: [], comprender: [], aplicar: [], analizar: [] }
+    });
+    writeSites(l, 'Pozo creado: ahora escríbele retos ✓');
+  }));
+  $$('[data-bank]').forEach(el => el.addEventListener('click', () => {
+    const [siteId, branchId] = el.dataset.bank.split(':');
+    cfgEditBranch = { siteId, branchId };
+    cfgEditStratum = STRATA_ORDER[0];
+    renderTeacherConfig();
+  }));
+}
+
+/* Cuántos pozos jugables quedarían — para no dejar el mapa vacío */
+function countPlayableTotal() {
+  let n = 0;
+  for (const site of (ATLAS_CONFIG.sites || [])) {
+    if (site.enabled === false) continue;
+    n += branchesOf(site).filter(b => b.enabled !== false && branchPlayable(b)).length;
+  }
+  return n;
+}
+function countPlayable(si) {
+  const site = (ATLAS_CONFIG.sites || [])[si];
+  if (!site || site.enabled === false) return 0;
+  return branchesOf(site).filter(b => b.enabled !== false && branchPlayable(b)).length;
+}
+
+/* ══════════ BANCO DE RETOS DE UN POZO ══════════ */
+function cfgBancoRetos(body) {
+  const { siteId, branchId } = cfgEditBranch;
+  const site = siteById(siteId);
+  const branch = site && branchesOf(site).find(b => b.id === branchId);
+  if (!branch) { cfgEditBranch = null; return cfgYacimientos(body); }
+
+  const bank = (branch.bank || {})[cfgEditStratum] || [];
+  const meta = STRATA_META[cfgEditStratum];
+
+  body.innerHTML = `
+    <button class="btn btn-back" id="cfg-bank-back">← Volver a los yacimientos</button>
+    <h3 class="cfg-bank-title">${branch.icon} ${branch.name}</h3>
+    <p class="cfg-intro">Escribe los retos de cada estrato. Los estratos van de menos a más
+    profundos: <strong>Recordar</strong> es reconocer, <strong>Analizar</strong> es encontrar el
+    error. Un estrato sin retos aparece al alumno como «todavía no preparado», nunca como
+    bloqueado sin explicación.</p>
+
+    <div class="cfg-strata-tabs">
+      ${STRATA_ORDER.map(sId => {
+        const n = ((branch.bank || {})[sId] || []).length;
+        return `<button class="cfg-strat-tab${sId === cfgEditStratum ? ' active' : ''}" data-strat="${sId}">
+          ${STRATA_META[sId].icon} ${STRATA_META[sId].label} <span class="cfg-count">${n}</span></button>`;
+      }).join('')}
+    </div>
+
+    <p class="cfg-hint">${meta.icon} <strong>${meta.label}</strong> · «${meta.name}» —
+    ${bank.length ? `${bank.length} reto(s). Con 6 o más, el alumno no repetirá dentro de una misión.` : 'Sin retos todavía.'}</p>
+
+    <div class="cfg-list" id="cfg-bank-list">
+      ${bank.map((q, qi) => `
+        <div class="cfg-card cfg-q">
+          <div class="cfg-row cfg-q-head">
+            <span class="cfg-q-num">${qi + 1}</span>
+            <button class="cfg-del" data-delq="${qi}" title="Eliminar reto">🗑️</button>
+          </div>
+          <textarea class="cfg-q-text" data-qi="${qi}" rows="2" placeholder="Pregunta">${q.question || ''}</textarea>
+          ${[0, 1, 2, 3].map(oi => `
+            <div class="cfg-row cfg-opt-row">
+              <input type="radio" name="ans-${qi}" class="cfg-q-ans" data-qi="${qi}" data-oi="${oi}"
+                ${q.answer === oi ? 'checked' : ''} title="Marcar como correcta">
+              <input type="text" class="cfg-q-opt" data-qi="${qi}" data-oi="${oi}"
+                value="${(q.options && q.options[oi] || '').replace(/"/g, '&quot;')}" placeholder="Respuesta ${oi + 1}">
+            </div>`).join('')}
+          <textarea class="cfg-q-exp" data-qi="${qi}" rows="2" placeholder="Explicación tras responder (la lee quien falla)">${q.explanation || ''}</textarea>
+          <input type="text" class="cfg-q-h1" data-qi="${qi}" value="${(q.hint1 || '').replace(/"/g, '&quot;')}" placeholder="1ª pista de Kira (gratis)">
+          <input type="text" class="cfg-q-h2" data-qi="${qi}" value="${(q.hint2 || '').replace(/"/g, '&quot;')}" placeholder="2ª pista de Kira (cuesta Doblones)">
+        </div>`).join('')}
+    </div>
+
+    <button class="btn btn-secondary btn-small" id="cfg-add-q">➕ Añadir reto</button>
+
+    <h4 class="cfg-h4">Añadir muchos de golpe</h4>
+    <p class="cfg-hint">Un reto por línea, separando con <code>|</code>:<br>
+      <code>pregunta | correcta | otra | otra | otra | explicación</code><br>
+      La primera respuesta es la correcta; al alumno se le barajan.</p>
+    <textarea id="cfg-bulk" rows="4" placeholder="¿Cuál es el plural de «lápiz»? | lápices | lápizes | lápiz | lápizs | Las palabras acabadas en -z hacen el plural en -ces."></textarea>
+    <button class="btn btn-secondary btn-small" id="cfg-bulk-go">📥 Añadir al estrato</button>
+    <p id="cfg-bulk-err" class="cfg-warn hidden"></p>`;
+
+  $('#cfg-bank-back').addEventListener('click', () => { cfgEditBranch = null; renderTeacherConfig(); });
+  $$('.cfg-strat-tab').forEach(el => el.addEventListener('click', () => {
+    cfgEditStratum = el.dataset.strat;
+    renderTeacherConfig();
+  }));
+
+  /* Escribe en el banco del estrato abierto */
+  const writeBank = (mutate, msg) => {
+    const l = sitesCopy();
+    const st = l.find(x => x.id === siteId);
+    const br = st.branches.find(x => x.id === branchId);
+    br.bank = br.bank || {};
+    br.bank[cfgEditStratum] = deepClone(br.bank[cfgEditStratum] || []);
+    mutate(br.bank[cfgEditStratum]);
+    writeSites(l, msg === undefined ? false : msg);
+  };
+
+  $$('.cfg-q-text').forEach(el => onInput(el, e => writeBank(b => { b[+e.target.dataset.qi].question = e.target.value; })));
+  $$('.cfg-q-exp').forEach(el => onInput(el, e => writeBank(b => { b[+e.target.dataset.qi].explanation = e.target.value; })));
+  $$('.cfg-q-h1').forEach(el => onInput(el, e => writeBank(b => { b[+e.target.dataset.qi].hint1 = e.target.value; })));
+  $$('.cfg-q-h2').forEach(el => onInput(el, e => writeBank(b => { b[+e.target.dataset.qi].hint2 = e.target.value; })));
+  $$('.cfg-q-opt').forEach(el => onInput(el, e => writeBank(b => {
+    const q = b[+e.target.dataset.qi];
+    q.options = q.options || ['', '', '', ''];
+    q.options[+e.target.dataset.oi] = e.target.value;
+  })));
+  $$('.cfg-q-ans').forEach(el => el.addEventListener('change', e => writeBank(b => {
+    b[+e.target.dataset.qi].answer = +e.target.dataset.oi;
+  }, 'Respuesta correcta marcada ✓')));
+  $$('[data-delq]').forEach(el => el.addEventListener('click', async () => {
+    const qi = +el.dataset.delq;
+    if (!(await askConfirm('¿Eliminar este reto?', 'Eliminar'))) return;
+    writeBank(b => b.splice(qi, 1), 'Reto eliminado ✓');
+  }));
+  $('#cfg-add-q').addEventListener('click', () => {
+    writeBank(b => b.push({ question: '', options: ['', '', '', ''], answer: 0, hint1: '', hint2: '', explanation: '' }),
+      'Reto añadido: complétalo ✓');
+  });
+
+  /* Alta masiva */
+  $('#cfg-bulk-go').addEventListener('click', () => {
+    const err = $('#cfg-bulk-err');
+    const raw = $('#cfg-bulk').value.trim();
+    if (!raw) { err.textContent = 'Escribe al menos una línea.'; err.classList.remove('hidden'); return; }
+    const nuevos = [];
+    const malas = [];
+    raw.split('\n').forEach((line, i) => {
+      const t = line.trim();
+      if (!t) return;
+      const parts = t.split('|').map(x => x.trim());
+      if (parts.length < 5) { malas.push(i + 1); return; }
+      nuevos.push({
+        question: parts[0],
+        options: [parts[1], parts[2], parts[3], parts[4]],
+        answer: 0,
+        hint1: '', hint2: '',
+        explanation: parts[5] || ''
+      });
+    });
+    if (!nuevos.length) {
+      err.textContent = 'Ninguna línea tenía el formato esperado: pregunta y cuatro respuestas separadas por «|».';
+      err.classList.remove('hidden');
+      return;
+    }
+    writeBank(b => nuevos.forEach(q => b.push(q)),
+      `${nuevos.length} reto(s) añadidos${malas.length ? `. Líneas ignoradas por formato: ${malas.join(', ')}` : ''} ✓`);
+  });
 }
 
 /* ══════════ ALMACÉN ══════════ */

@@ -69,8 +69,11 @@ const ATLAS_DEFAULTS = {
     ]
   },
 
-  /* ── Yacimientos y pozos: se pueden renombrar y ocultar ── */
-  branchOverrides: {},   /* { pozoId: { name, desc, enabled } } */
+  /* ── Yacimientos y pozos ──
+     Estructura completa y editable: el docente puede crear yacimientos y
+     pozos nuevos y escribir los retos de cada estrato. La semilla la aporta
+     defaultSites() en content.js. */
+  sites: defaultSites(),
 
   /* ── Economía de las expediciones ── */
   economy: {
@@ -135,10 +138,31 @@ function applyOverlay(overlay) {
   ATLAS_CONFIG = deepMerge(ATLAS_DEFAULTS, ATLAS_OVERLAY);
   return ATLAS_CONFIG;
 }
+/* Ajustes guardados por versiones anteriores: branchOverrides era un mapa
+   suelto de {pozoId: {name, desc, enabled}}; ahora todo vive dentro de sites. */
+function migrateOverlay(o) {
+  if (!o || typeof o !== 'object') return {};
+  if (o.branchOverrides && typeof o.branchOverrides === 'object') {
+    const sites = o.sites ? deepClone(o.sites) : defaultSites();
+    for (const site of sites) {
+      for (const b of (site.branches || [])) {
+        const ov = o.branchOverrides[b.id];
+        if (!ov) continue;
+        if (ov.name) b.name = ov.name;
+        if (ov.desc) b.desc = ov.desc;
+        if (typeof ov.enabled === 'boolean') b.enabled = ov.enabled;
+      }
+    }
+    o.sites = sites;
+    delete o.branchOverrides;
+  }
+  return o;
+}
+
 function loadTeacherConfig() {
   try {
     const raw = localStorage.getItem(TEACHER_CONFIG_KEY);
-    applyOverlay(raw ? JSON.parse(raw) : {});
+    applyOverlay(migrateOverlay(raw ? JSON.parse(raw) : {}));
   } catch (e) { applyOverlay({}); }
   return ATLAS_CONFIG;
 }
