@@ -1,0 +1,16 @@
+{
+  "name": "Expedición Atlas: Los Diarios Perdidos",
+  "short_name": "Expedición Atlas",
+  "description": "Plataforma educativa gamificada de aventura arqueológica para primaria (8–10 años).",
+  "lang": "es-ES",
+  "start_url": "./index.html",
+  "scope": "./",
+  "display": "standalone",
+  "orientation": "any",
+  "background_color": "#f6ead2",
+  "theme_color": "#2b1d0e",
+  "icons": [
+    { "src": "icons/icon.svg", "sizes": "any", "type": "image/svg+xml", "purpose": "any" },
+    { "src": "icons/icon.svg", "sizes": "any", "type": "image/svg+xml", "purpose": "maskable" }
+  ]
+}

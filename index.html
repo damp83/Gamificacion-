@@ -1,0 +1,181 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
+  <meta name="theme-color" content="#2b1d0e">
+  <meta name="description" content="Expedición Atlas: Los Diarios Perdidos — plataforma educativa gamificada de aventura arqueológica para primaria.">
+  <title>Expedición Atlas — Los Diarios Perdidos</title>
+  <link rel="manifest" href="manifest.webmanifest">
+  <link rel="icon" href="icons/icon.svg" type="image/svg+xml">
+  <link rel="apple-touch-icon" href="icons/icon.svg">
+  <link rel="stylesheet" href="css/styles.css">
+</head>
+<body>
+
+  <!-- ══════════ ONBOARDING ══════════ -->
+  <section id="screen-onboarding" class="screen">
+    <div class="onboarding-card">
+      <div class="big-emoji">🧭</div>
+      <h1>Expedición Atlas</h1>
+      <p class="subtitle">Los Diarios Perdidos</p>
+      <div class="dialog bruno">
+        <span class="dialog-avatar">🧔🏻‍♂️</span>
+        <div class="dialog-text">
+          <strong>Prof. Bruno Ocaña</strong>
+          <p>¡Bienvenido a la Sociedad Geográfica! Soy el profesor Ocaña… ¡ay, mis gafas! Bueno, da igual.
+          El <em>Atlas de Ossian</em> está roto en mil fragmentos y necesitamos exploradores valientes.
+          Cada cosa que aprendas de verdad dibujará un trozo nuevo del mapa. ¿Cómo te llamas, aprendiz?</p>
+        </div>
+      </div>
+      <form id="onboarding-form">
+        <input type="text" id="input-explorer-name" maxlength="20" placeholder="Tu nombre de explorador" required autocomplete="off">
+        <button type="submit" class="btn btn-primary">¡Empezar la expedición! 🎒</button>
+      </form>
+    </div>
+  </section>
+
+  <!-- ══════════ APP SHELL ══════════ -->
+  <div id="app" class="hidden">
+    <header id="hud">
+      <div class="hud-left">
+        <span id="hud-avatar" class="hud-avatar">🧒</span>
+        <div class="hud-identity">
+          <span id="hud-name">Explorador</span>
+          <span id="hud-rank" class="hud-rank">Aprendiz de Mochila</span>
+        </div>
+      </div>
+      <div class="hud-right">
+        <div class="hud-stat" title="Puntos de Expedición (rango)">
+          <span class="hud-stat-icon">⭐</span>
+          <div class="hud-level">
+            <span id="hud-level">Nv. 1</span>
+            <div class="xp-bar"><div id="hud-xp-fill" class="xp-fill"></div></div>
+          </div>
+        </div>
+        <div class="hud-stat" title="Doblones">
+          <span class="hud-stat-icon">🪙</span>
+          <span id="hud-doubloons">0</span>
+        </div>
+      </div>
+    </header>
+
+    <main id="main">
+
+      <!-- ══════════ MAPA ══════════ -->
+      <section id="screen-map" class="screen">
+        <div class="map-header">
+          <h2>🗺️ El Mapa del Atlas</h2>
+          <div class="map-reveal">
+            <div class="map-reveal-bar"><div id="map-reveal-fill"></div></div>
+            <span id="map-reveal-pct">0% del mundo dibujado</span>
+          </div>
+        </div>
+        <div id="daily-banner" class="daily-banner hidden"></div>
+        <div id="fatigue-banner" class="fatigue-banner hidden">
+          <span class="dialog-avatar">🧔🏻‍♂️</span>
+          <p>«Uf… llevamos muchas expediciones hoy. Mañana seguimos, ¡que Tobías tiene hambre!
+          (Las expediciones extra dan la mitad de PE.)» 🐕</p>
+        </div>
+        <div id="site-list" class="site-list"></div>
+        <div id="bazar-card" class="bazar-card"></div>
+      </section>
+
+      <!-- ══════════ POZO / ESTRATOS ══════════ -->
+      <section id="screen-branch" class="screen hidden">
+        <button class="btn btn-back" data-nav="map">← Volver al mapa</button>
+        <h2 id="branch-title"></h2>
+        <p id="branch-desc" class="branch-desc"></p>
+        <div id="strata-list" class="strata-list"></div>
+      </section>
+
+      <!-- ══════════ MISIÓN ══════════ -->
+      <section id="screen-mission" class="screen hidden">
+        <div class="mission-header">
+          <span id="mission-title"></span>
+          <div class="mission-progress" id="mission-progress"></div>
+        </div>
+        <div id="question-card" class="question-card">
+          <p id="question-text" class="question-text"></p>
+          <div id="options" class="options"></div>
+          <div id="kira-box" class="dialog kira hidden">
+            <span class="dialog-avatar">🪲</span>
+            <div class="dialog-text"><strong>Kira</strong><p id="kira-text"></p></div>
+          </div>
+          <div class="mission-tools">
+            <button id="btn-hint" class="btn btn-hint">🪲 Pista de Kira</button>
+            <button id="btn-quit" class="btn btn-quit">🏳️ Abandonar</button>
+          </div>
+        </div>
+        <div id="feedback-card" class="feedback-card hidden">
+          <div id="feedback-icon" class="big-emoji"></div>
+          <p id="feedback-title" class="feedback-title"></p>
+          <p id="feedback-explain" class="feedback-explain"></p>
+          <button id="btn-restore" class="btn btn-restore hidden">🔧 Restaurar hallazgo (+5 🪙)</button>
+          <button id="btn-next" class="btn btn-primary">Continuar →</button>
+        </div>
+      </section>
+
+      <!-- ══════════ RESULTADO ══════════ -->
+      <section id="screen-result" class="screen hidden">
+        <div class="result-card">
+          <div id="result-emoji" class="big-emoji"></div>
+          <h2 id="result-title"></h2>
+          <div id="result-rewards" class="result-rewards"></div>
+          <div id="result-dialog" class="dialog bruno"></div>
+          <button class="btn btn-primary" data-nav="map">Volver al mapa 🗺️</button>
+        </div>
+      </section>
+
+      <!-- ══════════ CAMPAMENTO ══════════ -->
+      <section id="screen-camp" class="screen hidden">
+        <h2>⛺ Campamento Base</h2>
+        <div class="camp-avatar-zone">
+          <div id="camp-avatar" class="camp-avatar">🧒</div>
+          <div id="camp-gear-equipped" class="camp-gear-equipped"></div>
+        </div>
+        <div id="camp-scene" class="camp-scene"></div>
+        <h3>🏪 Almacén de la Expedición</h3>
+        <p class="shop-note">Todo lo del almacén es decorativo: ¡ninguna compra da ventaja en las excavaciones!</p>
+        <div id="shop-list" class="shop-list"></div>
+      </section>
+
+      <!-- ══════════ BITÁCORA ══════════ -->
+      <section id="screen-logbook" class="screen hidden">
+        <h2>📔 Bitácora de Expedición</h2>
+        <div id="logbook-summary" class="logbook-summary"></div>
+        <div id="logbook-stamps" class="logbook-stamps"></div>
+        <p class="logbook-note">Un <strong>sello</strong> se estampa cada semana con 3 o más días de expedición.
+        Los sellos nunca se borran: si una semana no se completa, solo queda un tramo de ruta sin dibujar.</p>
+      </section>
+
+      <!-- ══════════ DASHBOARD DOCENTE ══════════ -->
+      <section id="screen-dashboard" class="screen hidden">
+        <h2>📊 Cuaderno del Docente</h2>
+        <p class="dashboard-note">Vista de progreso pedagógico. Ninguna métrica de actividad se celebra sola:
+        lo que importa es el aprendizaje demostrado.</p>
+        <div id="dashboard-kpis" class="dashboard-kpis"></div>
+        <h3>Mastery por estrato</h3>
+        <div id="dashboard-mastery"></div>
+        <h3>Señales de calidad</h3>
+        <div id="dashboard-signals"></div>
+      </section>
+
+    </main>
+
+    <nav id="tabbar">
+      <button data-nav="map" class="tab active"><span>🗺️</span>Mapa</button>
+      <button data-nav="camp" class="tab"><span>⛺</span>Campamento</button>
+      <button data-nav="logbook" class="tab"><span>📔</span>Bitácora</button>
+      <button data-nav="dashboard" class="tab"><span>📊</span>Docente</button>
+    </nav>
+  </div>
+
+  <div id="toast" class="toast hidden"></div>
+
+  <script src="js/content.js"></script>
+  <script src="js/state.js"></script>
+  <script src="js/game.js"></script>
+  <script src="js/app.js"></script>
+</body>
+</html>
