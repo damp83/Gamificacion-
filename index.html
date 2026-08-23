@@ -204,6 +204,21 @@
         </div>
       </section>
 
+      <!-- ══════════ CUADRILLA ══════════ -->
+      <section id="screen-team" class="screen hidden">
+        <h2>🛖 Tu Cuadrilla</h2>
+        <div id="team-body"></div>
+      </section>
+
+      <!-- ══════════ PANEL DE CONFIGURACIÓN ══════════ -->
+      <section id="screen-config" class="screen hidden">
+        <button class="btn btn-back" data-nav="dashboard">← Volver al cuaderno</button>
+        <h2>⚙️ Panel de Configuración</h2>
+        <p class="cfg-top-note">Los cambios se aplican al instante y se guardan en esta tablet.</p>
+        <div id="cfg-nav" class="cfg-nav"></div>
+        <div id="cfg-body" class="cfg-body"></div>
+      </section>
+
       <!-- ══════════ BITÁCORA ══════════ -->
       <section id="screen-logbook" class="screen hidden">
         <h2>📔 Bitácora de Expedición</h2>
@@ -219,6 +234,10 @@
         <p class="dashboard-note">Vista de progreso pedagógico. Ninguna métrica de actividad se celebra sola:
         lo que importa es el aprendizaje demostrado.</p>
         <div id="dashboard-kpis" class="dashboard-kpis"></div>
+        <div class="dash-actions">
+          <button id="btn-open-config" class="btn btn-secondary btn-small">⚙️ Configurar la expedición</button>
+        </div>
+
         <h3>El curso por trimestres</h3>
         <div id="dashboard-course"></div>
 
@@ -234,6 +253,7 @@
       <button data-nav="map" class="tab active"><span>🗺️</span>Mapa</button>
       <button data-nav="camp" class="tab"><span>⛺</span>Campamento</button>
       <button data-nav="merits" class="tab"><span>🏅</span>Méritos</button>
+      <button data-nav="team" class="tab" id="tab-team"><span>🛖</span>Cuadrilla</button>
       <button data-nav="logbook" class="tab"><span>📔</span>Bitácora</button>
       <button data-nav="dashboard" class="tab"><span>📊</span>Docente</button>
     </nav>
@@ -249,6 +269,7 @@
   <script src="js/content.js"></script>
   <script src="js/state.js"></script>
   <script src="js/game.js"></script>
+  <script src="js/teacher.js"></script>
   <script src="js/app.js"></script>
 </body>
 </html>

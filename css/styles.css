@@ -441,3 +441,97 @@ button:disabled { cursor: not-allowed; opacity: .55; }
   background: #f4e3c8; border-bottom: 3px solid var(--danger);
   color: #7d2d1c; padding: .7rem 1rem; font-size: .88rem; text-align: center;
 }
+
+/* ══════════ CUADRILLA ══════════ */
+.team-banner {
+  display: flex; gap: .9rem; align-items: center;
+  background: var(--card); border: 2px solid var(--brass); border-radius: var(--radius);
+  box-shadow: var(--shadow); padding: 1rem; margin-bottom: .8rem;
+}
+.team-icon { font-size: 2.8rem; }
+.team-banner h3 { margin: 0; color: var(--leather); }
+.team-banner p { font-size: .85rem; color: var(--ink-soft); }
+.team-goal {
+  background: #e8ecd8; border: 2px solid var(--jungle); border-radius: var(--radius);
+  padding: .9rem; box-shadow: var(--shadow);
+}
+.team-goal > strong { color: var(--leather); font-size: 1.05rem; }
+.team-goal-note { font-size: .84rem; color: var(--ink-soft); margin: .35rem 0 .6rem; }
+.team-goal-nums { display: flex; justify-content: space-between; gap: .6rem; font-size: .85rem; margin-top: .35rem; flex-wrap: wrap; }
+.team-goal-nums strong { font-variant-numeric: tabular-nums; }
+.team-members { display: flex; flex-wrap: wrap; gap: .4rem; }
+.team-member {
+  background: var(--card); border: 2px solid var(--parchment-dark);
+  border-radius: 999px; padding: .35rem .8rem; font-size: .9rem; box-shadow: var(--shadow);
+}
+.team-member.team-me { border-color: var(--gold); font-weight: 700; }
+.team-others { display: flex; flex-direction: column; gap: .4rem; }
+.team-other {
+  background: var(--card); border-radius: var(--radius); padding: .55rem .8rem;
+  box-shadow: var(--shadow); font-size: .9rem;
+}
+.team-other small { color: var(--ink-soft); margin-left: .4rem; }
+
+/* ══════════ PANEL DE CONFIGURACIÓN ══════════ */
+.dash-actions { margin: .8rem 0 .2rem; }
+.cfg-top-note { font-size: .85rem; color: var(--ink-soft); margin-bottom: .8rem; }
+.cfg-nav { display: flex; flex-wrap: wrap; gap: .4rem; margin-bottom: 1rem; }
+.cfg-nav-btn {
+  display: flex; align-items: center; gap: .35rem;
+  background: var(--card); border: 2px solid var(--parchment-dark);
+  border-radius: var(--radius); padding: .45rem .75rem;
+  font-size: .82rem; font-weight: 700; color: var(--ink-soft);
+}
+.cfg-nav-btn.active { background: var(--leather-dark); color: var(--gold); border-color: var(--leather-dark); }
+.cfg-nav-btn span { font-size: 1rem; }
+.cfg-body { display: flex; flex-direction: column; gap: .7rem; }
+.cfg-intro { font-size: .88rem; color: var(--ink-soft); background: var(--parchment-dark);
+  border-radius: var(--radius); padding: .7rem .9rem; }
+.cfg-h4 { color: var(--leather); font-size: .95rem; margin-top: .6rem; }
+.cfg-field { display: flex; flex-direction: column; gap: .25rem; }
+.cfg-label { font-size: .82rem; font-weight: 700; color: var(--ink); }
+.cfg-hint { font-size: .75rem; color: var(--ink-soft); }
+.cfg-warn {
+  font-size: .8rem; color: #7d2d1c; background: #f4e3c8;
+  border-left: 4px solid var(--danger); border-radius: 8px; padding: .5rem .7rem;
+}
+.cfg-body input[type="text"], .cfg-body input[type="number"],
+.cfg-body input[type="date"], .cfg-body select, .cfg-body textarea {
+  padding: .5rem .7rem; font-size: .95rem; font-family: inherit;
+  border: 2px solid var(--parchment-dark); border-radius: 10px;
+  background: var(--card); color: var(--ink); width: 100%;
+}
+.cfg-body input:focus, .cfg-body select:focus, .cfg-body textarea:focus { border-color: var(--brass); outline: none; }
+.cfg-body textarea { resize: vertical; }
+.cfg-list { display: flex; flex-direction: column; gap: .55rem; }
+.cfg-card {
+  background: var(--card); border-radius: var(--radius); box-shadow: var(--shadow);
+  padding: .7rem; display: flex; flex-direction: column; gap: .45rem;
+}
+.cfg-row { display: flex; gap: .45rem; align-items: center; flex-wrap: wrap; }
+.cfg-row label { display: flex; align-items: center; gap: .3rem; font-size: .8rem; color: var(--ink-soft); flex: 1; min-width: 110px; }
+.cfg-row label input[type="number"] { max-width: 80px; }
+.cfg-row > input[type="text"] { flex: 1; min-width: 110px; }
+.cfg-row > input.cfg-b-icon, .cfg-row > input.cfg-t-icon, .cfg-row > input.cfg-s-icon {
+  flex: 0 0 3.2rem; text-align: center; font-size: 1.2rem;
+}
+.cfg-big-icon { font-size: 1.7rem; }
+.cfg-switch { display: flex; align-items: center; gap: .35rem; font-size: .8rem; flex: 0 0 auto !important; }
+.cfg-del {
+  background: transparent; border: none; font-size: 1.1rem;
+  padding: .25rem .4rem; border-radius: 8px; flex: 0 0 auto;
+}
+.cfg-del:hover { background: #fbdcd2; }
+.cfg-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(210px, 1fr)); gap: .6rem; }
+.cfg-body .btn { align-self: flex-start; }
+
+/* con 6 pestañas, más compactas */
+#tabbar .tab { font-size: .64rem; }
+#tabbar .tab span { font-size: 1.2rem; }
+
+/* Casillas sí/no: junto a su etiqueta, con la pista debajo de ambas */
+.cfg-field-inline {
+  display: grid; grid-template-columns: 1fr auto; align-items: center; gap: .3rem .6rem;
+}
+.cfg-field-inline .cfg-hint { grid-column: 1 / -1; }
+.cfg-field-inline input[type="checkbox"] { width: 22px; height: 22px; accent-color: var(--jungle); }

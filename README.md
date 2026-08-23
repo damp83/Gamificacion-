@@ -23,6 +23,8 @@ PWA sin dependencias: HTML + CSS + JavaScript vanilla, funciona offline y se ins
 | **Curso completo** | Tres trimestres con fechas configurables; PE, estratos, sellos y méritos se acumulan por trimestre |
 | **Cuentas de alumno** | Registro y acceso con usuario y contraseña vía Appwrite; el diario se sincroniza entre clase y casa |
 | **Méritos de Campamento** | Doblones por comportamientos (ayudar, cuidar el material, participar…), concedidos por el docente con PIN y topes diarios |
+| **Panel de Configuración** | El docente edita en la propia app el curso, los reconocimientos, las cuadrillas, los pozos, el almacén, la economía y el acceso — sin tocar código |
+| **Cuadrillas de excavación** | Equipos cooperativos que suman a una meta común de clase; sin ranking entre niños salvo que se active |
 
 ## Cómo ejecutarlo
 
@@ -98,13 +100,45 @@ Dos decisiones de diseño, tomadas del propio PRD:
 
 Los comportamientos, sus valores y sus topes diarios se editan en `js/config.js`. Los topes evitan que una sesión generosa desequilibre la economía.
 
+## Panel de Configuración
+
+**Cuaderno del Docente → ⚙️ Configurar la expedición** (pide el PIN). Ocho secciones:
+
+| Sección | Qué puedes cambiar |
+|---|---|
+| 📅 Curso y trimestres | Nombre del curso y las fechas de los tres trimestres |
+| 🏅 Comportamientos, tareas y actividades | Crear, editar y retirar reconocimientos: icono, nombre, Doblones, tope diario y categoría |
+| 🛖 Cuadrillas de excavación | Crear equipos, asignar alumnos, fijar la meta común y la aportación |
+| 🏛️ Yacimientos y pozos | Renombrar los pozos, cambiar su descripción y ocultar los que aún no toquen |
+| 🏪 Almacén | Añadir, retirar y reajustar precios de los artículos cosméticos |
+| ⚖️ Economía | Retos por misión, Doblones de cada fuente, topes diarios, fatiga, bolsa inicial… |
+| 🔐 Acceso y nube | PIN del panel y datos de Appwrite |
+| 💾 Copia de seguridad | Exportar los ajustes para llevarlos a otra tablet, importarlos y restaurar los de fábrica |
+
+Los cambios se aplican **al instante**: renombras un pozo y el mapa ya lo muestra así.
+
+Tres cosas que conviene saber:
+
+- **Los ajustes viven en la tablet donde los haces.** Para replicarlos, usa Copia de seguridad → copiar, y pégalo en las demás. No se sincronizan solos: hacerlo exigiría permisos de escritura compartidos que, sin una cuenta de docente real, cualquier alumno podría usar.
+- **Retirar algo del catálogo no borra lo ya ganado.** Si quitas un reconocimiento, los méritos que ya concediste siguen en el diario de los niños. Igual con el almacén: quien compró una prenda la conserva.
+- **Restaurar los valores de fábrica solo borra tus ajustes**, nunca el progreso de los alumnos.
+
+## Cuadrillas de excavación (equipos)
+
+El docente crea las cuadrillas y asigna a cada alumno escribiendo su **nombre de explorador** (el que el niño puso al crear su diario; si no coincide, no se le asignará).
+
+Son **cooperativas por diseño**: una fracción de cada Doblón que gana un niño se anota como aportación a la meta común de clase, y **no se le descuenta de su bolsa** — cooperar no cuesta nada. El PRD (§0.2) prohíbe rankings entre niños y canaliza la competición hacia los NPC, así que la comparación entre cuadrillas **viene desactivada**; puedes activarla en el panel si tu grupo la lleva bien.
+
+> Cada niño ve su propia aportación y su parte de la meta. El total real de una cuadrilla exigiría sumar los diarios de todos sus miembros, algo que hoy no se hace: requeriría que un dispositivo leyera el progreso ajeno.
+
 ## Estructura
 
 ```
 index.html            App shell (todas las pantallas)
 css/styles.css        Estética pergamino/latón, apta para tablet
-js/config.js          Configuración del docente: Appwrite, trimestres, méritos, PIN
+js/config.js          Valores de partida y capa de ajustes editable del docente
 js/cloud.js           Cuentas y sincronización con Appwrite (degrada a local)
+js/teacher.js         Panel de Configuración del docente
 js/content.js         Generadores procedurales de retos por estrato y tier
 js/state.js           Estado user_state (PRD §5), economía y persistencia (localStorage)
 js/game.js            Motor de misiones, recompensas y anti-grinding

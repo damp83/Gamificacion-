@@ -343,22 +343,10 @@ const DIG_SITES = {
   }
 };
 
-/* ═══════════════ ALMACÉN (sinks cosméticos) ═══════════════ */
-const SHOP_CATALOG = [
-  { id: 'sombrero_ala_ancha', name: 'Sombrero de ala ancha', icon: '👒', cost: 80,  type: 'gear' },
-  { id: 'salacot',            name: 'Salacot de explorador', icon: '⛑️', cost: 120, type: 'gear' },
-  { id: 'chaqueta_kaldros',   name: 'Chaqueta de Kaldros',   icon: '🧥', cost: 150, type: 'gear' },
-  { id: 'mochila_lona',       name: 'Mochila de lona',       icon: '🎒', cost: 100, type: 'gear' },
-  { id: 'botas_barro',        name: 'Botas todoterreno',     icon: '🥾', cost: 90,  type: 'gear' },
-  { id: 'linterna_laton',     name: 'Linterna de latón',     icon: '🔦', cost: 60,  type: 'gear' },
-  { id: 'cantimplora',        name: 'Cantimplora grabada',   icon: '🫙', cost: 50,  type: 'gear' },
-  { id: 'catalejo',           name: 'Catalejo dorado',       icon: '🔭', cost: 200, type: 'gear' },
-  { id: 'hoguera_grande',     name: 'Hoguera grande',        icon: '🔥', cost: 150, type: 'camp' },
-  { id: 'tienda_rayas',       name: 'Tienda a rayas',        icon: '⛺', cost: 200, type: 'camp' },
-  { id: 'jeep_oxidado',       name: 'Jeep de la expedición', icon: '🚙', cost: 400, type: 'camp' },
-  { id: 'tendedero_mapas',    name: 'Tendedero de mapas',    icon: '🗺️', cost: 120, type: 'camp' },
-  { id: 'golosina_tobias',    name: 'Golosina para Tobías',  icon: '🦴', cost: 30,  type: 'treat' }
-];
+/* ═══════════════ ALMACÉN ═══════════════
+   El catálogo vive en la configuración del docente (js/config.js y el
+   Panel de Configuración), no aquí: es contenido de aula, no del motor. */
+function shopCatalog() { return ATLAS_CONFIG.shop; }
 
 const RANKS = [
   { min: 1,  max: 4,  id: 'aprendiz',   name: 'Aprendiz de Mochila' },

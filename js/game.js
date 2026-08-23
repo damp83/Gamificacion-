@@ -4,10 +4,8 @@
    anti-grinding (§2.7) y andamiaje graduado de Kira.
    ═══════════════════════════════════════════════════════════ */
 
-const MISSION_QUESTIONS = 6;   /* Expedición principal */
-const BAZAR_QUESTIONS = 4;     /* Encargo del Bazar (repaso) */
-const FATIGUE_THRESHOLD = 6;   /* desde la 6ª misión diaria, PE al 50% */
-const HINT_EXTRA_COST = 10;    /* pista extra tras la gratuita */
+/* Toda la economía es editable por el docente desde el panel. */
+function ECO() { return ATLAS_CONFIG.economy; }
 
 let mission = null; /* misión en curso */
 
@@ -41,7 +39,7 @@ function startMission(branchId, stratumId, kind) {
     tier: 2,                      /* se fija justo debajo, con entryTier() */
     resolved: []                  /* true/false primer intento por pregunta */
   };
-  const total = mission.kind === 'bazar' ? BAZAR_QUESTIONS : MISSION_QUESTIONS;
+  const total = mission.kind === 'bazar' ? ECO().bazarQuestions : ECO().missionQuestions;
   const gen = BRANCHES[branchId].generators[stratumId];
   mission.tier = entryTier(branchId, stratumId);
   for (let i = 0; i < total; i++) mission.questions.push(gen(mission.tier));
@@ -97,10 +95,10 @@ function completeRestore(correct) {
     mission.restoredCount++;
     S.metrics.self_corrections++;
     let coins = 0;
-    if (S.daily.restores_today < 5) {
+    if (S.daily.restores_today < ECO().restoresPerDay) {
       S.daily.restores_today++;
-      coins = 5;
-      earnDoubloons(5);
+      coins = ECO().restoreCoins;
+      earnDoubloons(coins);
     }
     saveState();
     return coins;
@@ -113,13 +111,13 @@ function requestHint() {
   const q = mission.current;
   if (mission.hintsShown >= 2) return { ok: false, reason: 'no-more' };
   if (mission.hintsShown === 1) {
-    if (!spendDoubloons(HINT_EXTRA_COST)) return { ok: false, reason: 'no-coins' };
+    if (!spendDoubloons(ECO().hintCost)) return { ok: false, reason: 'no-coins' };
   }
   mission.hintsShown++;
   S.metrics.hints_used++;
   S.daily.hints_today++;
   saveState();
-  return { ok: true, text: mission.hintsShown === 1 ? q.hint1 : q.hint2, cost: mission.hintsShown === 2 ? HINT_EXTRA_COST : 0 };
+  return { ok: true, text: mission.hintsShown === 1 ? q.hint1 : q.hint2, cost: mission.hintsShown === 2 ? ECO().hintCost : 0 };
 }
 
 function advance() {
@@ -149,7 +147,7 @@ function finishMission() {
 
   /* Fatiga de expedición: desde la 6ª misión diaria, PE al 50% (§2.7.2) */
   S.daily.missions_today++;
-  const fatigued = S.daily.missions_today >= FATIGUE_THRESHOLD;
+  const fatigued = S.daily.missions_today >= ECO().fatigueThreshold;
   if (fatigued && !alreadyMastered) {
     pe = Math.round(pe * 0.5);
     notes.push('Fatiga de expedición: PE al 50%. Bruno recomienda acampar.');
@@ -158,15 +156,15 @@ function finishMission() {
   /* Doblones según fuente (§2.4) */
   let coins = 0;
   if (mission.kind === 'bazar') {
-    if (S.daily.bazar_today < 4) {
-      coins = 10 + Math.round(accuracy * 5); /* 10–15 🪙 */
+    if (S.daily.bazar_today < ECO().bazarPerDay) {
+      coins = ECO().bazarCoinsMin + Math.round(accuracy * (ECO().bazarCoinsMax - ECO().bazarCoinsMin));
       S.daily.bazar_today++;
     } else {
-      notes.push('Ya hiciste 4 Encargos hoy: este no da Doblones.');
+      notes.push(`Ya hiciste ${ECO().bazarPerDay} Encargos hoy: este no da Doblones.`);
     }
     pe = Math.round(pe * 0.3); /* el Bazar da poco PE: es repaso */
   } else {
-    coins = 20 + Math.round(accuracy * 20); /* 20–40 🪙 */
+    coins = ECO().missionCoinsMin + Math.round(accuracy * (ECO().missionCoinsMax - ECO().missionCoinsMin));
   }
   earnDoubloons(coins);
   const levelInfo = earnXp(pe);
@@ -193,7 +191,7 @@ function finishMission() {
     masteryAfter,
     branchId: mission.branchId,
     stratumId: mission.stratumId,
-    fatigued: S.daily.missions_today >= FATIGUE_THRESHOLD
+    fatigued: S.daily.missions_today >= ECO().fatigueThreshold
   };
   mission = null;
   return result;
@@ -222,7 +220,7 @@ function awardBehavior(behaviorId) {
 
 /* ── Almacén ── */
 function buyItem(itemId) {
-  const item = SHOP_CATALOG.find(i => i.id === itemId);
+  const item = shopCatalog().find(i => i.id === itemId);
   if (!item) return { ok: false, reason: 'no-item' };
   if (item.type !== 'treat' && (S.inventory.gear_owned.includes(itemId) || S.inventory.camp_items.includes(itemId))) {
     return { ok: false, reason: 'owned' };

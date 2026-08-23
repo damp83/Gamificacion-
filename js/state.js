@@ -65,6 +65,7 @@ function migrateState(s) {
     s.course = defaultCourse();
   }
   if (!Array.isArray(s.behavior_log)) s.behavior_log = [];
+  if (typeof s.progression.team_contribution !== 'number') s.progression.team_contribution = 0;
   if (!s.updated_at) s.updated_at = Date.now();
   for (const siteId in s.dig_sites) {
     for (const bId in s.dig_sites[siteId]) {
@@ -98,8 +99,9 @@ function defaultState(name) {
     },
     progression: {
       xp_total: 0,
-      doubloons_balance: 25, /* pequeña bolsa inicial de la Sociedad */
-      atlas_fragments_recovered: 0
+      doubloons_balance: ATLAS_CONFIG.economy.startingCoins,
+      atlas_fragments_recovered: 0,
+      team_contribution: 0   /* lo aportado a la meta común de la cuadrilla */
     },
     logbook: {
       week_id: isoWeekId(new Date()),
@@ -217,8 +219,9 @@ function rolloverIfNeeded() {
   /* primer desembarco del día: +15 🪙 (PRD §2.4) */
   if (!S.daily.first_login_bonus_given) {
     S.daily.first_login_bonus_given = true;
-    earnDoubloons(15);
-    events.firstLoginBonus = 15;
+    const bonus = ATLAS_CONFIG.economy.firstLoginBonus;
+    earnDoubloons(bonus);
+    events.firstLoginBonus = bonus;
   }
 
   /* marcar día activo en la bitácora */
@@ -235,6 +238,28 @@ function earnDoubloons(n) {
   S.progression.doubloons_balance += n;
   S.daily.doubloons_earned_today += n;
   trimesterBucket().doubloons += n;
+  /* Una fracción se anota como aportación a la meta común de la cuadrilla.
+     NO se descuenta de la bolsa del niño: cooperar no cuesta nada (PRD §0.2). */
+  const t = ATLAS_CONFIG.teams;
+  if (t && t.enabled && myTeam()) {
+    S.progression.team_contribution += n * (t.contributionRate || 0);
+  }
+}
+
+/* ── Cuadrillas de Excavación ──
+   La pertenencia la define el docente por nombre de explorador. */
+function myTeam() {
+  const t = ATLAS_CONFIG.teams;
+  if (!t || !t.enabled || !S) return null;
+  const me = (S.profile.explorer_name || '').trim().toLowerCase();
+  return t.list.find(team =>
+    (team.members || []).some(m => String(m).trim().toLowerCase() === me)) || null;
+}
+function teamGoalShare() {
+  const team = myTeam();
+  if (!team) return 0;
+  const n = Math.max(1, (team.members || []).length);
+  return Math.round((ATLAS_CONFIG.teams.goalTarget || 0) / n);
 }
 function spendDoubloons(n) {
   if (S.progression.doubloons_balance < n) return false;

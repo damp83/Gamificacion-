@@ -6,7 +6,7 @@
 const $ = sel => document.querySelector(sel);
 const $$ = sel => document.querySelectorAll(sel);
 
-const SCREENS = ['map', 'branch', 'mission', 'result', 'camp', 'merits', 'logbook', 'dashboard'];
+const SCREENS = ['map', 'branch', 'mission', 'result', 'camp', 'merits', 'team', 'logbook', 'dashboard', 'config'];
 
 function show(screenId) {
   SCREENS.forEach(s => $(`#screen-${s}`).classList.toggle('hidden', s !== screenId));
@@ -14,6 +14,8 @@ function show(screenId) {
   if (screenId === 'map') renderMap();
   if (screenId === 'camp') renderCamp();
   if (screenId === 'merits') renderMerits();
+  if (screenId === 'team') renderTeam();
+  if (screenId === 'config') renderTeacherConfig();
   if (screenId === 'logbook') renderLogbook();
   if (screenId === 'dashboard') renderDashboard();
   window.scrollTo(0, 0);
@@ -53,7 +55,7 @@ function renderMap() {
   $('#map-reveal-fill').style.width = pct + '%';
   $('#map-reveal-pct').textContent = `${pct}% del mundo dibujado`;
 
-  $('#fatigue-banner').classList.toggle('hidden', S.daily.missions_today < FATIGUE_THRESHOLD);
+  $('#fatigue-banner').classList.toggle('hidden', S.daily.missions_today < ECO().fatigueThreshold);
 
   const siteList = $('#site-list');
   siteList.innerHTML = '';
@@ -64,8 +66,8 @@ function renderMap() {
     <div><h3>${site.name}</h3><p>${site.subject} · ${site.desc}</p></div>`;
   siteList.appendChild(header);
 
-  for (const branchId of site.branches) {
-    const b = BRANCHES[branchId];
+  for (const branchId of activeBranches()) {
+    const b = branchInfo(branchId);
     const strata = S.dig_sites.kaldros[branchId].strata;
     const mastered = STRATA_ORDER.filter(s => strata[s].mastery >= 0.8).length;
     const card = document.createElement('button');
@@ -87,8 +89,8 @@ function renderMap() {
   /* Encargo del Bazar: repaso espaciado con excusa narrativa */
   const bazar = $('#bazar-card');
   const target = bestBazarTarget();
-  if (target && target.cover > 0.1 && S.daily.bazar_today < 4) {
-    const b = BRANCHES[target.branchId];
+  if (target && target.cover > 0.1 && S.daily.bazar_today < ECO().bazarPerDay) {
+    const b = branchInfo(target.branchId);
     const meta = STRATA_META[target.stratumId];
     bazar.innerHTML = `<div class="bazar-inner">
       <span class="bazar-icon">🧺</span>
@@ -111,7 +113,7 @@ function renderMap() {
 let currentBranch = null;
 function openBranch(branchId) {
   currentBranch = branchId;
-  const b = BRANCHES[branchId];
+  const b = branchInfo(branchId);
   $('#branch-title').textContent = `${b.icon} ${b.name}`;
   $('#branch-desc').textContent = b.desc + ' Cuanto más profundo excaves, mayor es el tesoro.';
   const list = $('#strata-list');
@@ -150,7 +152,7 @@ function openBranch(branchId) {
 
 /* ── Misión ── */
 function renderMissionScreen() {
-  const b = BRANCHES[mission.branchId];
+  const b = branchInfo(mission.branchId);
   const meta = STRATA_META[mission.stratumId];
   $('#mission-title').textContent = mission.kind === 'bazar'
     ? `🧺 Encargo: ${meta.name}`
@@ -236,7 +238,7 @@ function showFeedback(res, extra) {
     /* ofrecer restauración del hallazgo (metacognición) */
     if (!mission.restoring) {
       btnRestore.classList.remove('hidden');
-      btnRestore.textContent = S.daily.restores_today < 5
+      btnRestore.textContent = S.daily.restores_today < ECO().restoresPerDay
         ? '🔧 Restaurar hallazgo (+5 🪙)'
         : '🔧 Restaurar hallazgo (sin premio hoy)';
     }
@@ -273,7 +275,7 @@ function onHint() {
   $('#kira-box').classList.remove('hidden');
   $('#kira-text').textContent = h.text + (h.cost ? ` (−${h.cost} 🪙)` : '');
   if (mission.hintsShown >= 2) { $('#btn-hint').disabled = true; }
-  else { $('#btn-hint').textContent = `🪲 Otra pista (${HINT_EXTRA_COST} 🪙)`; }
+  else { $('#btn-hint').textContent = `🪲 Otra pista (${ECO().hintCost} 🪙)`; }
   renderHud();
 }
 
@@ -314,19 +316,19 @@ function renderCamp() {
   const equipped = $('#camp-gear-equipped');
   equipped.innerHTML = S.inventory.gear_equipped.length
     ? S.inventory.gear_equipped.map(id => {
-        const item = SHOP_CATALOG.find(i => i.id === id);
+        const item = shopCatalog().find(i => i.id === id);
         return `<span class="gear-chip" title="${item.name}">${item.icon}</span>`;
       }).join('')
     : '<small>Aún sin equipo. ¡Visita el almacén!</small>';
 
   const scene = $('#camp-scene');
-  const campIcons = S.inventory.camp_items.map(id => SHOP_CATALOG.find(i => i.id === id).icon);
+  const campIcons = S.inventory.camp_items.map(id => (shopCatalog().find(i => i.id === id) || { icon: '📦' }).icon);
   scene.innerHTML = `<div class="camp-scene-row">⛺ ${campIcons.join(' ')} ${S.inventory.treats_given > 0 ? '🐕' + '🦴'.repeat(Math.min(3, S.inventory.treats_given)) : '🐕'}</div>
     <small>${S.inventory.treats_given > 0 ? 'Tobías está feliz con sus golosinas.' : 'Tobías husmea buscando golosinas…'}</small>`;
 
   const list = $('#shop-list');
   list.innerHTML = '';
-  for (const item of SHOP_CATALOG) {
+  for (const item of shopCatalog()) {
     const owned = item.type !== 'treat' && (S.inventory.gear_owned.includes(item.id) || S.inventory.camp_items.includes(item.id));
     const equippedNow = S.inventory.gear_equipped.includes(item.id);
     const row = document.createElement('div');
@@ -425,7 +427,7 @@ function renderDashboard() {
   const signals = [];
   if (lowQualityFlag()) signals.push('⚠️ Muchas respuestas en <2 s: posible sesión de baja calidad (responder al azar). Revisar en persona, sin penalizar.');
   if (acc !== null && acc < 0.6) signals.push('⚠️ Precisión por debajo del canal de flujo: el motor ya bajó la dificultad; considerar repaso guiado.');
-  if (S.daily.missions_today >= FATIGUE_THRESHOLD) signals.push('ℹ️ Fatiga de expedición activa hoy: las misiones extra dan 50% de PE.');
+  if (S.daily.missions_today >= ECO().fatigueThreshold) signals.push('ℹ️ Fatiga de expedición activa hoy: las misiones extra dan 50% de PE.');
   const decayed = [];
   for (const branchId of DIG_SITES.kaldros.branches) {
     for (const sId of STRATA_ORDER) {
@@ -436,6 +438,72 @@ function renderDashboard() {
   if (decayed.length) signals.push(`🏜️ Estratos cubriéndose de arena (repaso recomendado): ${decayed.join(', ')}.`);
   if (!signals.length) signals.push('✅ Sin alertas: el alumno trabaja en su zona de flujo.');
   $('#dashboard-signals').innerHTML = signals.map(s => `<div class="signal-row">${s}</div>`).join('');
+}
+
+/* ── Pozos: nombre y disponibilidad los puede cambiar el docente ── */
+function branchInfo(id) {
+  const b = BRANCHES[id];
+  const o = (ATLAS_CONFIG.branchOverrides || {})[id] || {};
+  return { ...b, name: o.name || b.name, desc: o.desc || b.desc };
+}
+function activeBranches() {
+  return DIG_SITES.kaldros.branches.filter(id => {
+    const o = (ATLAS_CONFIG.branchOverrides || {})[id] || {};
+    return o.enabled !== false;
+  });
+}
+
+/* ── Cuadrilla de Excavación ── */
+function renderTeam() {
+  renderHud();
+  const t = ATLAS_CONFIG.teams;
+  const body = $('#team-body');
+
+  if (!t || !t.enabled) {
+    body.innerHTML = '<p class="empty-note">Las cuadrillas están desactivadas en esta clase.</p>';
+    return;
+  }
+  const team = myTeam();
+  if (!team) {
+    body.innerHTML = `<div class="dialog bruno"><span class="dialog-avatar">🧔🏻‍♂️</span>
+      <div class="dialog-text"><strong>Prof. Bruno Ocaña</strong>
+      <p>«Todavía no te he asignado cuadrilla, ${S.profile.explorer_name}. ¡Paciencia!
+      En cuanto lo haga, aparecerá aquí tu equipo.»</p></div></div>`;
+    return;
+  }
+
+  const share = teamGoalShare();
+  const mine = Math.round(S.progression.team_contribution);
+  const pct = share ? Math.min(100, Math.round((mine / share) * 100)) : 0;
+
+  body.innerHTML = `
+    <div class="team-banner">
+      <span class="team-icon">${team.icon}</span>
+      <div><h3>${team.name}</h3>
+        <p>${(team.members || []).length} exploradores</p></div>
+    </div>
+
+    <div class="team-goal">
+      <strong>${t.goalLabel}</strong>
+      <p class="team-goal-note">Toda la clase excava hacia la misma meta. Cada Doblón que ganas
+      aporta un poco, y <em>no se descuenta de tu bolsa</em>: cooperar no cuesta nada.</p>
+      <div class="mastery-bar"><div class="mastery-fill${pct >= 100 ? ' gold' : ''}" style="width:${pct}%"></div></div>
+      <div class="team-goal-nums"><span>Tu aportación: <strong>${mine} 🪙</strong></span>
+        <span>Tu parte de la meta: <strong>${share} 🪙</strong></span></div>
+    </div>
+
+    <h3>Tus compañeros de cuadrilla</h3>
+    <div class="team-members">
+      ${(team.members || []).map(m => {
+        const me = m.trim().toLowerCase() === (S.profile.explorer_name || '').trim().toLowerCase();
+        return `<span class="team-member${me ? ' team-me' : ''}">${me ? '🧭 ' : '🧒 '}${m}${me ? ' (tú)' : ''}</span>`;
+      }).join('')}
+    </div>
+
+    ${t.showComparison ? `<h3>Las demás cuadrillas</h3>
+      <div class="team-others">${t.list.filter(x => x.id !== team.id).map(x =>
+        `<div class="team-other"><span>${x.icon}</span> ${x.name}
+         <small>${(x.members || []).length} exploradores</small></div>`).join('')}</div>` : ''}`;
 }
 
 /* ── Méritos de Campamento ── */
@@ -584,6 +652,7 @@ function adoptState(remote) {
 
 /* ── Arranque ── */
 async function boot() {
+  loadTeacherConfig();   /* ajustes del docente sobre los valores de fábrica */
   wireGlobalListeners();
 
   /* Configurado para la nube pero el SDK no está disponible (sin red, CDN
@@ -674,6 +743,19 @@ function wireGlobalListeners() {
     $('#btn-teacher-panel').classList.remove('hidden');
   });
 
+  $('#btn-open-config').addEventListener('click', () => {
+    if (teacherUnlocked) { cfgSection = 'curso'; show('config'); return; }
+    const pin = prompt('PIN del docente:');
+    if (pin === null) return;
+    if (pin === String(ATLAS_CONFIG.teacherPin)) {
+      teacherUnlocked = true;
+      cfgSection = 'curso';
+      show('config');
+    } else {
+      toast('PIN incorrecto.');
+    }
+  });
+
   $('#btn-logout').addEventListener('click', async () => {
     if (!confirm('¿Cerrar sesión? Tu diario queda guardado en la nube.')) return;
     await cloudPush();          /* volcar lo pendiente antes de salir */
@@ -737,6 +819,7 @@ function wireAuthListeners() {
 }
 
 function startApp() {
+  $('#tab-team').classList.toggle('hidden', !(ATLAS_CONFIG.teams && ATLAS_CONFIG.teams.enabled));
   $('#screen-auth').classList.add('hidden');
   $('#screen-onboarding').classList.add('hidden');
   $('#app').classList.remove('hidden');
