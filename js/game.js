@@ -201,6 +201,25 @@ function finishMission() {
 
 function abandonMission() { mission = null; }
 
+/* ── Méritos de Campamento: puntos por comportamientos ──
+   Los concede el docente (PIN en la UI). Solo Doblones, nunca PE:
+   el rango debe seguir midiendo aprendizaje (PRD §2.2). */
+function behaviorCountToday(behaviorId) {
+  const today = todayStr();
+  return S.behavior_log.filter(e => e.id === behaviorId && e.date === today).length;
+}
+function awardBehavior(behaviorId) {
+  const b = ATLAS_CONFIG.behaviors.find(x => x.id === behaviorId);
+  if (!b) return { ok: false, reason: 'no-behavior' };
+  if (behaviorCountToday(behaviorId) >= b.perDay) return { ok: false, reason: 'cap', b };
+  earnDoubloons(b.coins);
+  S.behavior_log.push({ id: b.id, date: todayStr(), ts: Date.now() });
+  if (S.behavior_log.length > 300) S.behavior_log.shift(); /* histórico acotado */
+  trimesterBucket().merits++;
+  saveState();
+  return { ok: true, b };
+}
+
 /* ── Almacén ── */
 function buyItem(itemId) {
   const item = SHOP_CATALOG.find(i => i.id === itemId);

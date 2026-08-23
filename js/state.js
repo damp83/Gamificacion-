@@ -36,10 +36,48 @@ function defaultStrata() {
       mastery: 0,
       attempts: 0,
       recent_sessions: [],
+      ever_mastered: false,
       last_practiced: null
     };
   });
   return strata;
+}
+
+/* Un cubo de estadísticas por trimestre: lo que el curso va acumulando */
+function defaultCourse() {
+  return { trimesters: [0, 1, 2].map(() => ({ pe: 0, doubloons: 0, strata: 0, stamps: 0, merits: 0 })) };
+}
+
+/* ¿A qué trimestre pertenece una fecha? Antes del curso → 1º; verano → 3º;
+   los descansos entre trimestres cuentan para el trimestre que empieza. */
+function trimesterIndexFor(dateStr) {
+  const ts = ATLAS_CONFIG.course.trimesters;
+  for (let i = 0; i < ts.length; i++) if (dateStr <= ts[i].end) return i;
+  return ts.length - 1;
+}
+function currentTrimesterIndex() { return trimesterIndexFor(todayStr()); }
+function trimesterBucket() { return S.course.trimesters[currentTrimesterIndex()]; }
+
+/* Estados guardados por versiones anteriores: completar lo que les falte */
+function migrateState(s) {
+  if (!s || typeof s !== 'object') return s;
+  if (!s.course || !Array.isArray(s.course.trimesters) || s.course.trimesters.length !== 3) {
+    s.course = defaultCourse();
+  }
+  if (!Array.isArray(s.behavior_log)) s.behavior_log = [];
+  if (!s.updated_at) s.updated_at = Date.now();
+  for (const siteId in s.dig_sites) {
+    for (const bId in s.dig_sites[siteId]) {
+      const strata = s.dig_sites[siteId][bId].strata;
+      for (const k in strata) {
+        const st = strata[k];
+        if (!Array.isArray(st.recent_sessions)) st.recent_sessions = [];
+        if (typeof st.ever_mastered !== 'boolean') st.ever_mastered = st.mastery >= 0.8;
+      }
+    }
+  }
+  s.schema_version = 2;
+  return s;
 }
 
 function defaultState(name) {
@@ -51,7 +89,8 @@ function defaultState(name) {
     }
   }
   return {
-    schema_version: 1,
+    schema_version: 2,
+    updated_at: Date.now(),
     profile: {
       explorer_name: name,
       created_at: todayStr(),
@@ -72,6 +111,8 @@ function defaultState(name) {
       rescue_ropes: 0          /* cuerdas extra compradas (máx. 2) */
     },
     dig_sites: digSites,
+    course: defaultCourse(),
+    behavior_log: [],   /* [{id, date, ts}] méritos concedidos por el docente */
     adaptive: {
       tier: 2,                 /* dificultad 1–5 */
       last10: [],              /* aciertos/fallos del primer intento */
@@ -107,12 +148,15 @@ function defaultState(name) {
 let S = null; /* estado vivo */
 
 function saveState() {
+  if (!S) return;
+  S.updated_at = Date.now(); /* para resolver «¿qué copia es más nueva?» entre dispositivos */
   try { localStorage.setItem(STORAGE_KEY, JSON.stringify(S)); } catch (e) { /* almacenamiento no disponible */ }
+  if (typeof cloudScheduleSave === 'function') cloudScheduleSave();
 }
 function loadState() {
   try {
     const raw = localStorage.getItem(STORAGE_KEY);
-    if (raw) S = JSON.parse(raw);
+    if (raw) S = migrateState(JSON.parse(raw));
   } catch (e) { S = null; }
   return S;
 }
@@ -134,6 +178,7 @@ function rolloverIfNeeded() {
     if (met) {
       S.logbook.stamps_lifetime++;
       S.logbook.current_weeks++;
+      trimesterBucket().stamps++;
       S.logbook.history.push({ week_id: S.logbook.week_id, stamped: true, protected: false });
       events.weekStamped = true;
     } else if (S.logbook.active_days_this_week.length > 0 || S.logbook.current_weeks > 0) {
@@ -189,6 +234,7 @@ function rolloverIfNeeded() {
 function earnDoubloons(n) {
   S.progression.doubloons_balance += n;
   S.daily.doubloons_earned_today += n;
+  trimesterBucket().doubloons += n;
 }
 function spendDoubloons(n) {
   if (S.progression.doubloons_balance < n) return false;
@@ -198,6 +244,7 @@ function spendDoubloons(n) {
 function earnXp(n) {
   const before = levelFromXp(S.progression.xp_total);
   S.progression.xp_total += n;
+  trimesterBucket().pe += n;
   const after = levelFromXp(S.progression.xp_total);
   return { leveledUp: after > before, newLevel: after };
 }
@@ -235,6 +282,10 @@ function updateMastery(branchId, stratumId, sessionAccuracy) {
   st.last_practiced = todayStr();
   if (st.mastery >= 0.8) st.status = 'mastered';
   else if (st.status !== 'mastered') st.status = 'in_progress';
+  if (st.mastery >= 0.8 && !st.ever_mastered) {
+    st.ever_mastered = true;
+    trimesterBucket().strata++;
+  }
 
   /* desbloqueo por prerrequisito cognitivo (mastery ≥80%), PRD §3.1 */
   const idx = STRATA_ORDER.indexOf(stratumId);

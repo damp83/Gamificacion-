@@ -341,3 +341,103 @@ button:disabled { cursor: not-allowed; opacity: .55; }
 @media (min-width: 700px) {
   .options { display: grid; grid-template-columns: 1fr 1fr; }
 }
+
+/* ══════════ ACCESO ══════════ */
+.auth-tabs { display: flex; gap: .4rem; margin: 1rem 0 .2rem; }
+.auth-tab {
+  flex: 1; padding: .6rem; border: 2px solid var(--parchment-dark);
+  background: var(--parchment); color: var(--ink-soft);
+  border-radius: var(--radius); font-weight: 700; font-size: .92rem;
+}
+.auth-tab.active { background: var(--leather-dark); color: var(--gold); border-color: var(--leather-dark); }
+#login-form, #register-form { display: flex; flex-direction: column; gap: .7rem; margin-top: 1rem; }
+#login-form input, #register-form input {
+  padding: .85rem 1rem; font-size: 1.05rem; border-radius: var(--radius);
+  border: 2px solid var(--brass); background: var(--parchment); color: var(--ink);
+  text-align: center;
+}
+.auth-error {
+  background: #fbdcd2; border: 2px solid var(--danger); color: #7d2d1c;
+  border-radius: var(--radius); padding: .6rem .8rem; margin-top: .8rem; font-size: .9rem;
+}
+.auth-note { font-size: .8rem; color: var(--ink-soft); margin-top: 1rem; font-style: italic; }
+.hud-logout {
+  background: transparent; border: none; font-size: 1.2rem;
+  padding: .2rem .3rem; border-radius: 8px; line-height: 1;
+}
+.hud-logout:hover { background: rgba(255,255,255,.12); }
+
+/* ══════════ MÉRITOS DE CAMPAMENTO ══════════ */
+.merits-intro { font-size: .9rem; color: var(--ink-soft); margin-bottom: .9rem; }
+.merits-summary { display: grid; grid-template-columns: repeat(3, 1fr); gap: .5rem; margin-bottom: .5rem; }
+.merits-today { display: flex; flex-direction: column; gap: .4rem; }
+.merit-row {
+  display: flex; align-items: center; gap: .7rem;
+  background: var(--card); border-radius: var(--radius); padding: .6rem .8rem;
+  box-shadow: var(--shadow); border-left: 5px solid var(--parchment-dark);
+}
+.merit-row.merit-earned { border-left-color: var(--gold); }
+.merit-icon { font-size: 1.6rem; }
+.merit-info { flex: 1; }
+.merit-info strong { display: block; font-size: .95rem; }
+.merit-info small { color: var(--ink-soft); font-size: .76rem; }
+.merit-count { font-size: .95rem; letter-spacing: -2px; }
+.merits-history { display: flex; flex-direction: column; gap: .35rem; }
+.history-day {
+  display: flex; align-items: center; gap: .8rem;
+  background: var(--card); border-radius: var(--radius); padding: .5rem .8rem;
+  box-shadow: var(--shadow);
+}
+.history-date { font-size: .8rem; font-weight: 700; color: var(--brass); min-width: 3.2rem; }
+.history-icons { font-size: 1.3rem; letter-spacing: .15rem; }
+.empty-note { color: var(--ink-soft); font-size: .9rem; font-style: italic; padding: .6rem 0; }
+
+/* Panel del docente */
+.teacher-gate {
+  margin-top: 1.4rem; padding-top: 1rem; border-top: 2px dashed var(--parchment-dark);
+}
+.teacher-hint { font-size: .85rem; color: var(--ink-soft); margin-bottom: .5rem; }
+#pin-form { display: flex; gap: .5rem; }
+#pin-input {
+  flex: 1; max-width: 140px; padding: .55rem .8rem; font-size: 1rem;
+  border-radius: var(--radius); border: 2px solid var(--brass);
+  background: var(--parchment); color: var(--ink); text-align: center;
+}
+.award-list { display: grid; grid-template-columns: repeat(auto-fit, minmax(150px, 1fr)); gap: .5rem; margin-bottom: .8rem; }
+.award-btn {
+  display: flex; flex-direction: column; align-items: center; gap: .2rem;
+  background: var(--card); border: 2px solid var(--jungle);
+  border-radius: var(--radius); padding: .7rem .5rem; box-shadow: var(--shadow);
+  text-align: center; transition: transform .12s ease;
+}
+.award-btn:not(:disabled):active { transform: scale(.96); }
+.award-btn.award-full { border-color: var(--parchment-dark); background: var(--parchment-dark); }
+.award-icon { font-size: 1.7rem; }
+.award-name { font-size: .82rem; font-weight: 700; line-height: 1.2; }
+.award-meta { font-size: .74rem; color: var(--ink-soft); }
+
+/* ══════════ EL CURSO POR TRIMESTRES ══════════ */
+.course-label { font-size: .85rem; color: var(--brass); font-weight: 700; margin-bottom: .5rem; }
+.tri-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(190px, 1fr)); gap: .6rem; margin-bottom: .5rem; }
+.tri-card {
+  background: var(--card); border-radius: var(--radius); box-shadow: var(--shadow);
+  padding: .8rem; border-top: 5px solid var(--parchment-dark);
+}
+.tri-card.tri-current { border-top-color: var(--gold); }
+.tri-head { display: flex; justify-content: space-between; align-items: baseline; gap: .4rem; }
+.tri-head strong { color: var(--leather); }
+.tri-state { font-size: .7rem; color: var(--ink-soft); text-transform: uppercase; letter-spacing: .04em; }
+.tri-dates { font-size: .76rem; color: var(--ink-soft); margin-bottom: .45rem; }
+.tri-stats { display: grid; grid-template-columns: 1fr 1fr; gap: .2rem .5rem; font-size: .8rem; }
+.tri-stats strong { color: var(--ink); font-variant-numeric: tabular-nums; }
+
+/* con 5 pestañas, los rótulos necesitan algo menos de aire */
+#tabbar .tab { font-size: .68rem; }
+#tabbar .tab span { font-size: 1.25rem; }
+
+/* Aviso: configurado para la nube pero sin poder alcanzarla */
+.cloud-warning {
+  position: relative; z-index: 40;
+  background: #f4e3c8; border-bottom: 3px solid var(--danger);
+  color: #7d2d1c; padding: .7rem 1rem; font-size: .88rem; text-align: center;
+}

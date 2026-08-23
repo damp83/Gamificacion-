@@ -13,6 +13,36 @@
 </head>
 <body>
 
+  <!-- ══════════ ACCESO (solo si hay Appwrite configurado) ══════════ -->
+  <section id="screen-auth" class="screen hidden">
+    <div class="onboarding-card">
+      <div class="big-emoji">🧭</div>
+      <h1>Expedición Atlas</h1>
+      <p class="subtitle">Los Diarios Perdidos</p>
+
+      <div class="auth-tabs">
+        <button id="tab-login" class="auth-tab active">Ya soy explorador</button>
+        <button id="tab-register" class="auth-tab">Soy nuevo</button>
+      </div>
+
+      <form id="login-form">
+        <input type="text" id="login-user" placeholder="Tu usuario" required autocomplete="username">
+        <input type="password" id="login-pass" placeholder="Tu contraseña secreta" required autocomplete="current-password">
+        <button type="submit" class="btn btn-primary">Entrar a la expedición 🎒</button>
+      </form>
+
+      <form id="register-form" class="hidden">
+        <input type="text" id="reg-name" maxlength="20" placeholder="Tu nombre de explorador" required autocomplete="off">
+        <input type="text" id="reg-user" placeholder="Elige un usuario (sin espacios)" required autocomplete="username">
+        <input type="password" id="reg-pass" placeholder="Una contraseña (8 letras o más)" required minlength="8" autocomplete="new-password">
+        <button type="submit" class="btn btn-primary">Crear mi diario 📔</button>
+      </form>
+
+      <p id="auth-error" class="auth-error hidden"></p>
+      <p class="auth-note">Tu diario se guarda en la nube: podrás seguir la expedición desde clase o desde casa.</p>
+    </div>
+  </section>
+
   <!-- ══════════ ONBOARDING ══════════ -->
   <section id="screen-onboarding" class="screen">
     <div class="onboarding-card">
@@ -57,6 +87,7 @@
           <span class="hud-stat-icon">🪙</span>
           <span id="hud-doubloons">0</span>
         </div>
+        <button id="btn-logout" class="hud-logout hidden" title="Cerrar sesión">🚪</button>
       </div>
     </header>
 
@@ -140,6 +171,39 @@
         <div id="shop-list" class="shop-list"></div>
       </section>
 
+      <!-- ══════════ MÉRITOS DE CAMPAMENTO ══════════ -->
+      <section id="screen-merits" class="screen hidden">
+        <h2>🏅 Méritos de Campamento</h2>
+        <p class="merits-intro">Un buen explorador no solo excava bien: cuida a su equipo y su campamento.
+        El Prof. Ocaña te da <strong>Doblones</strong> por ello. Los méritos no suben tu rango:
+        el rango se gana solo aprendiendo.</p>
+
+        <div id="merits-summary" class="merits-summary"></div>
+
+        <h3>Tus méritos de hoy</h3>
+        <div id="merits-today" class="merits-today"></div>
+
+        <h3>Diario de méritos</h3>
+        <div id="merits-history" class="merits-history"></div>
+
+        <div class="teacher-gate">
+          <button id="btn-teacher-panel" class="btn btn-secondary">🧔🏻‍♂️ Panel del docente</button>
+          <div id="teacher-locked" class="hidden">
+            <p class="teacher-hint">Introduce el PIN para conceder méritos.</p>
+            <form id="pin-form">
+              <input type="password" id="pin-input" inputmode="numeric" placeholder="PIN" autocomplete="off">
+              <button type="submit" class="btn btn-secondary btn-small">Abrir</button>
+            </form>
+            <p id="pin-error" class="auth-error hidden">PIN incorrecto.</p>
+          </div>
+          <div id="teacher-award" class="hidden">
+            <p class="teacher-hint">Toca un mérito para concederlo. Los topes diarios evitan la inflación.</p>
+            <div id="award-list" class="award-list"></div>
+            <button id="btn-close-panel" class="btn btn-quit">Cerrar panel</button>
+          </div>
+        </div>
+      </section>
+
       <!-- ══════════ BITÁCORA ══════════ -->
       <section id="screen-logbook" class="screen hidden">
         <h2>📔 Bitácora de Expedición</h2>
@@ -155,6 +219,9 @@
         <p class="dashboard-note">Vista de progreso pedagógico. Ninguna métrica de actividad se celebra sola:
         lo que importa es el aprendizaje demostrado.</p>
         <div id="dashboard-kpis" class="dashboard-kpis"></div>
+        <h3>El curso por trimestres</h3>
+        <div id="dashboard-course"></div>
+
         <h3>Mastery por estrato</h3>
         <div id="dashboard-mastery"></div>
         <h3>Señales de calidad</h3>
@@ -166,6 +233,7 @@
     <nav id="tabbar">
       <button data-nav="map" class="tab active"><span>🗺️</span>Mapa</button>
       <button data-nav="camp" class="tab"><span>⛺</span>Campamento</button>
+      <button data-nav="merits" class="tab"><span>🏅</span>Méritos</button>
       <button data-nav="logbook" class="tab"><span>📔</span>Bitácora</button>
       <button data-nav="dashboard" class="tab"><span>📊</span>Docente</button>
     </nav>
@@ -173,6 +241,11 @@
 
   <div id="toast" class="toast hidden"></div>
 
+  <!-- SDK de Appwrite. Si no carga (sin red o sin configurar), la app
+       funciona igual en modo local: el progreso se guarda en el navegador. -->
+  <script src="https://cdn.jsdelivr.net/npm/appwrite@17.0.0/dist/iife/sdk.js"></script>
+  <script src="js/config.js"></script>
+  <script src="js/cloud.js"></script>
   <script src="js/content.js"></script>
   <script src="js/state.js"></script>
   <script src="js/game.js"></script>

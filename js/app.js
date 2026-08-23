@@ -6,13 +6,14 @@
 const $ = sel => document.querySelector(sel);
 const $$ = sel => document.querySelectorAll(sel);
 
-const SCREENS = ['map', 'branch', 'mission', 'result', 'camp', 'logbook', 'dashboard'];
+const SCREENS = ['map', 'branch', 'mission', 'result', 'camp', 'merits', 'logbook', 'dashboard'];
 
 function show(screenId) {
   SCREENS.forEach(s => $(`#screen-${s}`).classList.toggle('hidden', s !== screenId));
   $$('#tabbar .tab').forEach(t => t.classList.toggle('active', t.dataset.nav === screenId));
   if (screenId === 'map') renderMap();
   if (screenId === 'camp') renderCamp();
+  if (screenId === 'merits') renderMerits();
   if (screenId === 'logbook') renderLogbook();
   if (screenId === 'dashboard') renderDashboard();
   window.scrollTo(0, 0);
@@ -396,6 +397,7 @@ function renderDashboard() {
     { label: 'Autocorrección', value: Math.round(selfCorrRate * 100) + '%', note: `${S.metrics.self_corrections} hallazgos restaurados` },
     { label: 'Días activos (semana)', value: S.logbook.active_days_this_week.length, note: `${S.logbook.stamps_lifetime} sellos en total` }
   ];
+  renderCourse();
   $('#dashboard-kpis').innerHTML = kpis.map(k =>
     `<div class="kpi-card"><span class="kpi-value">${k.value}</span><span class="kpi-label">${k.label}</span><small>${k.note}</small></div>`).join('');
 
@@ -436,23 +438,196 @@ function renderDashboard() {
   $('#dashboard-signals').innerHTML = signals.map(s => `<div class="signal-row">${s}</div>`).join('');
 }
 
-/* ── Arranque ── */
-function boot() {
-  loadState();
-  if (!S) {
-    $('#screen-onboarding').classList.remove('hidden');
-    $('#app').classList.add('hidden');
-    $('#onboarding-form').addEventListener('submit', e => {
-      e.preventDefault();
-      const name = $('#input-explorer-name').value.trim() || 'Exploradora';
-      createState(name);
-      startApp();
+/* ── Méritos de Campamento ── */
+function meritStats() {
+  const byId = {};
+  let coins = 0;
+  for (const e of S.behavior_log) {
+    const b = ATLAS_CONFIG.behaviors.find(x => x.id === e.id);
+    if (!b) continue; /* mérito retirado del catálogo por el docente */
+    byId[e.id] = (byId[e.id] || 0) + 1;
+    coins += b.coins;
+  }
+  return { total: S.behavior_log.length, coins, byId };
+}
+
+function renderMerits() {
+  renderHud();
+  const st = meritStats();
+  const tri = S.course.trimesters[currentTrimesterIndex()];
+  $('#merits-summary').innerHTML = `
+    <div class="logbook-stat"><strong>${st.total}</strong><span>méritos ganados</span></div>
+    <div class="logbook-stat"><strong>${st.coins}</strong><span>🪙 por comportamiento</span></div>
+    <div class="logbook-stat"><strong>${tri.merits}</strong><span>este trimestre</span></div>`;
+
+  /* lo conseguido hoy, con el tope a la vista */
+  const today = todayStr();
+  $('#merits-today').innerHTML = ATLAS_CONFIG.behaviors.map(b => {
+    const n = S.behavior_log.filter(e => e.id === b.id && e.date === today).length;
+    return `<div class="merit-row${n ? ' merit-earned' : ''}">
+      <span class="merit-icon">${b.icon}</span>
+      <div class="merit-info"><strong>${b.name}</strong><small>${b.coins} 🪙 · hasta ${b.perDay} al día</small></div>
+      <span class="merit-count">${n ? '⭐'.repeat(Math.min(n, 5)) : '—'}</span>
+    </div>`;
+  }).join('');
+
+  /* diario: agrupado por día, del más reciente al más antiguo */
+  const days = {};
+  for (const e of S.behavior_log) (days[e.date] = days[e.date] || []).push(e);
+  const orderedDays = Object.keys(days).sort().reverse().slice(0, 7);
+  $('#merits-history').innerHTML = orderedDays.length
+    ? orderedDays.map(d => {
+        const icons = days[d].map(e => {
+          const b = ATLAS_CONFIG.behaviors.find(x => x.id === e.id);
+          return b ? `<span title="${b.name}">${b.icon}</span>` : '';
+        }).join('');
+        return `<div class="history-day"><span class="history-date">${formatDay(d)}</span>
+          <span class="history-icons">${icons}</span></div>`;
+      }).join('')
+    : '<p class="empty-note">Aún no hay méritos. ¡El Prof. Ocaña está observando! 🧔🏻‍♂️</p>';
+}
+
+function formatDay(d) {
+  const today = todayStr();
+  if (d === today) return 'Hoy';
+  const yest = new Date(Date.now() - 86400000).toISOString().slice(0, 10);
+  if (d === yest) return 'Ayer';
+  const [y, m, day] = d.split('-');
+  return `${day}/${m}`;
+}
+
+/* Panel del docente: PIN de aula, no seguridad real (el código es visible) */
+let teacherUnlocked = false;
+function renderAwardList() {
+  $('#award-list').innerHTML = '';
+  for (const b of ATLAS_CONFIG.behaviors) {
+    const used = behaviorCountToday(b.id);
+    const full = used >= b.perDay;
+    const btn = document.createElement('button');
+    btn.className = 'award-btn' + (full ? ' award-full' : '');
+    btn.disabled = full;
+    btn.innerHTML = `<span class="award-icon">${b.icon}</span>
+      <span class="award-name">${b.name}</span>
+      <span class="award-meta">+${b.coins} 🪙 · ${used}/${b.perDay}</span>`;
+    btn.addEventListener('click', () => {
+      const res = awardBehavior(b.id);
+      if (res.ok) {
+        toast(`${b.icon} ¡${b.name}! +${b.coins} 🪙`);
+        renderMerits();
+        renderAwardList();
+        showTeacherPanel();
+      } else if (res.reason === 'cap') {
+        toast('Ya se alcanzó el tope de hoy para ese mérito.');
+      }
     });
-  } else {
-    startApp();
+    $('#award-list').appendChild(btn);
+  }
+}
+function showTeacherPanel() {
+  $('#teacher-locked').classList.add('hidden');
+  $('#teacher-award').classList.remove('hidden');
+  $('#btn-teacher-panel').classList.add('hidden');
+}
+
+/* ── El curso por trimestres (cuaderno docente) ── */
+function renderCourse() {
+  const now = currentTrimesterIndex();
+  const rows = ATLAS_CONFIG.course.trimesters.map((t, i) => {
+    const c = S.course.trimesters[i];
+    const state = i === now ? 'en curso' : (i < now ? 'cerrado' : 'por venir');
+    return `<div class="tri-card${i === now ? ' tri-current' : ''}">
+      <div class="tri-head"><strong>${t.name}</strong><span class="tri-state">${state}</span></div>
+      <div class="tri-dates">${t.start.split('-').reverse().slice(0,2).join('/')} – ${t.end.split('-').reverse().slice(0,2).join('/')}</div>
+      <div class="tri-stats">
+        <span><strong>${c.strata}</strong> estratos</span>
+        <span><strong>${c.pe}</strong> PE</span>
+        <span><strong>${c.stamps}</strong> sellos</span>
+        <span><strong>${c.merits}</strong> méritos</span>
+      </div>
+    </div>`;
+  }).join('');
+  $('#dashboard-course').innerHTML =
+    `<p class="course-label">${ATLAS_CONFIG.course.label}</p><div class="tri-grid">${rows}</div>`;
+}
+
+/* ── Acceso con Appwrite ── */
+function authError(msg) {
+  const el = $('#auth-error');
+  el.textContent = msg;
+  el.classList.remove('hidden');
+}
+function friendlyAuthError(e) {
+  const m = (e && e.message) || '';
+  if (/Invalid credentials|Invalid `?password/i.test(m)) return 'Usuario o contraseña incorrectos. Inténtalo otra vez.';
+  if (/already exists/i.test(m)) return 'Ese usuario ya existe. Prueba con otro o entra con tu contraseña.';
+  if (/at least 8/i.test(m)) return 'La contraseña necesita 8 letras o números como mínimo.';
+  if (/Failed to fetch|NetworkError|network/i.test(m)) return 'No hay conexión con la Sociedad Geográfica. Revisa la red.';
+  return 'No se ha podido entrar: ' + (m || 'error desconocido');
+}
+
+function showAuth() {
+  $('#screen-auth').classList.remove('hidden');
+  $('#screen-onboarding').classList.add('hidden');
+  $('#app').classList.add('hidden');
+}
+
+/* Estado remoto vs. local: gana el más reciente (updated_at) */
+function adoptState(remote) {
+  const local = loadState();
+  if (remote && local) {
+    S = (remote.updated_at || 0) >= (local.updated_at || 0) ? migrateState(remote) : local;
+  } else if (remote) {
+    S = migrateState(remote);
+  } /* si no hay remoto, S ya es el local (o null) */
+  return S;
+}
+
+/* ── Arranque ── */
+async function boot() {
+  wireGlobalListeners();
+
+  /* Configurado para la nube pero el SDK no está disponible (sin red, CDN
+     bloqueado en el centro…): avisar EN PANTALLA. Si no, el docente creería
+     que los diarios se guardan en la nube y solo estarían en cada tablet. */
+  if (cloudConfigured() && typeof Appwrite === 'undefined') {
+    showCloudWarning();
   }
 
-  /* listeners globales */
+  /* Modo nube: si Appwrite está configurado y el SDK cargó */
+  if (cloudInit()) {
+    $('#btn-logout').classList.remove('hidden');
+    wireAuthListeners();
+    let remote = null;
+    try { remote = await cloudResume(); } catch (e) { remote = null; }
+    if (cloudUser()) {           /* sesión viva de otro día */
+      adoptState(remote);
+      if (S) return startApp();
+      return showOnboarding();   /* cuenta creada pero sin diario aún */
+    }
+    return showAuth();
+  }
+
+  /* Modo local: el progreso vive en este navegador */
+  loadState();
+  if (S) startApp(); else showOnboarding();
+}
+
+function showCloudWarning() {
+  const bar = document.createElement('div');
+  bar.className = 'cloud-warning';
+  bar.innerHTML = '⚠️ <strong>Sin conexión con la Sociedad Geográfica.</strong> ' +
+    'Se puede jugar, pero el diario se guarda solo en esta tablet y no se sincroniza. ' +
+    'Avisa al docente.';
+  document.body.prepend(bar);
+}
+
+function showOnboarding() {
+  $('#screen-auth').classList.add('hidden');
+  $('#screen-onboarding').classList.remove('hidden');
+  $('#app').classList.add('hidden');
+}
+
+function wireGlobalListeners() {
   $$('[data-nav]').forEach(el => el.addEventListener('click', () => {
     if (mission && el.dataset.nav !== 'map') return; /* no salir a mitad de misión por tabs */
     if (mission) { abandonMission(); }
@@ -467,12 +642,102 @@ function boot() {
     show('map');
   });
 
+  $('#onboarding-form').addEventListener('submit', e => {
+    e.preventDefault();
+    const name = $('#input-explorer-name').value.trim() || 'Exploradora';
+    createState(name);
+    startApp();
+  });
+
+  /* Panel del docente (PIN de aula) */
+  $('#btn-teacher-panel').addEventListener('click', () => {
+    if (teacherUnlocked) { renderAwardList(); showTeacherPanel(); return; }
+    $('#teacher-locked').classList.remove('hidden');
+    $('#btn-teacher-panel').classList.add('hidden');
+    $('#pin-input').focus();
+  });
+  $('#pin-form').addEventListener('submit', e => {
+    e.preventDefault();
+    if ($('#pin-input').value === String(ATLAS_CONFIG.teacherPin)) {
+      teacherUnlocked = true;
+      $('#pin-error').classList.add('hidden');
+      $('#pin-input').value = '';
+      renderAwardList();
+      showTeacherPanel();
+    } else {
+      $('#pin-error').classList.remove('hidden');
+      $('#pin-input').value = '';
+    }
+  });
+  $('#btn-close-panel').addEventListener('click', () => {
+    $('#teacher-award').classList.add('hidden');
+    $('#btn-teacher-panel').classList.remove('hidden');
+  });
+
+  $('#btn-logout').addEventListener('click', async () => {
+    if (!confirm('¿Cerrar sesión? Tu diario queda guardado en la nube.')) return;
+    await cloudPush();          /* volcar lo pendiente antes de salir */
+    await cloudLogout();
+    try { localStorage.removeItem(STORAGE_KEY); } catch (e) { /* sin almacenamiento */ }
+    S = null;
+    teacherUnlocked = false;
+    showAuth();
+  });
+
   if ('serviceWorker' in navigator) {
     navigator.serviceWorker.register('sw.js').catch(() => {});
   }
+
+  /* último volcado a la nube al cerrar la pestaña */
+  window.addEventListener('pagehide', () => { if (cloudEnabled() && cloudUser()) cloudPush(); });
+}
+
+function wireAuthListeners() {
+  const showTab = (login) => {
+    $('#tab-login').classList.toggle('active', login);
+    $('#tab-register').classList.toggle('active', !login);
+    $('#login-form').classList.toggle('hidden', !login);
+    $('#register-form').classList.toggle('hidden', login);
+    $('#auth-error').classList.add('hidden');
+  };
+  $('#tab-login').addEventListener('click', () => showTab(true));
+  $('#tab-register').addEventListener('click', () => showTab(false));
+
+  $('#login-form').addEventListener('submit', async e => {
+    e.preventDefault();
+    const btn = $('#login-form button');
+    btn.disabled = true; btn.textContent = 'Entrando…';
+    try {
+      const remote = await cloudLogin($('#login-user').value, $('#login-pass').value);
+      adoptState(remote);
+      if (S) startApp(); else showOnboarding();
+    } catch (err) {
+      authError(friendlyAuthError(err));
+    } finally {
+      btn.disabled = false; btn.textContent = 'Entrar a la expedición 🎒';
+    }
+  });
+
+  $('#register-form').addEventListener('submit', async e => {
+    e.preventDefault();
+    const btn = $('#register-form button');
+    btn.disabled = true; btn.textContent = 'Creando…';
+    try {
+      const name = $('#reg-name').value.trim() || 'Explorador';
+      await cloudRegister(name, $('#reg-user').value, $('#reg-pass').value);
+      try { localStorage.removeItem(STORAGE_KEY); } catch (e2) { /* sin almacenamiento */ }
+      createState(name);        /* diario nuevo, se sube al primer guardado */
+      startApp();
+    } catch (err) {
+      authError(friendlyAuthError(err));
+    } finally {
+      btn.disabled = false; btn.textContent = 'Crear mi diario 📔';
+    }
+  });
 }
 
 function startApp() {
+  $('#screen-auth').classList.add('hidden');
   $('#screen-onboarding').classList.add('hidden');
   $('#app').classList.remove('hidden');
   const events = rolloverIfNeeded();
@@ -484,8 +749,7 @@ function startApp() {
     banner.classList.remove('hidden');
     setTimeout(() => banner.classList.add('hidden'), 6000);
   }
-  if (events.weekStamped) toast('📍 ¡Sello semanal estampado en tu bitácora! +50 🪙', 4000);
-  if (events.weekStamped) { earnDoubloons(50); saveState(); renderHud(); }
+  if (events.weekStamped) { earnDoubloons(50); saveState(); renderHud(); toast('📍 ¡Sello semanal estampado en tu bitácora! +50 🪙', 4000); }
   if (events.weekProtected) toast('🪢 Una cuerda de rescate protegió tu racha esta semana.', 4000);
 }
 
