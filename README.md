@@ -25,6 +25,7 @@ PWA sin dependencias: HTML + CSS + JavaScript vanilla, funciona offline y se ins
 | **Méritos de Campamento** | Doblones por comportamientos (ayudar, cuidar el material, participar…), concedidos por el docente con PIN y topes diarios |
 | **Panel de Configuración** | El docente edita en la propia app el curso, los reconocimientos, las cuadrillas, los pozos, el almacén, la economía y el acceso — sin tocar código |
 | **Cuadrillas de excavación** | Equipos cooperativos que suman a una meta común de clase; sin ranking entre niños salvo que se active |
+| **Vista general de la clase** | Todos los alumnos en una pantalla, con alerta de rescate, KPIs del PRD §6 y el total real de cada cuadrilla |
 
 ## Cómo ejecutarlo
 
@@ -125,6 +126,32 @@ Tres cosas que conviene saber:
 - **Retirar algo del catálogo no borra lo ya ganado.** Si quitas un reconocimiento, los méritos que ya concediste siguen en el diario de los niños. Igual con el almacén: quien compró una prenda la conserva.
 - **Restaurar los valores de fábrica solo borra tus ajustes**, nunca el progreso de los alumnos.
 
+## Vista general de la clase
+
+**Cuaderno del Docente → 👥 Vista general de la clase** (pide el PIN). Reúne los diarios de todos y muestra:
+
+- **Los cinco KPIs de cabecera del PRD §6:** exploradores activos, minutos de excavación por sesión (atención de calidad), estratos por alumno (velocidad), % en zona de flujo y cuántos necesitan rescate.
+- **Alerta de rescate:** alumnos que acumulan **tres o más señales a la vez** — caída de sesiones, tasa de error alta, estrato atascado más de 7 días, fuera del canal de flujo, o respuestas sistemáticas por debajo de 2 segundos. Se nombran arriba y su ficha se destaca.
+- **Ficha por alumno:** dominio medio, estratos superados, minutos, días activos, precisión, autocorrecciones, méritos, en qué estrato está atascado y cuándo fue su última expedición.
+- **Cuadrillas con su total real**, sumando lo aportado por cada miembro.
+
+Dos decisiones deliberadas:
+
+- **Ordena por defecto por «quien más te necesita»**, no por quien va ganando. El cuaderno sirve para detectar, no para clasificar. Tienes orden alfabético y por progreso si los prefieres.
+- **Va detrás del PIN y solo la ve el docente.** El PRD §0.2 prohíbe rankings públicos con nombres de niños; esta vista existe justo para lo contrario: que tú veas lo que los niños no deben verse entre ellos.
+
+### Permiso necesario en Appwrite
+
+Por defecto cada alumno solo puede leer su propio diario — que es lo correcto. Para que tú puedas leerlos todos:
+
+1. En la consola de Appwrite crea un **equipo** (por ejemplo `docentes`) y añade tu cuenta.
+2. En la colección de diarios → **Permissions**, da **Read** al rol de ese equipo.
+3. Cierra sesión en la app y vuelve a entrar.
+
+Los alumnos siguen sin poder leerse entre ellos: el permiso es solo para el equipo docente. Si falta, la vista te lo explica con estos pasos en vez de fallar en seco.
+
+> **Sin Appwrite configurado** la vista solo puede mostrar el diario de esa tablet, y lo dice con claridad. No hay forma de reunir los diarios de otros dispositivos sin un servidor de por medio.
+
 ## Crear tus propios yacimientos y retos
 
 La sección **🏛️ Yacimientos y pozos** del panel edita toda la estructura del contenido:
@@ -164,6 +191,7 @@ index.html            App shell (todas las pantallas)
 css/styles.css        Estética pergamino/latón, apta para tablet
 js/config.js          Valores de partida y capa de ajustes editable del docente
 js/cloud.js           Cuentas y sincronización con Appwrite (degrada a local)
+js/classview.js       Resumen de la clase (cálculo puro + lectura remota)
 js/teacher.js         Panel de Configuración del docente
 js/content.js         Generadores procedurales de retos por estrato y tier
 js/state.js           Estado user_state (PRD §5), economía y persistencia (localStorage)

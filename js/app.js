@@ -6,7 +6,7 @@
 const $ = sel => document.querySelector(sel);
 const $$ = sel => document.querySelectorAll(sel);
 
-const SCREENS = ['map', 'branch', 'mission', 'result', 'camp', 'merits', 'team', 'logbook', 'dashboard', 'config'];
+const SCREENS = ['map', 'branch', 'mission', 'result', 'camp', 'merits', 'team', 'logbook', 'dashboard', 'class', 'config'];
 
 function show(screenId) {
   SCREENS.forEach(s => $(`#screen-${s}`).classList.toggle('hidden', s !== screenId));
@@ -16,6 +16,7 @@ function show(screenId) {
   if (screenId === 'merits') renderMerits();
   if (screenId === 'team') renderTeam();
   if (screenId === 'config') renderTeacherConfig();
+  if (screenId === 'class') renderClassView();
   if (screenId === 'logbook') renderLogbook();
   if (screenId === 'dashboard') renderDashboard();
   window.scrollTo(0, 0);
@@ -664,6 +665,142 @@ function showTeacherPanel() {
   $('#btn-teacher-panel').classList.add('hidden');
 }
 
+/* ── Vista general de la clase ── */
+let classData = null;
+let classSort = 'atencion';
+
+function classStatus(html) { $('#class-status').innerHTML = html; }
+
+async function renderClassView() {
+  renderHud();
+  if (classData) return paintClassView();
+
+  $('#class-body').classList.add('hidden');
+  classStatus('<p class="class-loading">Reuniendo los diarios de la expedición…</p>');
+
+  /* Sin nube no hay forma de leer los diarios de los demás: se dice y se
+     muestra al menos el de esta tablet, etiquetado como lo que es. */
+  if (!cloudEnabled() || !cloudUser()) {
+    classData = buildClassOverview(S ? [{ id: 'local', name: S.profile.explorer_name, state: S }] : []);
+    classData.localOnly = true;
+    return paintClassView();
+  }
+
+  const res = await fetchClassDocs();
+  if (!res.ok) {
+    classData = null;
+    return classStatus(classErrorHtml(res));
+  }
+  classData = buildClassOverview(parseClassDocs(res.docs));
+  paintClassView();
+}
+
+function classErrorHtml(res) {
+  if (res.reason === 'sin-permiso') {
+    return `<div class="class-error">
+      <h3>Falta permiso para leer la clase</h3>
+      <p>Tu cuenta puede leer su propio diario, pero no los de los demás. Es lo correcto
+      por defecto: así ningún alumno ve el progreso de otro.</p>
+      <p>Para que tú sí puedas, en la consola de Appwrite:</p>
+      <ol>
+        <li>Crea un <strong>equipo</strong> (por ejemplo <code>docentes</code>) y añádete a él.</li>
+        <li>En la colección de diarios → <strong>Permissions</strong>, da <strong>Read</strong> al rol de ese equipo.</li>
+        <li>Cierra sesión y vuelve a entrar.</li>
+      </ol>
+      <p class="cfg-hint">Los alumnos siguen sin poder leerse entre ellos: el permiso es solo para el equipo docente.</p>
+    </div>`;
+  }
+  return `<div class="class-error">
+    <h3>No se han podido reunir los diarios</h3>
+    <p>${res.reason === 'sin-nube' ? 'No hay sesión en la nube ahora mismo.' : 'Ha fallado la consulta.'}</p>
+    ${res.detail ? `<p class="cfg-hint">${res.detail}</p>` : ''}
+    <button class="btn btn-secondary btn-small" onclick="classData=null;renderClassView()">Reintentar</button>
+  </div>`;
+}
+
+function paintClassView() {
+  const d = classData;
+  $('#class-body').classList.remove('hidden');
+
+  classStatus(d.localOnly
+    ? `<div class="class-note">📱 <strong>Solo esta tablet.</strong> Sin cuentas en la nube no se pueden
+       reunir los diarios de los demás, así que abajo aparece únicamente quien está usando este
+       dispositivo. Configura Appwrite para ver la clase entera.</div>`
+    : `<p class="class-meta">${d.students.length} explorador(es) · datos al ${d.generatedAt}</p>`);
+
+  if (!d.students.length) {
+    $('#class-students').innerHTML = '<p class="empty-note">Todavía no hay ningún diario de expedición.</p>';
+    $('#class-kpis').innerHTML = '';
+    $('#class-teams').innerHTML = '';
+    $('#class-alerts').innerHTML = '';
+    $('#class-missing').innerHTML = '';
+    return;
+  }
+
+  const k = d.kpis;
+  $('#class-kpis').innerHTML = [
+    { v: k.students, l: 'Exploradores', n: `${k.activeThisWeek} activos esta semana` },
+    { v: k.minutesPerSession.toFixed(1) + ' min', l: 'Excavación por sesión', n: 'atención de calidad' },
+    { v: k.strataPerStudent.toFixed(1), l: 'Estratos por alumno', n: 'velocidad de excavación' },
+    { v: k.inFlowPct === null ? '—' : Math.round(k.inFlowPct * 100) + '%', l: 'En zona de flujo', n: 'objetivo: 70–85% de acierto' },
+    { v: k.needHelp, l: 'Necesitan rescate', n: '3 o más señales a la vez' }
+  ].map(x => `<div class="kpi-card"><span class="kpi-value">${x.v}</span>
+      <span class="kpi-label">${x.l}</span><small>${x.n}</small></div>`).join('');
+
+  const urgentes = d.students.filter(s => s.needsHelp);
+  $('#class-alerts').innerHTML = urgentes.length
+    ? `<div class="class-alert"><strong>🛟 Alerta de rescate:</strong>
+        ${urgentes.map(s => s.name).join(', ')} — ${urgentes.length === 1 ? 'acumula' : 'acumulan'}
+        tres o más señales. Míralo en persona antes de tocar nada del juego.</div>`
+    : '';
+
+  $('#class-students').innerHTML = sortStudents(d.students, classSort).map(s => `
+    <div class="student-card${s.needsHelp ? ' student-alert' : ''}">
+      <div class="student-head">
+        <strong>${s.name}</strong>
+        <span class="student-rank">Nv. ${s.level} · ${s.rank}</span>
+      </div>
+      <div class="student-bars">
+        <div class="student-bar-row">
+          <span>Dominio medio</span>
+          <div class="mastery-bar"><div class="mastery-fill${s.avgMastery >= 0.8 ? ' gold' : ''}" style="width:${Math.round(s.avgMastery * 100)}%"></div></div>
+          <span class="student-num">${Math.round(s.avgMastery * 100)}%</span>
+        </div>
+      </div>
+      <div class="student-stats">
+        <span title="Estratos dominados de los disponibles">⛏️ ${s.mastered}/${s.totalStrata} estratos</span>
+        <span title="Minutos de excavación en 7 días">⏱️ ${s.minutes7} min/7d</span>
+        <span title="Días activos de los 3 que exige el sello">📅 ${s.activeDays}/3 días</span>
+        <span title="Precisión en las últimas 10 respuestas">🎯 ${s.accuracy === null ? '—' : Math.round(s.accuracy * 100) + '%'}</span>
+        <span title="Hallazgos restaurados (autocorrección)">🔧 ${s.selfCorrections}</span>
+        <span title="Méritos concedidos">🏅 ${s.merits}</span>
+      </div>
+      ${s.signals.length ? `<div class="student-signals">${s.signals.map(x => `<span class="signal-chip">${x}</span>`).join('')}</div>` : ''}
+      ${s.stuck.length ? `<small class="student-stuck">Atascado en: ${s.stuck.join(' · ')}</small>` : ''}
+      <small class="student-seen">Última expedición: ${s.lastSeen || '—'}</small>
+    </div>`).join('');
+
+  const cmp = ATLAS_CONFIG.teams && ATLAS_CONFIG.teams.enabled;
+  $('#class-teams').innerHTML = !cmp
+    ? '<p class="empty-note">Las cuadrillas están desactivadas.</p>'
+    : d.teams.map(t => {
+        const meta = ATLAS_CONFIG.teams.goalTarget || 1;
+        const pct = Math.min(100, Math.round((t.contribution / meta) * 100));
+        return `<div class="class-team">
+          <div class="class-team-head"><span>${t.icon} <strong>${t.name}</strong></span>
+            <span class="student-num">${t.contribution} / ${meta} 🪙</span></div>
+          <div class="mastery-bar"><div class="mastery-fill${pct >= 100 ? ' gold' : ''}" style="width:${pct}%"></div></div>
+          <small>${t.members} con diario${t.listed !== t.members ? ` de ${t.listed} asignados` : ''} · ${t.mastered} estratos entre todos</small>
+        </div>`;
+      }).join('');
+
+  $('#class-missing').innerHTML = d.missing.length
+    ? `<div class="class-warn">⚠️ Asignados a una cuadrilla pero sin diario:
+        ${d.missing.map(m => `<strong>${m.name}</strong> (${m.team})`).join(', ')}.
+        O aún no se han registrado, o el nombre no coincide con el que escribieron.</div>`
+    : '';
+}
+
 /* ── El curso por trimestres (cuaderno docente) ── */
 function renderCourse() {
   const now = currentTrimesterIndex();
@@ -809,6 +946,15 @@ function wireGlobalListeners() {
     $('#teacher-award').classList.add('hidden');
     $('#btn-teacher-panel').classList.remove('hidden');
   });
+
+  $('#btn-open-class').addEventListener('click', async () => {
+    if (!teacherUnlocked && !(await askPin())) return;
+    teacherUnlocked = true;
+    classData = null;               /* siempre datos frescos al entrar */
+    show('class');
+  });
+  $('#class-sort').addEventListener('change', e => { classSort = e.target.value; paintClassView(); });
+  $('#class-reload').addEventListener('click', () => { classData = null; renderClassView(); });
 
   $('#btn-open-config').addEventListener('click', async () => {
     if (!teacherUnlocked && !(await askPin())) return;

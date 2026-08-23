@@ -608,3 +608,58 @@ button:disabled { cursor: not-allowed; opacity: .55; }
   background: var(--parchment-dark); border-radius: 5px; padding: .05rem .3rem;
   font-size: .82em; word-break: break-word;
 }
+
+/* ══════════ VISTA GENERAL DE LA CLASE ══════════ */
+.class-status { margin-bottom: .8rem; }
+.class-loading { color: var(--ink-soft); font-style: italic; }
+.class-meta { font-size: .85rem; color: var(--ink-soft); }
+.class-note, .class-warn {
+  background: #f4e3c8; border: 2px dashed var(--brass); border-radius: var(--radius);
+  padding: .8rem .9rem; font-size: .88rem;
+}
+.class-warn { margin-top: .8rem; border-style: solid; border-color: var(--danger); color: #7d2d1c; }
+.class-error {
+  background: var(--card); border: 2px solid var(--danger); border-radius: var(--radius);
+  padding: 1rem; box-shadow: var(--shadow);
+}
+.class-error h3 { margin: 0 0 .4rem; color: var(--danger); }
+.class-error p, .class-error li { font-size: .9rem; margin-bottom: .4rem; }
+.class-error ol { margin: .4rem 0 .4rem 1.1rem; }
+.class-alert {
+  background: #fbdcd2; border-left: 5px solid var(--danger); border-radius: var(--radius);
+  padding: .8rem .9rem; margin: .9rem 0; font-size: .9rem;
+}
+.class-toolbar {
+  display: flex; align-items: center; gap: .5rem; flex-wrap: wrap; margin: .9rem 0 .3rem;
+}
+.class-toolbar select {
+  padding: .45rem .7rem; font-family: inherit; font-size: .88rem;
+  border: 2px solid var(--parchment-dark); border-radius: 10px;
+  background: var(--card); color: var(--ink); flex: 1; min-width: 160px;
+}
+.class-students { display: flex; flex-direction: column; gap: .55rem; margin-top: .6rem; }
+.student-card {
+  background: var(--card); border-radius: var(--radius); box-shadow: var(--shadow);
+  padding: .8rem; border-left: 5px solid var(--jungle-light);
+  display: flex; flex-direction: column; gap: .4rem;
+}
+.student-card.student-alert { border-left-color: var(--danger); background: #fffaf6; }
+.student-head { display: flex; justify-content: space-between; align-items: baseline; gap: .5rem; flex-wrap: wrap; }
+.student-head strong { font-size: 1.05rem; }
+.student-rank { font-size: .78rem; color: var(--brass); font-weight: 700; }
+.student-bar-row { display: grid; grid-template-columns: 70px 1fr auto; align-items: center; gap: .5rem; font-size: .8rem; }
+.student-num { font-variant-numeric: tabular-nums; color: var(--ink-soft); font-size: .8rem; white-space: nowrap; }
+.student-stats { display: flex; flex-wrap: wrap; gap: .5rem .9rem; font-size: .82rem; color: var(--ink-soft); }
+.student-signals { display: flex; flex-wrap: wrap; gap: .3rem; }
+.signal-chip {
+  background: #fbdcd2; color: #7d2d1c; border-radius: 999px;
+  padding: .15rem .6rem; font-size: .72rem; font-weight: 700;
+}
+.student-stuck, .student-seen { font-size: .76rem; color: var(--ink-soft); }
+.class-team {
+  background: var(--card); border-radius: var(--radius); box-shadow: var(--shadow);
+  padding: .75rem; margin-bottom: .5rem;
+}
+.class-team-head { display: flex; justify-content: space-between; gap: .5rem; margin-bottom: .35rem; flex-wrap: wrap; }
+.class-team small { color: var(--ink-soft); font-size: .78rem; }
+.dash-actions { display: flex; gap: .5rem; flex-wrap: wrap; }
