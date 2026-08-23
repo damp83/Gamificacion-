@@ -21,6 +21,59 @@ function show(screenId) {
   window.scrollTo(0, 0);
 }
 
+/* ── Diálogos propios ──
+   Los del navegador (prompt/confirm) quedan bloqueados dentro de un iframe
+   con sandbox sin `allow-modals`: prompt() devuelve null y confirm() devuelve
+   false, así que el panel no se abría y los borrados se cancelaban solos.
+   Estos funcionan en cualquier contexto y se usan mejor con el dedo. */
+let modalResolve = null;
+
+function closeModal(value) {
+  $('#modal').classList.add('hidden');
+  document.removeEventListener('keydown', modalKeys);
+  const r = modalResolve;
+  modalResolve = null;
+  if (r) r(value);
+}
+function modalKeys(e) {
+  if (e.key === 'Escape') { e.preventDefault(); closeModal(null); }
+  else if (e.key === 'Enter' && !$('#modal-input').classList.contains('hidden')) {
+    e.preventDefault();
+    $('#modal-ok').click();
+  }
+}
+function openModal({ text, withInput, okLabel, cancelLabel }) {
+  return new Promise(resolve => {
+    closeModal(null);           /* nunca dos diálogos a la vez */
+    modalResolve = resolve;
+    $('#modal-text').textContent = text;
+    $('#modal-error').classList.add('hidden');
+    const input = $('#modal-input');
+    input.value = '';
+    input.classList.toggle('hidden', !withInput);
+    $('#modal-ok').textContent = okLabel || 'Aceptar';
+    $('#modal-cancel').textContent = cancelLabel || 'Cancelar';
+    $('#modal').classList.remove('hidden');
+    document.addEventListener('keydown', modalKeys);
+    if (withInput) setTimeout(() => input.focus(), 50);
+    else setTimeout(() => $('#modal-ok').focus(), 50);
+  });
+}
+/* Sustituye a confirm() */
+function askConfirm(text, okLabel) {
+  return openModal({ text, okLabel: okLabel || 'Sí, adelante' }).then(v => v === true);
+}
+/* Sustituye a prompt() para el PIN; reintenta hasta acertar o cancelar */
+async function askPin(text) {
+  while (true) {
+    const v = await openModal({ text: text || 'PIN del docente', withInput: true, okLabel: 'Entrar' });
+    if (v === null) return false;                    /* cancelado */
+    if (v === String(ATLAS_CONFIG.teacherPin)) return true;
+    /* PIN erróneo: se vuelve a pedir, diciéndolo */
+    text = 'PIN incorrecto. Inténtalo de nuevo.';
+  }
+}
+
 function toast(msg, ms) {
   const t = $('#toast');
   t.textContent = msg;
@@ -743,21 +796,15 @@ function wireGlobalListeners() {
     $('#btn-teacher-panel').classList.remove('hidden');
   });
 
-  $('#btn-open-config').addEventListener('click', () => {
-    if (teacherUnlocked) { cfgSection = 'curso'; show('config'); return; }
-    const pin = prompt('PIN del docente:');
-    if (pin === null) return;
-    if (pin === String(ATLAS_CONFIG.teacherPin)) {
-      teacherUnlocked = true;
-      cfgSection = 'curso';
-      show('config');
-    } else {
-      toast('PIN incorrecto.');
-    }
+  $('#btn-open-config').addEventListener('click', async () => {
+    if (!teacherUnlocked && !(await askPin())) return;
+    teacherUnlocked = true;
+    cfgSection = 'curso';
+    show('config');
   });
 
   $('#btn-logout').addEventListener('click', async () => {
-    if (!confirm('¿Cerrar sesión? Tu diario queda guardado en la nube.')) return;
+    if (!(await askConfirm('¿Cerrar sesión? Tu diario queda guardado en la nube.', 'Cerrar sesión'))) return;
     await cloudPush();          /* volcar lo pendiente antes de salir */
     await cloudLogout();
     try { localStorage.removeItem(STORAGE_KEY); } catch (e) { /* sin almacenamiento */ }
@@ -765,6 +812,13 @@ function wireGlobalListeners() {
     teacherUnlocked = false;
     showAuth();
   });
+
+  $('#modal-ok').addEventListener('click', () => {
+    const input = $('#modal-input');
+    closeModal(input.classList.contains('hidden') ? true : input.value);
+  });
+  $('#modal-cancel').addEventListener('click', () => closeModal(null));
+  $('#modal').addEventListener('click', e => { if (e.target.id === 'modal') closeModal(null); });
 
   if ('serviceWorker' in navigator) {
     navigator.serviceWorker.register('sw.js').catch(() => {});

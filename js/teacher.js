@@ -141,12 +141,12 @@ function cfgPremios(body) {
   $$('.cfg-b-coins').forEach(el => onInput(el, e => write(+e.target.dataset.i, 'coins', Math.max(1, +e.target.value || 1))));
   $$('.cfg-b-cap').forEach(el => onInput(el, e => write(+e.target.dataset.i, 'perDay', Math.max(1, +e.target.value || 1))));
   $$('.cfg-b-cat').forEach(el => onInput(el, e => write(+e.target.dataset.i, 'category', e.target.value)));
-  $$('.cfg-del').forEach(el => el.addEventListener('click', () => {
+  $$('.cfg-del').forEach(el => el.addEventListener('click', async () => {
     const i = +el.dataset.del;
     const l = deepClone(ATLAS_CONFIG.behaviors);
     /* Se quita del catálogo, pero lo ya concedido a los niños NO se toca:
        el historial es suyo y «nada se pierde nunca». */
-    if (!confirm(`¿Quitar «${l[i].name}»? Los méritos ya concedidos se conservan.`)) return;
+    if (!(await askConfirm(`¿Quitar «${l[i].name}»? Los méritos ya concedidos se conservan.`, 'Quitar'))) return;
     l.splice(i, 1);
     cfgSave('behaviors', l, 'Eliminado del catálogo ✓');
   }));
@@ -208,10 +208,10 @@ function cfgEquipos(body) {
     write(+e.target.dataset.i, 'members', members);
     toast(`Cuadrilla actualizada: ${members.length} miembro(s) ✓`, 1600);
   }));
-  $$('[data-delteam]').forEach(el => el.addEventListener('click', () => {
+  $$('[data-delteam]').forEach(el => el.addEventListener('click', async () => {
     const i = +el.dataset.delteam;
     const l = deepClone(ATLAS_CONFIG.teams.list);
-    if (!confirm(`¿Eliminar «${l[i].name}»?`)) return;
+    if (!(await askConfirm(`¿Eliminar «${l[i].name}»?`, 'Eliminar'))) return;
     l.splice(i, 1);
     cfgSave('teams.list', l, 'Cuadrilla eliminada ✓');
   }));
@@ -305,10 +305,10 @@ function cfgAlmacen(body) {
   $$('.cfg-s-name').forEach(el => onInput(el, e => write(+e.target.dataset.i, 'name', e.target.value || 'Artículo')));
   $$('.cfg-s-cost').forEach(el => onInput(el, e => write(+e.target.dataset.i, 'cost', Math.max(1, +e.target.value || 1))));
   $$('.cfg-s-type').forEach(el => onInput(el, e => write(+e.target.dataset.i, 'type', e.target.value)));
-  $$('[data-delshop]').forEach(el => el.addEventListener('click', () => {
+  $$('[data-delshop]').forEach(el => el.addEventListener('click', async () => {
     const i = +el.dataset.delshop;
     const l = deepClone(ATLAS_CONFIG.shop);
-    if (!confirm(`¿Quitar «${l[i].name}» del almacén? Quien ya lo tenga lo conserva.`)) return;
+    if (!(await askConfirm(`¿Quitar «${l[i].name}» del almacén? Quien ya lo tenga lo conserva.`, 'Quitar'))) return;
     l.splice(i, 1);
     cfgSave('shop', l, 'Artículo retirado ✓');
   }));
@@ -430,8 +430,8 @@ function cfgCopia(body) {
     renderTeacherConfig();
     toast('Ajustes aplicados ✓');
   });
-  $('#cfg-reset').addEventListener('click', () => {
-    if (!confirm('¿Restaurar todos los valores de fábrica? Se perderán tus ajustes (el progreso de los alumnos NO).')) return;
+  $('#cfg-reset').addEventListener('click', async () => {
+    if (!(await askConfirm('¿Restaurar todos los valores de fábrica? Se perderán tus ajustes. El progreso de los alumnos NO se toca.', 'Restaurar'))) return;
     resetTeacherConfig();
     renderTeacherConfig();
     toast('Valores de fábrica restaurados ✓');

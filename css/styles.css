@@ -535,3 +535,26 @@ button:disabled { cursor: not-allowed; opacity: .55; }
 }
 .cfg-field-inline .cfg-hint { grid-column: 1 / -1; }
 .cfg-field-inline input[type="checkbox"] { width: 22px; height: 22px; accent-color: var(--jungle); }
+
+/* ══════════ DIÁLOGO PROPIO ══════════ */
+.modal {
+  position: fixed; inset: 0; z-index: 60;
+  display: flex; align-items: center; justify-content: center; padding: 1rem;
+  background: rgba(43, 29, 14, .55);
+}
+.modal.hidden { display: none; }
+.modal-card {
+  background: var(--card); border: 3px solid var(--brass); border-radius: 20px;
+  box-shadow: 0 8px 30px rgba(0,0,0,.3); padding: 1.4rem;
+  max-width: 420px; width: 100%; text-align: center;
+  animation: slide-in .2s ease;
+}
+.modal-text { font-size: 1.05rem; font-weight: 600; margin-bottom: .9rem; }
+.modal-input {
+  width: 100%; padding: .8rem 1rem; font-size: 1.3rem; text-align: center;
+  letter-spacing: .3em; font-family: inherit;
+  border: 2px solid var(--brass); border-radius: var(--radius);
+  background: var(--parchment); color: var(--ink); margin-bottom: .6rem;
+}
+.modal-actions { display: flex; gap: .6rem; justify-content: center; flex-wrap: wrap; }
+.modal-actions .btn { flex: 1; min-width: 120px; }

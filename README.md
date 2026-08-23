@@ -117,6 +117,8 @@ Los comportamientos, sus valores y sus topes diarios se editan en `js/config.js`
 
 Los cambios se aplican **al instante**: renombras un pozo y el mapa ya lo muestra así.
 
+> Los diálogos de PIN y de confirmación son propios de la app, no del navegador: dentro de un iframe con `sandbox` sin `allow-modals` (como el visor de Artifacts) `prompt()` devuelve `null` y `confirm()` devuelve `false`, así que el panel no llegaba a abrirse y los borrados se cancelaban solos.
+
 Tres cosas que conviene saber:
 
 - **Los ajustes viven en la tablet donde los haces.** Para replicarlos, usa Copia de seguridad → copiar, y pégalo en las demás. No se sincronizan solos: hacerlo exigiría permisos de escritura compartidos que, sin una cuenta de docente real, cualquier alumno podría usar.

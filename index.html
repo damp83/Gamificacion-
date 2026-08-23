@@ -259,6 +259,20 @@
     </nav>
   </div>
 
+  <!-- Diálogo propio: los del navegador (prompt/confirm) están bloqueados
+       dentro de un iframe restringido, y además se manejan peor en tablet. -->
+  <div id="modal" class="modal hidden" role="dialog" aria-modal="true" aria-labelledby="modal-text">
+    <div class="modal-card">
+      <p id="modal-text" class="modal-text"></p>
+      <input type="password" id="modal-input" class="modal-input hidden" inputmode="numeric" autocomplete="off">
+      <p id="modal-error" class="auth-error hidden"></p>
+      <div class="modal-actions">
+        <button id="modal-cancel" class="btn btn-quit">Cancelar</button>
+        <button id="modal-ok" class="btn btn-primary">Aceptar</button>
+      </div>
+    </div>
+  </div>
+
   <div id="toast" class="toast hidden"></div>
 
   <!-- SDK de Appwrite. Si no carga (sin red o sin configurar), la app
