@@ -199,7 +199,10 @@ button:disabled { cursor: not-allowed; opacity: .55; }
 }
 .stratum-icon { font-size: 1.7rem; }
 .stratum-info { flex: 1; }
-.stratum-info small { color: var(--ink-soft); font-size: .78rem; }
+/* título en su propia línea: en los estratos bloqueados no hay barra de
+   dominio que lo separe del texto de ayuda y quedaban pegados */
+.stratum-info strong { display: block; }
+.stratum-info small { color: var(--ink-soft); font-size: .78rem; display: block; }
 .stratum-go { font-size: 1.3rem; }
 .mastery-bar { height: 9px; background: var(--parchment-dark); border-radius: 5px; overflow: hidden; margin: .3rem 0 .15rem; }
 .mastery-fill { height: 100%; background: var(--jungle-light); border-radius: 5px; transition: width .5s ease; }

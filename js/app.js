@@ -207,6 +207,7 @@ function onAnswer(index, btn) {
 }
 
 function showFeedback(res, extra) {
+  renderProgressDots(); /* el punto del reto recién resuelto ya refleja el resultado */
   $('#question-card').classList.add('hidden');
   const card = $('#feedback-card');
   card.classList.remove('hidden');

@@ -35,6 +35,7 @@ function defaultStrata() {
       status: i === 0 ? 'available' : 'locked',
       mastery: 0,
       attempts: 0,
+      recent_sessions: [],
       last_practiced: null
     };
   });
@@ -205,12 +206,32 @@ function earnXp(n) {
 function getStratum(branchId, stratumId) {
   return S.dig_sites.kaldros[branchId].strata[stratumId];
 }
-/* Media móvil exponencial hacia la precisión de la sesión */
+/* Mastery = precisión media de las últimas MASTERY_WINDOW sesiones del estrato.
+   Se exige un mínimo de 2 sesiones para que una sola tanda afortunada no
+   desbloquee el estrato siguiente. Una media móvil (y no exponencial) hace
+   que la barra se mueva en cada sesión —PRD §2.6— y que un error temprano
+   deje de penalizar indefinidamente: lo que cuenta es el rendimiento reciente. */
+const MASTERY_WINDOW = 4;
+const MASTERY_MIN_SESSIONS = 2;
+
 function updateMastery(branchId, stratumId, sessionAccuracy) {
   const st = getStratum(branchId, stratumId);
   st.attempts++;
-  const weight = st.attempts <= 2 ? 0.5 : 0.3;
-  st.mastery = Math.min(1, Math.max(0, st.mastery + weight * (sessionAccuracy - st.mastery)));
+  if (!Array.isArray(st.recent_sessions)) st.recent_sessions = [];
+  st.recent_sessions.push(sessionAccuracy);
+  if (st.recent_sessions.length > MASTERY_WINDOW) st.recent_sessions.shift();
+
+  /* Ponderación lineal: la sesión más reciente pesa más. Quien empieza
+     torpe y mejora llega antes, en coherencia con «el error no penaliza». */
+  let num = 0, den = 0;
+  st.recent_sessions.forEach((acc, i) => { num += acc * (i + 1); den += (i + 1); });
+  const mean = num / den;
+
+  /* con una sola sesión la barra avanza pero se muestra a medio camino:
+     progreso visible sin dar por dominado lo que aún no se ha confirmado */
+  st.mastery = st.recent_sessions.length < MASTERY_MIN_SESSIONS
+    ? Math.min(0.75, mean)
+    : mean;
   st.last_practiced = todayStr();
   if (st.mastery >= 0.8) st.status = 'mastered';
   else if (st.status !== 'mastered') st.status = 'in_progress';

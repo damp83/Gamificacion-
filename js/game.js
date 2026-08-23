@@ -11,6 +11,19 @@ const HINT_EXTRA_COST = 10;    /* pista extra tras la gratuita */
 
 let mission = null; /* misión en curso */
 
+/* La dificultad global sube con el rendimiento (PRD §4.3), pero un estrato
+   recién abierto es contenido nuevo y de un nivel de Bloom más profundo:
+   entrar en él al tope de dificultad expulsa del canal de flujo justo donde
+   más andamiaje hace falta. Se amortigua la entrada las primeras sesiones y
+   a partir de ahí manda el motor adaptativo. */
+const ENTRY_TIER_CAP = [3, 4]; /* por nº de sesiones previas en el estrato */
+
+function entryTier(branchId, stratumId) {
+  const st = getStratum(branchId, stratumId);
+  const cap = ENTRY_TIER_CAP[st.attempts];
+  return cap === undefined ? S.adaptive.tier : Math.min(S.adaptive.tier, cap);
+}
+
 function startMission(branchId, stratumId, kind) {
   mission = {
     kind: kind || 'expedition',   /* 'expedition' | 'bazar' */
@@ -25,11 +38,13 @@ function startMission(branchId, stratumId, kind) {
     hintsShown: 0,
     questionStart: 0,
     missionStart: Date.now(),
+    tier: 2,                      /* se fija justo debajo, con entryTier() */
     resolved: []                  /* true/false primer intento por pregunta */
   };
   const total = mission.kind === 'bazar' ? BAZAR_QUESTIONS : MISSION_QUESTIONS;
   const gen = BRANCHES[branchId].generators[stratumId];
-  for (let i = 0; i < total; i++) mission.questions.push(gen(S.adaptive.tier));
+  mission.tier = entryTier(branchId, stratumId);
+  for (let i = 0; i < total; i++) mission.questions.push(gen(mission.tier));
   nextQuestion();
   return mission;
 }
@@ -68,7 +83,8 @@ function answerQuestion(optionIndex) {
    Premia la metacognición con 5 🪙 (máx. 5/día, PRD §2.4). */
 function restoreQuestion() {
   const gen = BRANCHES[mission.branchId].generators[mission.stratumId];
-  const variant = gen(S.adaptive.tier);
+  /* misma dificultad que el reto fallado: restaurar es reintentar, no escalar */
+  const variant = gen(mission.tier);
   mission.questions[mission.index] = variant;
   mission.current = variant;
   mission.questionStart = Date.now();
