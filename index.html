@@ -13,6 +13,156 @@
 </head>
 <body>
 
+  <!-- ══════════ PORTADA ══════════ -->
+  <section id="screen-home" class="screen hidden">
+    <div class="home-wrap">
+
+      <header class="home-hero">
+        <div class="home-crest">🧭</div>
+        <h1>Expedición Atlas</h1>
+        <p class="home-tagline">Los Diarios Perdidos</p>
+        <p class="home-lead">Una aventura de arqueología donde el tesoro se llama
+        <strong>aprender</strong>. Cada cosa que dominas de verdad recupera un trozo del
+        mapa del mundo.</p>
+      </header>
+
+      <div class="home-doors">
+        <button class="home-door home-door-student" id="home-student">
+          <span class="home-door-icon">🎒</span>
+          <strong>Soy explorador</strong>
+          <small>Entrar a mi diario y seguir excavando</small>
+        </button>
+        <button class="home-door home-door-teacher" id="home-teacher">
+          <span class="home-door-icon">🧭</span>
+          <strong>Soy docente</strong>
+          <small>Ver la clase y preparar la expedición</small>
+        </button>
+      </div>
+
+      <!-- ── La historia, contada para el alumnado ── -->
+      <section class="home-block">
+        <h2>🏺 ¿De qué va todo esto?</h2>
+        <div class="dialog bruno home-dialog">
+          <span class="dialog-avatar">🧔🏻‍♂️</span>
+          <div class="dialog-text">
+            <strong>Prof. Bruno Ocaña</strong>
+            <p>«Hace cien años, el sabio Ossian dibujó un mapa que reunía <em>todo</em> el
+            saber del mundo: el <strong>Atlas de Ossian</strong>. Pero se rompió en mil
+            fragmentos que quedaron escondidos en ruinas de los cinco continentes.
+            Llevamos un siglo buscándolos… y necesitamos gente valiente. ¡Como tú!»</p>
+          </div>
+        </div>
+        <p class="home-rule">🗺️ <strong>La regla de oro:</strong> el mapa solo se dibuja
+        con lo que aprendes de verdad. Nada de trucos, nada de suerte. Tu aprendizaje
+        <em>es</em> la aventura.</p>
+      </section>
+
+      <!-- ── Cómo se juega ── -->
+      <section class="home-block">
+        <h2>⛏️ Cómo se excava</h2>
+        <ol class="home-steps">
+          <li><span class="home-step-n">1</span>
+            <div><strong>Eliges un yacimiento</strong> en el mapa. Tú decides por dónde empezar.</div></li>
+          <li><span class="home-step-n">2</span>
+            <div><strong>Excavas por estratos.</strong> Lo fácil está en la superficie;
+            el tesoro de verdad, más abajo. Cada estrato es un poco más difícil que el anterior.</div></li>
+          <li><span class="home-step-n">3</span>
+            <div><strong>Si fallas, no pasa nada.</strong> Caes en una trampa, Kira te explica
+            el error y puedes <em>restaurar el hallazgo</em>. Equivocarse forma parte de excavar.</div></li>
+          <li><span class="home-step-n">4</span>
+            <div><strong>Ganas Doblones</strong> 🪙 para tu campamento y tu equipo, y
+            <strong>Puntos de Expedición</strong> ⭐ que suben tu rango.</div></li>
+          <li><span class="home-step-n">5</span>
+            <div><strong>El mapa se dibuja</strong> un poco más… y vuelta a empezar.</div></li>
+        </ol>
+      </section>
+
+      <!-- ── El elenco ── -->
+      <section class="home-block">
+        <h2>👥 Quién te acompaña</h2>
+        <div class="home-cast">
+          <div class="cast-card">
+            <span class="cast-face">🧔🏻‍♂️</span>
+            <strong>Prof. Bruno Ocaña</strong>
+            <small>Tu mentor. Pierde las gafas, confunde los mapas y cae en todas las
+            trampas. Si te equivocas, él ya lo hizo antes y peor.</small>
+          </div>
+          <div class="cast-card">
+            <span class="cast-face">🪲</span>
+            <strong>Kira</strong>
+            <small>Escarabajo de latón, sarcástica y lista. Traduce jeroglíficos y te da
+            pistas… pero nunca la respuesta.</small>
+          </div>
+          <div class="cast-card">
+            <span class="cast-face">🐕</span>
+            <strong>Tobías</strong>
+            <small>El perro de la expedición. Olfato prodigioso para el tesoro,
+            cero cerebro. Le encantan las golosinas.</small>
+          </div>
+          <div class="cast-card cast-villain">
+            <span class="cast-face">🐦‍⬛</span>
+            <strong>Vera Kovak</strong>
+            <small>Jefa de los Saqueadores del Cuervo. Quiere vender los tesoros a
+            coleccionistas. Se equivoca en sus cuentas… ¿sabrás pillarla?</small>
+          </div>
+        </div>
+      </section>
+
+      <!-- ── Los yacimientos ── -->
+      <section class="home-block">
+        <h2>🏛️ Dónde se excava</h2>
+        <div id="home-sites" class="home-sites"></div>
+      </section>
+
+      <!-- ── Para las familias y el profesorado ── -->
+      <section class="home-block home-adults">
+        <h2>📋 Para familias y profesorado</h2>
+        <p><strong>Expedición Atlas</strong> es una plataforma educativa gamificada para
+        3.º a 5.º de primaria. Su meta no es entretener: es sostener la atención y la
+        motivación mientras se aprende.</p>
+        <ul class="home-facts">
+          <li><strong>El progreso es aprendizaje real.</strong> Los estratos siguen la
+          taxonomía de Bloom y solo se abren demostrando un 80 % de dominio.</li>
+          <li><strong>Se adapta a cada niño.</strong> La dificultad sube o baja según sus
+          últimas respuestas para mantenerlo en la zona de flujo.</li>
+          <li><strong>Nada se pierde nunca.</strong> Ausentarse no borra sellos ni progreso,
+          y no existe forma de restar puntos.</li>
+          <li><strong>Sin compras reales ni rankings entre niños.</strong> Todo lo comprable
+          es decorativo y jamás da ventaja; la competición se dirige a personajes, no a compañeros.</li>
+          <li><strong>Sin datos personales.</strong> Ni apellidos, ni foto, ni ubicación.</li>
+        </ul>
+      </section>
+
+      <p class="home-foot">Sociedad Geográfica de los Diarios Perdidos · Expedición Atlas</p>
+    </div>
+  </section>
+
+  <!-- ══════════ PORTAL DEL DOCENTE ══════════ -->
+  <section id="screen-teacher" class="screen hidden">
+    <div class="home-wrap">
+      <header class="home-hero home-hero-small">
+        <div class="home-crest">🧭</div>
+        <h1>Sala de mapas</h1>
+        <p class="home-lead">Desde aquí ves cómo va la clase y preparas la expedición.</p>
+      </header>
+      <div class="home-doors">
+        <button class="home-door" id="teacher-go-class">
+          <span class="home-door-icon">👥</span>
+          <strong>Vista general de la clase</strong>
+          <small>Progreso de cada alumno y alertas de rescate</small>
+        </button>
+        <button class="home-door" id="teacher-go-config">
+          <span class="home-door-icon">⚙️</span>
+          <strong>Configurar la expedición</strong>
+          <small>Yacimientos, retos, méritos, cuadrillas y economía</small>
+        </button>
+      </div>
+      <p class="home-note">El cuaderno detallado de un alumno concreto está dentro de su
+      propio diario: entra como explorador con su cuenta para verlo.</p>
+      <button class="btn btn-quit" id="teacher-exit">← Volver a la portada</button>
+    </div>
+  </section>
+
   <!-- ══════════ ACCESO (solo si hay Appwrite configurado) ══════════ -->
   <section id="screen-auth" class="screen hidden">
     <div class="onboarding-card">

@@ -15,8 +15,8 @@ function show(screenId) {
   if (screenId === 'camp') renderCamp();
   if (screenId === 'merits') renderMerits();
   if (screenId === 'team') renderTeam();
-  if (screenId === 'config') renderTeacherConfig();
-  if (screenId === 'class') renderClassView();
+  if (screenId === 'config') { renderTeacherConfig(); syncBackLabels(); }
+  if (screenId === 'class') { renderClassView(); syncBackLabels(); }
   if (screenId === 'logbook') renderLogbook();
   if (screenId === 'dashboard') renderDashboard();
   window.scrollTo(0, 0);
@@ -85,6 +85,7 @@ function toast(msg, ms) {
 
 /* ── HUD ── */
 function renderHud() {
+  if (!S) return;   /* modo docente: no hay diario de alumno que mostrar */
   const level = levelFromXp(S.progression.xp_total);
   const rank = rankForLevel(level);
   $('#hud-name').textContent = S.profile.explorer_name;
@@ -838,6 +839,8 @@ function friendlyAuthError(e) {
 }
 
 function showAuth() {
+  $('#screen-home').classList.add('hidden');
+  $('#screen-teacher').classList.add('hidden');
   $('#screen-auth').classList.remove('hidden');
   $('#screen-onboarding').classList.add('hidden');
   $('#app').classList.add('hidden');
@@ -852,6 +855,70 @@ function adoptState(remote) {
     S = migrateState(remote);
   } /* si no hay remoto, S ya es el local (o null) */
   return S;
+}
+
+/* ── Portada ──
+   Primera pantalla de todos: cuenta la historia y separa los dos caminos.
+   El docente entra sin necesidad de la sesión de ningún alumno. */
+let teacherOnly = false;
+
+function showHome() {
+  teacherOnly = false;
+  document.body.classList.remove('teacher-mode');
+  ['#screen-auth', '#screen-onboarding', '#screen-teacher'].forEach(x => $(x).classList.add('hidden'));
+  $('#app').classList.add('hidden');
+  $('#screen-home').classList.remove('hidden');
+  renderHomeSites();
+  window.scrollTo(0, 0);
+}
+
+/* Los yacimientos de la portada salen de la configuración real: si el docente
+   crea uno de Lengua, aparece aquí sin tocar nada. */
+function renderHomeSites() {
+  const sites = sitesEnabled().filter(site => branchesEnabledOf(site).length);
+  $('#home-sites').innerHTML = sites.length
+    ? sites.map(site => `<div class="home-site">
+        <span class="home-site-icon">${site.icon}</span>
+        <div><strong>${site.name}</strong>
+          <small>${site.subject}${site.desc ? ' · ' + site.desc : ''}</small>
+          <div class="home-site-wells">${branchesEnabledOf(site)
+            .map(b => `<span class="home-well">${b.icon} ${b.name}</span>`).join('')}</div>
+        </div>
+      </div>`).join('')
+    : '<p class="empty-note">El profesor aún está preparando los yacimientos.</p>';
+}
+
+/* Entrada del alumno: al acceso con cuentas, o al onboarding si es modo local */
+function startStudentPath() {
+  $('#screen-home').classList.add('hidden');
+  if (cloudConfigured() && cloudEnabled()) {
+    if (cloudUser() && S) return startApp();
+    return showAuth();
+  }
+  if (S) return startApp();
+  showOnboarding();
+}
+
+/* Entrada del docente: sin diario de alumno, sin HUD y sin pestañas */
+function enterTeacherMode() {
+  teacherOnly = true;
+  document.body.classList.add('teacher-mode');
+  $('#screen-home').classList.add('hidden');
+  $('#app').classList.add('hidden');
+  $('#screen-teacher').classList.remove('hidden');
+  window.scrollTo(0, 0);
+}
+function teacherScreen(which) {
+  $('#screen-teacher').classList.add('hidden');
+  $('#app').classList.remove('hidden');
+  show(which);
+}
+
+/* En modo docente no existe el cuaderno de ningún alumno: los botones de
+   volver deben decir a dónde llevan de verdad. */
+function syncBackLabels() {
+  const label = teacherOnly ? '← Volver a la sala de mapas' : '← Volver al cuaderno';
+  $$('#screen-class .btn-back, #screen-config .btn-back').forEach(b => { b.textContent = label; });
 }
 
 /* ── Arranque ── */
@@ -870,19 +937,14 @@ async function boot() {
   if (cloudInit()) {
     $('#btn-logout').classList.remove('hidden');
     wireAuthListeners();
-    let remote = null;
-    try { remote = await cloudResume(); } catch (e) { remote = null; }
-    if (cloudUser()) {           /* sesión viva de otro día */
-      adoptState(remote);
-      if (S) return startApp();
-      return showOnboarding();   /* cuenta creada pero sin diario aún */
-    }
-    return showAuth();
+    try { await cloudResume().then(adoptState); } catch (e) { /* sin sesión previa */ }
+  } else {
+    /* Modo local: el progreso vive en este navegador */
+    loadState();
   }
 
-  /* Modo local: el progreso vive en este navegador */
-  loadState();
-  if (S) startApp(); else showOnboarding();
+  /* Todos empiezan en la portada: es donde se explica y se elige camino */
+  showHome();
 }
 
 function showCloudWarning() {
@@ -895,6 +957,8 @@ function showCloudWarning() {
 }
 
 function showOnboarding() {
+  $('#screen-home').classList.add('hidden');
+  $('#screen-teacher').classList.add('hidden');
   $('#screen-auth').classList.add('hidden');
   $('#screen-onboarding').classList.remove('hidden');
   $('#app').classList.add('hidden');
@@ -904,6 +968,13 @@ function wireGlobalListeners() {
   $$('[data-nav]').forEach(el => el.addEventListener('click', () => {
     if (mission && el.dataset.nav !== 'map') return; /* no salir a mitad de misión por tabs */
     if (mission) { abandonMission(); }
+    /* en modo docente no hay cuaderno de alumno al que volver: se sale al portal */
+    if (teacherOnly && el.dataset.nav === 'dashboard') {
+      $('#app').classList.add('hidden');
+      $('#screen-teacher').classList.remove('hidden');
+      window.scrollTo(0, 0);
+      return;
+    }
     show(el.dataset.nav);
   }));
   $('#btn-next').addEventListener('click', onNext);
@@ -947,6 +1018,16 @@ function wireGlobalListeners() {
     $('#btn-teacher-panel').classList.remove('hidden');
   });
 
+  $('#home-student').addEventListener('click', startStudentPath);
+  $('#home-teacher').addEventListener('click', async () => {
+    if (!teacherUnlocked && !(await askPin())) return;
+    teacherUnlocked = true;
+    enterTeacherMode();
+  });
+  $('#teacher-go-class').addEventListener('click', () => { classData = null; teacherScreen('class'); });
+  $('#teacher-go-config').addEventListener('click', () => { cfgSection = 'curso'; teacherScreen('config'); });
+  $('#teacher-exit').addEventListener('click', showHome);
+
   $('#btn-open-class').addEventListener('click', async () => {
     if (!teacherUnlocked && !(await askPin())) return;
     teacherUnlocked = true;
@@ -970,7 +1051,7 @@ function wireGlobalListeners() {
     try { localStorage.removeItem(STORAGE_KEY); } catch (e) { /* sin almacenamiento */ }
     S = null;
     teacherUnlocked = false;
-    showAuth();
+    showHome();
   });
 
   $('#modal-ok').addEventListener('click', () => {
@@ -1033,7 +1114,11 @@ function wireAuthListeners() {
 }
 
 function startApp() {
+  teacherOnly = false;
+  document.body.classList.remove('teacher-mode');
   $('#tab-team').classList.toggle('hidden', !(ATLAS_CONFIG.teams && ATLAS_CONFIG.teams.enabled));
+  $('#screen-home').classList.add('hidden');
+  $('#screen-teacher').classList.add('hidden');
   $('#screen-auth').classList.add('hidden');
   $('#screen-onboarding').classList.add('hidden');
   $('#app').classList.remove('hidden');

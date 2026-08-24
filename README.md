@@ -25,6 +25,7 @@ PWA sin dependencias: HTML + CSS + JavaScript vanilla, funciona offline y se ins
 | **Méritos de Campamento** | Doblones por comportamientos (ayudar, cuidar el material, participar…), concedidos por el docente con PIN y topes diarios |
 | **Panel de Configuración** | El docente edita en la propia app el curso, los reconocimientos, las cuadrillas, los pozos, el almacén, la economía y el acceso — sin tocar código |
 | **Cuadrillas de excavación** | Equipos cooperativos que suman a una meta común de clase; sin ranking entre niños salvo que se active |
+| **Portada** | Primera pantalla: la historia contada para el alumnado, cómo se juega, el elenco, y las dos entradas (explorador / docente) |
 | **Vista general de la clase** | Todos los alumnos en una pantalla, con alerta de rescate, KPIs del PRD §6 y el total real de cada cuadrilla |
 
 ## Cómo ejecutarlo
@@ -42,6 +43,20 @@ npx serve .
 Abre `http://localhost:8080`. Para instalarlo como app en tablet, usa «Añadir a pantalla de inicio» desde el navegador.
 
 > El service worker requiere servirse por HTTP(S); abrir `index.html` con `file://` funciona pero sin modo offline.
+
+## La portada
+
+Es lo primero que ve cualquiera al abrir la app, y separa los dos caminos:
+
+- **🎒 Soy explorador** → lleva al acceso con cuenta (o a crear el diario, en modo local) y de ahí al juego.
+- **🧭 Soy docente** → pide el PIN y entra a la **Sala de mapas**: vista general de la clase y panel de configuración, **sin necesidad de la sesión de ningún alumno**. En ese modo se ocultan el HUD y las pestañas del juego, que ahí no pintan nada.
+
+Además explica la plataforma a sus dos públicos a la vez:
+
+- **Para el alumnado:** la premisa (el Atlas de Ossian roto en fragmentos), la regla de oro (*el mapa solo se dibuja con lo que aprendes de verdad*), cómo se excava en cinco pasos, y el elenco — con Bruno dejando claro desde el principio que equivocarse forma parte de excavar.
+- **Para familias y profesorado:** qué es, el criterio pedagógico (estratos de Bloom, 80 % de dominio), la adaptación a cada niño, y las garantías: nada se pierde, sin compras reales, sin rankings entre niños, sin datos personales.
+
+Los yacimientos que aparecen salen de la configuración real: si creas uno de Lengua, se muestra en la portada sin tocar nada.
 
 ## Cuentas de alumno con Appwrite
 
