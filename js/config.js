@@ -25,6 +25,16 @@ const ATLAS_DEFAULTS = {
      el código corre en el navegador. */
   teacherPin: '1234',
 
+  /* Quién dirige la expedición. Aparece en la portada y en la sala de mapas. */
+  teacherName: '',
+  className: '',
+
+  /* ── Lista de clase ──
+     La rellena el docente. Sirve para asignar cuadrillas marcando casillas
+     (en vez de escribir nombres, que se prestaba a erratas) y para crear las
+     cuentas de golpe. `account` marca las que ya existen en Appwrite. */
+  roster: [],   /* [{ name, username, password, account }] */
+
   /* ── El curso: tres trimestres ── */
   course: {
     label: 'Curso 2026-2027',

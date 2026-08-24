@@ -783,3 +783,33 @@ button:disabled { cursor: not-allowed; opacity: .55; }
 body.teacher-mode #hud,
 body.teacher-mode #tabbar { display: none !important; }
 body.teacher-mode #main { padding-bottom: 2rem; }
+
+/* ══════════ ALUMNADO Y FIRMA DEL DOCENTE ══════════ */
+.home-teacher-line {
+  margin-top: .7rem; font-size: .9rem; color: var(--ink-soft);
+  background: var(--card); border-radius: 999px; padding: .35rem 1rem;
+  display: inline-block; border: 1.5px solid var(--parchment-dark);
+}
+.cfg-student { border-left: 4px solid var(--jungle-light); }
+.cfg-tag-ok { background: #dcedc8; color: #2f5c2b; }
+.cfg-row-actions { margin-top: .2rem; }
+.ros-log {
+  background: var(--parchment); border-radius: 12px; padding: .7rem .9rem;
+  font-size: .84rem; margin-top: .5rem; display: flex; flex-direction: column; gap: .2rem;
+  max-height: 260px; overflow-y: auto;
+}
+.ros-log-sum { margin-top: .4rem; font-weight: 700; color: var(--leather); }
+#ros-sheet { font-family: ui-monospace, "Cascadia Mono", Menlo, monospace; font-size: .82rem; }
+
+/* Asignar cuadrillas marcando de la lista */
+.team-picker {
+  display: grid; grid-template-columns: repeat(auto-fill, minmax(150px, 1fr));
+  gap: .3rem; background: var(--parchment); border-radius: 12px; padding: .6rem;
+  max-height: 220px; overflow-y: auto;
+}
+.team-pick {
+  display: flex; align-items: center; gap: .4rem; font-size: .85rem;
+  padding: .25rem .35rem; border-radius: 8px;
+}
+.team-pick input { width: 18px; height: 18px; accent-color: var(--jungle); flex: 0 0 auto; }
+.team-pick-taken { opacity: .5; font-style: italic; }

@@ -8,6 +8,7 @@
 const CFG_SECTIONS = [
   { id: 'curso',      icon: '📅', name: 'Curso y trimestres' },
   { id: 'premios',    icon: '🏅', name: 'Comportamientos, tareas y actividades' },
+  { id: 'alumnado',   icon: '👥', name: 'Alumnado' },
   { id: 'equipos',    icon: '🛖', name: 'Cuadrillas de excavación' },
   { id: 'yacimient',  icon: '🏛️', name: 'Yacimientos y pozos' },
   { id: 'almacen',    icon: '🏪', name: 'Almacén' },
@@ -42,7 +43,7 @@ function renderTeacherConfig() {
 
   const body = $('#cfg-body');
   const renderers = {
-    curso: cfgCurso, premios: cfgPremios, equipos: cfgEquipos,
+    curso: cfgCurso, premios: cfgPremios, alumnado: cfgAlumnado, equipos: cfgEquipos,
     yacimient: cfgYacimientos, almacen: cfgAlmacen, economia: cfgEconomia,
     acceso: cfgAcceso, copia: cfgCopia
   };
@@ -157,9 +158,192 @@ function cfgPremios(body) {
   });
 }
 
+/* ══════════ ALUMNADO ══════════ */
+
+/* Contraseñas legibles para un niño de 8-10 años: una palabra del mundo del
+   juego más cuatro cifras. Siempre pasa el mínimo de 8 que exige Appwrite. */
+const PASS_WORDS = ['brujula', 'mapa', 'tesoro', 'templo', 'jungla', 'momia',
+                    'cofre', 'antorcha', 'vasija', 'fosil', 'duna', 'sendero'];
+function makePassword() {
+  return pick(PASS_WORDS) + String(ri(1000, 9999));
+}
+/* Usuario a partir del nombre: sin tildes, sin espacios, en minúsculas */
+function makeUsername(name, taken) {
+  let base = String(name || '').toLowerCase()
+    .normalize('NFD').replace(/[\u0300-\u036f]/g, '')
+    .replace(/[^a-z0-9]+/g, '').slice(0, 14) || 'explorador';
+  let u = base, n = 2;
+  while ((taken || []).includes(u)) u = base + (n++);
+  return u;
+}
+function rosterCopy() { return deepClone(ATLAS_CONFIG.roster || []); }
+
+function cfgAlumnado(body) {
+  const roster = ATLAS_CONFIG.roster || [];
+  const conCuenta = roster.filter(r => r.account).length;
+  const nube = cloudConfigured() && cloudEnabled();
+
+  body.innerHTML = `
+    <p class="cfg-intro">La lista de clase sirve para dos cosas: asignar cuadrillas
+    marcando casillas —sin escribir nombres, que se prestaba a erratas— y
+    ${nube ? 'crear las cuentas de todos de una vez.' :
+      'tenerla preparada. <strong>Para crear cuentas hace falta configurar Appwrite</strong> en «Acceso y nube».'}</p>
+
+    ${field('Nombre del docente', `<input type="text" id="cfg-teacher-name" value="${(ATLAS_CONFIG.teacherName || '').replace(/"/g, '&quot;')}" placeholder="Diego Moya">`,
+      'Aparece en la portada y en la sala de mapas.')}
+    ${field('Nombre de la clase', `<input type="text" id="cfg-class-name" value="${(ATLAS_CONFIG.className || '').replace(/"/g, '&quot;')}" placeholder="4.º B">`)}
+
+    <h4 class="cfg-h4">Lista de clase <span class="cfg-tag">${roster.length} alumno(s)${nube ? ` · ${conCuenta} con cuenta` : ''}</span></h4>
+
+    <div class="cfg-list" id="roster-list">
+      ${roster.length ? roster.map((r, i) => `
+        <div class="cfg-card cfg-student">
+          <div class="cfg-row">
+            <input type="text" class="ros-name" data-i="${i}" value="${(r.name || '').replace(/"/g, '&quot;')}" placeholder="Nombre">
+            <button class="cfg-del" data-delros="${i}" title="Quitar de la lista">🗑️</button>
+          </div>
+          <div class="cfg-row">
+            <label>Usuario <input type="text" class="ros-user" data-i="${i}" value="${(r.username || '').replace(/"/g, '&quot;')}"></label>
+            <label>Contraseña <input type="text" class="ros-pass" data-i="${i}" value="${(r.password || '').replace(/"/g, '&quot;')}"></label>
+            <span class="cfg-tag${r.account ? ' cfg-tag-ok' : ''}">${r.account ? '✓ cuenta creada' : 'sin cuenta'}</span>
+          </div>
+        </div>`).join('')
+        : '<p class="cfg-hint">Todavía no hay nadie en la lista.</p>'}
+    </div>
+
+    <div class="cfg-row cfg-row-actions">
+      <button class="btn btn-secondary btn-small" id="ros-add">➕ Añadir alumno</button>
+      ${roster.length ? `<button class="btn btn-quit" id="ros-clear">Vaciar la lista</button>` : ''}
+    </div>
+
+    <h4 class="cfg-h4">Añadir toda la clase de golpe</h4>
+    <p class="cfg-hint">Un nombre por línea. El usuario y la contraseña se generan solos
+    (podrás cambiarlos después).</p>
+    <textarea id="ros-bulk" rows="4" placeholder="Vega Serrano&#10;Nilo Ferrer&#10;Mara Ibáñez"></textarea>
+    <button class="btn btn-secondary btn-small" id="ros-bulk-go">📥 Añadir a la lista</button>
+    <p id="ros-bulk-err" class="cfg-warn hidden"></p>
+
+    ${nube ? `
+      <h4 class="cfg-h4">Crear las cuentas</h4>
+      <p class="cfg-hint">Se dan de alta en Appwrite las que aún no existan. Tu sesión no se
+      toca. Si alguna falla, se dice cuál y por qué.</p>
+      <button class="btn btn-primary btn-small" id="ros-create"${roster.length === conCuenta ? ' disabled' : ''}>
+        🎒 Crear ${roster.length - conCuenta} cuenta(s)</button>
+      <div id="ros-create-log" class="ros-log${rosterLog.length ? '' : ' hidden'}">${
+        rosterLog.map(x => `<div>${x}</div>`).join('')}</div>` : ''}
+
+    ${roster.length ? `
+      <h4 class="cfg-h4">Hoja de credenciales</h4>
+      <p class="cfg-hint">Para repartir en clase. Cada alumno solo necesita su línea.</p>
+      <textarea id="ros-sheet" rows="6" readonly>${roster.map(r =>
+        `${r.name}  →  usuario: ${r.username}   contraseña: ${r.password}`).join('\n')}</textarea>
+      <button class="btn btn-secondary btn-small" id="ros-copy">📋 Copiar</button>` : ''}`;
+
+  onInput('#cfg-teacher-name', e => cfgSave('teacherName', e.target.value.trim()));
+  onInput('#cfg-class-name', e => cfgSave('className', e.target.value.trim()));
+
+  const write = (i, key, val) => { const l = rosterCopy(); l[i][key] = val; cfgSave('roster', l, false); };
+  $$('.ros-name').forEach(el => onInput(el, e => write(+e.target.dataset.i, 'name', e.target.value)));
+  $$('.ros-user').forEach(el => onInput(el, e => write(+e.target.dataset.i, 'username', e.target.value.trim())));
+  $$('.ros-pass').forEach(el => onInput(el, e => write(+e.target.dataset.i, 'password', e.target.value)));
+
+  $$('[data-delros]').forEach(el => el.addEventListener('click', async () => {
+    const i = +el.dataset.delros;
+    const l = rosterCopy();
+    const quien = l[i].name || 'este alumno';
+    if (!(await askConfirm(`¿Quitar a ${quien} de la lista? ${l[i].account
+      ? 'Su cuenta y su diario NO se borran: seguirá pudiendo entrar.'
+      : 'Aún no tiene cuenta.'}`, 'Quitar'))) return;
+    l.splice(i, 1);
+    cfgSave('roster', l, 'Quitado de la lista ✓');
+  }));
+
+  $('#ros-add').addEventListener('click', () => {
+    const l = rosterCopy();
+    const taken = l.map(r => r.username);
+    l.push({ name: '', username: makeUsername('', taken), password: makePassword(), account: false });
+    cfgSave('roster', l, 'Añadido: escribe su nombre ✓');
+  });
+
+  const clear = $('#ros-clear');
+  if (clear) clear.addEventListener('click', async () => {
+    if (!(await askConfirm('¿Vaciar la lista de clase? Las cuentas ya creadas y los diarios NO se borran.', 'Vaciar'))) return;
+    cfgSave('roster', [], 'Lista vaciada ✓');
+  });
+
+  $('#ros-bulk-go').addEventListener('click', () => {
+    const err = $('#ros-bulk-err');
+    const raw = $('#ros-bulk').value.trim();
+    if (!raw) { err.textContent = 'Escribe al menos un nombre.'; err.classList.remove('hidden'); return; }
+    const l = rosterCopy();
+    const taken = l.map(r => r.username);
+    let added = 0, dup = [];
+    for (const line of raw.split('\n')) {
+      const name = line.trim();
+      if (!name) continue;
+      if (l.some(r => (r.name || '').trim().toLowerCase() === name.toLowerCase())) { dup.push(name); continue; }
+      const username = makeUsername(name, taken);
+      taken.push(username);
+      l.push({ name, username, password: makePassword(), account: false });
+      added++;
+    }
+    if (!added) {
+      err.textContent = dup.length ? `Ya estaban en la lista: ${dup.join(', ')}.` : 'No se ha podido leer ningún nombre.';
+      err.classList.remove('hidden');
+      return;
+    }
+    err.classList.add('hidden');
+    cfgSave('roster', l, `${added} alumno(s) añadidos${dup.length ? `. Ya estaban: ${dup.join(', ')}` : ''} ✓`);
+  });
+
+  const createBtn = $('#ros-create');
+  if (createBtn) createBtn.addEventListener('click', async () => {
+    const log = $('#ros-create-log');
+    log.classList.remove('hidden');
+    createBtn.disabled = true;
+    const l = rosterCopy();
+    const lineas = [];
+    rosterLog = [];
+    let ok = 0, fallos = 0;
+
+    for (let i = 0; i < l.length; i++) {
+      const r = l[i];
+      if (r.account) continue;
+      if (!r.name || !r.username || !r.password) {
+        lineas.push(`⚠️ ${r.name || '(sin nombre)'} — le falta nombre, usuario o contraseña`);
+        fallos++; continue;
+      }
+      log.innerHTML = lineas.concat([`⏳ Creando ${r.name}…`]).map(x => `<div>${x}</div>`).join('');
+      const res = await cloudCreateStudent(r.name, r.username, r.password);
+      if (res.ok) { l[i].account = true; lineas.push(`✓ ${r.name} — cuenta creada`); ok++; }
+      else if (res.reason === 'existe') { l[i].account = true; lineas.push(`✓ ${r.name} — ya existía, se marca como creada`); ok++; }
+      else {
+        const motivo = { ritmo: 'Appwrite pide esperar un poco: vuelve a intentarlo en un minuto',
+                         contrasena: 'la contraseña necesita 8 caracteres o más',
+                         usuario: 'el usuario tiene caracteres no válidos',
+                         'sin-nube': 'no hay conexión con Appwrite' }[res.reason] || res.detail || 'error desconocido';
+        lineas.push(`✘ ${r.name} — ${motivo}`);
+        fallos++;
+        if (res.reason === 'ritmo') break;   /* no seguir martilleando */
+      }
+    }
+    lineas.push(`<span class="ros-log-sum">${ok} creada(s)${fallos ? `, ${fallos} con problema` : ''}.</span>`);
+    rosterLog = lineas;          /* se conserva para el repintado */
+    cfgSave('roster', l, false);
+    renderTeacherConfig();
+  });
+
+  const copy = $('#ros-copy');
+  if (copy) copy.addEventListener('click', async () => {
+    try { await navigator.clipboard.writeText($('#ros-sheet').value); toast('Credenciales copiadas ✓'); }
+    catch (e) { $('#ros-sheet').select(); toast('Selecciona y copia con el teclado.'); }
+  });
+}
+
 /* ══════════ CUADRILLAS ══════════ */
 function cfgEquipos(body) {
   const t = ATLAS_CONFIG.teams;
+  const roster = ATLAS_CONFIG.roster || [];
   body.innerHTML = `
     <p class="cfg-intro">Las cuadrillas son <strong>cooperativas</strong>: todas suman a una meta
     común de clase. El PRD desaconseja rankings entre niños, por eso la comparación
@@ -180,12 +364,26 @@ function cfgEquipos(body) {
             <input type="text" class="cfg-t-name" data-i="${i}" value="${team.name}">
             <button class="cfg-del" data-delteam="${i}" title="Eliminar">🗑️</button>
           </div>
-          <label class="cfg-label">Miembros (un nombre de explorador por línea)</label>
-          <textarea class="cfg-t-members" data-i="${i}" rows="4"
-            placeholder="Escribe aquí un nombre por línea…">${(team.members || []).join('\n')}</textarea>
-          <small class="cfg-hint">${(team.members || []).length
-            ? (team.members || []).length + ' miembro(s) asignado(s).'
-            : 'Sin miembros todavía.'} El nombre debe coincidir con el que escribió el niño al crear su diario.</small>
+          <label class="cfg-label">Miembros</label>
+          ${roster.length ? `
+            <div class="team-picker">
+              ${roster.map(r => {
+                const yo = (team.members || []).some(m => String(m).trim().toLowerCase() === (r.name || '').trim().toLowerCase());
+                const otra = !yo && t.list.some(x => x.id !== team.id &&
+                  (x.members || []).some(m => String(m).trim().toLowerCase() === (r.name || '').trim().toLowerCase()));
+                return `<label class="team-pick${otra ? ' team-pick-taken' : ''}">
+                  <input type="checkbox" class="cfg-t-pick" data-i="${i}" data-name="${(r.name || '').replace(/"/g, '&quot;')}"
+                    ${yo ? 'checked' : ''}${otra ? ' disabled' : ''}>
+                  ${r.name || '(sin nombre)'}${otra ? ' · ya en otra' : ''}</label>`;
+              }).join('')}
+            </div>
+            <small class="cfg-hint">${(team.members || []).length} miembro(s). Marcados desde la lista de clase, así el nombre siempre coincide.</small>`
+          : `<textarea class="cfg-t-members" data-i="${i}" rows="4"
+              placeholder="Escribe aquí un nombre por línea…">${(team.members || []).join('\n')}</textarea>
+            <small class="cfg-hint">${(team.members || []).length
+              ? (team.members || []).length + ' miembro(s) asignado(s).'
+              : 'Sin miembros todavía.'} El nombre debe coincidir con el que escribió el niño.
+              <strong>Consejo:</strong> rellena la lista en «Alumnado» y podrás marcarlos con casillas.</small>`}
         </div>`).join('')}
     </div>
     <button class="btn btn-secondary btn-small" id="cfg-add-team">➕ Nueva cuadrilla</button>`;
@@ -203,6 +401,15 @@ function cfgEquipos(body) {
   };
   $$('.cfg-t-icon').forEach(el => onInput(el, e => write(+e.target.dataset.i, 'icon', e.target.value || '🛖')));
   $$('.cfg-t-name').forEach(el => onInput(el, e => write(+e.target.dataset.i, 'name', e.target.value || 'Cuadrilla')));
+  /* casillas desde la lista de clase */
+  $$('.cfg-t-pick').forEach(el => el.addEventListener('change', e => {
+    const i = +e.target.dataset.i, name = e.target.dataset.name;
+    const l = deepClone(ATLAS_CONFIG.teams.list);
+    const members = (l[i].members || []).filter(m => String(m).trim().toLowerCase() !== name.trim().toLowerCase());
+    if (e.target.checked) members.push(name);
+    l[i].members = members;
+    cfgSave('teams.list', l, false);
+  }));
   $$('.cfg-t-members').forEach(el => onInput(el, e => {
     const members = e.target.value.split('\n').map(x => x.trim()).filter(Boolean);
     write(+e.target.dataset.i, 'members', members);
@@ -226,6 +433,10 @@ function cfgEquipos(body) {
    Tres niveles de edición: yacimientos → pozos → banco de retos por estrato.
    Los pozos de fábrica generan retos infinitos por sí solos; los que crees tú
    sirven los retos que escribas. */
+
+/* Resultado del último alta de cuentas: debe sobrevivir al repintado del
+   panel, o el docente nunca vería qué pasó con cada alumno. */
+let rosterLog = [];
 
 let cfgOpenSite = null;    /* yacimiento desplegado */
 let cfgEditBranch = null;  /* {siteId, branchId} cuyo banco se está editando */

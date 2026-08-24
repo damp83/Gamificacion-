@@ -723,11 +723,14 @@ function paintClassView() {
   const d = classData;
   $('#class-body').classList.remove('hidden');
 
+  const clase = (ATLAS_CONFIG.className || '').trim();
+  const enLista = (ATLAS_CONFIG.roster || []).length;
   classStatus(d.localOnly
     ? `<div class="class-note">📱 <strong>Solo esta tablet.</strong> Sin cuentas en la nube no se pueden
        reunir los diarios de los demás, así que abajo aparece únicamente quien está usando este
        dispositivo. Configura Appwrite para ver la clase entera.</div>`
-    : `<p class="class-meta">${d.students.length} explorador(es) · datos al ${d.generatedAt}</p>`);
+    : `<p class="class-meta">${clase ? clase + ' · ' : ''}${d.students.length} explorador(es)${
+        enLista ? ` de ${enLista} en la lista` : ''} · datos al ${d.generatedAt}</p>`);
 
   if (!d.students.length) {
     $('#class-students').innerHTML = '<p class="empty-note">Todavía no hay ningún diario de expedición.</p>';
@@ -869,7 +872,21 @@ function showHome() {
   $('#app').classList.add('hidden');
   $('#screen-home').classList.remove('hidden');
   renderHomeSites();
+  renderTeacherSignature();
   window.scrollTo(0, 0);
+}
+
+/* Quién dirige esta expedición: solo se muestra si el docente lo ha puesto */
+function renderTeacherSignature() {
+  const el = $('#home-teacher-line');
+  const nombre = (ATLAS_CONFIG.teacherName || '').trim();
+  const clase = (ATLAS_CONFIG.className || '').trim();
+  if (!nombre && !clase) { el.classList.add('hidden'); return; }
+  const partes = [];
+  if (clase) partes.push(`Clase de <strong>${clase}</strong>`);
+  if (nombre) partes.push(`Expedición dirigida por <strong>${nombre}</strong>`);
+  el.innerHTML = '🧭 ' + partes.join(' · ');
+  el.classList.remove('hidden');
 }
 
 /* Los yacimientos de la portada salen de la configuración real: si el docente
@@ -900,13 +917,23 @@ function startStudentPath() {
 }
 
 /* Entrada del docente: sin diario de alumno, sin HUD y sin pestañas */
-function enterTeacherMode() {
-  teacherOnly = true;
-  document.body.classList.add('teacher-mode');
+/* El saludo se recalcula cada vez que se muestra: si no, al volver del panel
+   seguiría con el texto de antes de poner el nombre. */
+function showTeacherPortal() {
+  const nombre = (ATLAS_CONFIG.teacherName || '').trim();
+  const clase = (ATLAS_CONFIG.className || '').trim();
+  $('#teacher-greeting').textContent = nombre
+    ? `Bienvenido, ${nombre}. Desde aquí ves cómo va ${clase || 'la clase'} y preparas la expedición.`
+    : 'Desde aquí ves cómo va la clase y preparas la expedición. Puedes poner tu nombre en Configuración → Alumnado.';
   $('#screen-home').classList.add('hidden');
   $('#app').classList.add('hidden');
   $('#screen-teacher').classList.remove('hidden');
   window.scrollTo(0, 0);
+}
+function enterTeacherMode() {
+  teacherOnly = true;
+  document.body.classList.add('teacher-mode');
+  showTeacherPortal();
 }
 function teacherScreen(which) {
   $('#screen-teacher').classList.add('hidden');
@@ -969,12 +996,7 @@ function wireGlobalListeners() {
     if (mission && el.dataset.nav !== 'map') return; /* no salir a mitad de misión por tabs */
     if (mission) { abandonMission(); }
     /* en modo docente no hay cuaderno de alumno al que volver: se sale al portal */
-    if (teacherOnly && el.dataset.nav === 'dashboard') {
-      $('#app').classList.add('hidden');
-      $('#screen-teacher').classList.remove('hidden');
-      window.scrollTo(0, 0);
-      return;
-    }
+    if (teacherOnly && el.dataset.nav === 'dashboard') { showTeacherPortal(); return; }
     show(el.dataset.nav);
   }));
   $('#btn-next').addEventListener('click', onNext);

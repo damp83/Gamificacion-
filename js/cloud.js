@@ -65,6 +65,25 @@ async function cloudRegister(name, username, pass) {
   return null; /* cuenta nueva: sin estado remoto todavía */
 }
 
+/* ── Alta de cuentas de alumno desde el panel ──
+   account.create() es el alta pública: crea el usuario SIN abrir sesión, así
+   que el docente puede dar de alta a toda la clase sin perder la suya. El
+   diario en sí lo crea cada alumno al entrar por primera vez. */
+async function cloudCreateStudent(name, username, password) {
+  if (!CLOUD.enabled) return { ok: false, reason: 'sin-nube' };
+  try {
+    await CLOUD.account.create(Appwrite.ID.unique(), cloudEmail(username), password, name);
+    return { ok: true };
+  } catch (e) {
+    const msg = (e && e.message) || '';
+    if (/already exists/i.test(msg))       return { ok: false, reason: 'existe' };
+    if (/Rate limit/i.test(msg))           return { ok: false, reason: 'ritmo' };
+    if (/at least 8|password/i.test(msg))  return { ok: false, reason: 'contrasena' };
+    if (/Invalid.*email/i.test(msg))       return { ok: false, reason: 'usuario' };
+    return { ok: false, reason: 'error', detail: msg };
+  }
+}
+
 async function cloudLoadState() {
   const c = ATLAS_CONFIG.appwrite;
   try {

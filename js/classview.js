@@ -176,14 +176,21 @@ function buildClassOverview(entries, today) {
     };
   });
 
-  /* Alumnos que la configuración da por asignados pero no tienen diario */
+  /* Quién falta: de la lista de clase y de las cuadrillas, quien no tiene
+     diario todavía. Sin duplicar a nadie que aparezca en ambos sitios. */
   const known = new Set(students.map(s => s.name.trim().toLowerCase()));
   const missing = [];
+  const seen = new Set();
+  const anota = (name, where) => {
+    const k = String(name).trim().toLowerCase();
+    if (!k || known.has(k) || seen.has(k)) return;
+    seen.add(k);
+    missing.push({ name, team: where });
+  };
   for (const t of ((ATLAS_CONFIG.teams && ATLAS_CONFIG.teams.list) || [])) {
-    for (const m of (t.members || [])) {
-      if (!known.has(String(m).trim().toLowerCase())) missing.push({ name: m, team: t.name });
-    }
+    for (const m of (t.members || [])) anota(m, t.name);
   }
+  for (const r of (ATLAS_CONFIG.roster || [])) anota(r.name, 'lista de clase');
 
   return { students, kpis, teams, missing, generatedAt: day };
 }

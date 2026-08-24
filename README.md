@@ -124,7 +124,8 @@ Los comportamientos, sus valores y sus topes diarios se editan en `js/config.js`
 |---|---|
 | 📅 Curso y trimestres | Nombre del curso y las fechas de los tres trimestres |
 | 🏅 Comportamientos, tareas y actividades | Crear, editar y retirar reconocimientos: icono, nombre, Doblones, tope diario y categoría |
-| 🛖 Cuadrillas de excavación | Crear equipos, asignar alumnos, fijar la meta común y la aportación |
+| 👥 Alumnado | Tu nombre y el de la clase, la lista de alumnos, y **crear sus cuentas de golpe** |
+| 🛖 Cuadrillas de excavación | Crear equipos, **asignar alumnos marcando casillas**, fijar la meta común y la aportación |
 | 🏛️ Yacimientos y pozos | **Crear yacimientos y pozos nuevos y escribir los retos de cada estrato**, además de renombrar y ocultar |
 | 🏪 Almacén | Añadir, retirar y reajustar precios de los artículos cosméticos |
 | ⚖️ Economía | Retos por misión, Doblones de cada fuente, topes diarios, fatiga, bolsa inicial… |
@@ -140,6 +141,26 @@ Tres cosas que conviene saber:
 - **Los ajustes viven en la tablet donde los haces.** Para replicarlos, usa Copia de seguridad → copiar, y pégalo en las demás. No se sincronizan solos: hacerlo exigiría permisos de escritura compartidos que, sin una cuenta de docente real, cualquier alumno podría usar.
 - **Retirar algo del catálogo no borra lo ya ganado.** Si quitas un reconocimiento, los méritos que ya concediste siguen en el diario de los niños. Igual con el almacén: quien compró una prenda la conserva.
 - **Restaurar los valores de fábrica solo borra tus ajustes**, nunca el progreso de los alumnos.
+
+## Dar de alta a tu clase
+
+**Configuración → 👥 Alumnado.** Ahí pones **tu nombre** y el de la clase (aparecen en la portada y en la sala de mapas), y montas la lista de alumnos.
+
+Para cargarla entera, pega los nombres —uno por línea— y se generan solos el usuario y la contraseña de cada uno:
+
+- **Usuario:** el nombre sin tildes ni espacios, en minúsculas, garantizando que no se repita.
+- **Contraseña:** una palabra del mundo del juego más cuatro cifras (`brujula4271`). Cumple el mínimo de 8 caracteres de Appwrite y un niño de 8 años puede teclearla. Puedes cambiar ambas cosas a mano.
+
+Con Appwrite configurado aparece **🎒 Crear cuentas**: da de alta en Appwrite las que aún no existan, **sin tocar tu sesión**. El registro te dice qué pasó con cada alumno; si Appwrite pide bajar el ritmo, se detiene ahí y te lo explica en castellano en lugar de seguir martilleando el servidor. Al terminar tienes una **hoja de credenciales** lista para repartir: cada niño solo necesita su línea.
+
+Dos detalles:
+
+- **El diario lo crea el alumno al entrar por primera vez.** Crear la cuenta no crea su progreso; eso nace con su primera expedición.
+- **Quitar a alguien de la lista no borra su cuenta ni su diario.** Sale de tu lista y de las cuadrillas, pero puede seguir entrando. La app te lo recuerda antes de hacerlo.
+
+### Cuadrillas sin erratas
+
+Cuando hay lista de clase, los miembros de cada cuadrilla se marcan con **casillas** en lugar de escribirse a mano. Así el nombre siempre coincide exactamente con el del alumno, y desaparece el problema de asignar a alguien que no existe por una errata. A quien ya está en una cuadrilla se le deshabilita la casilla en las demás.
 
 ## Vista general de la clase
 
