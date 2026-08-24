@@ -274,6 +274,6 @@ docs/PRD.md           Documento de diseño completo
 
 ## Próximas fases (roadmap PRD §7)
 
-- **v1.1** — Cámaras del Guardián (jefes/evaluación sumativa), fragmentos del Atlas, motor adaptativo v1 refinado.
+- **v1.1** — ~~Cámaras del Guardián (jefes/evaluación sumativa), fragmentos del Atlas~~ ✅ hechos. Motor adaptativo v1 refinado.
 - **v1.5** — Resto de yacimientos (Lengua, Naturales, Sociales), Grandes Excavaciones de clase, Museo personal, Cofre del Naufragio.
 - **v2** — Taller de Cartografía (Bloom 5–6), Saqueadores del Cuervo, informes a familias, editor docente.

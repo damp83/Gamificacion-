@@ -111,6 +111,21 @@ const ATLAS_DEFAULTS = {
     steps: [5, 10, 25, 50]
   },
 
+  /* ── Cámara del Guardián (PRD §2.3, evaluación sumativa) ──
+     Se abre cuando los cuatro estratos de un pozo están dominados. Mezcla
+     retos de todos ellos: es la prueba de que lo aprendido aguanta junto y
+     no solo estrato a estrato. Fallar no cuesta nada —ni PE, ni dominio, ni
+     Doblones— porque una evaluación que castiga deja de medir y empieza a
+     asustar. */
+  guardian: {
+    enabled: true,
+    questions: 10,        /* el PRD pide entre 8 y 12 */
+    passAccuracy: 0.8,    /* aciertos a la primera para llevarse el fragmento */
+    coins: 100,
+    peBonus: 60,
+    tierBoost: 1          /* un punto de dificultad por encima de lo habitual */
+  },
+
   /* ── Yacimientos y pozos ──
      Estructura completa y editable: el docente puede crear yacimientos y
      pozos nuevos y escribir los retos de cada estrato. La semilla la aporta

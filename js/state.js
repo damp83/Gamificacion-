@@ -212,6 +212,7 @@ function buildSummary() {
     merits: (S.behavior_log || []).length,
     teamContribution: Math.round(S.progression.team_contribution || 0),
     fundDonated: S.progression.fund_donated || 0,
+    fragments: S.progression.atlas_fragments_recovered || 0,
     stuck: stuck.slice(0, 4),
     lastSeen: todayStr(),
     updated_at: Date.now()
@@ -453,6 +454,61 @@ function updateMastery(branchId, stratumId, sessionAccuracy) {
   }
   saveState();
 }
+/* ── Cámara del Guardián ──
+   Estado por pozo. Se crea al vuelo: un pozo nuevo del docente no tiene
+   hueco en un diario ya empezado. */
+function guardianState(branchId) {
+  const bs = ensureBranchState(branchId);
+  if (!bs) return null;
+  if (!bs.guardian) {
+    bs.guardian = { cleared: false, attempts: 0, needsBazar: false, weakStratum: null, clearedAt: null };
+  }
+  return bs.guardian;
+}
+
+/* Estratos que entran en la prueba: los que existen de verdad en el pozo */
+function guardianStrata(branchId) {
+  const def = branchDef(branchId);
+  if (!def) return [];
+  return STRATA_ORDER.filter(sId => stratumHasContent(def, sId));
+}
+
+/* La cámara se abre solo con el pozo entero dominado. Es lo que la hace
+   sumativa: no se puede entrar a probar suerte a mitad de camino. */
+function guardianStatus(branchId) {
+  const g = ATLAS_CONFIG.guardian || {};
+  const st = guardianState(branchId);
+  const strata = guardianStrata(branchId);
+  if (!g.enabled || !strata.length) return { estado: 'oculta' };
+  if (st.cleared) return { estado: 'superada', fecha: st.clearedAt, intentos: st.attempts };
+
+  const faltan = strata.filter(sId => getStratum(branchId, sId).mastery < 0.8);
+  if (faltan.length) return { estado: 'cerrada', faltan, strata };
+  if (st.needsBazar) return { estado: 'repaso', weak: st.weakStratum, strata, intentos: st.attempts };
+  return { estado: 'abierta', strata, intentos: st.attempts };
+}
+
+/* Fragmento recuperado: el único sitio donde crece atlas_fragments_recovered */
+function recoverFragment(branchId) {
+  const st = guardianState(branchId);
+  if (st.cleared) return false;
+  st.cleared = true;
+  st.clearedAt = todayStr();
+  st.needsBazar = false;
+  st.weakStratum = null;
+  S.progression.atlas_fragments_recovered++;
+  saveState();
+  return true;
+}
+
+/* Fragmentos recuperados, para la bitácora y el mapa */
+function fragmentsRecovered() {
+  return S.progression.atlas_fragments_recovered || 0;
+}
+function guardiansPending() {
+  return playableBranchIds().filter(id => guardianStatus(id).estado === 'abierta');
+}
+
 /* Erosión suave (sand_cover): días sin practicar → necesita repaso */
 function sandCover(st) {
   if (!st.last_practiced) return 0;
@@ -461,6 +517,16 @@ function sandCover(st) {
 }
 /* Estrato dominado con más arena → candidato a Encargo del Bazar */
 function bestBazarTarget() {
+  /* Si una cámara quedó pendiente de repaso, el Encargo apunta justo al
+     estrato donde se torció: el repaso deja de ser genérico y pasa a ser
+     la remediación de lo que acaba de fallar. */
+  for (const branchId of playableBranchIds()) {
+    const g = guardianState(branchId);
+    if (g && g.needsBazar && g.weakStratum) {
+      const st = getStratum(branchId, g.weakStratum);
+      return { branchId, stratumId: g.weakStratum, cover: sandCover(st), paraGuardian: true };
+    }
+  }
   let best = null;
   for (const branchId of playableBranchIds()) {
     for (const sId of STRATA_ORDER) {

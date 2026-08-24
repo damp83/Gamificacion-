@@ -943,6 +943,43 @@ input[type="checkbox"]::after, input[type="radio"]::after {
 .class-fund { margin-top: 1.4rem; padding-top: .8rem; border-top: 2px dashed var(--parchment-dark); }
 .class-fund h3 { margin-bottom: .25rem; }
 
+/* ── Cámara del Guardián ── */
+.branch-guardian { margin-top: .8rem; }
+.guardian-card {
+  display: flex; align-items: center; gap: .8rem; width: 100%; text-align: left;
+  padding: .85rem 1rem; border-radius: var(--radius); font: inherit;
+  border: 2px solid var(--brass); background: var(--card); color: var(--ink);
+}
+.guardian-card strong { display: block; }
+.guardian-card small { color: var(--ink-soft); font-size: .82rem; }
+.guardian-card-icon { font-size: 1.9rem; }
+.guardian-card-go { margin-left: auto; font-size: 1.3rem; }
+.guardian-open { cursor: pointer; border-style: solid; border-width: 3px; box-shadow: 0 3px 0 var(--brass); }
+.guardian-open:hover { transform: translateY(-1px); }
+.guardian-locked, .guardian-wait { border-style: dashed; background: var(--parchment-dark); }
+.guardian-done { background: #e9f3d8; border-color: var(--jungle-light); }
+
+.guardian-hall { max-width: 620px; margin: 0 auto; text-align: center; }
+.guardian-hall h2 { margin: .3rem 0 .8rem; }
+.guardian-hall h3 { margin: 1.2rem 0 .5rem; }
+.guardian-hall .dialog { text-align: left; }
+.guardian-face { font-size: 4.5rem; line-height: 1; }
+.guardian-strata { display: flex; flex-direction: column; gap: .45rem; text-align: left; }
+.guardian-stratum {
+  display: flex; align-items: center; gap: .7rem;
+  padding: .5rem .7rem; border-radius: var(--radius);
+  background: var(--card); border-left: 5px solid var(--brass);
+}
+.guardian-stratum strong { display: block; font-size: .92rem; }
+.guardian-stratum small { color: var(--ink-soft); font-size: .8rem; }
+.guardian-stratum-icon { font-size: 1.5rem; }
+.guardian-free {
+  margin: 1rem 0; padding: .7rem .9rem; text-align: left;
+  background: #e9f3d8; border-radius: var(--radius); font-size: .88rem;
+}
+.guardian-actions { margin-top: 1rem; }
+.guardian-meta { font-size: .83rem; color: var(--ink-soft); margin-bottom: .7rem; }
+
 </style>
 
 
@@ -1208,6 +1245,23 @@ input[type="checkbox"]::after, input[type="radio"]::after {
         <h2 id="branch-title"></h2>
         <p id="branch-desc" class="branch-desc"></p>
         <div id="strata-list" class="strata-list"></div>
+        <div id="branch-guardian" class="branch-guardian"></div>
+      </section>
+
+      <!-- ══════════ ANTESALA DE LA CÁMARA DEL GUARDIÁN ══════════ -->
+      <section id="screen-guardian" class="screen hidden">
+        <button class="btn btn-back" id="guardian-back">← Volver al pozo</button>
+        <div class="guardian-hall">
+          <div class="guardian-face">🗿</div>
+          <h2 id="guardian-title">Cámara del Guardián</h2>
+          <div id="guardian-dialog" class="dialog bruno"></div>
+          <h3>Lo que te va a preguntar</h3>
+          <div id="guardian-strata" class="guardian-strata"></div>
+          <p class="guardian-free">🪶 <strong>Fallar aquí no cuesta nada:</strong> no pierdes
+          Puntos de Expedición, ni Doblones, ni dominio, ni nada de tu mapa. El Guardián
+          solo comprueba si lo aprendido aguanta todo junto.</p>
+          <div id="guardian-actions" class="guardian-actions"></div>
+        </div>
       </section>
 
       <!-- ══════════ MISIÓN ══════════ -->
@@ -2251,6 +2305,21 @@ const ATLAS_DEFAULTS = {
     steps: [5, 10, 25, 50]
   },
 
+  /* ── Cámara del Guardián (PRD §2.3, evaluación sumativa) ──
+     Se abre cuando los cuatro estratos de un pozo están dominados. Mezcla
+     retos de todos ellos: es la prueba de que lo aprendido aguanta junto y
+     no solo estrato a estrato. Fallar no cuesta nada —ni PE, ni dominio, ni
+     Doblones— porque una evaluación que castiga deja de medir y empieza a
+     asustar. */
+  guardian: {
+    enabled: true,
+    questions: 10,        /* el PRD pide entre 8 y 12 */
+    passAccuracy: 0.8,    /* aciertos a la primera para llevarse el fragmento */
+    coins: 100,
+    peBonus: 60,
+    tierBoost: 1          /* un punto de dificultad por encima de lo habitual */
+  },
+
   /* ── Yacimientos y pozos ──
      Estructura completa y editable: el docente puede crear yacimientos y
      pozos nuevos y escribir los retos de cada estrato. La semilla la aporta
@@ -2731,6 +2800,7 @@ function buildSummary() {
     merits: (S.behavior_log || []).length,
     teamContribution: Math.round(S.progression.team_contribution || 0),
     fundDonated: S.progression.fund_donated || 0,
+    fragments: S.progression.atlas_fragments_recovered || 0,
     stuck: stuck.slice(0, 4),
     lastSeen: todayStr(),
     updated_at: Date.now()
@@ -2972,6 +3042,61 @@ function updateMastery(branchId, stratumId, sessionAccuracy) {
   }
   saveState();
 }
+/* ── Cámara del Guardián ──
+   Estado por pozo. Se crea al vuelo: un pozo nuevo del docente no tiene
+   hueco en un diario ya empezado. */
+function guardianState(branchId) {
+  const bs = ensureBranchState(branchId);
+  if (!bs) return null;
+  if (!bs.guardian) {
+    bs.guardian = { cleared: false, attempts: 0, needsBazar: false, weakStratum: null, clearedAt: null };
+  }
+  return bs.guardian;
+}
+
+/* Estratos que entran en la prueba: los que existen de verdad en el pozo */
+function guardianStrata(branchId) {
+  const def = branchDef(branchId);
+  if (!def) return [];
+  return STRATA_ORDER.filter(sId => stratumHasContent(def, sId));
+}
+
+/* La cámara se abre solo con el pozo entero dominado. Es lo que la hace
+   sumativa: no se puede entrar a probar suerte a mitad de camino. */
+function guardianStatus(branchId) {
+  const g = ATLAS_CONFIG.guardian || {};
+  const st = guardianState(branchId);
+  const strata = guardianStrata(branchId);
+  if (!g.enabled || !strata.length) return { estado: 'oculta' };
+  if (st.cleared) return { estado: 'superada', fecha: st.clearedAt, intentos: st.attempts };
+
+  const faltan = strata.filter(sId => getStratum(branchId, sId).mastery < 0.8);
+  if (faltan.length) return { estado: 'cerrada', faltan, strata };
+  if (st.needsBazar) return { estado: 'repaso', weak: st.weakStratum, strata, intentos: st.attempts };
+  return { estado: 'abierta', strata, intentos: st.attempts };
+}
+
+/* Fragmento recuperado: el único sitio donde crece atlas_fragments_recovered */
+function recoverFragment(branchId) {
+  const st = guardianState(branchId);
+  if (st.cleared) return false;
+  st.cleared = true;
+  st.clearedAt = todayStr();
+  st.needsBazar = false;
+  st.weakStratum = null;
+  S.progression.atlas_fragments_recovered++;
+  saveState();
+  return true;
+}
+
+/* Fragmentos recuperados, para la bitácora y el mapa */
+function fragmentsRecovered() {
+  return S.progression.atlas_fragments_recovered || 0;
+}
+function guardiansPending() {
+  return playableBranchIds().filter(id => guardianStatus(id).estado === 'abierta');
+}
+
 /* Erosión suave (sand_cover): días sin practicar → necesita repaso */
 function sandCover(st) {
   if (!st.last_practiced) return 0;
@@ -2980,6 +3105,16 @@ function sandCover(st) {
 }
 /* Estrato dominado con más arena → candidato a Encargo del Bazar */
 function bestBazarTarget() {
+  /* Si una cámara quedó pendiente de repaso, el Encargo apunta justo al
+     estrato donde se torció: el repaso deja de ser genérico y pasa a ser
+     la remediación de lo que acaba de fallar. */
+  for (const branchId of playableBranchIds()) {
+    const g = guardianState(branchId);
+    if (g && g.needsBazar && g.weakStratum) {
+      const st = getStratum(branchId, g.weakStratum);
+      return { branchId, stratumId: g.weakStratum, cover: sandCover(st), paraGuardian: true };
+    }
+  }
   let best = null;
   for (const branchId of playableBranchIds()) {
     for (const sId of STRATA_ORDER) {
@@ -3128,7 +3263,7 @@ function startMission(branchId, stratumId, kind) {
   mission.usedIdx = [];   /* para no repetir retos del banco dentro de la misión */
   for (let i = 0; i < total; i++) {
     const q = makeQuestion(def, stratumId, mission.tier, mission.usedIdx, currentGrade());
-    if (q) mission.questions.push(q);
+    if (q) { q.stratumId = stratumId; mission.questions.push(q); }
   }
   if (!mission.questions.length) { mission = null; return null; }
   nextQuestion();
@@ -3158,7 +3293,13 @@ function answerQuestion(optionIndex) {
     mission.resolved.push(correct);
     recordFirstTry(correct, responseMs);
     if (correct) mission.firstTryCorrect++;
-    else recordError(mission.branchId, mission.stratumId);
+    else {
+      recordError(mission.branchId, q.stratumId || mission.stratumId);
+      if (mission.errorsByStratum) {
+        const sId = q.stratumId || mission.stratumId;
+        mission.errorsByStratum[sId] = (mission.errorsByStratum[sId] || 0) + 1;
+      }
+    }
   }
 
   saveState();
@@ -3169,8 +3310,10 @@ function answerQuestion(optionIndex) {
    Premia la metacognición con 5 🪙 (máx. 5/día, PRD §2.4). */
 function restoreQuestion() {
   /* misma dificultad que el reto fallado: restaurar es reintentar, no escalar */
-  const variant = makeQuestion(branchDef(mission.branchId), mission.stratumId, mission.tier, mission.usedIdx, currentGrade())
+  const sId = mission.current.stratumId || mission.stratumId;
+  const variant = makeQuestion(branchDef(mission.branchId), sId, mission.tier, mission.usedIdx, currentGrade())
     || mission.current;
+  variant.stratumId = sId;
   mission.questions[mission.index] = variant;
   mission.current = variant;
   mission.questionStart = Date.now();
@@ -3216,6 +3359,9 @@ function advance() {
 
 /* ── Cierre de misión: recompensas con reglas anti-grinding ── */
 function finishMission() {
+  /* La cámara tiene su propio cierre: ni dominio, ni fatiga, ni castigo */
+  if (mission.kind === 'guardian') return finishGuardian();
+
   const total = mission.questions.length;
   const accuracy = mission.firstTryCorrect / total;
   const st = getStratum(mission.branchId, mission.stratumId);
@@ -3263,11 +3409,17 @@ function finishMission() {
   const masteryAfter = getStratum(mission.branchId, mission.stratumId).mastery;
   const nowMastered = masteryBefore < 0.8 && masteryAfter >= 0.8;
 
+  /* Si este Encargo era la remediación que pedía un Guardián, la cámara
+     vuelve a estar abierta al terminarlo. */
+  const reabreGuardian = mission.kind === 'bazar' &&
+    bazarUnlocksGuardian(mission.branchId, mission.stratumId);
+
   logSessionMission(minutes);
   saveState();
 
   const result = {
     kind: mission.kind,
+    reabreGuardian,
     accuracy,
     firstTryCorrect: mission.firstTryCorrect,
     total,
@@ -3283,6 +3435,120 @@ function finishMission() {
   };
   mission = null;
   return result;
+}
+
+/* ══════════ CÁMARA DEL GUARDIÁN ══════════
+   Evaluación sumativa de un pozo entero. Encadena retos de sus cuatro
+   estratos, un punto por encima de la dificultad habitual. No toca el
+   dominio ni la fatiga: mide lo que ya está aprendido, no lo entrena.
+   Fallar es gratis a propósito (PRD §0.2: nada se pierde nunca). */
+function GUARD() { return ATLAS_CONFIG.guardian || {}; }
+
+function startGuardian(branchId) {
+  const g = GUARD();
+  if (!g.enabled) return null;
+  const est = guardianStatus(branchId);
+  if (est.estado !== 'abierta') return null;
+
+  const def = branchDef(branchId);
+  const strata = est.strata;
+  const total = Math.max(4, Math.min(20, g.questions || 10));
+  const tier = Math.min(5, S.adaptive.tier + (g.tierBoost || 0));
+
+  mission = {
+    kind: 'guardian',
+    branchId,
+    stratumId: strata[strata.length - 1],   /* el más profundo, para los títulos */
+    index: 0, firstTryCorrect: 0, restoredCount: 0,
+    questions: [], current: null, firstAttemptDone: false, hintsShown: 0,
+    questionStart: 0, missionStart: Date.now(), tier, usedIdx: [], resolved: [],
+    strata, errorsByStratum: {}
+  };
+
+  /* Reparto por turnos: cada estrato aporta lo mismo y en orden de Bloom, así
+     la prueba sube de exigencia igual que subió la excavación. */
+  for (let i = 0; i < total; i++) {
+    const sId = strata[i % strata.length];
+    const q = makeQuestion(def, sId, tier, mission.usedIdx, currentGrade());
+    if (q) { q.stratumId = sId; mission.questions.push(q); }
+  }
+  if (mission.questions.length < 4) { mission = null; return null; }
+  /* de fácil a difícil, sin agrupar todo lo duro al final */
+  mission.questions.sort((a, b) => STRATA_ORDER.indexOf(a.stratumId) - STRATA_ORDER.indexOf(b.stratumId));
+  nextQuestion();
+  return mission;
+}
+
+/* Dónde se torció: el estrato con más fallos a la primera */
+function guardianWeakest(errores, strata) {
+  let peor = null, n = -1;
+  for (const sId of strata) {
+    const e = errores[sId] || 0;
+    if (e > n) { n = e; peor = sId; }
+  }
+  return n > 0 ? peor : null;
+}
+
+function finishGuardian() {
+  const g = GUARD();
+  const total = mission.questions.length;
+  const accuracy = mission.firstTryCorrect / total;
+  const minutes = Math.max(1, Math.round((Date.now() - mission.missionStart) / 60000));
+  const branchId = mission.branchId;
+  const est = guardianState(branchId);
+  const strata = mission.strata;
+  const weak = guardianWeakest(mission.errorsByStratum, strata);
+
+  est.attempts++;
+  const superada = accuracy >= (g.passAccuracy || 0.8);
+
+  let pe = 0, coins = 0, fragment = false;
+  if (superada) {
+    fragment = recoverFragment(branchId);
+    pe = Math.round((g.peBonus || 60) * accuracy);
+    coins = g.coins || 100;
+    earnDoubloons(coins);
+    est.needsBazar = false;
+    est.weakStratum = null;
+  } else {
+    /* No se pierde nada: ni PE, ni Doblones, ni dominio. Lo único que pasa
+       es que el Guardián pide un repaso antes de volver a intentarlo, y ese
+       repaso apunta al estrato exacto donde se falló. */
+    est.needsBazar = true;
+    est.weakStratum = weak || strata[0];
+  }
+  const levelInfo = earnXp(pe);
+
+  logSessionMission(minutes);
+  saveState();
+
+  const resultado = {
+    kind: 'guardian',
+    branchId, strata,
+    accuracy, firstTryCorrect: mission.firstTryCorrect, total,
+    restored: mission.restoredCount,
+    pe, coins, notes: [],
+    superada, fragment,
+    intentos: est.attempts,
+    weakStratum: superada ? null : est.weakStratum,
+    errorsByStratum: mission.errorsByStratum,
+    umbral: g.passAccuracy || 0.8,
+    leveledUp: levelInfo.leveledUp, newLevel: levelInfo.newLevel,
+    fragmentsTotal: fragmentsRecovered()
+  };
+  mission = null;
+  return resultado;
+}
+
+/* Un Encargo del Bazar levanta la espera de la cámara que lo pidió */
+function bazarUnlocksGuardian(branchId, stratumId) {
+  const est = guardianState(branchId);
+  if (est && est.needsBazar && est.weakStratum === stratumId) {
+    est.needsBazar = false;
+    saveState();
+    return true;
+  }
+  return false;
 }
 
 function abandonMission() { mission = null; }
@@ -3459,6 +3725,7 @@ function fichaAlumno(entry, base) {
     merits: base.merits,
     teamContribution: base.teamContribution,
     fundDonated: base.fundDonated,
+    fragments: base.fragments,
     stuck: base.stuck, signals,
     needsHelp: signals.length >= 3,   /* el umbral del PRD: tres señales a la vez */
     lastSeen: base.lastSeen
@@ -3487,6 +3754,7 @@ function baseDesdeResumen(sum) {
     merits: sum.merits || 0,
     teamContribution: sum.teamContribution || 0,
     fundDonated: sum.fundDonated || 0,
+    fragments: sum.fragments || 0,
     stuck: sum.stuck || [],
     lastSeen: sum.lastSeen || null
   };
@@ -3545,6 +3813,7 @@ function baseDesdeDiario(s, today) {
     merits: ((s.behavior_log || []).length),
     teamContribution: Math.round((s.progression.team_contribution) || 0),
     fundDonated: s.progression.fund_donated || 0,
+    fragments: s.progression.atlas_fragments_recovered || 0,
     stuck,
     lastSeen: s.session_meta && s.session_meta.last_login
       ? s.session_meta.last_login.slice(0, 10)
@@ -3647,6 +3916,7 @@ const CFG_SECTIONS = [
   { id: 'yacimient',  icon: '🏛️', name: 'Yacimientos y pozos' },
   { id: 'almacen',    icon: '🏪', name: 'Almacén' },
   { id: 'economia',   icon: '⚖️', name: 'Economía' },
+  { id: 'guardian',   icon: '🗿', name: 'Cámara del Guardián' },
   { id: 'fondo',      icon: '🌍', name: 'Fondo de la Sociedad' },
   { id: 'acceso',     icon: '🔐', name: 'Acceso y nube' },
   { id: 'copia',      icon: '💾', name: 'Copia de seguridad' }
@@ -3680,7 +3950,7 @@ function renderTeacherConfig() {
   const renderers = {
     curso: cfgCurso, premios: cfgPremios, alumnado: cfgAlumnado, equipos: cfgEquipos,
     yacimient: cfgYacimientos, almacen: cfgAlmacen, economia: cfgEconomia,
-    fondo: cfgFondo, acceso: cfgAcceso, copia: cfgCopia
+    guardian: cfgGuardian, fondo: cfgFondo, acceso: cfgAcceso, copia: cfgCopia
   };
   body.innerHTML = '';
   renderers[cfgSection](body);
@@ -4479,6 +4749,50 @@ function cfgEconomia(body) {
   }));
 }
 
+/* ══════════ CÁMARA DEL GUARDIÁN ══════════ */
+const GUARD_FIELDS = [
+  { k: 'questions',    label: 'Retos encadenados', min: 4, max: 20, hint: 'El PRD recomienda entre 8 y 12.' },
+  { k: 'coins',        label: 'Doblones al superarla', min: 0, max: 500 },
+  { k: 'peBonus',      label: 'Puntos de Expedición al superarla', min: 0, max: 500 },
+  { k: 'tierBoost',    label: 'Dificultad extra', min: 0, max: 3, hint: 'Puntos de dificultad por encima de lo habitual.' }
+];
+
+function cfgGuardian(body) {
+  const g = ATLAS_CONFIG.guardian || {};
+  body.innerHTML = `
+    <p class="cfg-intro">La cámara es la <strong>evaluación sumativa</strong> de un pozo: se abre
+    cuando sus cuatro estratos están dominados y pregunta de todos a la vez. <strong>Fallar no
+    cuesta nada</strong> —ni PE, ni Doblones, ni dominio—; lo único que pide el Guardián es un
+    Encargo del Bazar sobre el estrato donde se falló antes de volver a intentarlo.</p>
+    ${field('Cámaras activas', `<input type="checkbox" id="cfg-g-on"${g.enabled ? ' checked' : ''}>`)}
+    <div class="cfg-grid">
+      ${GUARD_FIELDS.map(f => field(f.label,
+        `<input type="number" class="cfg-guard" data-k="${f.k}" value="${g[f.k]}" min="${f.min}" max="${f.max}">`,
+        f.hint)).join('')}
+    </div>
+    ${field('Aciertos necesarios (%)',
+      `<input type="number" id="cfg-g-pass" value="${Math.round((g.passAccuracy || 0.8) * 100)}" min="50" max="100">`,
+      'Aciertos a la primera. Por debajo de 60 % la cámara deja de medir nada; por encima de 90 % se vuelve inalcanzable para la mayoría.')}
+    <p id="cfg-g-warn" class="cfg-warn${cfgNotice ? '' : ' hidden'}">${cfgNotice}</p>`;
+
+  onInput('#cfg-g-on', e => cfgSave('guardian.enabled', e.target.checked,
+    e.target.checked ? 'Cámaras activadas ✓' : 'Cámaras desactivadas ✓'));
+  $$('.cfg-guard').forEach(el => onInput(el, e => {
+    const f = GUARD_FIELDS.find(x => x.k === e.target.dataset.k);
+    const val = Math.min(f.max, Math.max(f.min, +e.target.value || f.min));
+    e.target.value = val;
+    cfgSave('guardian.' + f.k, val, false);
+  }));
+  onInput('#cfg-g-pass', e => {
+    const val = Math.min(100, Math.max(50, +e.target.value || 80));
+    e.target.value = val;
+    cfgNotice = val > 90
+      ? '⚠️ Con más del 90 % la cámara se vuelve casi inalcanzable: se convierte en un muro, no en una meta.'
+      : (val < 60 ? '⚠️ Por debajo del 60 % se aprueba casi por azar y la cámara deja de significar nada.' : '');
+    cfgSave('guardian.passAccuracy', val / 100);
+  });
+}
+
 /* ══════════ FONDO DE LA SOCIEDAD ══════════ */
 function cfgFondo(body) {
   const f = ATLAS_CONFIG.fund || {};
@@ -4647,7 +4961,7 @@ function cfgCopia(body) {
 const $ = sel => document.querySelector(sel);
 const $$ = sel => document.querySelectorAll(sel);
 
-const SCREENS = ['map', 'branch', 'mission', 'result', 'camp', 'merits', 'team', 'logbook', 'dashboard', 'class', 'config'];
+const SCREENS = ['map', 'branch', 'guardian', 'mission', 'result', 'camp', 'merits', 'team', 'logbook', 'dashboard', 'class', 'config'];
 
 function show(screenId) {
   SCREENS.forEach(s => $(`#screen-${s}`).classList.toggle('hidden', s !== screenId));
@@ -4787,7 +5101,9 @@ function renderMap() {
   const pct = Math.round(mapRevealPct() * 100);
   $('#map-reveal-fill').style.width = pct + '%';
   const gi = gradeInfo(S.profile.grade);
-  $('#map-reveal-pct').textContent = `${pct}% del mundo dibujado · ${gi.label} (${gi.age})`;
+  const frags = fragmentsRecovered();
+  $('#map-reveal-pct').textContent = `${pct}% del mundo dibujado · ${gi.label} (${gi.age})` +
+    (frags ? ` · 🧩 ${frags} fragmento${frags === 1 ? '' : 's'} del Atlas` : '');
 
   $('#fatigue-banner').classList.toggle('hidden', !isFatigued());
 
@@ -4834,13 +5150,17 @@ function renderMap() {
   /* Encargo del Bazar: repaso espaciado con excusa narrativa */
   const bazar = $('#bazar-card');
   const target = bestBazarTarget();
-  if (target && target.cover > 0.1 && S.daily.bazar_today < ECO().bazarPerDay) {
+  /* Si el Encargo es la remediación que pide un Guardián, se ofrece aunque el
+     estrato esté recién practicado: es justo entonces cuando hace falta. */
+  if (target && (target.paraGuardian || target.cover > 0.1) && S.daily.bazar_today < ECO().bazarPerDay) {
     const b = branchDef(target.branchId);
     const meta = STRATA_META[target.stratumId];
     bazar.innerHTML = `<div class="bazar-inner">
-      <span class="bazar-icon">🧺</span>
-      <div><strong>Encargo del Bazar</strong>
-      <p>«${meta.name}» de ${b.name} se está cubriendo de arena… Un repaso rápido lo redescubrirá. (+10–15 🪙)</p></div>
+      <span class="bazar-icon">${target.paraGuardian ? '🗿' : '🧺'}</span>
+      <div><strong>${target.paraGuardian ? 'Repaso para el Guardián' : 'Encargo del Bazar'}</strong>
+      <p>${target.paraGuardian
+        ? `El Guardián de ${b.name} pide que repases «${meta.name}» antes de dejarte volver a entrar.`
+        : `«${meta.name}» de ${b.name} se está cubriendo de arena… Un repaso rápido lo redescubrirá. (+10–15 🪙)`}</p></div>
       <button class="btn btn-secondary" id="btn-bazar">Repasar</button></div>`;
     $('#btn-bazar').addEventListener('click', () => {
       if (!startMission(target.branchId, target.stratumId, 'bazar')) { toast('Ese encargo ya no está disponible.'); return; }
@@ -4906,15 +5226,108 @@ function openBranch(branchId) {
     }
     list.appendChild(row);
   });
+
+  renderBranchGuardian(branchId);
   show('branch');
+}
+
+/* ── La Cámara del Guardián, al fondo del pozo ── */
+function renderBranchGuardian(branchId) {
+  const cont = $('#branch-guardian');
+  const est = guardianStatus(branchId);
+  if (est.estado === 'oculta') { cont.innerHTML = ''; return; }
+
+  const nombres = (est.strata || []).map(sId => STRATA_META[sId].label).join(' · ');
+  if (est.estado === 'superada') {
+    cont.innerHTML = `<div class="guardian-card guardian-done">
+      <span class="guardian-card-icon">🗿</span>
+      <div><strong>Cámara del Guardián · superada</strong>
+      <small>Recuperaste el fragmento del Atlas de este pozo${est.fecha ? ' el ' + est.fecha.split('-').reverse().slice(0,2).join('/') : ''}.</small></div>
+      <span class="guardian-card-go">🧩</span></div>`;
+    return;
+  }
+  if (est.estado === 'cerrada') {
+    const faltan = est.faltan.map(sId => STRATA_META[sId].label).join(', ');
+    cont.innerHTML = `<div class="guardian-card guardian-locked">
+      <span class="guardian-card-icon">🔒</span>
+      <div><strong>Cámara del Guardián</strong>
+      <small>Se abre con todo el pozo dominado. Te falta: ${faltan}.</small></div></div>`;
+    return;
+  }
+  if (est.estado === 'repaso') {
+    const w = STRATA_META[est.weak] ? STRATA_META[est.weak].label : '';
+    cont.innerHTML = `<div class="guardian-card guardian-wait">
+      <span class="guardian-card-icon">🧺</span>
+      <div><strong>El Guardián te espera</strong>
+      <small>Pide un Encargo del Bazar sobre <strong>${w}</strong> antes de volver a intentarlo.
+      Lo tienes en el mapa.</small></div></div>`;
+    return;
+  }
+
+  const btn = document.createElement('button');
+  btn.className = 'guardian-card guardian-open';
+  btn.innerHTML = `<span class="guardian-card-icon">🗿</span>
+    <div><strong>Cámara del Guardián</strong>
+    <small>${est.intentos ? 'Vuelve a intentarlo. ' : ''}Todo el pozo dominado: ${nombres}</small></div>
+    <span class="guardian-card-go">→</span>`;
+  btn.addEventListener('click', () => openGuardianHall(branchId));
+  cont.innerHTML = '';
+  cont.appendChild(btn);
+}
+
+/* ── Antesala: se ve lo que va a preguntar antes de entrar ── */
+let guardianBranch = null;
+function openGuardianHall(branchId) {
+  guardianBranch = branchId;
+  const b = branchDef(branchId);
+  const est = guardianStatus(branchId);
+  const g = ATLAS_CONFIG.guardian || {};
+  if (est.estado !== 'abierta') { openBranch(branchId); return; }
+
+  /* el rostro del Guardián ya está justo encima: repetir el emoji en el título
+     solo hacía la línea más larga */
+  $('#guardian-title').textContent = `Cámara del Guardián · ${b.name}`;
+  $('#guardian-dialog').innerHTML = `<span class="dialog-avatar">🧔🏻‍♂️</span>
+    <div class="dialog-text"><strong>Prof. Bruno Ocaña</strong>
+    <p>«${est.intentos
+      ? 'El Guardián ya te vio una vez. No te preocupes: a mí me echó cuatro veces seguidas, y a la quinta me dejó pasar por pena.'
+      : 'Ahí está. Lleva mil años esperando a alguien que se sepa el pozo entero. No pregunta nada nuevo: pregunta todo a la vez.'}»</p></div>`;
+
+  /* Se enseña de qué va a preguntar: una evaluación no debería sorprender */
+  $('#guardian-strata').innerHTML = est.strata.map(sId => {
+    const meta = STRATA_META[sId];
+    const st = getStratum(branchId, sId);
+    return `<div class="guardian-stratum">
+      <span class="guardian-stratum-icon">${meta.icon}</span>
+      <div><strong>${meta.label}</strong><small>«${meta.name}» · lo llevas al ${Math.round(st.mastery * 100)}%</small></div>
+    </div>`;
+  }).join('');
+
+  const total = Math.max(4, Math.min(20, g.questions || 10));
+  const acts = $('#guardian-actions');
+  acts.innerHTML = `<p class="guardian-meta">${total} retos encadenados ·
+    hacen falta ${Math.round((g.passAccuracy || 0.8) * 100)}% de aciertos a la primera ·
+    premio: 🧩 un fragmento del Atlas y ${g.coins || 100} 🪙</p>`;
+  const entrar = document.createElement('button');
+  entrar.className = 'btn btn-primary';
+  entrar.id = 'guardian-enter';
+  entrar.textContent = 'Entrar en la cámara 🗿';
+  entrar.addEventListener('click', () => {
+    if (!startGuardian(branchId)) { toast('La cámara no está abierta ahora mismo.'); openBranch(branchId); return; }
+    renderMissionScreen();
+    show('mission');
+  });
+  acts.appendChild(entrar);
+  show('guardian');
 }
 
 /* ── Misión ── */
 function renderMissionScreen() {
   const b = branchDef(mission.branchId);
   const meta = STRATA_META[mission.stratumId];
-  $('#mission-title').textContent = mission.kind === 'bazar'
-    ? `🧺 Encargo: ${meta.name}`
+  $('#mission-title').textContent =
+      mission.kind === 'bazar'    ? `🧺 Encargo: ${meta.name}`
+    : mission.kind === 'guardian' ? `🗿 Cámara del Guardián · ${b.name}`
     : `${b.icon} ${b.name} · ${meta.icon} ${meta.label}`;
   renderQuestion();
 }
@@ -5040,6 +5453,7 @@ function onHint() {
 
 /* ── Resultado ── */
 function renderResult(r) {
+  if (r.kind === 'guardian') return renderGuardianResult(r);
   const meta = STRATA_META[r.stratumId];
   const good = r.accuracy >= 0.7;
   $('#result-emoji').textContent = r.nowMastered ? '🏆' : good ? '💎' : '🧭';
@@ -5055,16 +5469,61 @@ function renderResult(r) {
     ${r.restored ? `<div class="reward-row"><span>🔧 Hallazgos restaurados</span><strong>${r.restored}</strong></div>` : ''}
     ${r.notes.map(n => `<div class="reward-note">${n}</div>`).join('')}
     ${r.leveledUp ? `<div class="reward-levelup">🎉 ¡Has subido al nivel ${r.newLevel}! Ahora eres ${rankForLevel(r.newLevel).name}.</div>` : ''}
-    ${r.nowMastered ? `<div class="reward-levelup">🗺️ ¡El mapa del Atlas se dibuja un poco más!</div>` : ''}`;
+    ${r.nowMastered ? `<div class="reward-levelup">🗺️ ¡El mapa del Atlas se dibuja un poco más!</div>` : ''}
+    ${r.reabreGuardian ? `<div class="reward-levelup">🗿 La Cámara del Guardián vuelve a estar abierta.</div>` : ''}`;
 
   const dialog = $('#result-dialog');
   let brunoSays;
   if (r.nowMastered) brunoSays = '«¡Extraordinario! Ni yo lo habría hecho mejor… bueno, yo me habría caído en tres trampas. El estrato de abajo ya está desbloqueado.»';
   else if (good) brunoSays = '«¡Buen trabajo, aprendiz! Cada acierto dibuja el mundo. Yo una vez confundí un mapa con una servilleta.»';
+  else if (r.reabreGuardian) brunoSays = '«¡Repaso hecho! El Guardián ya no tiene excusa: su cámara vuelve a estar abierta para ti.»';
   else if (r.restored > 0) brunoSays = '«¿Sabes qué distingue a un gran explorador? Que vuelve a mirar donde se equivocó. ¡Y tú lo has hecho!»';
   else brunoSays = '«Tranquilo, en esa trampa caí yo dos veces… el mismo día. Mañana esa cámara seguirá ahí esperándote.»';
   dialog.innerHTML = `<span class="dialog-avatar">🧔🏻‍♂️</span>
     <div class="dialog-text"><strong>Prof. Bruno Ocaña</strong><p>${brunoSays}</p></div>`;
+  renderHud();
+}
+
+/* ── Resultado de la Cámara del Guardián ──
+   Ganar da un fragmento del Atlas; perder no quita nada. Lo que sí hace el
+   Guardián en las dos es decir DÓNDE se falló: una evaluación que no explica
+   el error no sirve de nada a un niño de nueve años. */
+function renderGuardianResult(r) {
+  const b = branchDef(r.branchId);
+  $('#result-emoji').textContent = r.superada ? '🧩' : '🗿';
+  $('#result-title').textContent = r.superada
+    ? '¡Fragmento del Atlas recuperado!'
+    : 'El Guardián no te deja pasar… todavía';
+
+  /* Reparto de fallos por estrato: el mapa del error, no solo la nota */
+  const desglose = (r.strata || []).map(sId => {
+    const meta = STRATA_META[sId];
+    const err = r.errorsByStratum[sId] || 0;
+    return `<div class="reward-row"><span>${meta.icon} ${meta.label}</span>
+      <strong>${err ? err + (err === 1 ? ' fallo' : ' fallos') : 'sin fallos'}</strong></div>`;
+  }).join('');
+
+  $('#result-rewards').innerHTML = `
+    <div class="reward-row"><span>Aciertos a la primera</span>
+      <strong>${r.firstTryCorrect}/${r.total} (${Math.round(r.accuracy * 100)}%)</strong></div>
+    <div class="reward-row"><span>Hacía falta</span><strong>${Math.round(r.umbral * 100)}%</strong></div>
+    ${desglose}
+    ${r.pe ? `<div class="reward-row"><span>⭐ Puntos de Expedición</span><strong>+${r.pe}</strong></div>` : ''}
+    ${r.coins ? `<div class="reward-row"><span>🪙 Doblones</span><strong>+${r.coins}</strong></div>` : ''}
+    ${r.restored ? `<div class="reward-row"><span>🔧 Hallazgos restaurados</span><strong>${r.restored}</strong></div>` : ''}
+    ${r.leveledUp ? `<div class="reward-levelup">🎉 ¡Has subido al nivel ${r.newLevel}! Ahora eres ${rankForLevel(r.newLevel).name}.</div>` : ''}
+    ${r.fragment ? `<div class="reward-levelup">🧩 Llevas ${r.fragmentsTotal} fragmento(s) del Atlas de Ossian.</div>` : ''}
+    ${!r.superada ? `<div class="reward-note">No has perdido nada: ni PE, ni Doblones, ni dominio.
+      El Guardián quiere que repases <strong>${STRATA_META[r.weakStratum] ? STRATA_META[r.weakStratum].label : ''}</strong>
+      en un Encargo del Bazar y vuelvas.</div>` : ''}`;
+
+  const bruno = r.superada
+    ? `«¡LO HAS HECHO! Mil años esperando y llega ${S.profile.explorer_name} y lo resuelve antes de merendar.
+       Yo tardé tres expediciones… y en la primera me quedé encerrado dentro.»`
+    : `«¡Uf! El Guardián ha dicho que no. A mí me dijo que no tantas veces que me aprendí su cara de memoria.
+       Mira dónde has fallado, hazte un Encargo del Bazar y vuelve. Sigue estando todo tuyo: no has perdido ni un Doblón.»`;
+  $('#result-dialog').innerHTML = `<span class="dialog-avatar">🧔🏻‍♂️</span>
+    <div class="dialog-text"><strong>Prof. Bruno Ocaña</strong><p>${bruno}</p></div>`;
   renderHud();
 }
 
@@ -5204,7 +5663,8 @@ function renderLogbook() {
     <div class="logbook-stat"><strong>${lb.stamps_lifetime}</strong><span>sellos ganados</span></div>
     <div class="logbook-stat"><strong>${lb.current_weeks}</strong><span>semanas seguidas</span></div>
     <div class="logbook-stat"><strong>${lb.active_days_this_week.length}/3</strong><span>días esta semana</span></div>
-    <div class="logbook-stat"><strong>${(lb.free_rope_used_this_week ? 0 : 1) + lb.rescue_ropes}</strong><span>cuerdas de rescate</span></div>`;
+    <div class="logbook-stat"><strong>${(lb.free_rope_used_this_week ? 0 : 1) + lb.rescue_ropes}</strong><span>cuerdas de rescate</span></div>
+    <div class="logbook-stat"><strong>${fragmentsRecovered()}</strong><span>fragmentos del Atlas</span></div>`;
 
   const stamps = $('#logbook-stamps');
   const history = lb.history.slice(-12);
@@ -5533,6 +5993,7 @@ function paintClassView() {
         <span title="Precisión en las últimas 10 respuestas">🎯 ${s.accuracy === null ? '—' : Math.round(s.accuracy * 100) + '%'}</span>
         <span title="Hallazgos restaurados (autocorrección)">🔧 ${s.selfCorrections}</span>
         <span title="Méritos concedidos">🏅 ${s.merits}</span>
+        <span title="Cámaras del Guardián superadas">🧩 ${s.fragments} fragmentos</span>
       </div>
       ${s.signals.length ? `<div class="student-signals">${s.signals.map(x => `<span class="signal-chip">${x}</span>`).join('')}</div>` : ''}
       ${s.stuck.length ? `<small class="student-stuck">Atascado en: ${s.stuck.join(' · ')}</small>` : ''}
@@ -5787,6 +6248,9 @@ function wireGlobalListeners() {
     if (teacherOnly && el.dataset.nav === 'dashboard') { showTeacherPortal(); return; }
     show(el.dataset.nav);
   }));
+  $('#guardian-back').addEventListener('click', () => {
+    if (guardianBranch) openBranch(guardianBranch); else show('map');
+  });
   $('#btn-next').addEventListener('click', onNext);
   $('#btn-restore').addEventListener('click', onRestore);
   $('#btn-hint').addEventListener('click', onHint);

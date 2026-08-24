@@ -125,6 +125,7 @@ function fichaAlumno(entry, base) {
     merits: base.merits,
     teamContribution: base.teamContribution,
     fundDonated: base.fundDonated,
+    fragments: base.fragments,
     stuck: base.stuck, signals,
     needsHelp: signals.length >= 3,   /* el umbral del PRD: tres señales a la vez */
     lastSeen: base.lastSeen
@@ -153,6 +154,7 @@ function baseDesdeResumen(sum) {
     merits: sum.merits || 0,
     teamContribution: sum.teamContribution || 0,
     fundDonated: sum.fundDonated || 0,
+    fragments: sum.fragments || 0,
     stuck: sum.stuck || [],
     lastSeen: sum.lastSeen || null
   };
@@ -211,6 +213,7 @@ function baseDesdeDiario(s, today) {
     merits: ((s.behavior_log || []).length),
     teamContribution: Math.round((s.progression.team_contribution) || 0),
     fundDonated: s.progression.fund_donated || 0,
+    fragments: s.progression.atlas_fragments_recovered || 0,
     stuck,
     lastSeen: s.session_meta && s.session_meta.last_login
       ? s.session_meta.last_login.slice(0, 10)

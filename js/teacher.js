@@ -13,6 +13,7 @@ const CFG_SECTIONS = [
   { id: 'yacimient',  icon: '🏛️', name: 'Yacimientos y pozos' },
   { id: 'almacen',    icon: '🏪', name: 'Almacén' },
   { id: 'economia',   icon: '⚖️', name: 'Economía' },
+  { id: 'guardian',   icon: '🗿', name: 'Cámara del Guardián' },
   { id: 'fondo',      icon: '🌍', name: 'Fondo de la Sociedad' },
   { id: 'acceso',     icon: '🔐', name: 'Acceso y nube' },
   { id: 'copia',      icon: '💾', name: 'Copia de seguridad' }
@@ -46,7 +47,7 @@ function renderTeacherConfig() {
   const renderers = {
     curso: cfgCurso, premios: cfgPremios, alumnado: cfgAlumnado, equipos: cfgEquipos,
     yacimient: cfgYacimientos, almacen: cfgAlmacen, economia: cfgEconomia,
-    fondo: cfgFondo, acceso: cfgAcceso, copia: cfgCopia
+    guardian: cfgGuardian, fondo: cfgFondo, acceso: cfgAcceso, copia: cfgCopia
   };
   body.innerHTML = '';
   renderers[cfgSection](body);
@@ -843,6 +844,50 @@ function cfgEconomia(body) {
     else warn('');
     cfgSave('economy', eco);
   }));
+}
+
+/* ══════════ CÁMARA DEL GUARDIÁN ══════════ */
+const GUARD_FIELDS = [
+  { k: 'questions',    label: 'Retos encadenados', min: 4, max: 20, hint: 'El PRD recomienda entre 8 y 12.' },
+  { k: 'coins',        label: 'Doblones al superarla', min: 0, max: 500 },
+  { k: 'peBonus',      label: 'Puntos de Expedición al superarla', min: 0, max: 500 },
+  { k: 'tierBoost',    label: 'Dificultad extra', min: 0, max: 3, hint: 'Puntos de dificultad por encima de lo habitual.' }
+];
+
+function cfgGuardian(body) {
+  const g = ATLAS_CONFIG.guardian || {};
+  body.innerHTML = `
+    <p class="cfg-intro">La cámara es la <strong>evaluación sumativa</strong> de un pozo: se abre
+    cuando sus cuatro estratos están dominados y pregunta de todos a la vez. <strong>Fallar no
+    cuesta nada</strong> —ni PE, ni Doblones, ni dominio—; lo único que pide el Guardián es un
+    Encargo del Bazar sobre el estrato donde se falló antes de volver a intentarlo.</p>
+    ${field('Cámaras activas', `<input type="checkbox" id="cfg-g-on"${g.enabled ? ' checked' : ''}>`)}
+    <div class="cfg-grid">
+      ${GUARD_FIELDS.map(f => field(f.label,
+        `<input type="number" class="cfg-guard" data-k="${f.k}" value="${g[f.k]}" min="${f.min}" max="${f.max}">`,
+        f.hint)).join('')}
+    </div>
+    ${field('Aciertos necesarios (%)',
+      `<input type="number" id="cfg-g-pass" value="${Math.round((g.passAccuracy || 0.8) * 100)}" min="50" max="100">`,
+      'Aciertos a la primera. Por debajo de 60 % la cámara deja de medir nada; por encima de 90 % se vuelve inalcanzable para la mayoría.')}
+    <p id="cfg-g-warn" class="cfg-warn${cfgNotice ? '' : ' hidden'}">${cfgNotice}</p>`;
+
+  onInput('#cfg-g-on', e => cfgSave('guardian.enabled', e.target.checked,
+    e.target.checked ? 'Cámaras activadas ✓' : 'Cámaras desactivadas ✓'));
+  $$('.cfg-guard').forEach(el => onInput(el, e => {
+    const f = GUARD_FIELDS.find(x => x.k === e.target.dataset.k);
+    const val = Math.min(f.max, Math.max(f.min, +e.target.value || f.min));
+    e.target.value = val;
+    cfgSave('guardian.' + f.k, val, false);
+  }));
+  onInput('#cfg-g-pass', e => {
+    const val = Math.min(100, Math.max(50, +e.target.value || 80));
+    e.target.value = val;
+    cfgNotice = val > 90
+      ? '⚠️ Con más del 90 % la cámara se vuelve casi inalcanzable: se convierte en un muro, no en una meta.'
+      : (val < 60 ? '⚠️ Por debajo del 60 % se aprueba casi por azar y la cámara deja de significar nada.' : '');
+    cfgSave('guardian.passAccuracy', val / 100);
+  });
 }
 
 /* ══════════ FONDO DE LA SOCIEDAD ══════════ */

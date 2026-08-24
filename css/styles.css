@@ -936,3 +936,40 @@ input[type="checkbox"]::after, input[type="radio"]::after {
 
 .class-fund { margin-top: 1.4rem; padding-top: .8rem; border-top: 2px dashed var(--parchment-dark); }
 .class-fund h3 { margin-bottom: .25rem; }
+
+/* ── Cámara del Guardián ── */
+.branch-guardian { margin-top: .8rem; }
+.guardian-card {
+  display: flex; align-items: center; gap: .8rem; width: 100%; text-align: left;
+  padding: .85rem 1rem; border-radius: var(--radius); font: inherit;
+  border: 2px solid var(--brass); background: var(--card); color: var(--ink);
+}
+.guardian-card strong { display: block; }
+.guardian-card small { color: var(--ink-soft); font-size: .82rem; }
+.guardian-card-icon { font-size: 1.9rem; }
+.guardian-card-go { margin-left: auto; font-size: 1.3rem; }
+.guardian-open { cursor: pointer; border-style: solid; border-width: 3px; box-shadow: 0 3px 0 var(--brass); }
+.guardian-open:hover { transform: translateY(-1px); }
+.guardian-locked, .guardian-wait { border-style: dashed; background: var(--parchment-dark); }
+.guardian-done { background: #e9f3d8; border-color: var(--jungle-light); }
+
+.guardian-hall { max-width: 620px; margin: 0 auto; text-align: center; }
+.guardian-hall h2 { margin: .3rem 0 .8rem; }
+.guardian-hall h3 { margin: 1.2rem 0 .5rem; }
+.guardian-hall .dialog { text-align: left; }
+.guardian-face { font-size: 4.5rem; line-height: 1; }
+.guardian-strata { display: flex; flex-direction: column; gap: .45rem; text-align: left; }
+.guardian-stratum {
+  display: flex; align-items: center; gap: .7rem;
+  padding: .5rem .7rem; border-radius: var(--radius);
+  background: var(--card); border-left: 5px solid var(--brass);
+}
+.guardian-stratum strong { display: block; font-size: .92rem; }
+.guardian-stratum small { color: var(--ink-soft); font-size: .8rem; }
+.guardian-stratum-icon { font-size: 1.5rem; }
+.guardian-free {
+  margin: 1rem 0; padding: .7rem .9rem; text-align: left;
+  background: #e9f3d8; border-radius: var(--radius); font-size: .88rem;
+}
+.guardian-actions { margin-top: 1rem; }
+.guardian-meta { font-size: .83rem; color: var(--ink-soft); margin-bottom: .7rem; }

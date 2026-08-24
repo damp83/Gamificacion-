@@ -6,7 +6,7 @@
 const $ = sel => document.querySelector(sel);
 const $$ = sel => document.querySelectorAll(sel);
 
-const SCREENS = ['map', 'branch', 'mission', 'result', 'camp', 'merits', 'team', 'logbook', 'dashboard', 'class', 'config'];
+const SCREENS = ['map', 'branch', 'guardian', 'mission', 'result', 'camp', 'merits', 'team', 'logbook', 'dashboard', 'class', 'config'];
 
 function show(screenId) {
   SCREENS.forEach(s => $(`#screen-${s}`).classList.toggle('hidden', s !== screenId));
@@ -146,7 +146,9 @@ function renderMap() {
   const pct = Math.round(mapRevealPct() * 100);
   $('#map-reveal-fill').style.width = pct + '%';
   const gi = gradeInfo(S.profile.grade);
-  $('#map-reveal-pct').textContent = `${pct}% del mundo dibujado · ${gi.label} (${gi.age})`;
+  const frags = fragmentsRecovered();
+  $('#map-reveal-pct').textContent = `${pct}% del mundo dibujado · ${gi.label} (${gi.age})` +
+    (frags ? ` · 🧩 ${frags} fragmento${frags === 1 ? '' : 's'} del Atlas` : '');
 
   $('#fatigue-banner').classList.toggle('hidden', !isFatigued());
 
@@ -193,13 +195,17 @@ function renderMap() {
   /* Encargo del Bazar: repaso espaciado con excusa narrativa */
   const bazar = $('#bazar-card');
   const target = bestBazarTarget();
-  if (target && target.cover > 0.1 && S.daily.bazar_today < ECO().bazarPerDay) {
+  /* Si el Encargo es la remediación que pide un Guardián, se ofrece aunque el
+     estrato esté recién practicado: es justo entonces cuando hace falta. */
+  if (target && (target.paraGuardian || target.cover > 0.1) && S.daily.bazar_today < ECO().bazarPerDay) {
     const b = branchDef(target.branchId);
     const meta = STRATA_META[target.stratumId];
     bazar.innerHTML = `<div class="bazar-inner">
-      <span class="bazar-icon">🧺</span>
-      <div><strong>Encargo del Bazar</strong>
-      <p>«${meta.name}» de ${b.name} se está cubriendo de arena… Un repaso rápido lo redescubrirá. (+10–15 🪙)</p></div>
+      <span class="bazar-icon">${target.paraGuardian ? '🗿' : '🧺'}</span>
+      <div><strong>${target.paraGuardian ? 'Repaso para el Guardián' : 'Encargo del Bazar'}</strong>
+      <p>${target.paraGuardian
+        ? `El Guardián de ${b.name} pide que repases «${meta.name}» antes de dejarte volver a entrar.`
+        : `«${meta.name}» de ${b.name} se está cubriendo de arena… Un repaso rápido lo redescubrirá. (+10–15 🪙)`}</p></div>
       <button class="btn btn-secondary" id="btn-bazar">Repasar</button></div>`;
     $('#btn-bazar').addEventListener('click', () => {
       if (!startMission(target.branchId, target.stratumId, 'bazar')) { toast('Ese encargo ya no está disponible.'); return; }
@@ -265,15 +271,108 @@ function openBranch(branchId) {
     }
     list.appendChild(row);
   });
+
+  renderBranchGuardian(branchId);
   show('branch');
+}
+
+/* ── La Cámara del Guardián, al fondo del pozo ── */
+function renderBranchGuardian(branchId) {
+  const cont = $('#branch-guardian');
+  const est = guardianStatus(branchId);
+  if (est.estado === 'oculta') { cont.innerHTML = ''; return; }
+
+  const nombres = (est.strata || []).map(sId => STRATA_META[sId].label).join(' · ');
+  if (est.estado === 'superada') {
+    cont.innerHTML = `<div class="guardian-card guardian-done">
+      <span class="guardian-card-icon">🗿</span>
+      <div><strong>Cámara del Guardián · superada</strong>
+      <small>Recuperaste el fragmento del Atlas de este pozo${est.fecha ? ' el ' + est.fecha.split('-').reverse().slice(0,2).join('/') : ''}.</small></div>
+      <span class="guardian-card-go">🧩</span></div>`;
+    return;
+  }
+  if (est.estado === 'cerrada') {
+    const faltan = est.faltan.map(sId => STRATA_META[sId].label).join(', ');
+    cont.innerHTML = `<div class="guardian-card guardian-locked">
+      <span class="guardian-card-icon">🔒</span>
+      <div><strong>Cámara del Guardián</strong>
+      <small>Se abre con todo el pozo dominado. Te falta: ${faltan}.</small></div></div>`;
+    return;
+  }
+  if (est.estado === 'repaso') {
+    const w = STRATA_META[est.weak] ? STRATA_META[est.weak].label : '';
+    cont.innerHTML = `<div class="guardian-card guardian-wait">
+      <span class="guardian-card-icon">🧺</span>
+      <div><strong>El Guardián te espera</strong>
+      <small>Pide un Encargo del Bazar sobre <strong>${w}</strong> antes de volver a intentarlo.
+      Lo tienes en el mapa.</small></div></div>`;
+    return;
+  }
+
+  const btn = document.createElement('button');
+  btn.className = 'guardian-card guardian-open';
+  btn.innerHTML = `<span class="guardian-card-icon">🗿</span>
+    <div><strong>Cámara del Guardián</strong>
+    <small>${est.intentos ? 'Vuelve a intentarlo. ' : ''}Todo el pozo dominado: ${nombres}</small></div>
+    <span class="guardian-card-go">→</span>`;
+  btn.addEventListener('click', () => openGuardianHall(branchId));
+  cont.innerHTML = '';
+  cont.appendChild(btn);
+}
+
+/* ── Antesala: se ve lo que va a preguntar antes de entrar ── */
+let guardianBranch = null;
+function openGuardianHall(branchId) {
+  guardianBranch = branchId;
+  const b = branchDef(branchId);
+  const est = guardianStatus(branchId);
+  const g = ATLAS_CONFIG.guardian || {};
+  if (est.estado !== 'abierta') { openBranch(branchId); return; }
+
+  /* el rostro del Guardián ya está justo encima: repetir el emoji en el título
+     solo hacía la línea más larga */
+  $('#guardian-title').textContent = `Cámara del Guardián · ${b.name}`;
+  $('#guardian-dialog').innerHTML = `<span class="dialog-avatar">🧔🏻‍♂️</span>
+    <div class="dialog-text"><strong>Prof. Bruno Ocaña</strong>
+    <p>«${est.intentos
+      ? 'El Guardián ya te vio una vez. No te preocupes: a mí me echó cuatro veces seguidas, y a la quinta me dejó pasar por pena.'
+      : 'Ahí está. Lleva mil años esperando a alguien que se sepa el pozo entero. No pregunta nada nuevo: pregunta todo a la vez.'}»</p></div>`;
+
+  /* Se enseña de qué va a preguntar: una evaluación no debería sorprender */
+  $('#guardian-strata').innerHTML = est.strata.map(sId => {
+    const meta = STRATA_META[sId];
+    const st = getStratum(branchId, sId);
+    return `<div class="guardian-stratum">
+      <span class="guardian-stratum-icon">${meta.icon}</span>
+      <div><strong>${meta.label}</strong><small>«${meta.name}» · lo llevas al ${Math.round(st.mastery * 100)}%</small></div>
+    </div>`;
+  }).join('');
+
+  const total = Math.max(4, Math.min(20, g.questions || 10));
+  const acts = $('#guardian-actions');
+  acts.innerHTML = `<p class="guardian-meta">${total} retos encadenados ·
+    hacen falta ${Math.round((g.passAccuracy || 0.8) * 100)}% de aciertos a la primera ·
+    premio: 🧩 un fragmento del Atlas y ${g.coins || 100} 🪙</p>`;
+  const entrar = document.createElement('button');
+  entrar.className = 'btn btn-primary';
+  entrar.id = 'guardian-enter';
+  entrar.textContent = 'Entrar en la cámara 🗿';
+  entrar.addEventListener('click', () => {
+    if (!startGuardian(branchId)) { toast('La cámara no está abierta ahora mismo.'); openBranch(branchId); return; }
+    renderMissionScreen();
+    show('mission');
+  });
+  acts.appendChild(entrar);
+  show('guardian');
 }
 
 /* ── Misión ── */
 function renderMissionScreen() {
   const b = branchDef(mission.branchId);
   const meta = STRATA_META[mission.stratumId];
-  $('#mission-title').textContent = mission.kind === 'bazar'
-    ? `🧺 Encargo: ${meta.name}`
+  $('#mission-title').textContent =
+      mission.kind === 'bazar'    ? `🧺 Encargo: ${meta.name}`
+    : mission.kind === 'guardian' ? `🗿 Cámara del Guardián · ${b.name}`
     : `${b.icon} ${b.name} · ${meta.icon} ${meta.label}`;
   renderQuestion();
 }
@@ -399,6 +498,7 @@ function onHint() {
 
 /* ── Resultado ── */
 function renderResult(r) {
+  if (r.kind === 'guardian') return renderGuardianResult(r);
   const meta = STRATA_META[r.stratumId];
   const good = r.accuracy >= 0.7;
   $('#result-emoji').textContent = r.nowMastered ? '🏆' : good ? '💎' : '🧭';
@@ -414,16 +514,61 @@ function renderResult(r) {
     ${r.restored ? `<div class="reward-row"><span>🔧 Hallazgos restaurados</span><strong>${r.restored}</strong></div>` : ''}
     ${r.notes.map(n => `<div class="reward-note">${n}</div>`).join('')}
     ${r.leveledUp ? `<div class="reward-levelup">🎉 ¡Has subido al nivel ${r.newLevel}! Ahora eres ${rankForLevel(r.newLevel).name}.</div>` : ''}
-    ${r.nowMastered ? `<div class="reward-levelup">🗺️ ¡El mapa del Atlas se dibuja un poco más!</div>` : ''}`;
+    ${r.nowMastered ? `<div class="reward-levelup">🗺️ ¡El mapa del Atlas se dibuja un poco más!</div>` : ''}
+    ${r.reabreGuardian ? `<div class="reward-levelup">🗿 La Cámara del Guardián vuelve a estar abierta.</div>` : ''}`;
 
   const dialog = $('#result-dialog');
   let brunoSays;
   if (r.nowMastered) brunoSays = '«¡Extraordinario! Ni yo lo habría hecho mejor… bueno, yo me habría caído en tres trampas. El estrato de abajo ya está desbloqueado.»';
   else if (good) brunoSays = '«¡Buen trabajo, aprendiz! Cada acierto dibuja el mundo. Yo una vez confundí un mapa con una servilleta.»';
+  else if (r.reabreGuardian) brunoSays = '«¡Repaso hecho! El Guardián ya no tiene excusa: su cámara vuelve a estar abierta para ti.»';
   else if (r.restored > 0) brunoSays = '«¿Sabes qué distingue a un gran explorador? Que vuelve a mirar donde se equivocó. ¡Y tú lo has hecho!»';
   else brunoSays = '«Tranquilo, en esa trampa caí yo dos veces… el mismo día. Mañana esa cámara seguirá ahí esperándote.»';
   dialog.innerHTML = `<span class="dialog-avatar">🧔🏻‍♂️</span>
     <div class="dialog-text"><strong>Prof. Bruno Ocaña</strong><p>${brunoSays}</p></div>`;
+  renderHud();
+}
+
+/* ── Resultado de la Cámara del Guardián ──
+   Ganar da un fragmento del Atlas; perder no quita nada. Lo que sí hace el
+   Guardián en las dos es decir DÓNDE se falló: una evaluación que no explica
+   el error no sirve de nada a un niño de nueve años. */
+function renderGuardianResult(r) {
+  const b = branchDef(r.branchId);
+  $('#result-emoji').textContent = r.superada ? '🧩' : '🗿';
+  $('#result-title').textContent = r.superada
+    ? '¡Fragmento del Atlas recuperado!'
+    : 'El Guardián no te deja pasar… todavía';
+
+  /* Reparto de fallos por estrato: el mapa del error, no solo la nota */
+  const desglose = (r.strata || []).map(sId => {
+    const meta = STRATA_META[sId];
+    const err = r.errorsByStratum[sId] || 0;
+    return `<div class="reward-row"><span>${meta.icon} ${meta.label}</span>
+      <strong>${err ? err + (err === 1 ? ' fallo' : ' fallos') : 'sin fallos'}</strong></div>`;
+  }).join('');
+
+  $('#result-rewards').innerHTML = `
+    <div class="reward-row"><span>Aciertos a la primera</span>
+      <strong>${r.firstTryCorrect}/${r.total} (${Math.round(r.accuracy * 100)}%)</strong></div>
+    <div class="reward-row"><span>Hacía falta</span><strong>${Math.round(r.umbral * 100)}%</strong></div>
+    ${desglose}
+    ${r.pe ? `<div class="reward-row"><span>⭐ Puntos de Expedición</span><strong>+${r.pe}</strong></div>` : ''}
+    ${r.coins ? `<div class="reward-row"><span>🪙 Doblones</span><strong>+${r.coins}</strong></div>` : ''}
+    ${r.restored ? `<div class="reward-row"><span>🔧 Hallazgos restaurados</span><strong>${r.restored}</strong></div>` : ''}
+    ${r.leveledUp ? `<div class="reward-levelup">🎉 ¡Has subido al nivel ${r.newLevel}! Ahora eres ${rankForLevel(r.newLevel).name}.</div>` : ''}
+    ${r.fragment ? `<div class="reward-levelup">🧩 Llevas ${r.fragmentsTotal} fragmento(s) del Atlas de Ossian.</div>` : ''}
+    ${!r.superada ? `<div class="reward-note">No has perdido nada: ni PE, ni Doblones, ni dominio.
+      El Guardián quiere que repases <strong>${STRATA_META[r.weakStratum] ? STRATA_META[r.weakStratum].label : ''}</strong>
+      en un Encargo del Bazar y vuelvas.</div>` : ''}`;
+
+  const bruno = r.superada
+    ? `«¡LO HAS HECHO! Mil años esperando y llega ${S.profile.explorer_name} y lo resuelve antes de merendar.
+       Yo tardé tres expediciones… y en la primera me quedé encerrado dentro.»`
+    : `«¡Uf! El Guardián ha dicho que no. A mí me dijo que no tantas veces que me aprendí su cara de memoria.
+       Mira dónde has fallado, hazte un Encargo del Bazar y vuelve. Sigue estando todo tuyo: no has perdido ni un Doblón.»`;
+  $('#result-dialog').innerHTML = `<span class="dialog-avatar">🧔🏻‍♂️</span>
+    <div class="dialog-text"><strong>Prof. Bruno Ocaña</strong><p>${bruno}</p></div>`;
   renderHud();
 }
 
@@ -563,7 +708,8 @@ function renderLogbook() {
     <div class="logbook-stat"><strong>${lb.stamps_lifetime}</strong><span>sellos ganados</span></div>
     <div class="logbook-stat"><strong>${lb.current_weeks}</strong><span>semanas seguidas</span></div>
     <div class="logbook-stat"><strong>${lb.active_days_this_week.length}/3</strong><span>días esta semana</span></div>
-    <div class="logbook-stat"><strong>${(lb.free_rope_used_this_week ? 0 : 1) + lb.rescue_ropes}</strong><span>cuerdas de rescate</span></div>`;
+    <div class="logbook-stat"><strong>${(lb.free_rope_used_this_week ? 0 : 1) + lb.rescue_ropes}</strong><span>cuerdas de rescate</span></div>
+    <div class="logbook-stat"><strong>${fragmentsRecovered()}</strong><span>fragmentos del Atlas</span></div>`;
 
   const stamps = $('#logbook-stamps');
   const history = lb.history.slice(-12);
@@ -892,6 +1038,7 @@ function paintClassView() {
         <span title="Precisión en las últimas 10 respuestas">🎯 ${s.accuracy === null ? '—' : Math.round(s.accuracy * 100) + '%'}</span>
         <span title="Hallazgos restaurados (autocorrección)">🔧 ${s.selfCorrections}</span>
         <span title="Méritos concedidos">🏅 ${s.merits}</span>
+        <span title="Cámaras del Guardián superadas">🧩 ${s.fragments} fragmentos</span>
       </div>
       ${s.signals.length ? `<div class="student-signals">${s.signals.map(x => `<span class="signal-chip">${x}</span>`).join('')}</div>` : ''}
       ${s.stuck.length ? `<small class="student-stuck">Atascado en: ${s.stuck.join(' · ')}</small>` : ''}
@@ -1146,6 +1293,9 @@ function wireGlobalListeners() {
     if (teacherOnly && el.dataset.nav === 'dashboard') { showTeacherPortal(); return; }
     show(el.dataset.nav);
   }));
+  $('#guardian-back').addEventListener('click', () => {
+    if (guardianBranch) openBranch(guardianBranch); else show('map');
+  });
   $('#btn-next').addEventListener('click', onNext);
   $('#btn-restore').addEventListener('click', onRestore);
   $('#btn-hint').addEventListener('click', onHint);

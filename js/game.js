@@ -47,7 +47,7 @@ function startMission(branchId, stratumId, kind) {
   mission.usedIdx = [];   /* para no repetir retos del banco dentro de la misión */
   for (let i = 0; i < total; i++) {
     const q = makeQuestion(def, stratumId, mission.tier, mission.usedIdx, currentGrade());
-    if (q) mission.questions.push(q);
+    if (q) { q.stratumId = stratumId; mission.questions.push(q); }
   }
   if (!mission.questions.length) { mission = null; return null; }
   nextQuestion();
@@ -77,7 +77,13 @@ function answerQuestion(optionIndex) {
     mission.resolved.push(correct);
     recordFirstTry(correct, responseMs);
     if (correct) mission.firstTryCorrect++;
-    else recordError(mission.branchId, mission.stratumId);
+    else {
+      recordError(mission.branchId, q.stratumId || mission.stratumId);
+      if (mission.errorsByStratum) {
+        const sId = q.stratumId || mission.stratumId;
+        mission.errorsByStratum[sId] = (mission.errorsByStratum[sId] || 0) + 1;
+      }
+    }
   }
 
   saveState();
@@ -88,8 +94,10 @@ function answerQuestion(optionIndex) {
    Premia la metacognición con 5 🪙 (máx. 5/día, PRD §2.4). */
 function restoreQuestion() {
   /* misma dificultad que el reto fallado: restaurar es reintentar, no escalar */
-  const variant = makeQuestion(branchDef(mission.branchId), mission.stratumId, mission.tier, mission.usedIdx, currentGrade())
+  const sId = mission.current.stratumId || mission.stratumId;
+  const variant = makeQuestion(branchDef(mission.branchId), sId, mission.tier, mission.usedIdx, currentGrade())
     || mission.current;
+  variant.stratumId = sId;
   mission.questions[mission.index] = variant;
   mission.current = variant;
   mission.questionStart = Date.now();
@@ -135,6 +143,9 @@ function advance() {
 
 /* ── Cierre de misión: recompensas con reglas anti-grinding ── */
 function finishMission() {
+  /* La cámara tiene su propio cierre: ni dominio, ni fatiga, ni castigo */
+  if (mission.kind === 'guardian') return finishGuardian();
+
   const total = mission.questions.length;
   const accuracy = mission.firstTryCorrect / total;
   const st = getStratum(mission.branchId, mission.stratumId);
@@ -182,11 +193,17 @@ function finishMission() {
   const masteryAfter = getStratum(mission.branchId, mission.stratumId).mastery;
   const nowMastered = masteryBefore < 0.8 && masteryAfter >= 0.8;
 
+  /* Si este Encargo era la remediación que pedía un Guardián, la cámara
+     vuelve a estar abierta al terminarlo. */
+  const reabreGuardian = mission.kind === 'bazar' &&
+    bazarUnlocksGuardian(mission.branchId, mission.stratumId);
+
   logSessionMission(minutes);
   saveState();
 
   const result = {
     kind: mission.kind,
+    reabreGuardian,
     accuracy,
     firstTryCorrect: mission.firstTryCorrect,
     total,
@@ -202,6 +219,120 @@ function finishMission() {
   };
   mission = null;
   return result;
+}
+
+/* ══════════ CÁMARA DEL GUARDIÁN ══════════
+   Evaluación sumativa de un pozo entero. Encadena retos de sus cuatro
+   estratos, un punto por encima de la dificultad habitual. No toca el
+   dominio ni la fatiga: mide lo que ya está aprendido, no lo entrena.
+   Fallar es gratis a propósito (PRD §0.2: nada se pierde nunca). */
+function GUARD() { return ATLAS_CONFIG.guardian || {}; }
+
+function startGuardian(branchId) {
+  const g = GUARD();
+  if (!g.enabled) return null;
+  const est = guardianStatus(branchId);
+  if (est.estado !== 'abierta') return null;
+
+  const def = branchDef(branchId);
+  const strata = est.strata;
+  const total = Math.max(4, Math.min(20, g.questions || 10));
+  const tier = Math.min(5, S.adaptive.tier + (g.tierBoost || 0));
+
+  mission = {
+    kind: 'guardian',
+    branchId,
+    stratumId: strata[strata.length - 1],   /* el más profundo, para los títulos */
+    index: 0, firstTryCorrect: 0, restoredCount: 0,
+    questions: [], current: null, firstAttemptDone: false, hintsShown: 0,
+    questionStart: 0, missionStart: Date.now(), tier, usedIdx: [], resolved: [],
+    strata, errorsByStratum: {}
+  };
+
+  /* Reparto por turnos: cada estrato aporta lo mismo y en orden de Bloom, así
+     la prueba sube de exigencia igual que subió la excavación. */
+  for (let i = 0; i < total; i++) {
+    const sId = strata[i % strata.length];
+    const q = makeQuestion(def, sId, tier, mission.usedIdx, currentGrade());
+    if (q) { q.stratumId = sId; mission.questions.push(q); }
+  }
+  if (mission.questions.length < 4) { mission = null; return null; }
+  /* de fácil a difícil, sin agrupar todo lo duro al final */
+  mission.questions.sort((a, b) => STRATA_ORDER.indexOf(a.stratumId) - STRATA_ORDER.indexOf(b.stratumId));
+  nextQuestion();
+  return mission;
+}
+
+/* Dónde se torció: el estrato con más fallos a la primera */
+function guardianWeakest(errores, strata) {
+  let peor = null, n = -1;
+  for (const sId of strata) {
+    const e = errores[sId] || 0;
+    if (e > n) { n = e; peor = sId; }
+  }
+  return n > 0 ? peor : null;
+}
+
+function finishGuardian() {
+  const g = GUARD();
+  const total = mission.questions.length;
+  const accuracy = mission.firstTryCorrect / total;
+  const minutes = Math.max(1, Math.round((Date.now() - mission.missionStart) / 60000));
+  const branchId = mission.branchId;
+  const est = guardianState(branchId);
+  const strata = mission.strata;
+  const weak = guardianWeakest(mission.errorsByStratum, strata);
+
+  est.attempts++;
+  const superada = accuracy >= (g.passAccuracy || 0.8);
+
+  let pe = 0, coins = 0, fragment = false;
+  if (superada) {
+    fragment = recoverFragment(branchId);
+    pe = Math.round((g.peBonus || 60) * accuracy);
+    coins = g.coins || 100;
+    earnDoubloons(coins);
+    est.needsBazar = false;
+    est.weakStratum = null;
+  } else {
+    /* No se pierde nada: ni PE, ni Doblones, ni dominio. Lo único que pasa
+       es que el Guardián pide un repaso antes de volver a intentarlo, y ese
+       repaso apunta al estrato exacto donde se falló. */
+    est.needsBazar = true;
+    est.weakStratum = weak || strata[0];
+  }
+  const levelInfo = earnXp(pe);
+
+  logSessionMission(minutes);
+  saveState();
+
+  const resultado = {
+    kind: 'guardian',
+    branchId, strata,
+    accuracy, firstTryCorrect: mission.firstTryCorrect, total,
+    restored: mission.restoredCount,
+    pe, coins, notes: [],
+    superada, fragment,
+    intentos: est.attempts,
+    weakStratum: superada ? null : est.weakStratum,
+    errorsByStratum: mission.errorsByStratum,
+    umbral: g.passAccuracy || 0.8,
+    leveledUp: levelInfo.leveledUp, newLevel: levelInfo.newLevel,
+    fragmentsTotal: fragmentsRecovered()
+  };
+  mission = null;
+  return resultado;
+}
+
+/* Un Encargo del Bazar levanta la espera de la cámara que lo pidió */
+function bazarUnlocksGuardian(branchId, stratumId) {
+  const est = guardianState(branchId);
+  if (est && est.needsBazar && est.weakStratum === stratumId) {
+    est.needsBazar = false;
+    saveState();
+    return true;
+  }
+  return false;
 }
 
 function abandonMission() { mission = null; }
