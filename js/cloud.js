@@ -95,7 +95,14 @@ async function cloudLoadState() {
 async function cloudPush() {
   if (!CLOUD.enabled || !CLOUD.user || !S) return false;
   const c = ATLAS_CONFIG.appwrite;
+  /* Se envía el diario completo (para que el niño lo recupere en otro equipo)
+     y, aparte, un resumen de menos de 1 KB. La vista de clase lee SOLO el
+     resumen: así un centro de 300 diarios baja ~300 KB en vez de ~7 MB. */
   const data = { state: JSON.stringify(S), name: S.profile.explorer_name };
+  try {
+    const sum = buildSummary();
+    if (sum) data.summary = JSON.stringify(sum);
+  } catch (e) { /* si el resumen falla, el diario se guarda igual */ }
   try {
     await CLOUD.db.updateDocument(c.databaseId, c.collectionId, CLOUD.user.$id, data);
     CLOUD.lastError = null;

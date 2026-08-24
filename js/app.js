@@ -445,6 +445,8 @@ function renderCamp() {
   scene.innerHTML = `<div class="camp-scene-row">⛺ ${campIcons.join(' ')} ${S.inventory.treats_given > 0 ? '🐕' + '🦴'.repeat(Math.min(3, S.inventory.treats_given)) : '🐕'}</div>
     <small>${S.inventory.treats_given > 0 ? 'Tobías está feliz con sus golosinas.' : 'Tobías husmea buscando golosinas…'}</small>`;
 
+  renderFund();
+
   const list = $('#shop-list');
   list.innerHTML = '';
   for (const item of shopCatalog()) {
@@ -478,6 +480,79 @@ function renderCamp() {
     row.appendChild(btn);
     list.appendChild(row);
   }
+}
+
+/* ── Fondo de la Sociedad Geográfica ──
+   El almacén se agota en tres o cuatro semanas; a partir de ahí los Doblones
+   dejan de significar nada. El Fondo es un sumidero sin fondo y cooperativo:
+   lo donado no vuelve, no da ninguna ventaja y los hitos son de la clase
+   entera, no de quien más done (por eso no se muestra quién ha donado qué). */
+function fundTotal() {
+  const f = ATLAS_CONFIG.fund || {};
+  const mio = (S.progression.fund_donated) || 0;
+  /* El total de clase lo anota el docente y puede ir por detrás de la
+     realidad; si lo mío ya lo supera, mando yo. Así el niño siempre ve
+     moverse la barra cuando dona, con o sin conexión. */
+  return Math.max(Number(f.classTotal) || 0, mio);
+}
+
+function renderFund() {
+  const f = ATLAS_CONFIG.fund || {};
+  const block = $('#fund-block');
+  if (!block) return;
+  block.classList.toggle('hidden', !f.enabled);
+  if (!f.enabled) return;
+
+  $('#fund-title').textContent = '🌍 ' + (f.name || 'Fondo de la Sociedad Geográfica');
+  $('#fund-blurb').textContent = f.blurb || '';
+
+  const total = fundTotal();
+  const { alcanzados, siguiente } = fundMilestoneFor(total);
+  const desde = alcanzados.length ? alcanzados[alcanzados.length - 1].at : 0;
+  const hasta = siguiente ? siguiente.at : desde;
+  const pct = hasta > desde ? Math.min(100, Math.round((total - desde) / (hasta - desde) * 100)) : 100;
+
+  $('#fund-progress').innerHTML = `
+    <div class="fund-bar"><div class="fund-bar-fill" style="width:${pct}%"></div></div>
+    <div class="fund-bar-legend">
+      <strong>${total} 🪙</strong> reunidos entre toda la clase
+      ${siguiente ? `<span>· faltan <strong>${Math.max(0, hasta - total)}</strong> para ${siguiente.icon} ${siguiente.name}</span>` : ''}
+    </div>`;
+
+  const hitos = (f.milestones || []).concat(
+    alcanzados.filter(m => !(f.milestones || []).some(x => x.at === m.at)));
+  $('#fund-milestones').innerHTML = hitos.map(m => {
+    const hecho = total >= m.at;
+    return `<div class="fund-milestone ${hecho ? 'fund-done' : ''}">
+      <span class="fund-icon">${hecho ? m.icon : '🔒'}</span>
+      <div><strong>${m.name}</strong><small>${hecho ? m.desc : `Se abre con ${m.at} 🪙 de la clase`}</small></div>
+    </div>`;
+  }).join('');
+
+  const cont = $('#fund-buttons');
+  cont.innerHTML = '';
+  for (const n of (f.steps || [5, 10, 25, 50])) {
+    const b = document.createElement('button');
+    b.className = 'btn btn-secondary btn-small';
+    b.textContent = `${n} 🪙`;
+    b.disabled = S.progression.doubloons_balance < n;
+    b.addEventListener('click', () => {
+      const res = donateToFund(n);
+      if (!res.ok) { toast('No tienes Doblones suficientes.'); return; }
+      const antes = fundMilestoneFor(total).alcanzados.length;
+      const ahora = fundMilestoneFor(fundTotal()).alcanzados.length;
+      toast(ahora > antes
+        ? '¡Hito conseguido! La Sociedad se pone manos a la obra 🎉'
+        : `¡Gracias! ${n} 🪙 para el Fondo.`);
+      renderCamp();
+    });
+    cont.appendChild(b);
+  }
+
+  const mio = S.progression.fund_donated || 0;
+  $('#fund-mine').textContent = mio
+    ? `Tú has aportado ${mio} 🪙 al Fondo. Donar no da ninguna ventaja: es por las ruinas.`
+    : 'Donar es voluntario y no da ninguna ventaja en las excavaciones.';
 }
 
 /* ── Bitácora ── */
@@ -842,6 +917,37 @@ function paintClassView() {
         ${d.missing.map(m => `<strong>${m.name}</strong> (${m.team})`).join(', ')}.
         O aún no se han registrado, o el nombre no coincide con el que escribieron.</div>`
     : '';
+
+  paintClassFund(d);
+}
+
+/* El total real del Fondo solo se puede sumar aquí, leyendo todos los diarios.
+   Los alumnos no ven esta pantalla, así que hace falta anotarlo en la
+   configuración para que la barra del campamento diga la verdad. */
+function paintClassFund(d) {
+  const cont = $('#class-fund');
+  if (!cont) return;
+  const f = ATLAS_CONFIG.fund || {};
+  if (!f.enabled) { cont.innerHTML = ''; return; }
+
+  const real = d.kpis.fundTotal || 0;
+  const anotado = Number(f.classTotal) || 0;
+  const { siguiente } = fundMilestoneFor(real);
+  cont.innerHTML = `
+    <h3>🌍 ${f.name || 'Fondo de la Sociedad'}</h3>
+    <p class="class-meta">Donado de verdad entre todos: <strong>${real} 🪙</strong> ·
+      anotado en la configuración: <strong>${anotado} 🪙</strong>
+      ${siguiente ? `· siguiente hito: ${siguiente.icon} ${siguiente.name} (${siguiente.at} 🪙)` : ''}</p>
+    ${real !== anotado
+      ? `<button class="btn btn-secondary btn-small" id="class-fund-sync">📌 Anotar ${real} 🪙 para que lo vea la clase</button>`
+      : '<p class="cfg-hint">La clase ya ve el total correcto.</p>'}`;
+
+  const btn = $('#class-fund-sync');
+  if (btn) btn.addEventListener('click', () => {
+    setTeacherConfig('fund.classTotal', real);
+    toast('Anotado ✓ La clase ya ve ' + real + ' 🪙 en el Fondo.');
+    paintClassFund(d);
+  });
 }
 
 /* ── El curso por trimestres (cuaderno docente) ── */

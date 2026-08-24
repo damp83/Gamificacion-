@@ -20,33 +20,70 @@ async function fetchClassDocs() {
     return { ok: false, reason: 'sin-nube' };
   }
   const c = ATLAS_CONFIG.appwrite;
-  const out = [];
-  try {
+
+  /* Se piden solo los campos que la vista usa. El diario entero pesa ~20 KB
+     por alumno; el resumen, menos de 1 KB. En un centro con 300 diarios eso
+     es la diferencia entre 6 MB y 300 KB por cada apertura de la vista. */
+  const CAMPOS = ['$id', 'name', 'summary'];
+
+  async function listar(conSelect) {
+    const out = [];
     let cursor = null;
     for (let page = 0; page < 20; page++) {          /* tope de seguridad */
       const queries = [Appwrite.Query.limit(CLASS_PAGE)];
+      if (conSelect && Appwrite.Query.select) queries.push(Appwrite.Query.select(CAMPOS));
       if (cursor) queries.push(Appwrite.Query.cursorAfter(cursor));
       const res = await CLOUD.db.listDocuments(c.databaseId, c.collectionId, queries);
       out.push(...res.documents);
       if (res.documents.length < CLASS_PAGE) break;
       cursor = res.documents[res.documents.length - 1].$id;
     }
+    return out;
+  }
+
+  let docs;
+  try {
+    docs = await listar(true);
+    /* Colección antigua sin el atributo «summary»: se vuelve a pedir entero.
+       Cuesta más red, pero la vista sigue funcionando el primer día. */
+    if (docs.length && !docs.some(d => d.summary)) docs = await listar(false);
   } catch (e) {
     const msg = (e && e.message) || '';
-    if (/not authorized|missing scope|permission/i.test(msg)) {
-      return { ok: false, reason: 'sin-permiso', detail: msg };
+    if (/select|attribute|unknown/i.test(msg)) {
+      try { docs = await listar(false); }
+      catch (e2) { return errorLectura(e2); }
+    } else {
+      return errorLectura(e);
     }
-    return { ok: false, reason: 'error', detail: msg };
   }
-  return { ok: true, docs: out };
+  return { ok: true, docs };
 }
 
-/* Convierte los documentos crudos en {name, state} legibles */
+function errorLectura(e) {
+  const msg = (e && e.message) || '';
+  if (/not authorized|missing scope|permission/i.test(msg)) {
+    return { ok: false, reason: 'sin-permiso', detail: msg };
+  }
+  return { ok: false, reason: 'error', detail: msg };
+}
+
+/* Convierte los documentos crudos en entradas legibles.
+   Cada entrada trae {summary} (camino rápido) o {state} (diarios guardados
+   antes de que existiera el resumen, o lectura de respaldo). */
 function parseClassDocs(docs) {
   const out = [];
   for (const d of docs) {
+    if (d.summary) {
+      let sum = null;
+      try { sum = JSON.parse(d.summary); } catch (e) { sum = null; }
+      if (sum && sum.v) {
+        out.push({ id: d.$id, name: d.name || sum.name || 'Explorador', summary: sum });
+        continue;
+      }
+    }
+    if (!d.state) continue;                                  /* nada legible */
     let st = null;
-    try { st = JSON.parse(d.state); } catch (e) { continue; }  /* diario ilegible: se ignora */
+    try { st = JSON.parse(d.state); } catch (e) { continue; } /* diario ilegible */
     if (!st || !st.profile) continue;
     out.push({ id: d.$id, name: d.name || st.profile.explorer_name || 'Explorador', state: st });
   }
@@ -56,12 +93,76 @@ function parseClassDocs(docs) {
 /* ── Cálculo del resumen (puro) ── */
 function daysBetween(a, b) { return Math.floor((new Date(a) - new Date(b)) / 86400000); }
 
-function summarizeStudent(entry, today) {
-  const s = entry.state;
-  const level = levelFromXp(s.progression.xp_total || 0);
+/* Campos crudos → ficha de alumno. Es el único sitio donde se deciden las
+   señales de rescate, así que el resumen precalculado y el diario completo
+   dan exactamente el mismo resultado. */
+function fichaAlumno(entry, base) {
+  const signals = [];
+  if (base.sessionsPrev > 0 && base.sessions7 < Math.ceil(base.sessionsPrev / 2)) signals.push('caída de sesiones');
+  else if (base.sessionsPrev === 0 && base.sessions7 === 0 && base.hasLog) signals.push('sin actividad reciente');
+  if (base.errorRate !== null && base.errorRate > 0.4) signals.push('tasa de error alta');
+  if (base.stuck.length) signals.push('estrato atascado >7 días');
+  if (base.accuracy !== null && base.accuracy < 0.6) signals.push('fuera del canal de flujo');
+  if (base.lowQuality) signals.push('respuestas <2 s');
 
+  const level = base.level;
+  return {
+    id: entry.id,
+    name: entry.name,
+    level,
+    rank: rankForLevel(level).name,
+    xp: base.xp,
+    doubloons: base.doubloons,
+    mastered: base.mastered, totalStrata: base.totalStrata,
+    avgMastery: base.avgMastery,
+    minutes7: base.minutes7, sessions7: base.sessions7, sessionsPrev: base.sessionsPrev,
+    activeDays: base.activeDays,
+    stamps: base.stamps,
+    accuracy: base.accuracy,
+    inFlow: base.accuracy !== null && base.accuracy >= 0.7 && base.accuracy <= 0.85,
+    errorRate: base.errorRate, lowQuality: base.lowQuality,
+    selfCorrections: base.selfCorrections,
+    merits: base.merits,
+    teamContribution: base.teamContribution,
+    fundDonated: base.fundDonated,
+    stuck: base.stuck, signals,
+    needsHelp: signals.length >= 3,   /* el umbral del PRD: tres señales a la vez */
+    lastSeen: base.lastSeen
+  };
+}
+
+/* Camino rápido: el resumen ya viene calculado por el propio alumno */
+function baseDesdeResumen(sum) {
+  return {
+    level: sum.level !== undefined ? sum.level : levelFromXp(sum.xp || 0),
+    xp: sum.xp || 0,
+    doubloons: sum.doubloons || 0,
+    mastered: sum.mastered || 0,
+    totalStrata: sum.totalStrata || 0,
+    avgMastery: sum.avgMastery || 0,
+    minutes7: sum.minutes7 || 0,
+    sessions7: sum.sessions7 || 0,
+    sessionsPrev: sum.sessionsPrev || 0,
+    hasLog: (sum.sessions7 || 0) + (sum.sessionsPrev || 0) > 0 || !!sum.lastSeen,
+    activeDays: sum.activeDays || 0,
+    stamps: sum.stamps || 0,
+    accuracy: sum.accuracy === undefined ? null : sum.accuracy,
+    errorRate: sum.errorRate === undefined ? null : sum.errorRate,
+    lowQuality: !!sum.lowQuality,
+    selfCorrections: sum.selfCorrections || 0,
+    merits: sum.merits || 0,
+    teamContribution: sum.teamContribution || 0,
+    fundDonated: sum.fundDonated || 0,
+    stuck: sum.stuck || [],
+    lastSeen: sum.lastSeen || null
+  };
+}
+
+/* Camino de respaldo: diario entero, para documentos anteriores al resumen */
+function baseDesdeDiario(s, today) {
   /* estratos: solo los que existen de verdad en la configuración actual */
-  let total = 0, mastered = 0, masterySum = 0, stuck = [];
+  let total = 0, mastered = 0, masterySum = 0;
+  const stuck = [];
   for (const siteId in (s.dig_sites || {})) {
     for (const bId in s.dig_sites[siteId]) {
       const def = branchDef(bId);
@@ -84,57 +185,44 @@ function summarizeStudent(entry, today) {
   const log = s.metrics && s.metrics.sessions_log || [];
   const last7 = log.filter(e => daysBetween(today, e.date) < 7);
   const prev7 = log.filter(e => { const d = daysBetween(today, e.date); return d >= 7 && d < 14; });
-  const min7 = last7.reduce((a, e) => a + (e.minutes || 0), 0);
-  const sessions7 = last7.length, sessionsPrev = prev7.length;
 
-  /* precisión y zona de flujo */
+  /* precisión, tasa de error y calidad de las respuestas */
   const arr = (s.adaptive && s.adaptive.last10) || [];
-  const accuracy = arr.length ? arr.reduce((a, b) => a + b, 0) / arr.length : null;
-  const inFlow = accuracy !== null && accuracy >= 0.7 && accuracy <= 0.85;
-
-  /* tasa de error global */
   const errs = (s.metrics && s.metrics.errors_by_skill) || {};
   let e = 0, at = 0;
   for (const k in errs) { e += errs[k].errors || 0; at += errs[k].attempts || 0; }
-  const errorRate = at ? e / at : null;
-
-  /* respuestas sistemáticamente rapidísimas: sesión de baja calidad */
   const rt = (s.adaptive && s.adaptive.response_times) || [];
-  const lowQuality = rt.length >= 8 && rt.filter(t => t < 2000).length / rt.length > 0.6;
-
-  const lastSeen = s.session_meta && s.session_meta.last_login
-    ? s.session_meta.last_login.slice(0, 10)
-    : (log.length ? log[log.length - 1].date : (s.daily && s.daily.date) || null);
-
-  /* ── Señales de rescate (PRD §6, KPI 4) ── */
-  const signals = [];
-  if (sessionsPrev > 0 && sessions7 < Math.ceil(sessionsPrev / 2)) signals.push('caída de sesiones');
-  else if (sessionsPrev === 0 && sessions7 === 0 && log.length) signals.push('sin actividad reciente');
-  if (errorRate !== null && errorRate > 0.4) signals.push('tasa de error alta');
-  if (stuck.length) signals.push('estrato atascado >7 días');
-  if (accuracy !== null && accuracy < 0.6) signals.push('fuera del canal de flujo');
-  if (lowQuality) signals.push('respuestas <2 s');
 
   return {
-    id: entry.id,
-    name: entry.name,
-    level,
-    rank: rankForLevel(level).name,
+    level: levelFromXp(s.progression.xp_total || 0),
     xp: s.progression.xp_total || 0,
     doubloons: s.progression.doubloons_balance || 0,
     mastered, totalStrata: total,
     avgMastery: total ? masterySum / total : 0,
-    minutes7: min7, sessions7, sessionsPrev,
+    minutes7: last7.reduce((a, x) => a + (x.minutes || 0), 0),
+    sessions7: last7.length, sessionsPrev: prev7.length,
+    hasLog: log.length > 0,
     activeDays: ((s.logbook && s.logbook.active_days_this_week) || []).length,
     stamps: (s.logbook && s.logbook.stamps_lifetime) || 0,
-    accuracy, inFlow, errorRate, lowQuality,
+    accuracy: arr.length ? arr.reduce((a, b) => a + b, 0) / arr.length : null,
+    errorRate: at ? e / at : null,
+    lowQuality: rt.length >= 8 && rt.filter(t => t < 2000).length / rt.length > 0.6,
     selfCorrections: (s.metrics && s.metrics.self_corrections) || 0,
     merits: ((s.behavior_log || []).length),
     teamContribution: Math.round((s.progression.team_contribution) || 0),
-    stuck, signals,
-    needsHelp: signals.length >= 3,   /* el umbral del PRD: tres señales a la vez */
-    lastSeen
+    fundDonated: s.progression.fund_donated || 0,
+    stuck,
+    lastSeen: s.session_meta && s.session_meta.last_login
+      ? s.session_meta.last_login.slice(0, 10)
+      : (log.length ? log[log.length - 1].date : (s.daily && s.daily.date) || null)
   };
+}
+
+function summarizeStudent(entry, today) {
+  const base = entry.summary
+    ? baseDesdeResumen(entry.summary)
+    : baseDesdeDiario(entry.state, today);
+  return fichaAlumno(entry, base);
 }
 
 function buildClassOverview(entries, today) {
@@ -160,7 +248,10 @@ function buildClassOverview(entries, today) {
     /* KPI 5 — pulso de clase */
     teamTotal: students.reduce((a, s) => a + s.teamContribution, 0),
     activeThisWeek: students.filter(s => s.activeDays > 0).length,
-    merits: students.reduce((a, s) => a + s.merits, 0)
+    merits: students.reduce((a, s) => a + s.merits, 0),
+    /* Fondo de la Sociedad: el total real de la clase. El docente lo anota
+       en la configuración para que los alumnos lo vean también sin conexión. */
+    fundTotal: students.reduce((a, s) => a + (s.fundDonated || 0), 0)
   };
 
   /* ── Cuadrillas: aquí SÍ se puede sumar el total real ── */

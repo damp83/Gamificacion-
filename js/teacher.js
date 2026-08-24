@@ -13,6 +13,7 @@ const CFG_SECTIONS = [
   { id: 'yacimient',  icon: '🏛️', name: 'Yacimientos y pozos' },
   { id: 'almacen',    icon: '🏪', name: 'Almacén' },
   { id: 'economia',   icon: '⚖️', name: 'Economía' },
+  { id: 'fondo',      icon: '🌍', name: 'Fondo de la Sociedad' },
   { id: 'acceso',     icon: '🔐', name: 'Acceso y nube' },
   { id: 'copia',      icon: '💾', name: 'Copia de seguridad' }
 ];
@@ -45,7 +46,7 @@ function renderTeacherConfig() {
   const renderers = {
     curso: cfgCurso, premios: cfgPremios, alumnado: cfgAlumnado, equipos: cfgEquipos,
     yacimient: cfgYacimientos, almacen: cfgAlmacen, economia: cfgEconomia,
-    acceso: cfgAcceso, copia: cfgCopia
+    fondo: cfgFondo, acceso: cfgAcceso, copia: cfgCopia
   };
   body.innerHTML = '';
   renderers[cfgSection](body);
@@ -842,6 +843,91 @@ function cfgEconomia(body) {
     else warn('');
     cfgSave('economy', eco);
   }));
+}
+
+/* ══════════ FONDO DE LA SOCIEDAD ══════════ */
+function cfgFondo(body) {
+  const f = ATLAS_CONFIG.fund || {};
+  const ms = f.milestones || [];
+  body.innerHTML = `
+    <p class="cfg-intro">El almacén se agota en tres o cuatro semanas y a partir de ahí los
+    Doblones dejan de significar nada. El Fondo es un <strong>sumidero sin fondo y
+    cooperativo</strong>: lo donado no vuelve, no da ninguna ventaja y los hitos son de
+    <em>toda</em> la clase. Nunca se muestra quién ha donado más.</p>
+    ${field('Fondo activo', `<input type="checkbox" id="cfg-fund-on"${f.enabled ? ' checked' : ''}>`)}
+    ${field('Nombre', `<input type="text" id="cfg-fund-name" value="${f.name || ''}">`)}
+    ${field('Frase de presentación', `<textarea id="cfg-fund-blurb" rows="2">${f.blurb || ''}</textarea>`)}
+    ${field('Doblones reunidos por la clase',
+      `<input type="number" id="cfg-fund-total" value="${Number(f.classTotal) || 0}" min="0" max="999999">`,
+      'La suma real aparece en la vista general de la clase. Anótala aquí y todos la verán, incluso sin conexión.')}
+    ${field('Cantidades para donar', `<input type="text" id="cfg-fund-steps" value="${(f.steps || []).join(', ')}">`,
+      'Separadas por comas. Son los botones que ve el alumnado.')}
+
+    <h4 class="cfg-h4">Hitos</h4>
+    <div class="cfg-list">
+      ${ms.map((m, i) => `
+        <div class="cfg-card">
+          <div class="cfg-row">
+            <input type="text" class="cfg-f-icon" data-i="${i}" value="${m.icon}" maxlength="4">
+            <input type="text" class="cfg-f-name" data-i="${i}" value="${m.name}">
+            <button class="cfg-del" data-delfund="${i}" title="Eliminar">🗑️</button>
+          </div>
+          <div class="cfg-row">
+            <label>Se abre con <input type="number" class="cfg-f-at" data-i="${i}" value="${m.at}" min="1" max="999999"> 🪙</label>
+          </div>
+          <textarea class="cfg-f-desc" data-i="${i}" rows="2" placeholder="Qué consigue la Sociedad">${m.desc || ''}</textarea>
+        </div>`).join('')}
+    </div>
+    <button class="btn btn-secondary btn-small" id="cfg-add-fund">➕ Añadir hito</button>
+
+    <h4 class="cfg-h4">Después del último hito</h4>
+    <p class="cfg-intro">Para que el Fondo no se agote nunca, tras el último hito se abre
+    uno nuevo cada tantos Doblones.</p>
+    ${field('Cada cuántos Doblones', `<input type="number" id="cfg-fund-step" value="${f.endlessStep || 0}" min="0" max="99999">`,
+      'A 0 el Fondo termina en el último hito.')}
+    ${field('Nombre de esos hitos', `<input type="text" id="cfg-fund-endless" value="${f.endlessLabel || ''}">`)}`;
+
+  const guarda = (k, v, msg) => cfgSave('fund.' + k, v, msg === undefined ? false : msg);
+  onInput('#cfg-fund-on',    e => cfgSave('fund.enabled', e.target.checked, e.target.checked ? 'Fondo activado ✓' : 'Fondo desactivado ✓'));
+  onInput('#cfg-fund-name',  e => guarda('name', e.target.value || 'Fondo de la Sociedad Geográfica'));
+  onInput('#cfg-fund-blurb', e => guarda('blurb', e.target.value));
+  onInput('#cfg-fund-total', e => guarda('classTotal', Math.max(0, +e.target.value || 0)));
+  onInput('#cfg-fund-step',  e => guarda('endlessStep', Math.max(0, +e.target.value || 0)));
+  onInput('#cfg-fund-endless', e => guarda('endlessLabel', e.target.value || 'Otra ruina rescatada'));
+  onInput('#cfg-fund-steps', e => {
+    /* Se aceptan comas, espacios o ambos; lo que no sea un número se descarta */
+    const nums = e.target.value.split(/[^0-9]+/).map(n => +n).filter(n => n > 0).slice(0, 6);
+    guarda('steps', nums.length ? nums : [5, 10, 25, 50]);
+  });
+
+  const escribe = (i, key, val) => {
+    const l = deepClone(ATLAS_CONFIG.fund.milestones || []);
+    l[i][key] = val;
+    cfgSave('fund.milestones', l, false);
+  };
+  $$('.cfg-f-icon').forEach(el => onInput(el, e => escribe(+e.target.dataset.i, 'icon', e.target.value || '🏺')));
+  $$('.cfg-f-name').forEach(el => onInput(el, e => escribe(+e.target.dataset.i, 'name', e.target.value || 'Hito')));
+  $$('.cfg-f-desc').forEach(el => onInput(el, e => escribe(+e.target.dataset.i, 'desc', e.target.value)));
+  $$('.cfg-f-at').forEach(el => onInput(el, e => {
+    /* Los hitos se muestran en orden: si se desordenan, la barra retrocedería */
+    const l = deepClone(ATLAS_CONFIG.fund.milestones || []);
+    l[+e.target.dataset.i].at = Math.max(1, +e.target.value || 1);
+    l.sort((a, b) => a.at - b.at);
+    cfgSave('fund.milestones', l, false);
+  }));
+  $$('[data-delfund]').forEach(el => el.addEventListener('click', async () => {
+    const l = deepClone(ATLAS_CONFIG.fund.milestones || []);
+    const i = +el.dataset.delfund;
+    if (!(await askConfirm(`¿Quitar el hito «${l[i].name}»? Lo donado no se pierde.`, 'Quitar'))) return;
+    l.splice(i, 1);
+    cfgSave('fund.milestones', l, 'Hito retirado ✓');
+  }));
+  $('#cfg-add-fund').addEventListener('click', () => {
+    const l = deepClone(ATLAS_CONFIG.fund.milestones || []);
+    const ultimo = l.length ? l[l.length - 1].at : 0;
+    l.push({ at: ultimo + 1000, icon: '🏺', name: 'Hito nuevo', desc: '' });
+    cfgSave('fund.milestones', l, 'Hito añadido ✓');
+  });
 }
 
 /* ══════════ ACCESO Y NUBE ══════════ */

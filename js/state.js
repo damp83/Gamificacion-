@@ -66,6 +66,7 @@ function migrateState(s) {
   }
   if (!Array.isArray(s.behavior_log)) s.behavior_log = [];
   if (typeof s.progression.team_contribution !== 'number') s.progression.team_contribution = 0;
+  if (typeof s.progression.fund_donated !== 'number') s.progression.fund_donated = 0;
   /* diarios de antes de que existieran los cursos: se les asigna el que
      tenía la plataforma entonces, para no cambiarles el contenido de golpe */
   if (!s.profile.grade) s.profile.grade = DEFAULT_GRADE;
@@ -107,7 +108,8 @@ function defaultState(name) {
       xp_total: 0,
       doubloons_balance: ATLAS_CONFIG.economy.startingCoins,
       atlas_fragments_recovered: 0,
-      team_contribution: 0   /* lo aportado a la meta común de la cuadrilla */
+      team_contribution: 0,  /* lo aportado a la meta común de la cuadrilla */
+      fund_donated: 0        /* lo donado al Fondo de la Sociedad */
     },
     logbook: {
       week_id: isoWeekId(new Date()),
@@ -150,6 +152,69 @@ function defaultState(name) {
       hints_today: 0,
       doubloons_earned_today: 0
     }
+  };
+}
+
+/* ── Resumen precalculado ──
+   La vista de clase necesitaba descargar el diario entero de cada alumno
+   (23 KB) para pintar una ficha de doce cifras: 9,2 MB para 400 alumnos. Este
+   resumen viaja en su propio campo (<1 KB) y es lo único que esa vista lee. */
+function buildSummary() {
+  if (!S) return null;
+  const level = levelFromXp(S.progression.xp_total || 0);
+  let total = 0, mastered = 0, masterySum = 0;
+  const stuck = [];
+  for (const siteId in (S.dig_sites || {})) {
+    for (const bId in S.dig_sites[siteId]) {
+      const def = typeof branchDef === 'function' ? branchDef(bId) : null;
+      const strata = S.dig_sites[siteId][bId].strata || {};
+      for (const sId of STRATA_ORDER) {
+        const st = strata[sId];
+        if (!st) continue;
+        if (def && typeof stratumHasContent === 'function' && !stratumHasContent(def, sId)) continue;
+        total++; masterySum += st.mastery || 0;
+        if ((st.mastery || 0) >= 0.8) mastered++;
+        else if (st.status === 'in_progress' && st.last_practiced &&
+                 Math.floor((new Date(todayStr()) - new Date(st.last_practiced)) / 86400000) > 7) {
+          stuck.push(`${def ? def.name : bId} · ${STRATA_META[sId].label}`);
+        }
+      }
+    }
+  }
+  const log = (S.metrics && S.metrics.sessions_log) || [];
+  const dias = d => log.filter(e => {
+    const n = Math.floor((new Date(todayStr()) - new Date(e.date)) / 86400000);
+    return n >= d.from && n < d.to;
+  });
+  const last7 = dias({ from: 0, to: 7 }), prev7 = dias({ from: 7, to: 14 });
+  const errs = (S.metrics && S.metrics.errors_by_skill) || {};
+  let e = 0, at = 0;
+  for (const k in errs) { e += errs[k].errors || 0; at += errs[k].attempts || 0; }
+  const arr = (S.adaptive && S.adaptive.last10) || [];
+  const rt = (S.adaptive && S.adaptive.response_times) || [];
+
+  return {
+    v: 1,
+    name: S.profile.explorer_name,
+    grade: S.profile.grade || DEFAULT_GRADE,
+    level, xp: S.progression.xp_total || 0,
+    doubloons: S.progression.doubloons_balance || 0,
+    mastered, totalStrata: total,
+    avgMastery: total ? +(masterySum / total).toFixed(3) : 0,
+    minutes7: last7.reduce((a, x) => a + (x.minutes || 0), 0),
+    sessions7: last7.length, sessionsPrev: prev7.length,
+    activeDays: ((S.logbook && S.logbook.active_days_this_week) || []).length,
+    stamps: (S.logbook && S.logbook.stamps_lifetime) || 0,
+    accuracy: arr.length ? +(arr.reduce((a, b) => a + b, 0) / arr.length).toFixed(3) : null,
+    errorRate: at ? +(e / at).toFixed(3) : null,
+    lowQuality: rt.length >= 8 && rt.filter(t => t < 2000).length / rt.length > 0.6,
+    selfCorrections: (S.metrics && S.metrics.self_corrections) || 0,
+    merits: (S.behavior_log || []).length,
+    teamContribution: Math.round(S.progression.team_contribution || 0),
+    fundDonated: S.progression.fund_donated || 0,
+    stuck: stuck.slice(0, 4),
+    lastSeen: todayStr(),
+    updated_at: Date.now()
   };
 }
 
@@ -250,6 +315,41 @@ function earnDoubloons(n) {
   if (t && t.enabled && myTeam()) {
     S.progression.team_contribution += n * (t.contributionRate || 0);
   }
+}
+
+/* ── Fondo de la Sociedad ──
+   Donar sale de la bolsa del niño (es un sumidero de verdad), pero jamás toca
+   los PE ni el progreso: no se puede «comprar» aprendizaje ni perderlo. */
+function donateToFund(amount) {
+  const n = Math.floor(Number(amount) || 0);
+  if (n <= 0) return { ok: false, reason: 'cantidad' };
+  if (!spendDoubloons(n)) return { ok: false, reason: 'sin-fondos' };
+  S.progression.fund_donated += n;
+  saveState();
+  return { ok: true, donated: n, total: S.progression.fund_donated };
+}
+/* Hito alcanzado para un total dado; después del último, tramos infinitos */
+function fundMilestoneFor(total) {
+  const f = ATLAS_CONFIG.fund || {};
+  const ms = f.milestones || [];
+  let alcanzados = ms.filter(m => total >= m.at);
+  const ultimo = ms.length ? ms[ms.length - 1] : null;
+  if (ultimo && total >= ultimo.at && f.endlessStep) {
+    const extra = Math.floor((total - ultimo.at) / f.endlessStep);
+    for (let i = 1; i <= extra; i++) {
+      alcanzados = alcanzados.concat([{
+        at: ultimo.at + f.endlessStep * i, icon: '🏺',
+        name: f.endlessLabel || 'Otra ruina rescatada',
+        desc: 'La Sociedad sigue trabajando gracias a la clase.'
+      }]);
+    }
+  }
+  const siguiente = ms.find(m => total < m.at) ||
+    (ultimo && f.endlessStep
+      ? { at: ultimo.at + f.endlessStep * (Math.floor(Math.max(0, total - ultimo.at) / f.endlessStep) + 1),
+          icon: '🏺', name: f.endlessLabel || 'Otra ruina rescatada', desc: '' }
+      : null);
+  return { alcanzados, siguiente };
 }
 
 /* ── Cuadrillas de Excavación ──

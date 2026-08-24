@@ -83,6 +83,34 @@ const ATLAS_DEFAULTS = {
     ]
   },
 
+  /* ── Fondo de la Sociedad Geográfica (PRD §2.5) ──
+     Sumidero cooperativo e infinito. Existe porque el almacén se agota en
+     3-4 semanas y a partir de ahí los Doblones dejan de significar nada: el
+     Fondo les devuelve destino durante todo el curso. Donar es voluntario y
+     nunca da ventaja pedagógica; lo que devuelve son hitos para TODA la clase. */
+  fund: {
+    enabled: true,
+    name: 'Fondo de la Sociedad Geográfica',
+    blurb: 'La Sociedad restaura ruinas por todo el mundo. Cada Doblón que dones ayuda a salvar una.',
+    /* Hitos: al llegar la clase entera, se desbloquea para todos */
+    milestones: [
+      { at: 500,   icon: '⛺', name: 'Campamento avanzado',      desc: 'La Sociedad monta un campamento en el Valle Fósil.' },
+      { at: 1500,  icon: '🌉', name: 'Puente de cuerda',         desc: 'Se repara el puente que cruza el desfiladero.' },
+      { at: 3000,  icon: '🏛️', name: 'Excavación del templo',    desc: 'Se abre un templo que llevaba siglos sepultado.' },
+      { at: 6000,  icon: '🚢', name: 'Barco de la expedición',   desc: 'La Sociedad arma un barco para llegar a otro continente.' },
+      { at: 10000, icon: '🗿', name: 'Ciudad perdida',           desc: '¡La clase entera descubre una ciudad perdida!' }
+    ],
+    /* Tras el último hito sigue creciendo: cada tramo es una ruina más */
+    endlessStep: 5000,
+    endlessLabel: 'Otra ruina rescatada',
+    /* Total donado por TODA la clase. El docente lo anota desde la vista de
+       clase (que sí ve la suma real). Guardarlo aquí es lo que permite que
+       cada niño vea el avance común incluso sin conexión. */
+    classTotal: 0,
+    /* Cantidades que ofrece el botón de donar */
+    steps: [5, 10, 25, 50]
+  },
+
   /* ── Yacimientos y pozos ──
      Estructura completa y editable: el docente puede crear yacimientos y
      pozos nuevos y escribir los retos de cada estrato. La semilla la aporta

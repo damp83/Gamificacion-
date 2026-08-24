@@ -1,5 +1,5 @@
 /* Expedición Atlas — service worker: caché de la app shell para uso sin conexión */
-const CACHE = 'atlas-shell-v10';
+const CACHE = 'atlas-shell-v11';
 const ASSETS = [
   './',
   './index.html',
@@ -38,6 +38,13 @@ self.addEventListener('fetch', e => {
         caches.open(CACHE).then(c => c.put(e.request, copy));
         return res;
       })
-      .catch(() => caches.match(e.request).then(m => m || caches.match('./index.html')))
+      .catch(() => caches.match(e.request).then(m => {
+        if (m) return m;
+        /* Solo una navegación puede caer en index.html. Devolvérselo a un
+           <script> (el SDK de Appwrite si no hay red) hacía que el navegador
+           intentara ejecutar HTML: «Unexpected token '<'» en la consola. */
+        if (e.request.mode === 'navigate') return caches.match('./index.html');
+        return Response.error();
+      }))
   );
 });

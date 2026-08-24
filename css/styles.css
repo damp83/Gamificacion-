@@ -301,6 +301,39 @@ button:disabled { cursor: not-allowed; opacity: .55; }
 .shop-info strong { display: block; }
 .shop-info small { color: var(--brass); font-weight: 700; display: block; }
 
+/* ── Fondo de la Sociedad ── */
+.fund-block {
+  margin-top: 1.4rem; padding: 1rem;
+  background: var(--card); border: 2px solid var(--brass); border-radius: var(--radius);
+}
+.fund-block h3 { margin-bottom: .2rem; }
+.fund-bar {
+  height: 16px; background: var(--parchment-dark); border-radius: 9px;
+  border: 1.5px solid var(--brass); overflow: hidden;
+}
+.fund-bar-fill {
+  height: 100%; background: linear-gradient(90deg, var(--jungle-light), var(--gold));
+  transition: width .6s ease;
+}
+.fund-bar-legend {
+  display: flex; flex-wrap: wrap; gap: .1rem .6rem;
+  font-size: .82rem; color: var(--ink-soft); margin-top: .35rem;
+}
+.fund-milestones { display: flex; flex-direction: column; gap: .4rem; margin: .8rem 0; }
+.fund-milestone {
+  display: flex; align-items: center; gap: .6rem;
+  padding: .45rem .6rem; border-radius: var(--radius);
+  background: var(--parchment-dark); opacity: .72;
+}
+.fund-milestone.fund-done { background: #e9f3d8; opacity: 1; border-left: 5px solid var(--jungle-light); }
+.fund-milestone .fund-icon { font-size: 1.5rem; }
+.fund-milestone strong { display: block; font-size: .9rem; }
+.fund-milestone small { color: var(--ink-soft); font-size: .78rem; }
+.fund-donate { display: flex; flex-wrap: wrap; align-items: center; gap: .5rem; }
+.fund-donate-label { font-weight: 700; font-size: .9rem; }
+.fund-buttons { display: flex; flex-wrap: wrap; gap: .4rem; }
+.fund-mine { font-size: .8rem; color: var(--ink-soft); font-style: italic; margin-top: .55rem; }
+
 /* ── Bitácora ── */
 .logbook-summary { display: grid; grid-template-columns: repeat(4, 1fr); gap: .5rem; margin-bottom: 1rem; }
 .logbook-stat {
@@ -900,3 +933,6 @@ input[type="checkbox"]::after, input[type="radio"]::after {
 .cfg-body input[type="text"], .cfg-body input[type="number"],
 .cfg-body input[type="date"], .cfg-body select { min-height: 44px; }
 .class-toolbar select, #pin-input, #modal-input { min-height: 44px; }
+
+.class-fund { margin-top: 1.4rem; padding-top: .8rem; border-top: 2px dashed var(--parchment-dark); }
+.class-fund h3 { margin-bottom: .25rem; }

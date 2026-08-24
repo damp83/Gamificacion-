@@ -92,14 +92,20 @@ Sin configurar nada, la app funciona en **modo local**: cada tablet guarda su pr
 
 1. **Databases → Create database** (por ejemplo `atlas`). Copia su ID.
 2. Dentro, **Create collection** (por ejemplo `diarios`). Copia su ID.
-3. Añade dos atributos:
+3. Añade tres atributos:
 
-   | Atributo | Tipo   | Tamaño | Obligatorio |
-   |----------|--------|--------|-------------|
-   | `state`  | String | 100000 | sí          |
-   | `name`   | String | 64     | no          |
+   | Atributo  | Tipo   | Tamaño | Obligatorio |
+   |-----------|--------|--------|-------------|
+   | `state`   | String | 100000 | sí          |
+   | `name`    | String | 64     | no          |
+   | `summary` | String | 2000   | no          |
 
    > `state` guarda todo el `user_state` serializado. 100 000 caracteres dan margen de sobra para un curso entero.
+   >
+   > `summary` es un resumen de menos de 1 KB (medido: 367 B frente a 17,5 KB del diario) que
+   > la app recalcula en cada guardado. **La vista de clase lee solo este campo**: en un centro
+   > con 300 diarios eso son ~110 KB por consulta en vez de ~5 MB. Si no creas el atributo, la
+   > app lo detecta y vuelve a pedir los diarios enteros: funciona igual, solo pesa más.
 
 4. En **Settings** de la colección, activa **Document security**. Cada diario se crea con permisos solo para su dueño, así que ningún alumno puede leer el de otro.
 5. En **Permissions** de la colección, da permiso de **Create** al rol `users`. Es lo que permite a un alumno recién registrado crear su propio diario; leer, escribir y borrar quedan restringidos a su dueño por los permisos del documento.
