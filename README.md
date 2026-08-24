@@ -238,6 +238,21 @@ Los alumnos siguen sin poder leerse entre ellos: el permiso es solo para el equi
 
 > **Sin Appwrite configurado** la vista solo puede mostrar el diario de esa tablet, y lo dice con claridad. No hay forma de reunir los diarios de otros dispositivos sin un servidor de por medio.
 
+### Quién sale y quién no
+
+La vista lista **diarios**, no nombres: un alumno aparece con su ficha completa
+cuando ha entrado y ha empezado a excavar. Quien está en la lista de clase pero
+todavía no ha entrado **también sale**, con una ficha a trazos marcada
+«Aún no ha entrado» y el motivo concreto: le falta cuenta, ya la tiene y solo
+falta que entre, o —sin Appwrite— que cada tablet guarda un único diario.
+
+La cabecera lo resume: *«3 de 25 de la lista han empezado su diario»*.
+
+> **En modo local solo puede haber una ficha completa.** Sin cuentas en la nube
+> cada dispositivo guarda su propio diario, así que la tablet del docente solo
+> conoce el suyo. Para ver a la clase entera hace falta configurar Appwrite.
+
+
 ## Crear tus propios yacimientos y retos
 
 La sección **🏛️ Yacimientos y pozos** del panel edita toda la estructura del contenido:

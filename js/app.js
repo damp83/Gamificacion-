@@ -999,13 +999,20 @@ function paintClassView() {
   $('#class-body').classList.remove('hidden');
 
   const clase = (ATLAS_CONFIG.className || '').trim();
-  const enLista = (ATLAS_CONFIG.roster || []).length;
+  const enLista = d.enLista || 0;
+  /* Antes, en modo local, este aviso sustituía al recuento: el docente añadía
+     tres alumnos, veía una sola ficha y en ninguna parte se decía «1 de 3». */
+  const recuento = `<p class="class-meta">${clase ? clase + ' · ' : ''}${
+    enLista ? `<strong>${d.deLaLista} de ${enLista}</strong> de la lista han empezado su diario${
+        d.fueraDeLista ? ` · ${d.fueraDeLista} diario(s) más, fuera de la lista` : ''}`
+            : `${d.students.length} explorador(es) con diario`} · datos al ${d.generatedAt}</p>`;
   classStatus(d.localOnly
-    ? `<div class="class-note">📱 <strong>Solo esta tablet.</strong> Sin cuentas en la nube no se pueden
-       reunir los diarios de los demás, así que abajo aparece únicamente quien está usando este
-       dispositivo. Configura Appwrite para ver la clase entera.</div>`
-    : `<p class="class-meta">${clase ? clase + ' · ' : ''}${d.students.length} explorador(es)${
-        enLista ? ` de ${enLista} en la lista` : ''} · datos al ${d.generatedAt}</p>`);
+    ? `${recuento}
+       <div class="class-note">📱 <strong>Esta tablet solo guarda un diario.</strong> Sin cuentas en la
+       nube, cada dispositivo tiene el suyo, así que aquí solo puede aparecer quien lo esté usando ahora.
+       El resto de la clase sale abajo como <em>pendiente</em>. Para verlos a todos de verdad hay que
+       configurar Appwrite en «Acceso y nube».</div>`
+    : recuento);
 
   if (!d.students.length) {
     $('#class-students').innerHTML = '<p class="empty-note">Todavía no hay ningún diario de expedición.</p>';
@@ -1058,7 +1065,7 @@ function paintClassView() {
       ${s.signals.length ? `<div class="student-signals">${s.signals.map(x => `<span class="signal-chip">${x}</span>`).join('')}</div>` : ''}
       ${s.stuck.length ? `<small class="student-stuck">Atascado en: ${s.stuck.join(' · ')}</small>` : ''}
       <small class="student-seen">Última expedición: ${s.lastSeen || '—'}</small>
-    </div>`).join('');
+    </div>`).join('') + pendientesHtml(d);
 
   const cmp = ATLAS_CONFIG.teams && ATLAS_CONFIG.teams.enabled;
   $('#class-teams').innerHTML = !cmp
@@ -1074,13 +1081,41 @@ function paintClassView() {
         </div>`;
       }).join('');
 
-  $('#class-missing').innerHTML = d.missing.length
-    ? `<div class="class-warn">⚠️ Asignados a una cuadrilla pero sin diario:
-        ${d.missing.map(m => `<strong>${m.name}</strong> (${m.team})`).join(', ')}.
-        O aún no se han registrado, o el nombre no coincide con el que escribieron.</div>`
+  /* Al pie solo queda el aviso que de verdad pide una corrección: alguien
+     asignado a una cuadrilla cuyo nombre no está en la lista de clase suele
+     ser una errata al escribirlo, y por eso nunca casará con su diario. */
+  const erratas = d.missing.filter(m => m.origen === 'equipo' && !m.enLista);
+  $('#class-missing').innerHTML = erratas.length
+    ? `<div class="class-warn">⚠️ En una cuadrilla hay nombres que no están en la lista de clase:
+        ${erratas.map(m => `<strong>${m.name}</strong> (${m.team})`).join(', ')}.
+        Si es una errata, su diario no se juntará nunca con su cuadrilla: corrígelo en
+        «Cuadrillas de excavación».</div>`
     : '';
 
   paintClassFund(d);
+}
+
+/* ── Alumnos de la lista que todavía no han empezado ──
+   Antes solo salían en una nota al pie que además hablaba de cuadrillas: el
+   docente añadía a tres, veía una ficha y pensaba que se habían perdido.
+   Ahora ocupan su sitio en la lista, con lo que falta para que aparezcan. */
+function pendientesHtml(d) {
+  if (!d.missing.length) return '';
+  const hayNube = cloudEnabled() && cloudUser();
+  return d.missing.map(m => {
+    let falta;
+    if (!hayNube) falta = 'Necesita su propia cuenta: sin nube, cada tablet guarda un único diario.';
+    else if (m.account) falta = 'Ya tiene cuenta. Solo falta que entre y cree su diario.';
+    else if (m.enLista) falta = 'Todavía sin cuenta. Créala en «Alumnado» → Crear las cuentas.';
+    else falta = `Está en ${m.team}, pero no en la lista de clase. ¿Una errata en el nombre?`;
+    return `<div class="student-card student-pending">
+      <div class="student-head">
+        <strong>${m.name}</strong>
+        <span class="student-pending-tag">Aún no ha entrado</span>
+      </div>
+      <small class="student-seen">${m.origen === 'equipo' ? m.team : 'En la lista de clase'} · ${falta}</small>
+    </div>`;
+  }).join('');
 }
 
 /* El total real del Fondo solo se puede sumar aquí, leyendo todos los diarios.

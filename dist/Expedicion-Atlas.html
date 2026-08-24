@@ -1244,6 +1244,9 @@ body.en-mision #main { padding-bottom: var(--s-5); }
 .class-students {
   display: grid; gap: .6rem; margin-top: var(--s-4);
   grid-template-columns: repeat(auto-fill, minmax(23rem, 1fr));
+  /* Sin esto, una ficha pendiente (corta) se estiraba hasta la altura de la
+     ficha completa que tuviera al lado. */
+  align-items: start;
 }
 .student-card {
   background: var(--surface); border-radius: var(--r-lg); box-shadow: var(--e-1);
@@ -1252,6 +1255,17 @@ body.en-mision #main { padding-bottom: var(--s-5); }
   display: flex; flex-direction: column; gap: .5rem;
 }
 .student-card.student-alert { border-left-color: var(--danger); }
+/* Pendientes: se ven, pero se distinguen de un vistazo de quien ya excava */
+.student-card.student-pending {
+  border-left-color: rgba(122, 74, 33, .3);
+  border-style: dashed; background: transparent; box-shadow: none;
+}
+.student-pending .student-head strong { color: var(--ink-soft); }
+.student-pending-tag {
+  font-size: var(--t-xs); font-weight: 700; color: var(--ink-soft);
+  text-transform: uppercase; letter-spacing: .04em;
+  background: var(--paper-deep); border-radius: var(--r-pill); padding: .1rem .6rem;
+}
 .student-head { display: flex; justify-content: space-between; align-items: baseline; gap: .5rem; flex-wrap: wrap; }
 .student-head strong { font-size: var(--t-md); font-weight: 800; }
 .student-rank { font-size: var(--t-xs); color: var(--brass); font-weight: 700; text-transform: uppercase; letter-spacing: .04em; }
@@ -5000,22 +5014,42 @@ function buildClassOverview(entries, today) {
   });
 
   /* Quién falta: de la lista de clase y de las cuadrillas, quien no tiene
-     diario todavía. Sin duplicar a nadie que aparezca en ambos sitios. */
+     diario todavía. Sin duplicar a nadie que aparezca en ambos sitios.
+     Estos NO son un aviso al pie: son alumnos de la clase que aún no han
+     empezado, y el docente los añadió esperando verlos aquí. */
   const known = new Set(students.map(s => s.name.trim().toLowerCase()));
+  const roster = ATLAS_CONFIG.roster || [];
+  const enRoster = new Map(roster.map(r => [String(r.name).trim().toLowerCase(), r]));
   const missing = [];
   const seen = new Set();
-  const anota = (name, where) => {
+  const anota = (name, where, origen) => {
     const k = String(name).trim().toLowerCase();
     if (!k || known.has(k) || seen.has(k)) return;
     seen.add(k);
-    missing.push({ name, team: where });
+    const ficha = enRoster.get(k);
+    missing.push({
+      name, team: where, origen,
+      /* Un nombre que sale de una cuadrilla pero no está en la lista de
+         clase suele ser una errata al escribirlo: eso sí es un aviso. */
+      enLista: !!ficha,
+      account: !!(ficha && ficha.account)
+    });
   };
   for (const t of ((ATLAS_CONFIG.teams && ATLAS_CONFIG.teams.list) || [])) {
-    for (const m of (t.members || [])) anota(m, t.name);
+    for (const m of (t.members || [])) anota(m, t.name, 'equipo');
   }
-  for (const r of (ATLAS_CONFIG.roster || [])) anota(r.name, 'lista de clase');
+  for (const r of roster) anota(r.name, 'lista de clase', 'lista');
 
-  return { students, kpis, teams, missing, generatedAt: day };
+  /* Para poder decir «1 de 3»: cuántos de la LISTA han empezado ya. No vale
+     contar diarios, porque puede haber diarios de quien no está en la lista
+     (el docente probando, o un nombre escrito de otra forma). */
+  const deLaLista = students.filter(s => enRoster.has(s.name.trim().toLowerCase())).length;
+  return {
+    students, kpis, teams, missing, generatedAt: day,
+    enLista: roster.length,
+    deLaLista,
+    fueraDeLista: students.length - deLaLista
+  };
 }
 
 /* Orden por defecto: primero quien más ayuda necesita, no quien va ganando.
@@ -7165,13 +7199,20 @@ function paintClassView() {
   $('#class-body').classList.remove('hidden');
 
   const clase = (ATLAS_CONFIG.className || '').trim();
-  const enLista = (ATLAS_CONFIG.roster || []).length;
+  const enLista = d.enLista || 0;
+  /* Antes, en modo local, este aviso sustituía al recuento: el docente añadía
+     tres alumnos, veía una sola ficha y en ninguna parte se decía «1 de 3». */
+  const recuento = `<p class="class-meta">${clase ? clase + ' · ' : ''}${
+    enLista ? `<strong>${d.deLaLista} de ${enLista}</strong> de la lista han empezado su diario${
+        d.fueraDeLista ? ` · ${d.fueraDeLista} diario(s) más, fuera de la lista` : ''}`
+            : `${d.students.length} explorador(es) con diario`} · datos al ${d.generatedAt}</p>`;
   classStatus(d.localOnly
-    ? `<div class="class-note">📱 <strong>Solo esta tablet.</strong> Sin cuentas en la nube no se pueden
-       reunir los diarios de los demás, así que abajo aparece únicamente quien está usando este
-       dispositivo. Configura Appwrite para ver la clase entera.</div>`
-    : `<p class="class-meta">${clase ? clase + ' · ' : ''}${d.students.length} explorador(es)${
-        enLista ? ` de ${enLista} en la lista` : ''} · datos al ${d.generatedAt}</p>`);
+    ? `${recuento}
+       <div class="class-note">📱 <strong>Esta tablet solo guarda un diario.</strong> Sin cuentas en la
+       nube, cada dispositivo tiene el suyo, así que aquí solo puede aparecer quien lo esté usando ahora.
+       El resto de la clase sale abajo como <em>pendiente</em>. Para verlos a todos de verdad hay que
+       configurar Appwrite en «Acceso y nube».</div>`
+    : recuento);
 
   if (!d.students.length) {
     $('#class-students').innerHTML = '<p class="empty-note">Todavía no hay ningún diario de expedición.</p>';
@@ -7224,7 +7265,7 @@ function paintClassView() {
       ${s.signals.length ? `<div class="student-signals">${s.signals.map(x => `<span class="signal-chip">${x}</span>`).join('')}</div>` : ''}
       ${s.stuck.length ? `<small class="student-stuck">Atascado en: ${s.stuck.join(' · ')}</small>` : ''}
       <small class="student-seen">Última expedición: ${s.lastSeen || '—'}</small>
-    </div>`).join('');
+    </div>`).join('') + pendientesHtml(d);
 
   const cmp = ATLAS_CONFIG.teams && ATLAS_CONFIG.teams.enabled;
   $('#class-teams').innerHTML = !cmp
@@ -7240,13 +7281,41 @@ function paintClassView() {
         </div>`;
       }).join('');
 
-  $('#class-missing').innerHTML = d.missing.length
-    ? `<div class="class-warn">⚠️ Asignados a una cuadrilla pero sin diario:
-        ${d.missing.map(m => `<strong>${m.name}</strong> (${m.team})`).join(', ')}.
-        O aún no se han registrado, o el nombre no coincide con el que escribieron.</div>`
+  /* Al pie solo queda el aviso que de verdad pide una corrección: alguien
+     asignado a una cuadrilla cuyo nombre no está en la lista de clase suele
+     ser una errata al escribirlo, y por eso nunca casará con su diario. */
+  const erratas = d.missing.filter(m => m.origen === 'equipo' && !m.enLista);
+  $('#class-missing').innerHTML = erratas.length
+    ? `<div class="class-warn">⚠️ En una cuadrilla hay nombres que no están en la lista de clase:
+        ${erratas.map(m => `<strong>${m.name}</strong> (${m.team})`).join(', ')}.
+        Si es una errata, su diario no se juntará nunca con su cuadrilla: corrígelo en
+        «Cuadrillas de excavación».</div>`
     : '';
 
   paintClassFund(d);
+}
+
+/* ── Alumnos de la lista que todavía no han empezado ──
+   Antes solo salían en una nota al pie que además hablaba de cuadrillas: el
+   docente añadía a tres, veía una ficha y pensaba que se habían perdido.
+   Ahora ocupan su sitio en la lista, con lo que falta para que aparezcan. */
+function pendientesHtml(d) {
+  if (!d.missing.length) return '';
+  const hayNube = cloudEnabled() && cloudUser();
+  return d.missing.map(m => {
+    let falta;
+    if (!hayNube) falta = 'Necesita su propia cuenta: sin nube, cada tablet guarda un único diario.';
+    else if (m.account) falta = 'Ya tiene cuenta. Solo falta que entre y cree su diario.';
+    else if (m.enLista) falta = 'Todavía sin cuenta. Créala en «Alumnado» → Crear las cuentas.';
+    else falta = `Está en ${m.team}, pero no en la lista de clase. ¿Una errata en el nombre?`;
+    return `<div class="student-card student-pending">
+      <div class="student-head">
+        <strong>${m.name}</strong>
+        <span class="student-pending-tag">Aún no ha entrado</span>
+      </div>
+      <small class="student-seen">${m.origen === 'equipo' ? m.team : 'En la lista de clase'} · ${falta}</small>
+    </div>`;
+  }).join('');
 }
 
 /* El total real del Fondo solo se puede sumar aquí, leyendo todos los diarios.

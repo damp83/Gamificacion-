@@ -271,22 +271,42 @@ function buildClassOverview(entries, today) {
   });
 
   /* Quién falta: de la lista de clase y de las cuadrillas, quien no tiene
-     diario todavía. Sin duplicar a nadie que aparezca en ambos sitios. */
+     diario todavía. Sin duplicar a nadie que aparezca en ambos sitios.
+     Estos NO son un aviso al pie: son alumnos de la clase que aún no han
+     empezado, y el docente los añadió esperando verlos aquí. */
   const known = new Set(students.map(s => s.name.trim().toLowerCase()));
+  const roster = ATLAS_CONFIG.roster || [];
+  const enRoster = new Map(roster.map(r => [String(r.name).trim().toLowerCase(), r]));
   const missing = [];
   const seen = new Set();
-  const anota = (name, where) => {
+  const anota = (name, where, origen) => {
     const k = String(name).trim().toLowerCase();
     if (!k || known.has(k) || seen.has(k)) return;
     seen.add(k);
-    missing.push({ name, team: where });
+    const ficha = enRoster.get(k);
+    missing.push({
+      name, team: where, origen,
+      /* Un nombre que sale de una cuadrilla pero no está en la lista de
+         clase suele ser una errata al escribirlo: eso sí es un aviso. */
+      enLista: !!ficha,
+      account: !!(ficha && ficha.account)
+    });
   };
   for (const t of ((ATLAS_CONFIG.teams && ATLAS_CONFIG.teams.list) || [])) {
-    for (const m of (t.members || [])) anota(m, t.name);
+    for (const m of (t.members || [])) anota(m, t.name, 'equipo');
   }
-  for (const r of (ATLAS_CONFIG.roster || [])) anota(r.name, 'lista de clase');
+  for (const r of roster) anota(r.name, 'lista de clase', 'lista');
 
-  return { students, kpis, teams, missing, generatedAt: day };
+  /* Para poder decir «1 de 3»: cuántos de la LISTA han empezado ya. No vale
+     contar diarios, porque puede haber diarios de quien no está en la lista
+     (el docente probando, o un nombre escrito de otra forma). */
+  const deLaLista = students.filter(s => enRoster.has(s.name.trim().toLowerCase())).length;
+  return {
+    students, kpis, teams, missing, generatedAt: day,
+    enLista: roster.length,
+    deLaLista,
+    fueraDeLista: students.length - deLaLista
+  };
 }
 
 /* Orden por defecto: primero quien más ayuda necesita, no quien va ganando.
