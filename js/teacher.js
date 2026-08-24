@@ -464,8 +464,9 @@ function cfgYacimientos(body) {
   body.innerHTML = `
     <p class="cfg-intro">Puedes crear <strong>yacimientos</strong> nuevos (Lengua, Naturales,
     Sociales…), añadirles <strong>pozos</strong> y escribir tú los retos de cada estrato.
-    Los tres pozos de fábrica generan retos infinitos solos: se pueden renombrar y ocultar,
-    pero sus retos no se editan.</p>
+    Los pozos de fábrica —cinco de Matemáticas y tres de Lengua— generan retos infinitos
+    solos y se ajustan al curso de cada alumno: se pueden renombrar, limitar a ciertos
+    cursos y ocultar, pero sus retos no se editan.</p>
 
     <div class="cfg-list">
       ${sites.map((site, si) => {

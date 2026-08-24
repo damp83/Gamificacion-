@@ -9,7 +9,9 @@ PWA sin dependencias: HTML + CSS + JavaScript vanilla, funciona offline y se ins
 
 | Área | Implementado |
 |---|---|
-| **Yacimiento** | Ruinas de Kaldros (Matemáticas) con 3 pozos: Numeración, Sumas con llevada y Fracciones |
+| **Yacimientos** | Ruinas de Kaldros (Matemáticas, 5 pozos: Sendero, Numeración, Sumas con llevada, Fracciones y Decimales) y Biblioteca de Arena (Lengua, 3 pozos: vocabulario, ortografía y comprensión lectora) |
+| **Cámara del Guardián** | Evaluación sumativa por pozo: se abre con los cuatro estratos dominados, encadena 10 retos de todos ellos y entrega un fragmento del Atlas. Fallar no cuesta nada y el Guardián señala en qué estrato se falló |
+| **Fondo de la Sociedad** | Sumidero cooperativo e infinito de Doblones, con hitos de clase, para cuando el almacén se agota |
 | **Estratos de Bloom 1–4** | Recordar · Comprender · Aplicar · Analizar, con desbloqueo por mastery ≥80% del estrato superior |
 | **Economía doble** | Puntos de Expedición (PE, curva `100 × n^1.55`) + Doblones con fuentes y sumideros del PRD §2.4–2.5 |
 | **Anti-grinding** | PE solo por primer acierto · contenido dominado ≥90% da 10% de PE · fatiga narrativa tras 25 min de excavación diaria (50% PE) · auditoría silenciosa de respuestas <2 s |
@@ -218,7 +220,7 @@ Los alumnos siguen sin poder leerse entre ellos: el permiso es solo para el equi
 
 La sección **🏛️ Yacimientos y pozos** del panel edita toda la estructura del contenido:
 
-1. **Yacimientos** — crea los que faltan del PRD (Biblioteca de Arena para Lengua, Valle Fósil para Naturales, Puerto de las Mil Banderas para Sociales) con su nombre, materia, icono y ambientación.
+1. **Yacimientos** — crea los que faltan del PRD (Valle Fósil para Naturales, Puerto de las Mil Banderas para Sociales) con su nombre, materia, icono y ambientación. Matemáticas y Lengua ya vienen de fábrica.
 2. **Pozos** — cada yacimiento tiene los pozos que quieras (una rama de contenido cada uno).
 3. **Retos por estrato** — dentro de un pozo tuyo, una pestaña por cada nivel de Bloom. Escribes la pregunta, cuatro respuestas, cuál es la correcta, la explicación que lee quien falla y las dos pistas de Kira.
 

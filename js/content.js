@@ -599,7 +599,342 @@ const decimales = {
    estructura —yacimientos, pozos, qué trae cada estrato— vive en la config,
    así que se puede montar entera desde el Panel de Configuración. */
 
-const BUILTIN_GENERATORS = { numeracion, sumas_llevando, fracciones, sendero, decimales };
+
+/* ═══════════════ BIBLIOTECA DE ARENA · LENGUA ═══════════════
+   El PRD pide una plataforma para toda la primaria, pero hasta ahora solo
+   había Matemáticas: media jornada escolar fuera del mapa. Estos tres pozos
+   cubren vocabulario, ortografía y comprensión lectora.
+
+   Todo el contenido va por ciclos (banda 1, 2 y 3), no por tier: la
+   dificultad de una palabra la marca la edad a la que se aprende, no un
+   número del motor adaptativo. El tier solo decide, dentro del ciclo, si se
+   coge de la mitad fácil o de la difícil del banco. */
+
+/* Del banco de un ciclo, el tramo que toca según el tier (1-5) */
+function porTier(lista, tier) {
+  if (lista.length < 4) return pick(lista);
+  const t = Math.max(1, Math.min(5, tier || 2));
+  const corte = Math.ceil(lista.length * (0.35 + 0.13 * t));
+  return pick(lista.slice(0, Math.max(3, corte)));
+}
+/* Los distractores se pasan de sobra y barajados: buildOptions() descarta los
+   repetidos, y con solo tres candidatos una regla duplicada dejaba la pregunta
+   con opciones de relleno tipo «palabra?». */
+function distractores(lista) { return shuffle(lista); }
+
+/* ── Bancos de palabras por ciclo ── */
+const LEX = {
+  sinonimos: {
+    1: [['contento', 'alegre'], ['bonito', 'guapo'], ['rápido', 'veloz'], ['grande', 'enorme'],
+        ['casa', 'vivienda'], ['triste', 'apenado'], ['sucio', 'manchado'], ['flaco', 'delgado']],
+    2: [['valiente', 'audaz'], ['antiguo', 'viejo'], ['hallar', 'encontrar'], ['oculto', 'escondido'],
+        ['difícil', 'complicado'], ['tranquilo', 'sereno'], ['comenzar', 'empezar'], ['famoso', 'célebre'],
+        ['peligro', 'riesgo'], ['observar', 'mirar']],
+    3: [['perspicaz', 'astuto'], ['vetusto', 'anticuado'], ['hostil', 'enemigo'], ['ímprobo', 'enorme'],
+        ['efímero', 'pasajero'], ['recóndito', 'apartado'], ['dilucidar', 'aclarar'], ['tenaz', 'persistente'],
+        ['minucioso', 'detallado'], ['inhóspito', 'inhabitable']]
+  },
+  antonimos: {
+    1: [['grande', 'pequeño'], ['alto', 'bajo'], ['día', 'noche'], ['frío', 'caliente'],
+        ['dentro', 'fuera'], ['lleno', 'vacío'], ['abrir', 'cerrar'], ['limpio', 'sucio']],
+    2: [['antiguo', 'moderno'], ['valiente', 'cobarde'], ['aparecer', 'desaparecer'], ['claro', 'oscuro'],
+        ['húmedo', 'seco'], ['ascender', 'descender'], ['permitir', 'prohibir'], ['culpable', 'inocente'],
+        ['generoso', 'tacaño'], ['ruidoso', 'silencioso']],
+    3: [['abundante', 'escaso'], ['perpetuo', 'efímero'], ['hostil', 'acogedor'], ['ínfimo', 'inmenso'],
+        ['acatar', 'desobedecer'], ['afirmar', 'negar'], ['exterior', 'interior'], ['rígido', 'flexible'],
+        ['legible', 'ilegible'], ['moderado', 'excesivo']]
+  },
+  /* familias léxicas: raíz → palabras de la familia + intruso */
+  familias: {
+    1: [{ raiz: 'pan', fam: ['panadero', 'panadería', 'panecillo'], fuera: 'pantalón' },
+        { raiz: 'flor', fam: ['florero', 'floristería', 'florecer'], fuera: 'flotar' },
+        { raiz: 'mar', fam: ['marinero', 'marea', 'marino'], fuera: 'martillo' }],
+    2: [{ raiz: 'libro', fam: ['librería', 'librero', 'libreta'], fuera: 'libre' },
+        { raiz: 'tierra', fam: ['terreno', 'terrestre', 'enterrar'], fuera: 'terrible' },
+        { raiz: 'papel', fam: ['papelera', 'papelería', 'empapelar'], fuera: 'papilla' },
+        { raiz: 'agua', fam: ['aguado', 'aguacero', 'acuático'], fuera: 'aguja' }],
+    3: [{ raiz: 'tiempo', fam: ['temporal', 'contemporáneo', 'temporada'], fuera: 'templo' },
+        { raiz: 'piedra', fam: ['pedregal', 'pedrería', 'empedrado'], fuera: 'pedido' },
+        { raiz: 'luz', fam: ['lucero', 'iluminar', 'lucidez'], fuera: 'lucha' },
+        { raiz: 'noche', fam: ['nocturno', 'anochecer', 'trasnochar'], fuera: 'noticia' }]
+  },
+  /* categorías gramaticales, con ejemplos claros por ciclo */
+  categorias: {
+    1: { sustantivo: ['perro', 'mesa', 'sol', 'mapa'], adjetivo: ['rojo', 'alto', 'nuevo', 'frío'],
+         verbo: ['correr', 'saltar', 'comer', 'mirar'] },
+    2: { sustantivo: ['brújula', 'templo', 'excavación', 'desierto'], adjetivo: ['antiguo', 'valiente', 'profundo', 'dorado'],
+         verbo: ['descubrir', 'excavar', 'observar', 'proteger'], adverbio: ['deprisa', 'ayer', 'aquí', 'siempre'] },
+    3: { sustantivo: ['jeroglífico', 'expedición', 'cartografía', 'yacimiento'], adjetivo: ['inhóspito', 'minucioso', 'ancestral', 'perspicaz'],
+         verbo: ['descifrar', 'catalogar', 'restaurar', 'interpretar'], adverbio: ['minuciosamente', 'apenas', 'entonces', 'jamás'],
+         preposición: ['bajo', 'entre', 'según', 'durante'] }
+  }
+};
+
+/* ── Ortografía: cada regla con su explicación ──
+   `homofono: true` marca las parejas donde la forma incorrecta ES una palabra
+   real («calló» frente a «cayó»). Solo valen dentro de una frase, que es lo
+   que decide cuál toca: fuera de contexto darían dos opciones bien escritas
+   en la misma pregunta. */
+const ORTO = {
+  1: [
+    { bien: 'bueno',   mal: 'gueno',   frase: 'Tobías es un perro muy ___.',            regla: 'Se escribe con B.', pista: 'Suena /b/ al principio.' },
+    { bien: 'huevo',   mal: 'uevo',    frase: 'En el nido había un ___ de pájaro.',     regla: 'Las palabras que empiezan por «ue» llevan H.', pista: 'Falta una letra muda al principio.' },
+    { bien: 'llave',   mal: 'yave',    frase: 'Bruno perdió la ___ del cofre.',         regla: 'Se escribe con LL.', pista: 'Suena igual que «lluvia».' },
+    { bien: 'cabeza',  mal: 'caveza',  frase: 'Kira se posó en la ___ de Bruno.',       regla: 'Se escribe con B.', pista: 'Piensa en «cabezón».' },
+    { bien: 'árbol',   mal: 'arbol',   frase: 'Acampamos debajo de un ___ enorme.',     regla: 'Es llana acabada en L, y por eso lleva tilde.', pista: 'Se dice ÁR-bol, con la fuerza al principio.' },
+    { bien: 'jirafa',  mal: 'girafa',  frase: 'En el mapa hay dibujada una ___.',       regla: 'Se escribe con J.', pista: 'Aunque suene igual que la G, aquí va J.' },
+    { bien: 'hola', homofono: true,    mal: 'ola',     frase: 'Bruno saludó: «¡___, exploradores!».',   regla: 'El saludo lleva H; «ola» sin H es la del mar.', pista: 'Depende de lo que quieras decir.' },
+    { bien: 'zapato',  mal: 'sapato',  frase: 'Se le llenó de arena un ___.',           regla: 'Se escribe con Z.', pista: 'Za, ze, zi, zo, zu.' }
+  ],
+  2: [
+    { bien: 'hierba',    mal: 'ierba',    frase: 'Junto al río crecía ___ muy alta.',                regla: 'Las palabras que empiezan por «ie» llevan H.', pista: 'Igual que «hielo».' },
+    { bien: 'volver',    mal: 'bolver',   frase: 'Tendremos que ___ mañana al yacimiento.',          regla: 'Los verbos acabados en -olver se escriben con V.', pista: 'Como «resolver» y «devolver».' },
+    { bien: 'burbuja',   mal: 'vurvuja',  frase: 'Del barro salió una ___ de aire.',                 regla: 'Se escribe con B las dos veces.', pista: 'Bur-bu-ja.' },
+    { bien: 'gigante',   mal: 'jigante',  frase: 'La estatua era ___: medía diez metros.',           regla: 'Se escribe con G ante E e I en esta palabra.', pista: 'Como «gimnasia» o «girar».' },
+    { bien: 'cayó', homofono: true,      mal: 'calló',    frase: 'Bruno tropezó y se ___ en la zanja.',              regla: '«Cayó» es de caerse; «calló» es de callarse.', pista: '¿Se cayó al suelo o se quedó en silencio?' },
+    { bien: 'después',   mal: 'despues',  frase: 'Excavaremos ___ de comer.',                        regla: 'Es aguda acabada en S, así que lleva tilde.', pista: 'La fuerza va en «pués».' },
+    { bien: 'excavar',   mal: 'escavar',  frase: 'Hay que ___ con mucho cuidado.',                   regla: 'Se escribe con X.', pista: 'Como «excursión» o «excelente».' },
+    { bien: 'también',   mal: 'tanbién',  frase: 'Kira ___ quiere bajar a la cámara.',               regla: 'Antes de B y P se escribe M, no N.', pista: 'M antes de B y P, siempre.' },
+    { bien: 'ejercicio', mal: 'ejerzicio',frase: 'Descifrar la tablilla fue un buen ___.',           regla: 'Se escribe con C.', pista: 'Ce, ci suenan como la Z.' },
+    { bien: 'hacia', homofono: true,     mal: 'asia',     frase: 'La expedición avanzó ___ el norte.',               regla: '«Hacia» indica dirección y lleva H.', pista: 'No confundir con el continente.' }
+  ],
+  3: [
+    { bien: 'exhaustivo',  mal: 'exaustivo',   frase: 'El informe debe ser ___ para que sirva de algo.',       regla: 'Lleva H intercalada.', pista: 'Igual que «exhibir» o «exhalar».' },
+    { bien: 'absorber',    mal: 'absorver',    frase: 'La arena puede ___ toda el agua de la lluvia.',         regla: 'Se escribe con B.', pista: 'Piensa en «absorbente».' },
+    { bien: 'vaya', homofono: true,        mal: 'valla',       frase: 'Es mejor que ___ Kira: lee los signos.',                regla: '«Vaya» es del verbo ir; «valla» es una cerca.', pista: '¿Quién se va o qué cerca es?' },
+    { bien: 'sinfín', homofono: true,      mal: 'sin fín',     frase: 'Encontramos un ___ de fragmentos.',                     regla: 'Se escribe junto y con tilde: es un sustantivo.', pista: 'Puedes poner «un» delante.' },
+    { bien: 'porqué', homofono: true,      mal: 'por que',     frase: 'Nadie entiende el ___ de esas marcas.',                 regla: 'Con tilde y junto es un sustantivo: «el porqué».', pista: 'Se puede poner «el» delante.' },
+    { bien: 'arqueología', mal: 'arquiología', frase: 'La ___ estudia lo que dejaron los antiguos.',           regla: 'Se escribe con E: arque-o-lo-gía.', pista: 'Viene de «arqueo-», lo antiguo.' },
+    { bien: 'sino', homofono: true,        mal: 'si no',       frase: 'No lo halló Bruno, ___ Vega.',                          regla: 'Junto cuando corrige lo dicho antes.', pista: '¿Corrige lo anterior o es una condición?' },
+    { bien: 'hubo',        mal: 'ubo',         frase: 'Aquel año ___ tres expediciones.',                      regla: 'Del verbo haber, siempre con H.', pista: 'Haber lleva H en todas sus formas.' },
+    { bien: 'geografía',   mal: 'jeografía',   frase: 'La ___ del valle cambió con el río.',                   regla: 'Se escribe con G: «geo-» es tierra.', pista: 'Como «geología» o «geometría».' },
+    { bien: 'asimismo', homofono: true,    mal: 'asi mismo',   frase: 'Se anotó la fecha y, ___, la profundidad.',             regla: 'Junto y sin tilde cuando significa «también».', pista: '¿Puedes cambiarlo por «también»?' }
+  ]
+};
+
+/* ── Textos para comprensión lectora ── */
+const TEXTOS = {
+  /* Primer ciclo: textos de 20-24 palabras. La comprensión lectora necesita un
+     texto —es su objeto—, pero a los 6 años uno largo mide la resistencia, no
+     la comprensión. Se sacrifica extensión, no los cuatro niveles de Bloom. */
+  1: [{
+    texto: 'Tobías es el perro de la expedición. Tiene el pelo marrón. Cada mañana busca huesos en la arena. Ayer encontró una vasija rota.',
+    literal: { p: '¿De qué color tiene el pelo Tobías?', r: 'Marrón', d: ['Blanco', 'Negro', 'Gris'] },
+    inferencia: { p: '¿Dónde busca Tobías?', r: 'En la arena', d: ['En el río', 'En un árbol', 'En la cocina'] },
+    idea: { p: '¿De qué trata el texto?', r: 'Del perro de la expedición', d: ['De una vasija rota', 'De la arena', 'De la mañana'] },
+    critica: { p: 'Bruno dice que Tobías encontró oro. ¿Es verdad?', r: 'No: encontró una vasija rota', d: ['Sí, encontró oro', 'Sí, un hueso de oro', 'El texto no habla de Tobías'] }
+  }, {
+    texto: 'Kira es un escarabajo de latón. No come ni duerme. Lee los signos antiguos de las paredes. Si algo le parece tonto, mueve las alas deprisa.',
+    literal: { p: '¿De qué está hecha Kira?', r: 'De latón', d: ['De madera', 'De cristal', 'De papel'] },
+    inferencia: { p: 'Kira mueve las alas deprisa. ¿Qué le pasa?', r: 'Algo le parece tonto', d: ['Tiene hambre', 'Va a dormir', 'Está rota'] },
+    idea: { p: '¿Para qué sirve Kira?', r: 'Para leer signos antiguos', d: ['Para cavar', 'Para llevar agua', 'Para dormir'] },
+    critica: { p: '¿Qué NO dice el texto?', r: 'Cuántos años tiene Kira', d: ['De qué está hecha', 'Para qué sirve', 'Que no come'] }
+  }, {
+    texto: 'Bruno perdió las gafas tres veces esta semana. El lunes en la tienda. El martes en la zanja. El jueves las llevaba puestas.',
+    literal: { p: '¿Cuántas veces perdió Bruno las gafas?', r: 'Tres veces', d: ['Una vez', 'Dos veces', 'Cinco veces'] },
+    inferencia: { p: 'El jueves no estaban perdidas. ¿Dónde estaban?', r: 'Puestas en su cara', d: ['En la zanja', 'En la tienda', 'En el mapa'] },
+    idea: { p: '¿Cómo es Bruno según el texto?', r: 'Despistado', d: ['Valiente', 'Tacaño', 'Enfadado'] },
+    critica: { p: '¿Qué día NO perdió las gafas de verdad?', r: 'El jueves', d: ['El lunes', 'El martes', 'Ningún día'] }
+  }],
+  2: [{
+    texto: 'La expedición llegó al Valle Fósil al amanecer. Bruno quería excavar enseguida, pero Kira le hizo esperar: la arena estaba húmeda por la lluvia de la noche y las paredes de la zanja podían derrumbarse. Esperaron tres horas al sol. Cuando por fin cavaron, encontraron una tablilla con signos que nadie había visto en cien años.',
+    literal: { p: '¿Cuánto tiempo esperaron antes de cavar?', r: 'Tres horas', d: ['Toda la noche', 'Media hora', 'Dos días'] },
+    inferencia: { p: '¿Por qué era peligroso cavar con la arena húmeda?', r: 'Porque las paredes de la zanja podían derrumbarse', d: ['Porque la tablilla se mojaría', 'Porque hacía demasiado sol', 'Porque Bruno estaba cansado'] },
+    idea: { p: '¿Cuál es la idea principal del texto?', r: 'Esperar el momento adecuado permitió excavar con seguridad y hallar algo importante', d: ['Bruno es impaciente', 'En el Valle Fósil llueve mucho', 'Las tablillas son frágiles'] },
+    critica: { p: '¿Qué afirmación NO se puede deducir del texto?', r: 'Que Kira ya conocía esa tablilla', d: ['Que había llovido esa noche', 'Que Bruno tenía prisa', 'Que el hallazgo era antiguo'] }
+  }, {
+    texto: 'Los Saqueadores del Cuervo no excavan: compran. Vera Kovak paga a quien le lleve piezas antiguas y luego las revende a coleccionistas que las guardan en casa. Cuando una pieza sale de su yacimiento sin anotar dónde estaba, se pierde para siempre la información que la acompañaba, aunque el objeto siga entero.',
+    literal: { p: '¿Qué hace Vera Kovak con las piezas que compra?', r: 'Las revende a coleccionistas', d: ['Las dona a un museo', 'Las devuelve al yacimiento', 'Las estudia y las publica'] },
+    inferencia: { p: 'Según el texto, ¿qué se pierde aunque la pieza siga entera?', r: 'La información de dónde estaba', d: ['Su valor en dinero', 'Su color original', 'Su nombre antiguo'] },
+    idea: { p: '¿Qué quiere explicar el texto?', r: 'Que sacar una pieza sin anotar su sitio destruye conocimiento', d: ['Que los coleccionistas pagan mucho', 'Que Vera Kovak es rica', 'Que excavar es difícil'] },
+    critica: { p: '¿Cuál de estas frases es una opinión y no un dato del texto?', r: '«Los coleccionistas son personas horribles»', d: ['«Vera Kovak paga por piezas antiguas»', '«Los Saqueadores no excavan»', '«La información se pierde»'] }
+  }],
+  3: [{
+    texto: 'Durante décadas se creyó que la Ciudad de Ossian era una leyenda. El único indicio era un mapa del siglo XVIII que situaba unas ruinas junto a un río que hoy no existe. En 1998, un satélite detectó bajo la arena la huella de un cauce seco exactamente donde el mapa lo dibujaba. La expedición que cavó allí no encontró la ciudad, pero sí un muro de doce metros. El hallazgo no demostró la leyenda: demostró que el mapa era fiable.',
+    literal: { p: '¿Qué detectó el satélite en 1998?', r: 'La huella de un cauce seco', d: ['Un muro de doce metros', 'La Ciudad de Ossian', 'Un mapa del siglo XVIII'] },
+    inferencia: { p: '¿Por qué el autor distingue entre «demostrar la leyenda» y «demostrar que el mapa era fiable»?', r: 'Porque hallar un muro no prueba que exista la ciudad, solo que el mapa acertaba', d: ['Porque el mapa era falso', 'Porque el muro pertenecía a otra ciudad', 'Porque la leyenda ya estaba demostrada'] },
+    idea: { p: '¿Cuál es la tesis del texto?', r: 'Una prueba parcial confirma la fuente, no necesariamente la historia entera', d: ['Los satélites han sustituido a la arqueología', 'La Ciudad de Ossian existió', 'Los mapas antiguos son poco fiables'] },
+    critica: { p: '¿Qué haría más sólida la conclusión del autor?', r: 'Datar el muro y compararlo con la fecha que da el mapa', d: ['Buscar más leyendas parecidas', 'Preguntar a los habitantes actuales', 'Dibujar de nuevo el mapa'] }
+  }, {
+    texto: 'Restaurar una pieza plantea un dilema. Si se reconstruye lo que falta, el objeto se entiende mejor, pero quien lo mire después no sabrá qué parte es original. Si no se reconstruye nada, la pieza se conserva íntegra pero resulta ilegible para casi todos. Muchos museos han optado por una solución intermedia: completar la forma con un material de color distinto, visible de cerca e invisible de lejos.',
+    literal: { p: '¿Qué solución intermedia han adoptado muchos museos?', r: 'Completar con un material de color distinto', d: ['No restaurar nunca nada', 'Reconstruir la pieza entera', 'Exponer solo fotografías'] },
+    inferencia: { p: '¿Por qué el material se describe como «visible de cerca e invisible de lejos»?', r: 'Para que se entienda la forma sin ocultar qué es original', d: ['Porque es más barato', 'Porque se desgasta con el tiempo', 'Porque brilla con la luz'] },
+    idea: { p: '¿Qué estructura sigue el texto?', r: 'Plantea dos opciones opuestas y presenta una tercera que las concilia', d: ['Narra una restauración paso a paso', 'Defiende no restaurar nunca', 'Compara dos museos concretos'] },
+    critica: { p: '¿Qué supuesto acepta el autor sin discutirlo?', r: 'Que las piezas deben exponerse al público', d: ['Que restaurar plantea un dilema', 'Que hay varias soluciones posibles', 'Que el color distinto se ve de cerca'] }
+  }]
+};
+
+/* ═══════════════ POZO · EL ESCRIBA DE ARENA (vocabulario) ═══════════════ */
+const vocabulario = {
+  recordar(tier, grade) {
+    const banda = bandOf(grade);
+    const [a, b] = porTier(LEX.sinonimos[banda], tier);
+    const otros = LEX.sinonimos[banda].filter(p => p[1] !== b).map(p => p[1]);
+    const { options, answer } = buildOptions(b, distractores(otros));
+    return {
+      question: terse(grade) ? `¿Qué palabra significa lo mismo que «${a}»?`
+                            : `El escriba busca una palabra que signifique lo mismo que «${a}». ¿Cuál es?`,
+      options, answer,
+      hint1: 'Un sinónimo es otra palabra que significa casi lo mismo.',
+      hint2: `Prueba a cambiar «${a}» por cada opción en una frase.`,
+      explanation: `«${a}» y «${b}» son sinónimos: significan lo mismo.`
+    };
+  },
+  comprender(tier, grade) {
+    const banda = bandOf(grade);
+    const [a, b] = porTier(LEX.antonimos[banda], tier);
+    const otros = LEX.antonimos[banda].filter(p => p[1] !== b).map(p => p[1]);
+    const { options, answer } = buildOptions(b, distractores(otros));
+    return {
+      question: terse(grade) ? `¿Cuál es lo contrario de «${a}»?`
+                            : `En la tablilla falta la palabra contraria a «${a}». ¿Cuál es?`,
+      options, answer,
+      hint1: 'Un antónimo significa justo lo contrario.',
+      hint2: `Piensa: si algo no es «${a}», ¿cómo es?`,
+      explanation: `«${b}» es lo contrario de «${a}».`
+    };
+  },
+  aplicar(tier, grade) {
+    const banda = bandOf(grade);
+    const cats = LEX.categorias[banda];
+    const nombres = Object.keys(cats);
+    const cat = pick(nombres);
+    const correct = pick(cats[cat]);
+    const otras = nombres.filter(n => n !== cat).flatMap(n => cats[n]);
+    const { options, answer } = buildOptions(correct, distractores(otras));
+    const explica = {
+      sustantivo: 'nombra cosas, personas o lugares',
+      adjetivo: 'dice cómo es algo',
+      verbo: 'expresa una acción',
+      adverbio: 'dice cómo, cuándo o dónde ocurre algo',
+      preposición: 'une palabras y no cambia nunca'
+    }[cat];
+    return {
+      question: terse(grade) ? `¿Cuál de estas palabras es un ${cat}?`
+                            : `Kira clasifica el vocabulario del diario. ¿Cuál de estas palabras es un ${cat}?`,
+      options, answer,
+      hint1: `Un ${cat} ${explica}.`,
+      hint2: `Prueba a poner «el» o «la» delante: solo funciona con los sustantivos.`,
+      explanation: `«${correct}» es un ${cat}: ${explica}.`
+    };
+  },
+  analizar(tier, grade) {
+    const banda = bandOf(grade);
+    const f = porTier(LEX.familias[banda], tier);
+    const { options, answer } = buildOptions(f.fuera, distractores(f.fam));
+    return {
+      question: terse(grade)
+        ? `Estas palabras son de la familia de «${f.raiz}»… menos una. ¿Cuál?`
+        : `El escriba ha colado un intruso entre las palabras de la familia de «${f.raiz}». ¿Cuál no pertenece?`,
+      options, answer,
+      hint1: 'Las palabras de una familia comparten una parte y también el significado.',
+      hint2: `Pregúntate: ¿esta palabra tiene algo que ver con «${f.raiz}»?`,
+      explanation: `«${f.fuera}» se parece por fuera, pero no significa nada relacionado con «${f.raiz}».`
+    };
+  }
+};
+
+/* ═══════════════ POZO · LAS TABLILLAS ROTAS (ortografía) ═══════════════ */
+const ortografia = {
+  recordar(tier, grade) {
+    const banda = bandOf(grade);
+    /* Sin contexto no caben homófonas: aquí solo hay UNA opción bien escrita */
+    const banco = ORTO[banda].filter(x => !x.homofono);
+    const p = porTier(banco, tier);
+    const otros = banco.filter(x => x.bien !== p.bien).map(x => x.mal);
+    const { options, answer } = buildOptions(p.bien, [p.mal].concat(distractores(otros)));
+    return {
+      question: terse(grade) ? '¿Cuál está bien escrita?'
+                            : 'Una tablilla se ha roto y hay cuatro copias. ¿Cuál está bien escrita?',
+      options, answer,
+      hint1: p.pista,
+      hint2: p.regla,
+      explanation: `Se escribe «${p.bien}». ${p.regla}`
+    };
+  },
+  comprender(tier, grade) {
+    const banda = bandOf(grade);
+    /* La que hay que señalar tiene que estar mal de verdad, no ser otra palabra */
+    const banco = ORTO[banda].filter(x => !x.homofono);
+    const p = porTier(banco, tier);
+    const { options, answer } = buildOptions(p.mal, distractores(ORTO[banda].filter(x => x.bien !== p.bien).map(x => x.bien)));
+    return {
+      question: terse(grade) ? '¿Cuál está MAL escrita?'
+                            : 'Kira revisa el diario de Bruno. ¿Cuál de estas palabras está MAL escrita?',
+      options, answer,
+      hint1: 'Léelas despacio, una a una.',
+      hint2: p.pista,
+      explanation: `Lo correcto es «${p.bien}». ${p.regla}`
+    };
+  },
+  aplicar(tier, grade) {
+    const banda = bandOf(grade);
+    /* Aquí sí entran las homófonas: la frase es la que decide cuál toca */
+    const p = porTier(ORTO[banda], tier);
+    const otros = ORTO[banda].filter(x => x.bien !== p.bien && !x.homofono).map(x => x.mal);
+    const { options, answer } = buildOptions(p.bien, [p.mal].concat(distractores(otros)));
+    return {
+      question: `Completa la frase del diario:\n«${p.frase}»`,
+      options, answer,
+      hint1: p.pista,
+      hint2: p.regla,
+      explanation: `«${p.bien}» es la forma correcta. ${p.regla}`
+    };
+  },
+  analizar(tier, grade) {
+    const banda = bandOf(grade);
+    /* «¿Por qué está mal?» exige que esté mal: fuera las homófonas */
+    const banco = ORTO[banda].filter(x => !x.homofono);
+    const p = porTier(banco, tier);
+    const otras = ORTO[banda].filter(x => x.regla !== p.regla).map(x => x.regla);
+    const { options, answer } = buildOptions(p.regla, distractores(otras));
+    return {
+      question: terse(grade)
+        ? `«${p.mal}» está mal. ¿Por qué?`
+        : `Bruno ha escrito «${p.mal}» y Kira lo ha tachado. ¿Cuál es la razón?`,
+      options, answer,
+      hint1: `La forma correcta es «${p.bien}».`,
+      hint2: 'Fíjate en qué letra cambia entre lo que escribió y lo correcto.',
+      explanation: `${p.regla} Por eso se escribe «${p.bien}».`
+    };
+  }
+};
+
+/* ═══════════════ POZO · EL PAPIRO DE OSSIAN (comprensión) ═══════════════ */
+function retoTexto(grade, tier, clave, pistas) {
+  const banda = bandOf(grade);
+  const t = porTier(TEXTOS[banda], tier);
+  const q = t[clave];
+  const { options, answer } = buildOptions(q.r, q.d);
+  return {
+    question: `${t.texto}\n\n${q.p}`,
+    options, answer,
+    hint1: pistas[0],
+    hint2: pistas[1],
+    explanation: `La respuesta es «${q.r}».`
+  };
+}
+const comprension = {
+  recordar(tier, grade) {
+    return retoTexto(grade, tier, 'literal',
+      ['La respuesta está escrita tal cual en el texto.', 'Vuelve a leer y busca la palabra exacta de la pregunta.']);
+  },
+  comprender(tier, grade) {
+    return retoTexto(grade, tier, 'inferencia',
+      ['Esta no está copiada: hay que atar cabos.', 'Busca la frase que lo explica y piensa qué significa.']);
+  },
+  aplicar(tier, grade) {
+    return retoTexto(grade, tier, 'idea',
+      ['La idea principal es de lo que va TODO el texto, no un detalle.', 'Si tuvieras que contarlo en una frase, ¿qué dirías?']);
+  },
+  analizar(tier, grade) {
+    return retoTexto(grade, tier, 'critica',
+      ['Aquí no basta con entender: hay que juzgar.', 'Comprueba opción por opción si el texto lo dice de verdad.']);
+  }
+};
+
+const BUILTIN_GENERATORS = { numeracion, sumas_llevando, fracciones, sendero, decimales,
+                             vocabulario, ortografia, comprension };
 
 /* Semilla: lo que hay antes de que el docente toque nada */
 function defaultSites() {
@@ -626,6 +961,24 @@ function defaultSites() {
       { id: 'decimales', name: 'La Cámara Decimal', icon: '🔬', source: 'builtin', enabled: true,
         grades: [5, 6],
         desc: 'Comas, porcentajes y medidas precisas. La cámara más profunda de Kaldros.' }
+    ]
+  }, {
+    id: 'biblioteca',
+    name: 'Biblioteca de Arena',
+    subject: 'Lengua',
+    icon: '📜',
+    desc: 'Una biblioteca sepultada donde las palabras se descubren como piezas.',
+    enabled: true,
+    branches: [
+      { id: 'vocabulario', name: 'El Escriba de Arena', icon: '🖋️', source: 'builtin', enabled: true,
+        grades: [1, 2, 3, 4, 5, 6],
+        desc: 'Sinónimos, contrarios, familias de palabras y clases de palabras.' },
+      { id: 'ortografia', name: 'Las Tablillas Rotas', icon: '🪨', source: 'builtin', enabled: true,
+        grades: [1, 2, 3, 4, 5, 6],
+        desc: 'Copias mal escritas de un mismo texto. Encuentra la buena y sabrás por qué.' },
+      { id: 'comprension', name: 'El Papiro de Ossian', icon: '📖', source: 'builtin', enabled: true,
+        grades: [1, 2, 3, 4, 5, 6],
+        desc: 'Textos del diario perdido: qué dicen, qué insinúan y qué callan.' }
     ]
   }];
 }
