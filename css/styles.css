@@ -973,3 +973,13 @@ input[type="checkbox"]::after, input[type="radio"]::after {
 }
 .guardian-actions { margin-top: 1rem; }
 .guardian-meta { font-size: .83rem; color: var(--ink-soft); margin-bottom: .7rem; }
+
+/* ── Configuración compartida del equipo docente ── */
+.cfg-equipo {
+  padding: .65rem .8rem; border-radius: var(--radius);
+  font-size: .88rem; margin: .5rem 0 .8rem;
+}
+.cfg-equipo-ok    { background: #e9f3d8; border-left: 5px solid var(--jungle-light); }
+.cfg-equipo-aviso { background: #fbe6c8; border-left: 5px solid var(--brass); }
+.cfg-equipo-nota  { background: var(--parchment-dark); border-left: 5px solid var(--ink-soft); }
+.cfg-equipo-botones { display: flex; flex-wrap: wrap; gap: .5rem; }

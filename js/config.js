@@ -13,7 +13,11 @@ const ATLAS_DEFAULTS = {
     endpoint: '',
     projectId: '',
     databaseId: '',
-    collectionId: ''
+    collectionId: '',
+    /* Colección aparte para la configuración compartida del equipo docente.
+       Vacío = cada tablet con sus propios ajustes, como hasta ahora. */
+    configCollectionId: '',
+    configDocId: 'clase'
   },
 
   /* Los alumnos entran con USUARIO, no con email (más fácil a los 8-10
@@ -28,6 +32,9 @@ const ATLAS_DEFAULTS = {
   /* Quién dirige la expedición. Aparece en la portada y en la sala de mapas. */
   teacherName: '',
   className: '',
+  /* Equipo de Appwrite con permiso para leer la clase y publicar la
+     configuración compartida. Debe existir con este mismo id. */
+  teacherTeam: 'docentes',
 
   /* ── Lista de clase ──
      La rellena el docente. Sirve para asignar cuadrillas marcando casillas
@@ -232,7 +239,79 @@ function loadTeacherConfig() {
 function saveTeacherConfig() {
   try { localStorage.setItem(TEACHER_CONFIG_KEY, JSON.stringify(ATLAS_OVERLAY)); }
   catch (e) { /* almacenamiento no disponible */ }
-  if (typeof cloudPushConfig === 'function') cloudPushConfig();
+}
+
+/* ── Configuración compartida por el equipo docente ──
+   Los ajustes viven en esta tablet, pero un colegio no configura veinte
+   tablets a mano. El docente publica los suyos y el resto los recoge al
+   abrir. Se guardan dos marcas de tiempo para no pisar el trabajo de nadie:
+   · touchedAt — cuándo se tocó algo EN ESTA tablet
+   · sharedAt  — de qué publicación vienen los ajustes que tiene puestos
+   Si la clase publica algo más nuevo y esta tablet no se ha tocado desde
+   entonces, se adopta solo. Si las dos han cambiado, no se toca nada y el
+   panel lo avisa: decidir por el docente sería peor que preguntarle. */
+const CONFIG_META_KEY = 'atlas_config_meta_v1';
+let ATLAS_CONFIG_META = { touchedAt: 0, sharedAt: 0, by: '' };
+
+function loadConfigMeta() {
+  try {
+    const raw = localStorage.getItem(CONFIG_META_KEY);
+    if (raw) ATLAS_CONFIG_META = { touchedAt: 0, sharedAt: 0, by: '', ...JSON.parse(raw) };
+  } catch (e) { /* se queda con los valores por defecto */ }
+  return ATLAS_CONFIG_META;
+}
+function saveConfigMeta() {
+  try { localStorage.setItem(CONFIG_META_KEY, JSON.stringify(ATLAS_CONFIG_META)); }
+  catch (e) { /* almacenamiento no disponible */ }
+}
+/* ¿Se ha editado algo aquí después de recoger lo del equipo? */
+function configEditadaEnLocal() {
+  return ATLAS_CONFIG_META.touchedAt > ATLAS_CONFIG_META.sharedAt;
+}
+/* ── Qué se publica y qué no ──
+   El documento compartido lo pueden LEER todos los alumnos (lo necesitan para
+   jugar), así que no puede llevar secretos:
+   · las contraseñas del alumnado quedarían a la vista de toda la clase;
+   · el PIN del panel dejaría de ser siquiera una barrera de aula, porque
+     cualquiera podría leerlo desde su propia tablet;
+   · los datos de conexión de Appwrite son de cada instalación, y publicarlos
+     dejaría sin nube a la tablet que los tuviera puestos a mano. */
+const NO_SE_COMPARTE = ['appwrite', 'teacherPin'];
+
+function configParaCompartir() {
+  const o = deepClone(ATLAS_OVERLAY);
+  for (const k of NO_SE_COMPARTE) delete o[k];
+  if (Array.isArray(o.roster)) {
+    o.roster = o.roster.map(r => { const c = { ...r }; delete c.password; return c; });
+  }
+  return o;
+}
+
+/* Adopta un paquete publicado por el equipo docente.
+   Lo que no se comparte se conserva tal cual estaba en esta tablet: sus datos
+   de conexión y su PIN son suyos. Y las contraseñas del alumnado tampoco se
+   pierden, porque nunca salieron de aquí. */
+function adoptSharedConfig(paquete) {
+  if (!paquete || typeof paquete.overlay !== 'object') return false;
+  const propio = deepClone(ATLAS_OVERLAY);
+  const nuevo = migrateOverlay(deepClone(paquete.overlay));
+  for (const k of NO_SE_COMPARTE) {
+    if (propio[k] !== undefined) nuevo[k] = propio[k];
+  }
+  if (Array.isArray(nuevo.roster) && Array.isArray(propio.roster)) {
+    const mias = new Map(propio.roster.map(r => [String(r.username || r.name).toLowerCase(), r.password]));
+    nuevo.roster = nuevo.roster.map(r => {
+      const pw = mias.get(String(r.username || r.name).toLowerCase());
+      return pw ? { ...r, password: pw } : r;
+    });
+  }
+  applyOverlay(nuevo);
+  saveTeacherConfig();
+  ATLAS_CONFIG_META.sharedAt = paquete.updated_at || Date.now();
+  ATLAS_CONFIG_META.touchedAt = ATLAS_CONFIG_META.sharedAt;
+  ATLAS_CONFIG_META.by = paquete.by || '';
+  saveConfigMeta();
+  return true;
 }
 /* Guarda un cambio del panel: se anota en la capa y se recalcula la config */
 function setTeacherConfig(path, value) {
@@ -245,9 +324,13 @@ function setTeacherConfig(path, value) {
   node[keys[keys.length - 1]] = value;
   applyOverlay(ATLAS_OVERLAY);
   saveTeacherConfig();
+  ATLAS_CONFIG_META.touchedAt = Date.now();
+  saveConfigMeta();
 }
 function resetTeacherConfig() {
   ATLAS_OVERLAY = {};
   applyOverlay({});
   saveTeacherConfig();
+  ATLAS_CONFIG_META.touchedAt = Date.now();
+  saveConfigMeta();
 }

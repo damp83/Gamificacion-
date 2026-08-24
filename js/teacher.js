@@ -1001,10 +1001,53 @@ function cfgAcceso(body) {
 }
 
 /* ══════════ COPIA DE SEGURIDAD ══════════ */
+/* Estado de la configuración compartida, en lenguaje de docente */
+function textoConfigEquipo() {
+  const e = sharedConfigState || { estado: 'sin-nube' };
+  const cuando = t => t ? new Date(t).toLocaleString('es-ES', { dateStyle: 'short', timeStyle: 'short' }) : '—';
+  const quien = (e.paquete && e.paquete.by) || ATLAS_CONFIG_META.by;
+  switch (e.estado) {
+    case 'adoptada':
+      return { tono: 'ok', texto: `Se han recogido los ajustes publicados${quien ? ' por ' + quien : ''} el ${cuando(e.paquete.updated_at)}.` };
+    case 'al-dia':
+      return { tono: 'ok', texto: `Esta tablet ya tiene los últimos ajustes del equipo (${cuando(ATLAS_CONFIG_META.sharedAt)}).` };
+    case 'conflicto':
+      return { tono: 'aviso', texto: `Hay ajustes del equipo más nuevos (${cuando(e.paquete.updated_at)}${quien ? ', de ' + quien : ''}), pero aquí también se ha cambiado algo después. No se ha tocado nada: elige tú.` };
+    case 'sin-publicar':
+      return { tono: 'nota', texto: 'Todavía no ha publicado nadie. Publica tú los primeros.' };
+    case 'sin-permiso':
+      return { tono: 'aviso', texto: 'Tu cuenta no puede leer la configuración de clase. Hace falta estar en el equipo de docentes de Appwrite.' };
+    case 'ilegible':
+      return { tono: 'aviso', texto: 'Lo publicado no se entiende. Publica de nuevo desde una tablet con los ajustes buenos.' };
+    case 'sin-nube':
+      return { tono: 'nota', texto: 'No hay colección de configuración compartida: cada tablet lleva sus propios ajustes.' };
+    default:
+      return { tono: 'aviso', texto: 'No se ha podido consultar la configuración de clase' + (e.detail ? ': ' + e.detail : '.') };
+  }
+}
+
 function cfgCopia(body) {
+  const est = textoConfigEquipo();
+  const hayEquipo = typeof sharedConfigOn === 'function' && sharedConfigOn();
   body.innerHTML = `
-    <p class="cfg-intro">Los ajustes viven en <strong>esta tablet</strong>. Para llevarlos a las
-    demás, copia el código de abajo y pégalo allí.</p>
+    <h4 class="cfg-h4">🏫 Ajustes de todo el equipo docente</h4>
+    <p class="cfg-intro">Un colegio no configura veinte tablets a mano. Publica tus ajustes
+    y las demás los recogen solas al abrir. Los alumnos solo los leen; publicar lo hace
+    quien esté en el equipo de docentes.</p>
+    <p class="cfg-hint">No se publican nunca: las <strong>contraseñas del alumnado</strong>,
+    el <strong>PIN del panel</strong> ni los <strong>datos de Appwrite</strong>. Como el
+    documento lo pueden leer todos los alumnos, esas tres cosas se quedan en cada tablet.</p>
+    <p class="cfg-equipo cfg-equipo-${est.tono}">${est.texto}</p>
+    ${hayEquipo ? `<div class="cfg-equipo-botones">
+      <button class="btn btn-secondary btn-small" id="cfg-pub">📤 Publicar mis ajustes para la clase</button>
+      <button class="btn btn-secondary btn-small" id="cfg-pull">📥 Traer los del equipo</button>
+    </div>
+    <p class="cfg-hint">«Traer los del equipo» sustituye los ajustes de esta tablet por los publicados.
+    El progreso de los alumnos no se toca nunca.</p>` : ''}
+    <p id="cfg-pub-msg" class="cfg-warn${cfgNotice ? '' : ' hidden'}">${cfgNotice}</p>
+
+    <h4 class="cfg-h4">📋 Copiar y pegar a mano</h4>
+    <p class="cfg-intro">Sin nube (o entre centros), los ajustes se llevan copiando este código.</p>
     ${field('Tus ajustes', `<textarea id="cfg-export" rows="7" readonly>${JSON.stringify(ATLAS_OVERLAY, null, 2)}</textarea>`)}
     <button class="btn btn-secondary btn-small" id="cfg-copy">📋 Copiar</button>
     <h4 class="cfg-h4">Pegar ajustes de otra tablet</h4>
@@ -1014,6 +1057,44 @@ function cfgCopia(body) {
     <h4 class="cfg-h4">Volver a empezar</h4>
     <button class="btn btn-quit" id="cfg-reset">♻️ Restaurar todos los valores de fábrica</button>
     <p class="cfg-hint">Esto solo borra tus ajustes. El progreso de los alumnos no se toca.</p>`;
+
+  const pub = $('#cfg-pub');
+  if (pub) pub.addEventListener('click', async () => {
+    pub.disabled = true;
+    const res = await cloudPublishConfig(ATLAS_CONFIG.teacherName);
+    pub.disabled = false;
+    if (res.ok) {
+      sharedConfigState = { estado: 'al-dia' };
+      cfgNotice = '';
+      renderTeacherConfig();
+      toast('Publicado ✓ Las demás tablets lo recogerán al abrir.');
+      return;
+    }
+    cfgNotice = res.reason === 'sin-permiso'
+      ? '⚠️ Tu cuenta no puede publicar. En Appwrite, añádete al equipo «docentes» y dale permiso de escritura a la colección de configuración.'
+      : res.reason === 'sin-sesion'
+        ? '⚠️ Hay que entrar con una cuenta para publicar.'
+        : '⚠️ No se ha podido publicar' + (res.detail ? ': ' + res.detail : '.');
+    renderTeacherConfig();
+  });
+
+  const pull = $('#cfg-pull');
+  if (pull) pull.addEventListener('click', async () => {
+    const res = await cloudFetchConfig();
+    if (!res.ok) {
+      cfgNotice = res.reason === 'sin-publicar'
+        ? 'Todavía no hay nada publicado por el equipo.'
+        : '⚠️ No se ha podido consultar' + (res.detail ? ': ' + res.detail : '.');
+      renderTeacherConfig();
+      return;
+    }
+    if (!(await askConfirm('¿Sustituir los ajustes de esta tablet por los publicados por el equipo? El progreso de los alumnos no se toca.', 'Traer'))) return;
+    adoptSharedConfig(res.paquete);
+    sharedConfigState = { estado: 'adoptada', paquete: res.paquete };
+    cfgNotice = '';
+    renderTeacherConfig();
+    toast('Ajustes del equipo aplicados ✓');
+  });
 
   $('#cfg-copy').addEventListener('click', async () => {
     const text = $('#cfg-export').value;

@@ -125,6 +125,96 @@ async function cloudPush() {
   }
 }
 
+/* ══════════ CONFIGURACIÓN COMPARTIDA DEL EQUIPO DOCENTE ══════════
+   Un colegio no configura veinte tablets a mano. El docente publica sus
+   ajustes en un único documento y el resto los recoge al abrir.
+   Permisos: lectura para todos los usuarios (los alumnos necesitan la
+   configuración para jugar), escritura solo para el equipo `docentes`.
+   Si no hay colección configurada, todo esto no existe y cada tablet sigue
+   con sus propios ajustes. */
+function sharedConfigOn() {
+  const c = ATLAS_CONFIG.appwrite;
+  return !!(CLOUD.enabled && c.configCollectionId);
+}
+
+async function cloudFetchConfig() {
+  if (!sharedConfigOn()) return { ok: false, reason: 'sin-nube' };
+  const c = ATLAS_CONFIG.appwrite;
+  try {
+    const doc = await CLOUD.db.getDocument(c.databaseId, c.configCollectionId, c.configDocId || 'clase');
+    let overlay = {};
+    try { overlay = JSON.parse(doc.overlay || '{}'); } catch (e) { return { ok: false, reason: 'ilegible' }; }
+    return { ok: true, paquete: { overlay, updated_at: Number(doc.updated_at) || 0, by: doc.by || '' } };
+  } catch (e) {
+    const msg = (e && e.message) || '';
+    /* Todavía no ha publicado nadie: no es un error, es el primer día */
+    if (/could not be found|not found/i.test(msg)) return { ok: false, reason: 'sin-publicar' };
+    if (/not authorized|missing scope|permission/i.test(msg)) return { ok: false, reason: 'sin-permiso', detail: msg };
+    return { ok: false, reason: 'error', detail: msg };
+  }
+}
+
+async function cloudPublishConfig(nombreDocente) {
+  if (!sharedConfigOn()) return { ok: false, reason: 'sin-nube' };
+  if (!CLOUD.user) return { ok: false, reason: 'sin-sesion' };
+  const c = ATLAS_CONFIG.appwrite;
+  const id = c.configDocId || 'clase';
+  const data = {
+    overlay: JSON.stringify(configParaCompartir()),
+    updated_at: String(Date.now()),
+    by: nombreDocente || ATLAS_CONFIG.teacherName || ''
+  };
+  const permisos = () => [
+    /* Los alumnos LEEN la configuración —sin ella no hay nada que jugar—
+       pero solo el equipo docente puede cambiarla. */
+    Appwrite.Permission.read(Appwrite.Role.users()),
+    Appwrite.Permission.update(Appwrite.Role.team(ATLAS_CONFIG.teacherTeam || 'docentes')),
+    Appwrite.Permission.delete(Appwrite.Role.team(ATLAS_CONFIG.teacherTeam || 'docentes'))
+  ];
+  /* Publicar deja esta tablet al día consigo misma: si no, al abrir de nuevo
+     se avisaría de un conflicto con lo que acaba de publicar ella. */
+  const anotar = () => {
+    ATLAS_CONFIG_META.sharedAt = Number(data.updated_at);
+    ATLAS_CONFIG_META.touchedAt = Number(data.updated_at);
+    ATLAS_CONFIG_META.by = data.by;
+    saveConfigMeta();
+    return { ok: true, updated_at: Number(data.updated_at) };
+  };
+  try {
+    await CLOUD.db.updateDocument(c.databaseId, c.configCollectionId, id, data);
+    return anotar();
+  } catch (e) {
+    try {
+      await CLOUD.db.createDocument(c.databaseId, c.configCollectionId, id, data, permisos());
+      return anotar();
+    } catch (e2) {
+      const msg = (e2 && e2.message) || '';
+      if (/not authorized|missing scope|permission/i.test(msg)) return { ok: false, reason: 'sin-permiso', detail: msg };
+      return { ok: false, reason: 'error', detail: msg };
+    }
+  }
+}
+
+/* Al arrancar: recoger lo del equipo si es más nuevo y esta tablet no se ha
+   tocado desde entonces. Devuelve qué ha pasado para poder decirlo. */
+let sharedConfigState = { estado: 'sin-nube' };
+
+async function syncSharedConfig() {
+  sharedConfigState = await calcularSync();
+  return sharedConfigState;
+}
+async function calcularSync() {
+  if (!sharedConfigOn()) return { estado: 'sin-nube' };
+  const res = await cloudFetchConfig();
+  if (!res.ok) return { estado: res.reason, detail: res.detail };
+
+  const p = res.paquete;
+  if (p.updated_at <= ATLAS_CONFIG_META.sharedAt) return { estado: 'al-dia', paquete: p };
+  if (configEditadaEnLocal()) return { estado: 'conflicto', paquete: p };
+  adoptSharedConfig(p);
+  return { estado: 'adoptada', paquete: p };
+}
+
 /* guardado perezoso: saveState() lo invoca; agrupa ráfagas en un envío */
 function cloudScheduleSave() {
   if (!CLOUD.enabled || !CLOUD.user) return;

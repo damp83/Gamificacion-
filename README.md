@@ -12,6 +12,7 @@ PWA sin dependencias: HTML + CSS + JavaScript vanilla, funciona offline y se ins
 | **Yacimientos** | Ruinas de Kaldros (Matemáticas, 5 pozos: Sendero, Numeración, Sumas con llevada, Fracciones y Decimales) y Biblioteca de Arena (Lengua, 3 pozos: vocabulario, ortografía y comprensión lectora) |
 | **Cámara del Guardián** | Evaluación sumativa por pozo: se abre con los cuatro estratos dominados, encadena 10 retos de todos ellos y entrega un fragmento del Atlas. Fallar no cuesta nada y el Guardián señala en qué estrato se falló |
 | **Fondo de la Sociedad** | Sumidero cooperativo e infinito de Doblones, con hitos de clase, para cuando el almacén se agota |
+| **Ajustes de todo el equipo** | Un docente publica su configuración y las demás tablets la recogen solas al abrir. Nunca viajan las contraseñas del alumnado, el PIN ni los datos de conexión |
 | **Estratos de Bloom 1–4** | Recordar · Comprender · Aplicar · Analizar, con desbloqueo por mastery ≥80% del estrato superior |
 | **Economía doble** | Puntos de Expedición (PE, curva `100 × n^1.55`) + Doblones con fuentes y sumideros del PRD §2.4–2.5 |
 | **Anti-grinding** | PE solo por primer acierto · contenido dominado ≥90% da 10% de PE · fatiga narrativa tras 25 min de excavación diaria (50% PE) · auditoría silenciosa de respuestas <2 s |
@@ -112,14 +113,35 @@ Sin configurar nada, la app funciona en **modo local**: cada tablet guarda su pr
 4. En **Settings** de la colección, activa **Document security**. Cada diario se crea con permisos solo para su dueño, así que ningún alumno puede leer el de otro.
 5. En **Permissions** de la colección, da permiso de **Create** al rol `users`. Es lo que permite a un alumno recién registrado crear su propio diario; leer, escribir y borrar quedan restringidos a su dueño por los permisos del documento.
 
-### 3. Rellenar `js/config.js`
+### 3. Colección de configuración compartida (opcional)
+
+Sirve para no configurar veinte tablets a mano: un docente publica sus ajustes y las demás los recogen al abrir. Si te la saltas, cada tablet conserva los suyos y todo lo demás funciona igual.
+
+1. **Create collection** (por ejemplo `configuracion`). Copia su ID.
+2. Añade tres atributos:
+
+   | Atributo     | Tipo   | Tamaño | Obligatorio |
+   |--------------|--------|--------|-------------|
+   | `overlay`    | String | 200000 | sí          |
+   | `updated_at` | String | 20     | no          |
+   | `by`         | String | 64     | no          |
+
+3. Crea un **equipo** llamado `docentes` (Auth → Teams) y añádete a él. Es el mismo equipo que da permiso de lectura para la vista de clase.
+4. Activa **Document security** en la colección. El documento se crea con lectura para `users` (los alumnos necesitan la configuración para jugar) y escritura solo para el equipo `docentes`.
+5. En **Permissions** de la colección, da **Create** al rol del equipo `docentes`: es lo que permite publicar la primera vez.
+
+> El id del documento es siempre `clase` (`appwrite.configDocId`), así que hay una única configuración por proyecto. Para dos clases distintas, dos proyectos o dos ids.
+
+### 4. Rellenar `js/config.js`
 
 ```js
 appwrite: {
   endpoint: 'https://cloud.appwrite.io/v1',
   projectId: 'TU_PROJECT_ID',
   databaseId: 'TU_DATABASE_ID',
-  collectionId: 'TU_COLLECTION_ID'
+  collectionId: 'TU_COLLECTION_ID',
+  configCollectionId: 'TU_CONFIG_COLLECTION_ID',   // opcional
+  configDocId: 'clase'
 },
 ```
 

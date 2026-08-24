@@ -1244,6 +1244,7 @@ function syncBackLabels() {
 /* ── Arranque ── */
 async function boot() {
   loadTeacherConfig();   /* ajustes del docente sobre los valores de fábrica */
+  loadConfigMeta();
   wireGlobalListeners();
 
   /* Configurado para la nube pero el SDK no está disponible (sin red, CDN
@@ -1258,6 +1259,9 @@ async function boot() {
     $('#btn-logout').classList.remove('hidden');
     wireAuthListeners();
     try { await cloudResume().then(adoptState); } catch (e) { /* sin sesión previa */ }
+    /* Ajustes del equipo docente. Si fallan, la tablet sigue con los suyos:
+       nunca se queda sin configuración por un problema de red. */
+    try { await syncSharedConfig(); } catch (e) { /* se queda con los locales */ }
   } else {
     /* Modo local: el progreso vive en este navegador */
     loadState();
