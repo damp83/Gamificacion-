@@ -49,6 +49,9 @@ button:disabled { cursor: not-allowed; opacity: .55; }
   border: none; border-radius: var(--radius);
   padding: .8rem 1.4rem; font-size: 1.05rem; font-weight: 700;
   box-shadow: var(--shadow); transition: transform .12s ease;
+  /* Los botones de texto pequeño (.btn-quit) se quedaban en 43 px de alto:
+     un píxel por debajo del objetivo táctil mínimo. */
+  min-height: 44px;
 }
 .btn:active { transform: scale(.96); }
 .btn-primary { background: var(--jungle); color: #fff; }
