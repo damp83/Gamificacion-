@@ -1594,6 +1594,86 @@ input[type="checkbox"]::after, input[type="radio"]::after {
 .cfg-equipo-nota  { background: var(--parchment-dark); border-left: 5px solid var(--ink-soft); }
 .cfg-equipo-botones { display: flex; flex-wrap: wrap; gap: .5rem; }
 
+/* ══════════ CLASE DIRIGIDA ══════════ */
+#screen-aula { max-width: var(--w-wide); }
+.aula-head {
+  display: flex; align-items: flex-start; justify-content: space-between;
+  gap: var(--s-5); flex-wrap: wrap; margin-bottom: var(--s-5);
+}
+.aula-sub { color: var(--ink-soft); max-width: 44rem; margin-top: .3rem; }
+.aula-toolbar {
+  display: flex; align-items: center; gap: .6rem; flex-wrap: wrap;
+  margin-bottom: var(--s-4); padding-bottom: var(--s-4); border-bottom: var(--line);
+}
+.aula-toolbar select {
+  padding: .5rem .75rem; font-family: var(--font-text); font-size: var(--t-sm);
+  min-height: var(--tap); flex: 0 1 22rem;
+  border: 1.5px solid rgba(122, 74, 33, .28); border-radius: var(--r-sm);
+  background: var(--surface); color: var(--ink);
+}
+.aula-toolbar .class-meta { margin-left: auto; }
+
+/* Fichas de turno: grandes, porque se tocan de pie y con prisa */
+.aula-lista {
+  display: grid; gap: .6rem;
+  grid-template-columns: repeat(auto-fill, minmax(11rem, 1fr));
+}
+.aula-alumno-card {
+  display: flex; flex-direction: column; align-items: center; gap: .2rem;
+  background: var(--surface); border: none; border-top: 3px solid var(--brass-light);
+  border-radius: var(--r-lg); padding: .9rem .6rem;
+  box-shadow: var(--e-1); font-family: var(--font-text); color: var(--ink);
+  min-height: 6.5rem;
+  transition: transform .14s ease, box-shadow .14s ease;
+}
+.aula-alumno-card:hover { transform: translateY(-2px); box-shadow: var(--e-2); }
+.aula-alumno-card.aula-ya { border-top-color: var(--jungle-light); background: var(--jungle-tint); }
+.aula-card-avatar { font-size: 1.7rem; line-height: 1.2; }
+.aula-card-nombre { font-weight: 800; font-size: var(--t-md); }
+.aula-card-meta { font-size: var(--t-xs); color: var(--ink-soft); }
+
+/* Cabecera del turno: quién está respondiendo */
+.aula-alumno {
+  display: flex; align-items: center; gap: .9rem; flex-wrap: wrap;
+  background-color: var(--leather-dark);
+  background-image: linear-gradient(135deg, #6d421d, var(--leather-dark));
+  color: #f7ead2; border-radius: var(--r-lg);
+  padding: .8rem 1.1rem; margin-bottom: var(--s-4); box-shadow: var(--e-2);
+}
+.aula-alumno-avatar {
+  font-size: 1.7rem; line-height: 1;
+  width: 3rem; height: 3rem; flex-shrink: 0; display: grid; place-items: center;
+  background: rgba(255,255,255,.12); border-radius: var(--r-pill);
+  border: 1px solid rgba(240, 195, 60, .3);
+}
+.aula-alumno-info { flex: 1; min-width: 0; }
+.aula-alumno-info strong { display: block; font-size: var(--t-lg); font-family: var(--font-display); font-weight: 400; }
+.aula-alumno-info small { color: rgba(247, 234, 210, .82); font-size: var(--t-sm); }
+.aula-progreso { display: flex; gap: .3rem; }
+.aula-alumno .btn-quit { color: #f7ead2; }
+.aula-alumno .btn-quit:hover { background: rgba(255,255,255,.12); }
+
+/* La pregunta, tamaño de aula: se lee de lejos y desde un proyector */
+.aula-instruccion {
+  font-size: var(--t-xs); color: var(--ink-soft);
+  text-transform: uppercase; letter-spacing: .06em; font-weight: 700;
+  margin-bottom: var(--s-4);
+}
+/* La tarjeta de la pregunta no se estira a lo ancho del panel: una línea de
+   texto de 1.100 px no se lee de un vistazo ni desde la mesa de al lado. */
+#aula-pregunta-card, #aula-feedback { max-width: 58rem; }
+#aula-pregunta { font-size: clamp(1.3rem, 3vw, 1.9rem); }
+/* Dos columnas como mucho: en tres, las opciones cortas quedaban desperdigadas
+   y se pierde la lectura en Z de un 2×2. */
+#aula-opciones { grid-template-columns: repeat(auto-fit, minmax(15rem, 1fr)); max-width: 46rem; }
+@media (min-width: 50rem) { #aula-opciones { grid-template-columns: 1fr 1fr; } }
+#aula-opciones .option { font-size: var(--t-lg); min-height: 4rem; }
+.aula-fb-acciones { display: flex; gap: .6rem; justify-content: center; flex-wrap: wrap; }
+#aula-feedback { text-align: center; }
+
+.aula-meritos { margin-top: var(--s-6); padding-top: var(--s-5); border-top: var(--line); }
+.aula-meritos h3 { margin-top: 0; }
+
 </style>
 
 
@@ -1623,6 +1703,9 @@ input[type="checkbox"]::after, input[type="radio"]::after {
           <small>Ver la clase y preparar la expedición</small>
         </button>
       </div>
+      <p id="home-doors-note" class="home-note hidden">Esta clase funciona <strong>dirigida por el
+      docente</strong>: se pregunta desde su equipo y el alumnado responde en voz alta, sin entrar
+      a la app. Se puede cambiar en <em>Configuración → Alumnado</em>.</p>
 
       <!-- ── La historia, contada para el alumnado ── -->
       <section class="home-block">
@@ -1732,6 +1815,11 @@ input[type="checkbox"]::after, input[type="radio"]::after {
         <p id="teacher-greeting" class="home-lead">Desde aquí ves cómo va la clase y preparas la expedición.</p>
       </header>
       <div class="home-doors">
+        <button class="home-door home-door-aula" id="teacher-go-aula">
+          <span class="home-door-icon">🎤</span>
+          <strong>Dirigir la clase</strong>
+          <small>Preguntar en voz alta y anotar lo que responde cada alumno</small>
+        </button>
         <button class="home-door" id="teacher-go-class">
           <span class="home-door-icon">👥</span>
           <strong>Vista general de la clase</strong>
@@ -1860,6 +1948,69 @@ input[type="checkbox"]::after, input[type="radio"]::after {
         <p id="branch-desc" class="branch-desc"></p>
         <div id="strata-list" class="strata-list"></div>
         <div id="branch-guardian" class="branch-guardian"></div>
+      </section>
+
+      <!-- ══════════ CLASE DIRIGIDA ══════════ -->
+      <section id="screen-aula" class="screen hidden">
+        <button class="btn btn-back" id="aula-salir">← Volver a la sala de mapas</button>
+
+        <!-- Turnos: a quién se le pregunta -->
+        <div id="aula-turnos">
+          <div class="aula-head">
+            <div>
+              <h2>🎤 Dirigir la clase</h2>
+              <p class="aula-sub">Tú preguntas, el alumnado responde en voz alta y tú marcas lo que
+              ha dicho. Todo cuenta en su diario: no hace falta que entren en la app.</p>
+            </div>
+            <button class="btn btn-primary" id="aula-siguiente">🎲 A quien le toque</button>
+          </div>
+          <div class="aula-toolbar">
+            <label class="cfg-label" for="aula-tema">Preguntar de</label>
+            <select id="aula-tema"></select>
+            <span id="aula-resumen" class="class-meta"></span>
+          </div>
+          <div id="aula-lista" class="aula-lista"></div>
+          <p id="aula-vacia" class="empty-note hidden"></p>
+        </div>
+
+        <!-- Turno en curso: la pregunta -->
+        <div id="aula-turno" class="hidden">
+          <div class="aula-alumno">
+            <span class="aula-alumno-avatar" id="aula-avatar">🧒</span>
+            <div class="aula-alumno-info">
+              <strong id="aula-nombre"></strong>
+              <small id="aula-detalle"></small>
+            </div>
+            <div class="aula-progreso" id="aula-progreso"></div>
+            <button class="btn btn-quit btn-small" id="aula-terminar">Terminar turno</button>
+          </div>
+
+          <div class="question-card" id="aula-pregunta-card">
+            <p class="aula-instruccion">Lee la pregunta en voz alta y marca lo que responda.</p>
+            <p class="question-text" id="aula-pregunta"></p>
+            <div class="options" id="aula-opciones"></div>
+            <div class="mission-tools">
+              <button class="btn btn-hint btn-small" id="aula-pista">🪲 Dar la pista de Kira</button>
+              <button class="btn btn-quit btn-small" id="aula-saltar">Saltar esta</button>
+            </div>
+            <div id="aula-kira" class="dialog kira hidden"></div>
+          </div>
+
+          <div class="feedback-card hidden" id="aula-feedback">
+            <div id="aula-fb-icon" class="big-emoji"></div>
+            <p class="feedback-title" id="aula-fb-title"></p>
+            <p class="feedback-explain" id="aula-fb-explain"></p>
+            <div class="aula-fb-acciones">
+              <button class="btn btn-restore" id="aula-restaurar">🔧 Dejar que lo corrija (+5 🪙)</button>
+              <button class="btn btn-primary" id="aula-continuar">Siguiente →</button>
+            </div>
+          </div>
+
+          <div class="aula-meritos">
+            <h3>🏅 Méritos para&nbsp;<span id="aula-merito-quien"></span></h3>
+            <div id="aula-merito-lista" class="award-list"></div>
+          </div>
+        </div>
       </section>
 
       <!-- ══════════ ANTESALA DE LA CÁMARA DEL GUARDIÁN ══════════ -->
@@ -3193,6 +3344,13 @@ const ATLAS_DEFAULTS = {
      el código corre en el navegador. */
   teacherPin: '1234',
 
+  /* ── Cómo se usa la plataforma en clase (PRD §2.1) ──
+     'docente' → clase dirigida: pregunta el docente desde su equipo y el
+                 alumnado responde en voz alta. Nadie más entra a la app.
+     'alumno'  → cada niño en su dispositivo, con su cuenta.
+     'ambos'   → las dos cosas (en clase dirigida, en casa por su cuenta). */
+  sessionMode: 'docente',
+
   /* Quién dirige la expedición. Aparece en la portada y en la sala de mapas. */
   teacherName: '',
   className: '',
@@ -3952,9 +4110,80 @@ function buildSummary() {
 
 let S = null; /* estado vivo */
 
+/* ══════════ DIARIOS DE TODA LA CLASE EN UN DISPOSITIVO ══════════
+   En clase dirigida el alumnado no toca la app: pregunta el docente desde su
+   equipo. Ese equipo tiene entonces que guardar el diario de CADA alumno, no
+   uno solo. Se guardan todos juntos bajo una clave aparte; `STORAGE_KEY`
+   sigue siendo el diario propio del dispositivo (modo alumno de siempre).
+
+   `diarioActivo` dice a quién se está atendiendo ahora mismo:
+   · null  → el diario propio del dispositivo (comportamiento de siempre)
+   · «ana» → el diario de esa alumna dentro del archivo de la clase */
+const DIARIES_KEY = 'atlas_diarios_v1';
+let diarioActivo = null;
+
+/* La clave es el nombre normalizado: así casa con la lista de clase aunque
+   se escriba con mayúsculas o espacios de más. */
+function diaryKey(nombre) { return String(nombre || '').trim().toLowerCase(); }
+
+function loadDiaries() {
+  try {
+    const raw = localStorage.getItem(DIARIES_KEY);
+    const o = raw ? JSON.parse(raw) : null;
+    return (o && typeof o.diaries === 'object') ? o.diaries : {};
+  } catch (e) { return {}; }
+}
+function saveDiaries(map) {
+  try { localStorage.setItem(DIARIES_KEY, JSON.stringify({ v: 1, diaries: map })); }
+  catch (e) { /* almacenamiento lleno o no disponible */ }
+}
+/* Todos los diarios guardados aquí, ya migrados, listos para la vista de clase */
+function allDiaries() {
+  const map = loadDiaries();
+  const out = [];
+  for (const k in map) {
+    try {
+      const st = migrateState(map[k]);
+      if (st && st.profile) out.push({ id: 'local:' + k, key: k, name: st.profile.explorer_name, state: st });
+    } catch (e) { /* diario ilegible: se ignora, no se pierde el resto */ }
+  }
+  return out;
+}
+function diaryExists(nombre) { return !!loadDiaries()[diaryKey(nombre)]; }
+
+/* Abre (o crea) el diario de un alumno y lo deja como estado vivo */
+function openDiary(nombre, grade) {
+  const k = diaryKey(nombre);
+  if (!k) return null;
+  const map = loadDiaries();
+  if (map[k]) {
+    S = migrateState(map[k]);
+    /* el nombre visible manda el de la lista: si el docente lo corrige, se corrige */
+    S.profile.explorer_name = nombre;
+  } else {
+    S = defaultState(nombre);
+    if (grade) S.profile.grade = grade;
+  }
+  diarioActivo = k;
+  saveState();
+  return S;
+}
+/* Vuelve al diario propio del dispositivo (modo alumno) */
+function closeDiary() {
+  diarioActivo = null;
+  S = null;
+  return loadState();
+}
+
 function saveState() {
   if (!S) return;
   S.updated_at = Date.now(); /* para resolver «¿qué copia es más nueva?» entre dispositivos */
+  if (diarioActivo) {
+    const map = loadDiaries();
+    map[diarioActivo] = S;
+    saveDiaries(map);
+    return;   /* el diario de un alumno no se sube a la cuenta del docente */
+  }
   try { localStorage.setItem(STORAGE_KEY, JSON.stringify(S)); } catch (e) { /* almacenamiento no disponible */ }
   if (typeof cloudScheduleSave === 'function') cloudScheduleSave();
 }
@@ -4505,7 +4734,10 @@ function finishMission() {
   /* La cámara tiene su propio cierre: ni dominio, ni fatiga, ni castigo */
   if (mission.kind === 'guardian') return finishGuardian();
 
-  const total = mission.questions.length;
+  /* En clase dirigida el docente puede cortar el turno cuando toque el timbre.
+     Se puntúa sobre lo REALMENTE respondido: con el total previsto, terminar
+     antes contaría como fallos las preguntas que nadie llegó a ver. */
+  const total = mission.resolved.length || mission.questions.length;
   const accuracy = mission.firstTryCorrect / total;
   const st = getStratum(mission.branchId, mission.stratumId);
   const meta = STRATA_META[mission.stratumId];
@@ -4578,6 +4810,83 @@ function finishMission() {
   };
   mission = null;
   return result;
+}
+
+/* ══════════ CLASE DIRIGIDA ══════════
+   El docente pregunta desde su equipo y el alumnado responde en voz alta.
+   Por dentro es exactamente una expedición: mismo motor adaptativo, mismo
+   dominio, mismas reglas anti-grinding. Lo único que cambia es quién toca
+   la pantalla. */
+
+/* ¿Qué le toca practicar a este alumno ahora? El estrato abierto con menos
+   dominio; a igualdad, el que lleve más tiempo sin tocarse. Es la misma
+   decisión que tomaría el docente mirando el cuaderno. */
+function siguienteReto(grade) {
+  let mejor = null;
+  for (const branchId of playableBranchIds(grade)) {
+    const def = branchDef(branchId);
+    for (const sId of STRATA_ORDER) {
+      if (!stratumHasContent(def, sId)) continue;
+      const st = getStratum(branchId, sId);
+      if (st.status === 'locked') continue;
+      const cand = { branchId, stratumId: sId, mastery: st.mastery || 0, arena: sandCover(st) };
+      if (!mejor ||
+          cand.mastery < mejor.mastery - 0.001 ||
+          (Math.abs(cand.mastery - mejor.mastery) <= 0.001 && cand.arena > mejor.arena)) {
+        mejor = cand;
+      }
+    }
+  }
+  return mejor;
+}
+
+/* Abre el turno de un alumno: carga su diario y arranca la ronda.
+   `branchId`/`stratumId` son opcionales: si el docente no elige, decide el
+   propio motor con siguienteReto(). */
+function startClassTurn(nombre, grade, branchId, stratumId) {
+  if (!openDiary(nombre, grade)) return { ok: false, reason: 'sin-nombre' };
+  rolloverIfNeeded();          /* su racha y su bitácora, como si entrara él */
+
+  let destino = (branchId && stratumId) ? { branchId, stratumId } : siguienteReto();
+  if (!destino) return { ok: false, reason: 'sin-contenido' };
+
+  if (!startMission(destino.branchId, destino.stratumId, 'clase')) {
+    return { ok: false, reason: 'sin-retos' };
+  }
+  return { ok: true, branchId: destino.branchId, stratumId: destino.stratumId };
+}
+
+/* Cuántas veces se ha preguntado hoy a cada alumno: sirve para repartir los
+   turnos sin dejarse a nadie, que es el problema real de un aula de 25. */
+function turnosDeHoy() {
+  const hoy = todayStr();
+  const out = {};
+  for (const d of allDiaries()) {
+    const log = (d.state.metrics && d.state.metrics.sessions_log) || [];
+    const deHoy = log.filter(e => e.date === hoy);
+    out[d.key] = {
+      rondas: deHoy.length,
+      minutos: deHoy.reduce((a, e) => a + (e.minutes || 0), 0)
+    };
+  }
+  return out;
+}
+
+/* A quién le toca: el que menos veces haya salido hoy; a igualdad, el que
+   lleva más tiempo sin que le pregunten. */
+function aQuienLeToca(lista) {
+  const turnos = turnosDeHoy();
+  let mejor = null;
+  for (const alumno of lista) {
+    const k = diaryKey(alumno.name);
+    const t = turnos[k] || { rondas: 0, minutos: 0 };
+    const cand = { alumno, rondas: t.rondas, minutos: t.minutos };
+    if (!mejor || cand.rondas < mejor.rondas ||
+        (cand.rondas === mejor.rondas && cand.minutos < mejor.minutos)) {
+      mejor = cand;
+    }
+  }
+  return mejor ? mejor.alumno : null;
 }
 
 /* ══════════ CÁMARA DEL GUARDIÁN ══════════
@@ -5257,6 +5566,12 @@ function cfgAlumnado(body) {
     ${nube ? 'crear las cuentas de todos de una vez.' :
       'tenerla preparada. <strong>Para crear cuentas hace falta configurar Appwrite</strong> en «Acceso y nube».'}</p>
 
+    ${field('Cómo se usa en clase', `<select id="cfg-session-mode">
+      <option value="docente"${ATLAS_CONFIG.sessionMode === 'docente' ? ' selected' : ''}>Dirigida por el docente: yo pregunto, ellos responden</option>
+      <option value="alumno"${ATLAS_CONFIG.sessionMode === 'alumno' ? ' selected' : ''}>Cada alumno en su dispositivo, con su cuenta</option>
+      <option value="ambos"${ATLAS_CONFIG.sessionMode === 'ambos' ? ' selected' : ''}>Las dos cosas (en clase dirigida, en casa por su cuenta)</option>
+    </select>`, 'En clase dirigida, la portada no ofrece la puerta del alumnado y los diarios se guardan en este equipo.')}
+
     ${field('Nombre del docente', `<input type="text" id="cfg-teacher-name" value="${(ATLAS_CONFIG.teacherName || '').replace(/"/g, '&quot;')}" placeholder="Diego Moya">`,
       'Aparece en la portada y en la sala de mapas.')}
     ${field('Nombre de la clase', `<input type="text" id="cfg-class-name" value="${(ATLAS_CONFIG.className || '').replace(/"/g, '&quot;')}" placeholder="4.º B">`)}
@@ -5315,6 +5630,8 @@ function cfgAlumnado(body) {
         `${r.name}  →  usuario: ${r.username}   contraseña: ${r.password}`).join('\n')}</textarea>
       <button class="btn btn-secondary btn-small" id="ros-copy">📋 Copiar</button>` : ''}`;
 
+  onInput('#cfg-session-mode', e => cfgSave('sessionMode', e.target.value,
+    e.target.value === 'docente' ? 'Clase dirigida por el docente ✓' : 'Modo de sesión guardado ✓'));
   onInput('#cfg-teacher-name', e => cfgSave('teacherName', e.target.value.trim()));
   onInput('#cfg-class-name', e => cfgSave('className', e.target.value.trim()));
   onInput('#cfg-default-grade', e => cfgSave('defaultGrade', +e.target.value));
@@ -6206,7 +6523,7 @@ function cfgCopia(body) {
 const $ = sel => document.querySelector(sel);
 const $$ = sel => document.querySelectorAll(sel);
 
-const SCREENS = ['map', 'branch', 'guardian', 'mission', 'result', 'camp', 'merits', 'team', 'logbook', 'dashboard', 'class', 'config'];
+const SCREENS = ['map', 'branch', 'guardian', 'mission', 'result', 'camp', 'merits', 'team', 'logbook', 'dashboard', 'class', 'config', 'aula'];
 
 function show(screenId) {
   SCREENS.forEach(s => $(`#screen-${s}`).classList.toggle('hidden', s !== screenId));
@@ -6218,6 +6535,7 @@ function show(screenId) {
   if (screenId === 'camp') renderCamp();
   if (screenId === 'merits') renderMerits();
   if (screenId === 'team') renderTeam();
+  if (screenId === 'aula') { renderAula(); syncBackLabels(); }
   if (screenId === 'config') { renderTeacherConfig(); syncBackLabels(); }
   if (screenId === 'class') { renderClassView(); syncBackLabels(); }
   if (screenId === 'logbook') renderLogbook();
@@ -7141,6 +7459,295 @@ function showTeacherPanel() {
   $('#btn-teacher-panel').classList.add('hidden');
 }
 
+
+/* ══════════ CLASE DIRIGIDA ══════════
+   La pantalla que usa el docente para llevar la sesión: elige a quién
+   pregunta, lee el reto en voz alta y marca lo que responde el alumno.
+   Por dentro es el mismo motor que una expedición; lo único distinto es
+   quién toca la pantalla. */
+
+let aulaTema = 'auto';        /* 'auto' o un id de pozo */
+let aulaAlumno = null;        /* { name, grade } del turno en curso */
+
+/* La lista de a quién se puede preguntar: la clase, más quien ya tenga
+   diario en este equipo aunque se le haya quitado de la lista. */
+function aulaAlumnos() {
+  const vistos = new Set();
+  const out = [];
+  for (const r of (ATLAS_CONFIG.roster || [])) {
+    const k = diaryKey(r.name);
+    if (!k || vistos.has(k)) continue;
+    vistos.add(k);
+    out.push({ name: r.name, grade: r.grade || ATLAS_CONFIG.defaultGrade, enLista: true });
+  }
+  for (const d of allDiaries()) {
+    if (vistos.has(d.key)) continue;
+    vistos.add(d.key);
+    out.push({ name: d.name, grade: d.state.profile.grade, enLista: false });
+  }
+  return out;
+}
+
+function renderAula() {
+  if (mission && aulaAlumno) return renderAulaPregunta();
+  aulaAlumno = null;
+  $('#aula-turnos').classList.remove('hidden');
+  $('#aula-turno').classList.add('hidden');
+
+  /* Selector de tema: automático o un pozo concreto (hoy tocan fracciones) */
+  const sel = $('#aula-tema');
+  const pozos = [];
+  for (const site of sitesEnabled()) {
+    for (const b of branchesEnabledOf(site, null)) pozos.push({ id: b.id, name: `${site.subject} · ${b.name}` });
+  }
+  sel.innerHTML = `<option value="auto">Lo que más le convenga a cada uno</option>` +
+    pozos.map(p => `<option value="${p.id}"${aulaTema === p.id ? ' selected' : ''}>${p.name}</option>`).join('');
+  sel.value = aulaTema;
+
+  const alumnos = aulaAlumnos();
+  const turnos = turnosDeHoy();
+  const conRonda = alumnos.filter(a => (turnos[diaryKey(a.name)] || {}).rondas).length;
+
+  $('#aula-resumen').textContent = alumnos.length
+    ? `${conRonda} de ${alumnos.length} han salido hoy`
+    : '';
+
+  const vacia = $('#aula-vacia');
+  const lista = $('#aula-lista');
+  if (!alumnos.length) {
+    lista.innerHTML = '';
+    vacia.classList.remove('hidden');
+    vacia.innerHTML = 'Todavía no hay nadie en la lista de clase. Añádela en ' +
+      '<strong>Configurar la expedición → Alumnado</strong> y vuelve aquí.';
+    $('#aula-siguiente').disabled = true;
+    return;
+  }
+  vacia.classList.add('hidden');
+  $('#aula-siguiente').disabled = false;
+
+  lista.innerHTML = '';
+  for (const a of alumnos) {
+    const t = turnos[diaryKey(a.name)] || { rondas: 0, minutos: 0 };
+    const tiene = diaryExists(a.name);
+    const card = document.createElement('button');
+    card.className = 'aula-alumno-card' + (t.rondas ? ' aula-ya' : '');
+    card.innerHTML = `
+      <span class="aula-card-avatar">${t.rondas ? '✅' : '🧒'}</span>
+      <span class="aula-card-nombre">${a.name}</span>
+      <span class="aula-card-meta">${gradeInfo(a.grade).label}${
+        tiene ? ` · ${t.rondas} ronda(s) hoy` : ' · primera vez'}</span>`;
+    card.addEventListener('click', () => empezarTurno(a));
+    lista.appendChild(card);
+  }
+}
+
+function empezarTurno(alumno) {
+  const tema = aulaTema === 'auto' ? null : aulaTema;
+  let destino = null;
+  if (tema) {
+    /* Con un pozo elegido, el estrato lo sigue decidiendo el motor: el
+       docente marca el tema, no la dificultad. */
+    openDiary(alumno.name, alumno.grade);
+    const def = branchDef(tema);
+    const abierto = STRATA_ORDER.filter(sId => stratumHasContent(def, sId) &&
+      getStratum(tema, sId).status !== 'locked');
+    if (!abierto.length) { toast('Ese pozo aún no está abierto para ' + alumno.name + '.'); return; }
+    let peor = abierto[0];
+    for (const sId of abierto) if (getStratum(tema, sId).mastery < getStratum(tema, peor).mastery) peor = sId;
+    destino = { branchId: tema, stratumId: peor };
+  }
+
+  const r = startClassTurn(alumno.name, alumno.grade, destino && destino.branchId, destino && destino.stratumId);
+  if (!r.ok) {
+    toast(r.reason === 'sin-contenido'
+      ? 'No hay ningún pozo disponible para su curso.'
+      : 'Ese estrato todavía no tiene retos preparados.');
+    return;
+  }
+  aulaAlumno = alumno;
+  renderAulaPregunta();
+  $('#aula-turnos').classList.add('hidden');
+  $('#aula-turno').classList.remove('hidden');
+}
+
+function renderAulaPregunta() {
+  const q = mission.current;
+  const b = branchDef(mission.branchId);
+  const meta = STRATA_META[mission.stratumId];
+
+  $('#aula-avatar').textContent = avatarEmoji();
+  $('#aula-nombre').textContent = aulaAlumno.name;
+  $('#aula-detalle').textContent =
+    `${gradeInfo(S.profile.grade).label} · ${b.icon} ${b.name} · ${meta.label} · Nv. ${levelFromXp(S.progression.xp_total)}`;
+  $('#aula-merito-quien').textContent = aulaAlumno.name;   /* el nombre, sin espacio doble */
+
+  $('#aula-progreso').innerHTML = mission.questions.map((_, i) => {
+    let cls = 'qdot';
+    if (i < mission.resolved.length) cls += mission.resolved[i] ? ' qdot-ok' : ' qdot-fail';
+    else if (i === mission.index) cls += ' qdot-current';
+    return `<span class="${cls}"></span>`;
+  }).join('');
+
+  $('#aula-feedback').classList.add('hidden');
+  $('#aula-pregunta-card').classList.remove('hidden');
+  $('#aula-kira').classList.add('hidden');
+  $('#aula-pregunta').textContent = q.question;
+
+  const cont = $('#aula-opciones');
+  cont.innerHTML = '';
+  q.options.forEach((opt, i) => {
+    const btn = document.createElement('button');
+    btn.className = 'option';
+    btn.dataset.letra = 'ABCD'[i];
+    btn.textContent = opt;
+    btn.addEventListener('click', () => aulaResponder(i, btn));
+    cont.appendChild(btn);
+  });
+  $('#aula-pista').disabled = false;
+  renderAulaMeritos();
+}
+
+function aulaResponder(index, btn) {
+  $$('#aula-opciones .option').forEach(o => o.disabled = true);
+  const restaurando = mission.restoring;
+  const res = answerQuestion(index);
+  btn.classList.add(res.correct ? 'option-correct' : 'option-wrong');
+  if (!res.correct) {
+    const ok = $$('#aula-opciones .option')[mission.current.answer];
+    if (ok) ok.classList.add('option-reveal');
+  }
+  setTimeout(() => {
+    let coins = 0;
+    if (restaurando) coins = completeRestore(res.correct);
+    aulaFeedback(res, restaurando, coins);
+  }, 600);
+}
+
+function aulaFeedback(res, restaurando, coins) {
+  $('#aula-pregunta-card').classList.add('hidden');
+  const card = $('#aula-feedback');
+  card.classList.remove('hidden');
+  const restaurar = $('#aula-restaurar');
+  restaurar.classList.add('hidden');
+
+  if (restaurando) {
+    $('#aula-fb-icon').textContent = res.correct ? '🔧✨' : '🪨';
+    $('#aula-fb-title').textContent = res.correct ? '¡Hallazgo restaurado!' : 'Esta vez tampoco salió';
+    $('#aula-fb-explain').textContent = res.correct
+      ? (coins ? `Se corrigió solo. +${coins} 🪙 por restaurar el hallazgo.` : 'Se corrigió solo. (Ya usó las 5 restauraciones con premio de hoy.)')
+      : res.explanation;
+  } else if (res.correct) {
+    $('#aula-fb-icon').textContent = '💎';
+    $('#aula-fb-title').textContent = '¡Correcto!';
+    $('#aula-fb-explain').textContent = res.explanation;
+  } else {
+    $('#aula-fb-icon').textContent = '🪤';
+    $('#aula-fb-title').textContent = 'No era esa';
+    $('#aula-fb-explain').textContent = res.explanation;
+    /* Restaurar el hallazgo es metacognición: se le ofrece al alumno la
+       oportunidad de corregirse, igual que si jugara solo. */
+    if (!mission.restoring) {
+      restaurar.classList.remove('hidden');
+      restaurar.onclick = () => {
+        restoreQuestion();
+        renderAulaPregunta();
+      };
+    }
+  }
+  $('#aula-continuar').textContent = mission.index + 1 >= mission.questions.length
+    ? 'Terminar el turno →' : 'Siguiente reto →';
+  renderAulaMeritos();
+}
+
+function aulaContinuar() {
+  if (!advance()) return aulaTerminar();
+  renderAulaPregunta();
+}
+
+function aulaTerminar() {
+  if (!mission) { renderAula(); return; }
+  const respondidas = mission.resolved.length;
+  if (!respondidas) {                 /* nadie respondió: no se puntúa nada */
+    abandonMission();
+    toast('Turno cerrado sin respuestas: no se ha anotado nada.');
+    volverATurnos();
+    return;
+  }
+  const r = finishMission();
+  const quien = aulaAlumno ? aulaAlumno.name : '';
+  toast(`${quien}: ${r.firstTryCorrect}/${r.total} a la primera · +${r.pe} ⭐ · +${r.coins} 🪙`);
+  if (r.nowMastered) toast(`¡${quien} ha dominado un estrato! 🗺️`, 3200);
+  volverATurnos();
+}
+
+function volverATurnos() {
+  aulaAlumno = null;
+  closeDiary();               /* se vuelve al diario propio del dispositivo */
+  renderAula();
+  $('#aula-turnos').classList.remove('hidden');
+  $('#aula-turno').classList.add('hidden');
+}
+
+/* Los méritos se conceden aquí mismo, sin salir del turno: es donde ocurren
+   («ha ayudado a su compañera», «ha recogido el material»). */
+function renderAulaMeritos() {
+  const cont = $('#aula-merito-lista');
+  cont.innerHTML = '';
+  for (const b of ATLAS_CONFIG.behaviors) {
+    const usados = behaviorCountToday(b.id);
+    const lleno = usados >= b.perDay;
+    const btn = document.createElement('button');
+    btn.className = 'award-btn' + (lleno ? ' award-full' : '');
+    btn.disabled = lleno;
+    btn.innerHTML = `<span class="award-icon">${b.icon}</span>
+      <span class="award-name">${b.name}</span>
+      <span class="award-meta">+${b.coins} 🪙 · ${usados}/${b.perDay}</span>`;
+    btn.addEventListener('click', () => {
+      const res = awardBehavior(b.id);
+      if (res.ok) {
+        toast(`${b.icon} ${aulaAlumno.name}: ${b.name} · +${b.coins} 🪙`);
+        renderAulaMeritos();
+      } else toast('Ya se alcanzó el tope de hoy para ese mérito.');
+    });
+    cont.appendChild(btn);
+  }
+}
+
+function wireAula() {
+  $('#aula-salir').addEventListener('click', () => {
+    if (mission) { aulaTerminar(); return; }
+    closeDiary();
+    showTeacherPortal();
+  });
+  $('#aula-tema').addEventListener('change', e => { aulaTema = e.target.value; });
+  $('#aula-siguiente').addEventListener('click', () => {
+    const a = aQuienLeToca(aulaAlumnos());
+    if (a) empezarTurno(a);
+  });
+  $('#aula-terminar').addEventListener('click', aulaTerminar);
+  $('#aula-continuar').addEventListener('click', aulaContinuar);
+  $('#aula-saltar').addEventListener('click', () => {
+    /* Saltar no cuenta ni a favor ni en contra: la pregunta se cambia por otra */
+    const nueva = makeQuestion(branchDef(mission.branchId), mission.stratumId,
+      mission.tier, mission.usedIdx, currentGrade());
+    if (nueva) { nueva.stratumId = mission.stratumId; mission.questions[mission.index] = nueva; mission.current = nueva; }
+    renderAulaPregunta();
+  });
+  $('#aula-pista').addEventListener('click', () => {
+    const r = requestHint();
+    const caja = $('#aula-kira');
+    if (!r.ok) {
+      if (r.reason === 'no-more') { $('#aula-pista').disabled = true; toast('Ya no quedan más pistas para este reto.'); }
+      else toast('No le quedan Doblones para la segunda pista.');
+      return;
+    }
+    caja.classList.remove('hidden');
+    caja.innerHTML = `<span class="dialog-avatar">🪲</span>
+      <div class="dialog-text"><strong>Kira</strong><p>${r.text}</p>
+      ${r.cost ? `<small>(−${r.cost} 🪙)</small>` : ''}</div>`;
+  });
+}
+
 /* ── Vista general de la clase ── */
 let classData = null;
 let classSort = 'atencion';
@@ -7157,8 +7764,16 @@ async function renderClassView() {
   /* Sin nube no hay forma de leer los diarios de los demás: se dice y se
      muestra al menos el de esta tablet, etiquetado como lo que es. */
   if (!cloudEnabled() || !cloudUser()) {
-    classData = buildClassOverview(S ? [{ id: 'local', name: S.profile.explorer_name, state: S }] : []);
+    /* En clase dirigida los diarios de todo el grupo están aquí mismo: la
+       vista puede enseñar la clase entera sin nube ninguna. */
+    const locales = allDiaries();
+    const propio = S && !diarioActivo
+      ? [{ id: 'local', name: S.profile.explorer_name, state: S }] : [];
+    const entradas = locales.concat(
+      propio.filter(p => !locales.some(l => l.key === diaryKey(p.name))));
+    classData = buildClassOverview(entradas);
     classData.localOnly = true;
+    classData.enEsteEquipo = locales.length;
     return paintClassView();
   }
 
@@ -7206,13 +7821,24 @@ function paintClassView() {
     enLista ? `<strong>${d.deLaLista} de ${enLista}</strong> de la lista han empezado su diario${
         d.fueraDeLista ? ` · ${d.fueraDeLista} diario(s) más, fuera de la lista` : ''}`
             : `${d.students.length} explorador(es) con diario`} · datos al ${d.generatedAt}</p>`;
-  classStatus(d.localOnly
-    ? `${recuento}
-       <div class="class-note">📱 <strong>Esta tablet solo guarda un diario.</strong> Sin cuentas en la
-       nube, cada dispositivo tiene el suyo, así que aquí solo puede aparecer quien lo esté usando ahora.
-       El resto de la clase sale abajo como <em>pendiente</em>. Para verlos a todos de verdad hay que
-       configurar Appwrite en «Acceso y nube».</div>`
-    : recuento);
+  /* Tres situaciones distintas, y decir la equivocada confunde más que callar:
+     hay diarios de clase en este equipo · solo está el diario del propio
+     dispositivo (modo alumno) · no hay ninguno todavía. */
+  let nota = '';
+  if (d.localOnly && d.enEsteEquipo) {
+    nota = `<div class="class-note">💼 <strong>Clase dirigida.</strong> Los ${d.enEsteEquipo} diario(s)
+      se guardan en este equipo, que es donde se dirigen las sesiones. Si además quieres que el alumnado
+      entre por su cuenta desde casa, hace falta configurar Appwrite en «Acceso y nube».</div>`;
+  } else if (d.localOnly && d.students.length) {
+    nota = `<div class="class-note">📱 <strong>Esta tablet solo guarda un diario.</strong> Sin cuentas
+      en la nube, cada dispositivo tiene el suyo, así que aquí solo puede aparecer quien lo esté usando
+      ahora. Para ver a la clase entera, dirige las sesiones desde <em>Dirigir la clase</em> o hay que
+      configurar Appwrite en «Acceso y nube».</div>`;
+  } else if (d.localOnly) {
+    nota = `<div class="class-note">📱 <strong>Todavía no hay ningún diario.</strong> Empieza una sesión
+      desde <em>Dirigir la clase</em> y se irá creando el de cada alumno al que preguntes.</div>`;
+  }
+  classStatus(recuento + nota);
 
   if (!d.students.length) {
     $('#class-students').innerHTML = '<p class="empty-note">Todavía no hay ningún diario de expedición.</p>';
@@ -7408,11 +8034,23 @@ function adoptState(remote) {
    El docente entra sin necesidad de la sesión de ningún alumno. */
 let teacherOnly = false;
 
+/* En clase dirigida el alumnado no entra a la app, así que su puerta no se
+   enseña: ofrecerla sería invitar a algo que el docente ha desactivado. */
+function aplicarModoSesion() {
+  const modo = ATLAS_CONFIG.sessionMode || 'ambos';
+  const puerta = $('#home-student');
+  const soloDocente = modo === 'docente';
+  puerta.classList.toggle('hidden', soloDocente);
+  $('#home-doors-note').classList.toggle('hidden', !soloDocente);
+  document.body.classList.toggle('solo-docente', soloDocente);
+}
+
 function showHome() {
   teacherOnly = false;
   document.body.classList.remove('teacher-mode');
   ['#screen-auth', '#screen-onboarding', '#screen-teacher'].forEach(x => $(x).classList.add('hidden'));
   $('#app').classList.add('hidden');
+  aplicarModoSesion();
   $('#screen-home').classList.remove('hidden');
   renderHomeSites();
   renderTeacherSignature();
@@ -7547,6 +8185,7 @@ function wireGlobalListeners() {
     if (teacherOnly && el.dataset.nav === 'dashboard') { showTeacherPortal(); return; }
     show(el.dataset.nav);
   }));
+  wireAula();
   $('#guardian-back').addEventListener('click', () => {
     if (guardianBranch) openBranch(guardianBranch); else show('map');
   });
@@ -7606,6 +8245,7 @@ function wireGlobalListeners() {
     teacherUnlocked = true;
     enterTeacherMode();
   });
+  $('#teacher-go-aula').addEventListener('click', () => { aulaAlumno = null; teacherScreen('aula'); });
   $('#teacher-go-class').addEventListener('click', () => { classData = null; teacherScreen('class'); });
   $('#teacher-go-config').addEventListener('click', () => { cfgSection = 'curso'; teacherScreen('config'); });
   $('#teacher-exit').addEventListener('click', showHome);

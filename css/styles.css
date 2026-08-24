@@ -1587,3 +1587,83 @@ input[type="checkbox"]::after, input[type="radio"]::after {
 .cfg-equipo-aviso { background: #fbe6c8; border-left: 5px solid var(--brass); }
 .cfg-equipo-nota  { background: var(--parchment-dark); border-left: 5px solid var(--ink-soft); }
 .cfg-equipo-botones { display: flex; flex-wrap: wrap; gap: .5rem; }
+
+/* ══════════ CLASE DIRIGIDA ══════════ */
+#screen-aula { max-width: var(--w-wide); }
+.aula-head {
+  display: flex; align-items: flex-start; justify-content: space-between;
+  gap: var(--s-5); flex-wrap: wrap; margin-bottom: var(--s-5);
+}
+.aula-sub { color: var(--ink-soft); max-width: 44rem; margin-top: .3rem; }
+.aula-toolbar {
+  display: flex; align-items: center; gap: .6rem; flex-wrap: wrap;
+  margin-bottom: var(--s-4); padding-bottom: var(--s-4); border-bottom: var(--line);
+}
+.aula-toolbar select {
+  padding: .5rem .75rem; font-family: var(--font-text); font-size: var(--t-sm);
+  min-height: var(--tap); flex: 0 1 22rem;
+  border: 1.5px solid rgba(122, 74, 33, .28); border-radius: var(--r-sm);
+  background: var(--surface); color: var(--ink);
+}
+.aula-toolbar .class-meta { margin-left: auto; }
+
+/* Fichas de turno: grandes, porque se tocan de pie y con prisa */
+.aula-lista {
+  display: grid; gap: .6rem;
+  grid-template-columns: repeat(auto-fill, minmax(11rem, 1fr));
+}
+.aula-alumno-card {
+  display: flex; flex-direction: column; align-items: center; gap: .2rem;
+  background: var(--surface); border: none; border-top: 3px solid var(--brass-light);
+  border-radius: var(--r-lg); padding: .9rem .6rem;
+  box-shadow: var(--e-1); font-family: var(--font-text); color: var(--ink);
+  min-height: 6.5rem;
+  transition: transform .14s ease, box-shadow .14s ease;
+}
+.aula-alumno-card:hover { transform: translateY(-2px); box-shadow: var(--e-2); }
+.aula-alumno-card.aula-ya { border-top-color: var(--jungle-light); background: var(--jungle-tint); }
+.aula-card-avatar { font-size: 1.7rem; line-height: 1.2; }
+.aula-card-nombre { font-weight: 800; font-size: var(--t-md); }
+.aula-card-meta { font-size: var(--t-xs); color: var(--ink-soft); }
+
+/* Cabecera del turno: quién está respondiendo */
+.aula-alumno {
+  display: flex; align-items: center; gap: .9rem; flex-wrap: wrap;
+  background-color: var(--leather-dark);
+  background-image: linear-gradient(135deg, #6d421d, var(--leather-dark));
+  color: #f7ead2; border-radius: var(--r-lg);
+  padding: .8rem 1.1rem; margin-bottom: var(--s-4); box-shadow: var(--e-2);
+}
+.aula-alumno-avatar {
+  font-size: 1.7rem; line-height: 1;
+  width: 3rem; height: 3rem; flex-shrink: 0; display: grid; place-items: center;
+  background: rgba(255,255,255,.12); border-radius: var(--r-pill);
+  border: 1px solid rgba(240, 195, 60, .3);
+}
+.aula-alumno-info { flex: 1; min-width: 0; }
+.aula-alumno-info strong { display: block; font-size: var(--t-lg); font-family: var(--font-display); font-weight: 400; }
+.aula-alumno-info small { color: rgba(247, 234, 210, .82); font-size: var(--t-sm); }
+.aula-progreso { display: flex; gap: .3rem; }
+.aula-alumno .btn-quit { color: #f7ead2; }
+.aula-alumno .btn-quit:hover { background: rgba(255,255,255,.12); }
+
+/* La pregunta, tamaño de aula: se lee de lejos y desde un proyector */
+.aula-instruccion {
+  font-size: var(--t-xs); color: var(--ink-soft);
+  text-transform: uppercase; letter-spacing: .06em; font-weight: 700;
+  margin-bottom: var(--s-4);
+}
+/* La tarjeta de la pregunta no se estira a lo ancho del panel: una línea de
+   texto de 1.100 px no se lee de un vistazo ni desde la mesa de al lado. */
+#aula-pregunta-card, #aula-feedback { max-width: 58rem; }
+#aula-pregunta { font-size: clamp(1.3rem, 3vw, 1.9rem); }
+/* Dos columnas como mucho: en tres, las opciones cortas quedaban desperdigadas
+   y se pierde la lectura en Z de un 2×2. */
+#aula-opciones { grid-template-columns: repeat(auto-fit, minmax(15rem, 1fr)); max-width: 46rem; }
+@media (min-width: 50rem) { #aula-opciones { grid-template-columns: 1fr 1fr; } }
+#aula-opciones .option { font-size: var(--t-lg); min-height: 4rem; }
+.aula-fb-acciones { display: flex; gap: .6rem; justify-content: center; flex-wrap: wrap; }
+#aula-feedback { text-align: center; }
+
+.aula-meritos { margin-top: var(--s-6); padding-top: var(--s-5); border-top: var(--line); }
+.aula-meritos h3 { margin-top: 0; }

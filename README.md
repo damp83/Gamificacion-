@@ -24,6 +24,7 @@ PWA sin dependencias: HTML + CSS + JavaScript vanilla, funciona offline y se ins
 | **Campamento Base** | Avatar con equipo cosmético, decoración del campamento y golosinas para Tobías (nada da ventaja pedagógica) |
 | **Dashboard docente** | KPIs de cabecera: tiempo de excavación, zona de flujo, autocorrección, mastery por estrato, señales de alerta |
 | **Curso completo** | Tres trimestres con fechas configurables; PE, estratos, sellos y méritos se acumulan por trimestre |
+| **Clase dirigida** | El docente pregunta desde su equipo y el alumnado responde en voz alta, sin entrar en la app. Turnos repartidos, méritos desde el propio turno y el diario de cada alumno guardado en ese equipo |
 | **Cuentas de alumno** | Registro y acceso con usuario y contraseña vía Appwrite; el diario se sincroniza entre clase y casa |
 | **Méritos de Campamento** | Doblones por comportamientos (ayudar, cuidar el material, participar…), concedidos por el docente con PIN y topes diarios |
 | **Panel de Configuración** | El docente edita en la propia app el curso, los reconocimientos, las cuadrillas, los pozos, el almacén, la economía y el acceso — sin tocar código |
@@ -152,6 +153,45 @@ Cambia también `teacherPin`. Y ojo: **el PIN es una barrera de aula, no segurid
 Los niños escriben **usuario**, no email (más fácil a los 8–10 años). Internamente se convierte en `usuario@` + `usernameDomain`. Appwrite exige contraseñas de 8 caracteres como mínimo.
 
 > **Si el SDK de Appwrite no carga** (centro sin acceso al CDN, red caída), la app muestra un aviso en pantalla y sigue funcionando en modo local. El aviso existe para que nadie crea que se está guardando en la nube cuando no es así.
+
+## Clase dirigida por el docente
+
+De fábrica la plataforma funciona **dirigida**: el alumnado no entra en la app.
+Pregunta el docente desde su equipo —proyectado o no— y el niño responde en voz
+alta; el docente marca lo que ha dicho. La portada, en este modo, solo ofrece la
+puerta del docente y explica por qué.
+
+Se cambia en **Configuración → Alumnado → «Cómo se usa en clase»**:
+
+| Modo | Para qué |
+|---|---|
+| **Dirigida por el docente** (de fábrica) | Un solo equipo. Nadie más entra. Los diarios se guardan ahí. |
+| **Cada alumno en su dispositivo** | El de siempre: cada niño con su cuenta de Appwrite. |
+| **Las dos cosas** | En clase dirigida, en casa por su cuenta. |
+
+### Cómo va una sesión
+
+1. **Sala de mapas → 🎤 Dirigir la clase.** Sale la clase entera en fichas grandes.
+2. Se elige a quién preguntar, o se pulsa **«A quien le toque»**: propone a quien
+   menos veces haya salido hoy y, a igualdad, a quien lleve más tiempo sin que le
+   pregunten. Es el problema real de un aula de 25.
+3. Arriba se elige el tema: *lo que más le convenga a cada uno* (decide el motor
+   adaptativo, mirando su dominio) o un pozo concreto, si hoy tocan fracciones.
+4. Se lee el reto en voz alta y **se marca la opción que dice el alumno**. Si
+   falla, se le puede ofrecer *restaurar el hallazgo* —corregirse a sí mismo— igual
+   que si jugara solo, y darle la pista de Kira.
+5. **🏅 Los méritos se conceden desde el propio turno**, que es donde ocurren
+   («ha ayudado a su compañera»), sin salir a otra pantalla.
+6. **Terminar turno** cierra la ronda cuando haga falta: se puntúa solo lo
+   respondido, no las preguntas que nadie llegó a ver.
+
+Por dentro es exactamente una expedición: mismo motor adaptativo, mismo dominio
+por estratos, mismas reglas anti-grinding. Lo único que cambia es quién toca la
+pantalla.
+
+> **Los diarios viven en ese equipo.** En clase dirigida no hace falta Appwrite:
+> el equipo del docente guarda el diario de cada alumno y la vista general de la
+> clase los lee de ahí. Para que además entren desde casa, sí hace falta la nube.
 
 ## El curso: tres trimestres
 

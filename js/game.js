@@ -146,7 +146,10 @@ function finishMission() {
   /* La cámara tiene su propio cierre: ni dominio, ni fatiga, ni castigo */
   if (mission.kind === 'guardian') return finishGuardian();
 
-  const total = mission.questions.length;
+  /* En clase dirigida el docente puede cortar el turno cuando toque el timbre.
+     Se puntúa sobre lo REALMENTE respondido: con el total previsto, terminar
+     antes contaría como fallos las preguntas que nadie llegó a ver. */
+  const total = mission.resolved.length || mission.questions.length;
   const accuracy = mission.firstTryCorrect / total;
   const st = getStratum(mission.branchId, mission.stratumId);
   const meta = STRATA_META[mission.stratumId];
@@ -219,6 +222,83 @@ function finishMission() {
   };
   mission = null;
   return result;
+}
+
+/* ══════════ CLASE DIRIGIDA ══════════
+   El docente pregunta desde su equipo y el alumnado responde en voz alta.
+   Por dentro es exactamente una expedición: mismo motor adaptativo, mismo
+   dominio, mismas reglas anti-grinding. Lo único que cambia es quién toca
+   la pantalla. */
+
+/* ¿Qué le toca practicar a este alumno ahora? El estrato abierto con menos
+   dominio; a igualdad, el que lleve más tiempo sin tocarse. Es la misma
+   decisión que tomaría el docente mirando el cuaderno. */
+function siguienteReto(grade) {
+  let mejor = null;
+  for (const branchId of playableBranchIds(grade)) {
+    const def = branchDef(branchId);
+    for (const sId of STRATA_ORDER) {
+      if (!stratumHasContent(def, sId)) continue;
+      const st = getStratum(branchId, sId);
+      if (st.status === 'locked') continue;
+      const cand = { branchId, stratumId: sId, mastery: st.mastery || 0, arena: sandCover(st) };
+      if (!mejor ||
+          cand.mastery < mejor.mastery - 0.001 ||
+          (Math.abs(cand.mastery - mejor.mastery) <= 0.001 && cand.arena > mejor.arena)) {
+        mejor = cand;
+      }
+    }
+  }
+  return mejor;
+}
+
+/* Abre el turno de un alumno: carga su diario y arranca la ronda.
+   `branchId`/`stratumId` son opcionales: si el docente no elige, decide el
+   propio motor con siguienteReto(). */
+function startClassTurn(nombre, grade, branchId, stratumId) {
+  if (!openDiary(nombre, grade)) return { ok: false, reason: 'sin-nombre' };
+  rolloverIfNeeded();          /* su racha y su bitácora, como si entrara él */
+
+  let destino = (branchId && stratumId) ? { branchId, stratumId } : siguienteReto();
+  if (!destino) return { ok: false, reason: 'sin-contenido' };
+
+  if (!startMission(destino.branchId, destino.stratumId, 'clase')) {
+    return { ok: false, reason: 'sin-retos' };
+  }
+  return { ok: true, branchId: destino.branchId, stratumId: destino.stratumId };
+}
+
+/* Cuántas veces se ha preguntado hoy a cada alumno: sirve para repartir los
+   turnos sin dejarse a nadie, que es el problema real de un aula de 25. */
+function turnosDeHoy() {
+  const hoy = todayStr();
+  const out = {};
+  for (const d of allDiaries()) {
+    const log = (d.state.metrics && d.state.metrics.sessions_log) || [];
+    const deHoy = log.filter(e => e.date === hoy);
+    out[d.key] = {
+      rondas: deHoy.length,
+      minutos: deHoy.reduce((a, e) => a + (e.minutes || 0), 0)
+    };
+  }
+  return out;
+}
+
+/* A quién le toca: el que menos veces haya salido hoy; a igualdad, el que
+   lleva más tiempo sin que le pregunten. */
+function aQuienLeToca(lista) {
+  const turnos = turnosDeHoy();
+  let mejor = null;
+  for (const alumno of lista) {
+    const k = diaryKey(alumno.name);
+    const t = turnos[k] || { rondas: 0, minutos: 0 };
+    const cand = { alumno, rondas: t.rondas, minutos: t.minutos };
+    if (!mejor || cand.rondas < mejor.rondas ||
+        (cand.rondas === mejor.rondas && cand.minutos < mejor.minutos)) {
+      mejor = cand;
+    }
+  }
+  return mejor ? mejor.alumno : null;
 }
 
 /* ══════════ CÁMARA DEL GUARDIÁN ══════════

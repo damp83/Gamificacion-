@@ -191,6 +191,12 @@ function cfgAlumnado(body) {
     ${nube ? 'crear las cuentas de todos de una vez.' :
       'tenerla preparada. <strong>Para crear cuentas hace falta configurar Appwrite</strong> en «Acceso y nube».'}</p>
 
+    ${field('Cómo se usa en clase', `<select id="cfg-session-mode">
+      <option value="docente"${ATLAS_CONFIG.sessionMode === 'docente' ? ' selected' : ''}>Dirigida por el docente: yo pregunto, ellos responden</option>
+      <option value="alumno"${ATLAS_CONFIG.sessionMode === 'alumno' ? ' selected' : ''}>Cada alumno en su dispositivo, con su cuenta</option>
+      <option value="ambos"${ATLAS_CONFIG.sessionMode === 'ambos' ? ' selected' : ''}>Las dos cosas (en clase dirigida, en casa por su cuenta)</option>
+    </select>`, 'En clase dirigida, la portada no ofrece la puerta del alumnado y los diarios se guardan en este equipo.')}
+
     ${field('Nombre del docente', `<input type="text" id="cfg-teacher-name" value="${(ATLAS_CONFIG.teacherName || '').replace(/"/g, '&quot;')}" placeholder="Diego Moya">`,
       'Aparece en la portada y en la sala de mapas.')}
     ${field('Nombre de la clase', `<input type="text" id="cfg-class-name" value="${(ATLAS_CONFIG.className || '').replace(/"/g, '&quot;')}" placeholder="4.º B">`)}
@@ -249,6 +255,8 @@ function cfgAlumnado(body) {
         `${r.name}  →  usuario: ${r.username}   contraseña: ${r.password}`).join('\n')}</textarea>
       <button class="btn btn-secondary btn-small" id="ros-copy">📋 Copiar</button>` : ''}`;
 
+  onInput('#cfg-session-mode', e => cfgSave('sessionMode', e.target.value,
+    e.target.value === 'docente' ? 'Clase dirigida por el docente ✓' : 'Modo de sesión guardado ✓'));
   onInput('#cfg-teacher-name', e => cfgSave('teacherName', e.target.value.trim()));
   onInput('#cfg-class-name', e => cfgSave('className', e.target.value.trim()));
   onInput('#cfg-default-grade', e => cfgSave('defaultGrade', +e.target.value));

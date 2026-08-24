@@ -221,9 +221,80 @@ function buildSummary() {
 
 let S = null; /* estado vivo */
 
+/* ══════════ DIARIOS DE TODA LA CLASE EN UN DISPOSITIVO ══════════
+   En clase dirigida el alumnado no toca la app: pregunta el docente desde su
+   equipo. Ese equipo tiene entonces que guardar el diario de CADA alumno, no
+   uno solo. Se guardan todos juntos bajo una clave aparte; `STORAGE_KEY`
+   sigue siendo el diario propio del dispositivo (modo alumno de siempre).
+
+   `diarioActivo` dice a quién se está atendiendo ahora mismo:
+   · null  → el diario propio del dispositivo (comportamiento de siempre)
+   · «ana» → el diario de esa alumna dentro del archivo de la clase */
+const DIARIES_KEY = 'atlas_diarios_v1';
+let diarioActivo = null;
+
+/* La clave es el nombre normalizado: así casa con la lista de clase aunque
+   se escriba con mayúsculas o espacios de más. */
+function diaryKey(nombre) { return String(nombre || '').trim().toLowerCase(); }
+
+function loadDiaries() {
+  try {
+    const raw = localStorage.getItem(DIARIES_KEY);
+    const o = raw ? JSON.parse(raw) : null;
+    return (o && typeof o.diaries === 'object') ? o.diaries : {};
+  } catch (e) { return {}; }
+}
+function saveDiaries(map) {
+  try { localStorage.setItem(DIARIES_KEY, JSON.stringify({ v: 1, diaries: map })); }
+  catch (e) { /* almacenamiento lleno o no disponible */ }
+}
+/* Todos los diarios guardados aquí, ya migrados, listos para la vista de clase */
+function allDiaries() {
+  const map = loadDiaries();
+  const out = [];
+  for (const k in map) {
+    try {
+      const st = migrateState(map[k]);
+      if (st && st.profile) out.push({ id: 'local:' + k, key: k, name: st.profile.explorer_name, state: st });
+    } catch (e) { /* diario ilegible: se ignora, no se pierde el resto */ }
+  }
+  return out;
+}
+function diaryExists(nombre) { return !!loadDiaries()[diaryKey(nombre)]; }
+
+/* Abre (o crea) el diario de un alumno y lo deja como estado vivo */
+function openDiary(nombre, grade) {
+  const k = diaryKey(nombre);
+  if (!k) return null;
+  const map = loadDiaries();
+  if (map[k]) {
+    S = migrateState(map[k]);
+    /* el nombre visible manda el de la lista: si el docente lo corrige, se corrige */
+    S.profile.explorer_name = nombre;
+  } else {
+    S = defaultState(nombre);
+    if (grade) S.profile.grade = grade;
+  }
+  diarioActivo = k;
+  saveState();
+  return S;
+}
+/* Vuelve al diario propio del dispositivo (modo alumno) */
+function closeDiary() {
+  diarioActivo = null;
+  S = null;
+  return loadState();
+}
+
 function saveState() {
   if (!S) return;
   S.updated_at = Date.now(); /* para resolver «¿qué copia es más nueva?» entre dispositivos */
+  if (diarioActivo) {
+    const map = loadDiaries();
+    map[diarioActivo] = S;
+    saveDiaries(map);
+    return;   /* el diario de un alumno no se sube a la cuenta del docente */
+  }
   try { localStorage.setItem(STORAGE_KEY, JSON.stringify(S)); } catch (e) { /* almacenamiento no disponible */ }
   if (typeof cloudScheduleSave === 'function') cloudScheduleSave();
 }

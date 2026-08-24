@@ -44,6 +44,9 @@
           <small>Ver la clase y preparar la expedición</small>
         </button>
       </div>
+      <p id="home-doors-note" class="home-note hidden">Esta clase funciona <strong>dirigida por el
+      docente</strong>: se pregunta desde su equipo y el alumnado responde en voz alta, sin entrar
+      a la app. Se puede cambiar en <em>Configuración → Alumnado</em>.</p>
 
       <!-- ── La historia, contada para el alumnado ── -->
       <section class="home-block">
@@ -153,6 +156,11 @@
         <p id="teacher-greeting" class="home-lead">Desde aquí ves cómo va la clase y preparas la expedición.</p>
       </header>
       <div class="home-doors">
+        <button class="home-door home-door-aula" id="teacher-go-aula">
+          <span class="home-door-icon">🎤</span>
+          <strong>Dirigir la clase</strong>
+          <small>Preguntar en voz alta y anotar lo que responde cada alumno</small>
+        </button>
         <button class="home-door" id="teacher-go-class">
           <span class="home-door-icon">👥</span>
           <strong>Vista general de la clase</strong>
@@ -281,6 +289,69 @@
         <p id="branch-desc" class="branch-desc"></p>
         <div id="strata-list" class="strata-list"></div>
         <div id="branch-guardian" class="branch-guardian"></div>
+      </section>
+
+      <!-- ══════════ CLASE DIRIGIDA ══════════ -->
+      <section id="screen-aula" class="screen hidden">
+        <button class="btn btn-back" id="aula-salir">← Volver a la sala de mapas</button>
+
+        <!-- Turnos: a quién se le pregunta -->
+        <div id="aula-turnos">
+          <div class="aula-head">
+            <div>
+              <h2>🎤 Dirigir la clase</h2>
+              <p class="aula-sub">Tú preguntas, el alumnado responde en voz alta y tú marcas lo que
+              ha dicho. Todo cuenta en su diario: no hace falta que entren en la app.</p>
+            </div>
+            <button class="btn btn-primary" id="aula-siguiente">🎲 A quien le toque</button>
+          </div>
+          <div class="aula-toolbar">
+            <label class="cfg-label" for="aula-tema">Preguntar de</label>
+            <select id="aula-tema"></select>
+            <span id="aula-resumen" class="class-meta"></span>
+          </div>
+          <div id="aula-lista" class="aula-lista"></div>
+          <p id="aula-vacia" class="empty-note hidden"></p>
+        </div>
+
+        <!-- Turno en curso: la pregunta -->
+        <div id="aula-turno" class="hidden">
+          <div class="aula-alumno">
+            <span class="aula-alumno-avatar" id="aula-avatar">🧒</span>
+            <div class="aula-alumno-info">
+              <strong id="aula-nombre"></strong>
+              <small id="aula-detalle"></small>
+            </div>
+            <div class="aula-progreso" id="aula-progreso"></div>
+            <button class="btn btn-quit btn-small" id="aula-terminar">Terminar turno</button>
+          </div>
+
+          <div class="question-card" id="aula-pregunta-card">
+            <p class="aula-instruccion">Lee la pregunta en voz alta y marca lo que responda.</p>
+            <p class="question-text" id="aula-pregunta"></p>
+            <div class="options" id="aula-opciones"></div>
+            <div class="mission-tools">
+              <button class="btn btn-hint btn-small" id="aula-pista">🪲 Dar la pista de Kira</button>
+              <button class="btn btn-quit btn-small" id="aula-saltar">Saltar esta</button>
+            </div>
+            <div id="aula-kira" class="dialog kira hidden"></div>
+          </div>
+
+          <div class="feedback-card hidden" id="aula-feedback">
+            <div id="aula-fb-icon" class="big-emoji"></div>
+            <p class="feedback-title" id="aula-fb-title"></p>
+            <p class="feedback-explain" id="aula-fb-explain"></p>
+            <div class="aula-fb-acciones">
+              <button class="btn btn-restore" id="aula-restaurar">🔧 Dejar que lo corrija (+5 🪙)</button>
+              <button class="btn btn-primary" id="aula-continuar">Siguiente →</button>
+            </div>
+          </div>
+
+          <div class="aula-meritos">
+            <h3>🏅 Méritos para&nbsp;<span id="aula-merito-quien"></span></h3>
+            <div id="aula-merito-lista" class="award-list"></div>
+          </div>
+        </div>
       </section>
 
       <!-- ══════════ ANTESALA DE LA CÁMARA DEL GUARDIÁN ══════════ -->

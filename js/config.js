@@ -29,6 +29,13 @@ const ATLAS_DEFAULTS = {
      el código corre en el navegador. */
   teacherPin: '1234',
 
+  /* ── Cómo se usa la plataforma en clase (PRD §2.1) ──
+     'docente' → clase dirigida: pregunta el docente desde su equipo y el
+                 alumnado responde en voz alta. Nadie más entra a la app.
+     'alumno'  → cada niño en su dispositivo, con su cuenta.
+     'ambos'   → las dos cosas (en clase dirigida, en casa por su cuenta). */
+  sessionMode: 'docente',
+
   /* Quién dirige la expedición. Aparece en la portada y en la sala de mapas. */
   teacherName: '',
   className: '',
