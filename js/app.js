@@ -148,7 +148,7 @@ function renderMap() {
   const gi = gradeInfo(S.profile.grade);
   $('#map-reveal-pct').textContent = `${pct}% del mundo dibujado · ${gi.label} (${gi.age})`;
 
-  $('#fatigue-banner').classList.toggle('hidden', S.daily.missions_today < ECO().fatigueThreshold);
+  $('#fatigue-banner').classList.toggle('hidden', !isFatigued());
 
   const siteList = $('#site-list');
   siteList.innerHTML = '';
@@ -547,7 +547,7 @@ function renderDashboard() {
   const signals = [];
   if (lowQualityFlag()) signals.push('⚠️ Muchas respuestas en <2 s: posible sesión de baja calidad (responder al azar). Revisar en persona, sin penalizar.');
   if (acc !== null && acc < 0.6) signals.push('⚠️ Precisión por debajo del canal de flujo: el motor ya bajó la dificultad; considerar repaso guiado.');
-  if (S.daily.missions_today >= ECO().fatigueThreshold) signals.push('ℹ️ Fatiga de expedición activa hoy: las misiones extra dan 50% de PE.');
+  if (isFatigued()) signals.push('ℹ️ Fatiga de expedición activa hoy: las misiones extra dan 50% de PE.');
   const decayed = [];
   for (const branchId of playableBranchIds()) {
     for (const sId of STRATA_ORDER) {

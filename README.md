@@ -12,7 +12,7 @@ PWA sin dependencias: HTML + CSS + JavaScript vanilla, funciona offline y se ins
 | **Yacimiento** | Ruinas de Kaldros (Matemáticas) con 3 pozos: Numeración, Sumas con llevada y Fracciones |
 | **Estratos de Bloom 1–4** | Recordar · Comprender · Aplicar · Analizar, con desbloqueo por mastery ≥80% del estrato superior |
 | **Economía doble** | Puntos de Expedición (PE, curva `100 × n^1.55`) + Doblones con fuentes y sumideros del PRD §2.4–2.5 |
-| **Anti-grinding** | PE solo por primer acierto · contenido dominado ≥90% da 10% de PE · fatiga narrativa desde la 6ª misión (50% PE) · auditoría silenciosa de respuestas <2 s |
+| **Anti-grinding** | PE solo por primer acierto · contenido dominado ≥90% da 10% de PE · fatiga narrativa tras 25 min de excavación diaria (50% PE) · auditoría silenciosa de respuestas <2 s |
 | **Personajes** | Bruno Ocaña (modela el error sin vergüenza), Kira (pistas graduadas: 1 gratis + 1 a 10 🪙), Tobías y Vera Kovak (en los retos de "encontrar el error") |
 | **Metacognición** | «Restaurar hallazgo»: corregir el propio error da +5 🪙 (máx. 5/día) |
 | **Motor adaptativo** | Precisión móvil de las últimas 10 respuestas; sube/baja la dificultad para mantener el canal de flujo 0.70–0.85 |
@@ -148,7 +148,7 @@ Los comportamientos, sus valores y sus topes diarios se editan en `js/config.js`
 | 🛖 Cuadrillas de excavación | Crear equipos, **asignar alumnos marcando casillas**, fijar la meta común y la aportación |
 | 🏛️ Yacimientos y pozos | **Crear yacimientos y pozos nuevos y escribir los retos de cada estrato**, además de renombrar y ocultar |
 | 🏪 Almacén | Añadir, retirar y reajustar precios de los artículos cosméticos |
-| ⚖️ Economía | Retos por misión, Doblones de cada fuente, topes diarios, fatiga, bolsa inicial… |
+| ⚖️ Economía | Retos por misión, Doblones de cada fuente, topes diarios, minutos hasta la fatiga, bolsa inicial… |
 | 🔐 Acceso y nube | PIN del panel y datos de Appwrite |
 | 💾 Copia de seguridad | Exportar los ajustes para llevarlos a otra tablet, importarlos y restaurar los de fábrica |
 

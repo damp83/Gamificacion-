@@ -436,6 +436,18 @@ function recordAttempt(branchId, stratumId) {
   S.metrics.errors_by_skill[key].attempts++;
   S.metrics.questions_answered++;
 }
+/* Minutos de excavación acumulados hoy: es lo que de verdad cansa a un niño,
+   y lo que el cuaderno docente ya venía midiendo. */
+function minutesToday() {
+  const e = (S.metrics.sessions_log || []).find(x => x.date === todayStr());
+  return e ? (e.minutes || 0) : 0;
+}
+function isFatigued() {
+  const eco = ATLAS_CONFIG.economy;
+  if (eco.fatigueMinutes) return minutesToday() >= eco.fatigueMinutes;
+  return S.daily.missions_today >= eco.fatigueThreshold;   /* respaldo */
+}
+
 function logSessionMission(minutes) {
   const today = todayStr();
   let entry = S.metrics.sessions_log.find(e => e.date === today);

@@ -103,7 +103,13 @@ const ATLAS_DEFAULTS = {
     restoreCoins: 5,          /* restaurar un hallazgo (autocorrección) */
     restoresPerDay: 5,
     hintCost: 10,             /* pista extra de Kira */
-    fatigueThreshold: 6,      /* desde esta misión diaria, PE al 50% */
+    /* La fatiga se mide en MINUTOS de excavación, no en número de misiones.
+       Contar misiones era mal indicador: su duración depende de cuántos retos
+       ponga el docente, así que el mismo umbral significaba cosas distintas en
+       cada aula. Con 25 min, una sesión completa de las que recomienda el PRD
+       (10-20) nunca se penaliza, pero atracarse dos horas seguidas sí. */
+    fatigueMinutes: 25,       /* minutos de excavación diarios antes de bajar el PE */
+    fatigueThreshold: 10,     /* respaldo por nº de misiones, por si no hay minutos */
     startingCoins: 25         /* bolsa inicial de la Sociedad */
   },
 

@@ -814,7 +814,7 @@ const ECO_FIELDS = [
   { k: 'restoreCoins',     label: 'Restaurar un hallazgo', min: 0, max: 50 },
   { k: 'restoresPerDay',   label: 'Restauraciones premiadas al día', min: 1, max: 20 },
   { k: 'hintCost',         label: 'Coste de la pista extra de Kira', min: 0, max: 100 },
-  { k: 'fatigueThreshold', label: 'Misión desde la que baja el PE', min: 2, max: 30 },
+  { k: 'fatigueMinutes',   label: 'Minutos de excavación antes de bajar el PE', min: 5, max: 120 },
   { k: 'startingCoins',    label: 'Bolsa inicial de un explorador nuevo', min: 0, max: 500 }
 ];
 function cfgEconomia(body) {

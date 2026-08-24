@@ -9,7 +9,10 @@
   --parchment-dark: #ecdbb6;
   --ink: #3a2a16;
   --ink-soft: #6b5638;
-  --brass: #b8860b;
+  /* Oscurecido desde #b8860b: aquel valor no alcanzaba 4,5:1 ni sobre el
+     pergamino (2,73:1) ni llevando texto blanco encima (3,25:1). Este da
+     5,7:1 en ambos sentidos, y de paso corrige los seis puntos a la vez. */
+  --brass: #8a5a0b;
   --brass-light: #e6b93f;
   --leather: #7a4a21;
   --leather-dark: #5b3617;
@@ -50,7 +53,10 @@ button:disabled { cursor: not-allowed; opacity: .55; }
 .btn:active { transform: scale(.96); }
 .btn-primary { background: var(--jungle); color: #fff; }
 .btn-secondary { background: var(--brass); color: #fff; }
-.btn-small { padding: .45rem .9rem; font-size: .9rem; }
+/* 44 px es el objetivo táctil mínimo recomendado, y aquí son dedos de seis
+   años sobre una tablet: fallar el toque en la tienda frustra justo en el
+   momento de recompensa. */
+.btn-small { padding: .45rem .9rem; font-size: .9rem; min-height: 44px; }
 .btn-back { background: transparent; box-shadow: none; color: var(--leather); font-size: 1rem; margin-bottom: .6rem; }
 .btn-hint { background: var(--parchment-dark); color: var(--ink); }
 .btn-quit { background: transparent; box-shadow: none; color: var(--ink-soft); font-size: .9rem; }
@@ -122,12 +128,18 @@ button:disabled { cursor: not-allowed; opacity: .55; }
   box-shadow: 0 -3px 10px rgba(0,0,0,.2);
 }
 .tab {
-  flex: 1; background: transparent; border: none; color: #d8c49a;
+  flex: 1; background: transparent; border: none; color: #e4d3b0;
   display: flex; flex-direction: column; align-items: center; gap: .1rem;
   font-size: .72rem; font-weight: 700; padding: .35rem 0; border-radius: 10px;
 }
 .tab span { font-size: 1.35rem; }
-.tab.active { background: rgba(240, 195, 60, .18); color: var(--gold); }
+/* El realce claro dejaba el dorado en 4,33:1 sobre sí mismo. Oscurecerlo
+   sube a 8:1, y el filete superior marca la selección con más fuerza que
+   el tinte que había antes. */
+.tab.active {
+  background: rgba(0, 0, 0, .22); color: var(--gold);
+  box-shadow: inset 0 3px 0 var(--gold);
+}
 
 /* ── Mapa ── */
 .map-header { margin-bottom: .8rem; }
@@ -284,7 +296,10 @@ button:disabled { cursor: not-allowed; opacity: .55; }
 }
 .shop-icon { font-size: 1.7rem; }
 .shop-info { flex: 1; }
-.shop-info small { color: var(--brass); font-weight: 700; }
+/* Nombre y precio en líneas distintas: pegados se leía «Sombrero de ala
+   ancha80 🪙». Mismo arreglo que ya tenían los estratos. */
+.shop-info strong { display: block; }
+.shop-info small { color: var(--brass); font-weight: 700; display: block; }
 
 /* ── Bitácora ── */
 .logbook-summary { display: grid; grid-template-columns: repeat(4, 1fr); gap: .5rem; margin-bottom: 1rem; }
@@ -538,7 +553,7 @@ button:disabled { cursor: not-allowed; opacity: .55; }
   display: grid; grid-template-columns: 1fr auto; align-items: center; gap: .3rem .6rem;
 }
 .cfg-field-inline .cfg-hint { grid-column: 1 / -1; }
-.cfg-field-inline input[type="checkbox"] { width: 22px; height: 22px; accent-color: var(--jungle); }
+.cfg-field-inline input[type="checkbox"] { width: 28px; height: 28px; accent-color: var(--jungle); }
 
 /* ══════════ DIÁLOGO PROPIO ══════════ */
 .modal {
@@ -854,3 +869,34 @@ body.large-text .branch-info strong, body.large-text .stratum-info strong { font
 .grade-chip.on { background: #e8ecd8; border-color: var(--jungle); color: var(--ink); }
 .grade-chip input { width: 15px; height: 15px; accent-color: var(--jungle); }
 .ros-grade { max-width: 190px; }
+
+
+/* ── Objetivos táctiles ──
+   Las casillas no pueden crecer sin descuadrar la retícula, así que el área
+   de toque se amplía con un pseudoelemento invisible centrado en ellas. */
+.team-pick input[type="checkbox"],
+.cfg-body input[type="checkbox"],
+.cfg-body input[type="radio"] {
+  width: 26px; height: 26px; position: relative; accent-color: var(--jungle);
+}
+.team-pick input[type="checkbox"]::after,
+.cfg-body input[type="checkbox"]::after,
+.cfg-body input[type="radio"]::after {
+  content: ''; position: absolute; left: 50%; top: 50%;
+  width: 44px; height: 44px; transform: translate(-50%, -50%);
+}
+.cfg-del { min-width: 44px; min-height: 44px; }
+.auth-tab { min-height: 44px; }
+
+/* El ampliador vale para CUALQUIER casilla o radio de la app, no solo las del
+   panel: la del Campamento se quedaba fuera por estar en otro contenedor. */
+input[type="checkbox"], input[type="radio"] { position: relative; }
+input[type="checkbox"]::after, input[type="radio"]::after {
+  content: ''; position: absolute; left: 50%; top: 50%;
+  width: 44px; height: 44px; transform: translate(-50%, -50%);
+}
+/* Controles del panel: es interfaz de docente, pero también se usa en tablet */
+.cfg-nav-btn, .cfg-strat-tab, .cfg-toggle { min-height: 44px; }
+.cfg-body input[type="text"], .cfg-body input[type="number"],
+.cfg-body input[type="date"], .cfg-body select { min-height: 44px; }
+.class-toolbar select, #pin-input, #modal-input { min-height: 44px; }

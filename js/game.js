@@ -154,7 +154,7 @@ function finishMission() {
 
   /* Fatiga de expedición: desde la 6ª misión diaria, PE al 50% (§2.7.2) */
   S.daily.missions_today++;
-  const fatigued = S.daily.missions_today >= ECO().fatigueThreshold;
+  const fatigued = isFatigued();
   if (fatigued && !alreadyMastered) {
     pe = Math.round(pe * 0.5);
     notes.push('Fatiga de expedición: PE al 50%. Bruno recomienda acampar.');
@@ -198,7 +198,7 @@ function finishMission() {
     masteryAfter,
     branchId: mission.branchId,
     stratumId: mission.stratumId,
-    fatigued: S.daily.missions_today >= ECO().fatigueThreshold
+    fatigued: isFatigued()
   };
   mission = null;
   return result;
