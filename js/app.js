@@ -11,6 +11,9 @@ const SCREENS = ['map', 'branch', 'guardian', 'mission', 'result', 'camp', 'meri
 function show(screenId) {
   SCREENS.forEach(s => $(`#screen-${s}`).classList.toggle('hidden', s !== screenId));
   $$('#tabbar .tab').forEach(t => t.classList.toggle('active', t.dataset.nav === screenId));
+  /* En misión los tabs ya estaban bloqueados por código; mostrarlos era
+     ofrecer una salida que no existía. Se esconden y queda el reto solo. */
+  document.body.classList.toggle('en-mision', screenId === 'mission');
   if (screenId === 'map') renderMap();
   if (screenId === 'camp') renderCamp();
   if (screenId === 'merits') renderMerits();
@@ -171,6 +174,13 @@ function renderMap() {
       <div><h3>${site.name}</h3><p>${site.subject}${site.desc ? ' · ' + site.desc : ''}</p></div>`;
     siteList.appendChild(header);
 
+    /* Los pozos van en su propia rejilla, no sueltos en la columna: así en
+       pantalla ancha se reparten en dos por fila en vez de dejar medio
+       lienzo vacío al lado. */
+    const grid = document.createElement('div');
+    grid.className = 'site-branches';
+    siteList.appendChild(grid);
+
     for (const b of branchesEnabledOf(site)) {
       const strata = branchState(b.id).strata;
       const withContent = STRATA_ORDER.filter(sId => stratumHasContent(b, sId));
@@ -188,7 +198,7 @@ function renderMap() {
           <small>${mastered}/${withContent.length} estratos dominados</small>
         </div><span class="branch-go">⛏️</span>`;
       card.addEventListener('click', () => openBranch(b.id));
-      siteList.appendChild(card);
+      grid.appendChild(card);
     }
   }
 
@@ -397,6 +407,9 @@ function renderQuestion() {
   q.options.forEach((opt, i) => {
     const btn = document.createElement('button');
     btn.className = 'option';
+    /* La letra la pinta el CSS desde aquí: así se puede nombrar la opción en
+       voz alta («la C») y todos los textos arrancan en la misma columna. */
+    btn.dataset.letra = 'ABCD'[i];
     btn.textContent = opt;
     btn.addEventListener('click', () => onAnswer(i, btn));
     optionsEl.appendChild(btn);
@@ -449,7 +462,7 @@ function showFeedback(res, extra) {
     $('#feedback-title').textContent = pick([
       '¡Trampa! Bruno ya había caído en esa misma…',
       '¡Zas! Una reja… y Bruno dentro, contando chistes.',
-      'La losa se hundió. Tobías te mira con cara de "yo también me equivoco".'
+      'La losa se hundió. Tobías te mira con cara de «yo también me equivoco».'
     ]);
     $('#feedback-explain').textContent = res.explanation;
     /* ofrecer restauración del hallazgo (metacognición) */
@@ -747,17 +760,19 @@ function renderDashboard() {
   let html = '';
   for (const branchId of playableBranchIds()) {
     const b = branchDef(branchId);
-    html += `<div class="dash-branch"><strong>${b.icon} ${b.name}</strong><div class="dash-strata">`;
+    html += `<div class="dash-branch"><h4>${b.icon} ${b.name}</h4><div class="dash-strata">`;
     for (const sId of STRATA_ORDER) {
       if (!stratumHasContent(b, sId)) continue;
       const st = getStratum(branchId, sId);
       const key = `${branchId}.${sId}`;
       const err = S.metrics.errors_by_skill[key];
       const errRate = err && err.attempts ? Math.round((err.errors / err.attempts) * 100) : null;
-      html += `<div class="dash-stratum">
-        <span class="dash-stratum-label">${STRATA_META[sId].label}</span>
+      /* El candado iba al final de la cifra y se leía como parte del dato;
+         ahora acompaña a la etiqueta, que es de lo que informa. */
+      html += `<div class="dash-row">
+        <span class="dash-row-label">${STRATA_META[sId].label}${st.status === 'locked' ? ' 🔒' : ''}</span>
         <div class="mastery-bar"><div class="mastery-fill${st.mastery >= 0.8 ? ' gold' : ''}" style="width:${Math.round(st.mastery * 100)}%"></div></div>
-        <span class="dash-stratum-num">${Math.round(st.mastery * 100)}%${errRate !== null ? ` · err ${errRate}%` : ''}${st.status === 'locked' ? ' 🔒' : ''}</span>
+        <span class="dash-row-num">${Math.round(st.mastery * 100)}%${errRate !== null ? ` · err ${errRate}%` : ''}</span>
       </div>`;
     }
     html += '</div></div>';

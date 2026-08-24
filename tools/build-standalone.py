@@ -37,6 +37,18 @@ if n != 1:
 
 css = (RAIZ / 'css' / 'styles.css').read_text(encoding='utf-8')
 
+# Las tipografías se incrustan en el propio archivo: un HTML suelto no tiene
+# carpeta fonts/ al lado, y en un Artifact tampoco podría pedirla.
+import base64
+for nombre in ('bree-serif-latin', 'nunito-latin', 'nunito-italic-latin'):
+    ruta = RAIZ / 'fonts' / f'{nombre}.woff2'
+    b64 = base64.b64encode(ruta.read_bytes()).decode('ascii')
+    antes = css
+    css = css.replace(f"url('../fonts/{nombre}.woff2')",
+                      f"url('data:font/woff2;base64,{b64}')")
+    if css == antes:
+        sys.exit(f'ERROR: no se encontró la referencia a {nombre}.woff2 en styles.css')
+
 doc = f"""<meta charset="utf-8">
 <title>Expedición Atlas</title>
 <link rel="preconnect" href="https://fonts.googleapis.com">

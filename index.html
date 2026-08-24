@@ -9,6 +9,11 @@
   <link rel="manifest" href="manifest.webmanifest">
   <link rel="icon" href="icons/icon.svg" type="image/svg+xml">
   <link rel="apple-touch-icon" href="icons/icon.svg">
+  <!-- Tipografía servida desde el propio repositorio (ver fonts/LICENCIA.md):
+       en un centro la red puede bloquear el CDN o caerse a mitad de sesión, y
+       una plataforma que se despinta a medio uso no parece profesional. -->
+  <link rel="preload" href="fonts/nunito-latin.woff2" as="font" type="font/woff2" crossorigin>
+  <link rel="preload" href="fonts/bree-serif-latin.woff2" as="font" type="font/woff2" crossorigin>
   <link rel="stylesheet" href="css/styles.css">
 </head>
 <body>
@@ -409,7 +414,7 @@
         <h2>👥 Vista general de la clase</h2>
         <div id="class-status" class="class-status"></div>
         <div id="class-body" class="hidden">
-          <div id="class-kpis" class="dashboard-kpis"></div>
+          <div id="class-kpis" class="kpi-grid"></div>
 
           <div class="class-toolbar">
             <label class="cfg-label" for="class-sort">Ordenar por</label>
@@ -437,14 +442,17 @@
         <button class="btn btn-back" data-nav="dashboard">← Volver al cuaderno</button>
         <h2>⚙️ Panel de Configuración</h2>
         <p class="cfg-top-note">Los cambios se aplican al instante y se guardan en esta tablet.</p>
-        <div id="cfg-nav" class="cfg-nav"></div>
-        <div id="cfg-body" class="cfg-body"></div>
+        <div class="cfg-shell">
+          <nav id="cfg-nav" class="cfg-nav" aria-label="Secciones de la configuración"></nav>
+          <div id="cfg-body" class="cfg-body"></div>
+        </div>
       </section>
 
       <!-- ══════════ BITÁCORA ══════════ -->
       <section id="screen-logbook" class="screen hidden">
         <h2>📔 Bitácora de Expedición</h2>
         <div id="logbook-summary" class="logbook-summary"></div>
+        <h3>🧭 Ruta de sellos</h3>
         <div id="logbook-stamps" class="logbook-stamps"></div>
         <p class="logbook-note">Un <strong>sello</strong> se estampa cada semana con 3 o más días de expedición.
         Los sellos nunca se borran: si una semana no se completa, solo queda un tramo de ruta sin dibujar.</p>
@@ -455,7 +463,7 @@
         <h2>📊 Cuaderno del Docente</h2>
         <p class="dashboard-note">Vista de progreso pedagógico. Ninguna métrica de actividad se celebra sola:
         lo que importa es el aprendizaje demostrado.</p>
-        <div id="dashboard-kpis" class="dashboard-kpis"></div>
+        <div id="dashboard-kpis" class="kpi-grid"></div>
         <div class="dash-actions">
           <button id="btn-open-class" class="btn btn-secondary btn-small">👥 Vista general de la clase</button>
           <button id="btn-open-config" class="btn btn-secondary btn-small">⚙️ Configurar la expedición</button>
@@ -464,7 +472,7 @@
         <h3>El curso por trimestres</h3>
         <div id="dashboard-course"></div>
 
-        <h3>Mastery por estrato</h3>
+        <h3>Dominio por estrato</h3>
         <div id="dashboard-mastery"></div>
         <h3>Señales de calidad</h3>
         <div id="dashboard-signals"></div>

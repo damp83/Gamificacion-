@@ -1,5 +1,5 @@
 /* Expedición Atlas — service worker: caché de la app shell para uso sin conexión */
-const CACHE = 'atlas-shell-v11';
+const CACHE = 'atlas-shell-v12';
 const ASSETS = [
   './',
   './index.html',
@@ -13,7 +13,12 @@ const ASSETS = [
   './js/state.js',
   './js/game.js',
   './js/app.js',
-  './icons/icon.svg'
+  './icons/icon.svg',
+  /* Las tipografías forman parte de la app shell: sin ellas, en un aula sin
+     red la plataforma se vería con la fuente del sistema. */
+  './fonts/nunito-latin.woff2',
+  './fonts/nunito-italic-latin.woff2',
+  './fonts/bree-serif-latin.woff2'
 ];
 
 self.addEventListener('install', e => {

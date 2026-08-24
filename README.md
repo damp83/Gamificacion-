@@ -274,7 +274,8 @@ Son **cooperativas por diseño**: una fracción de cada Doblón que gana un niñ
 
 ```
 index.html            App shell (todas las pantallas)
-css/styles.css        Estética pergamino/latón, apta para tablet
+css/styles.css        Sistema de diseño y estilos (ver «El sistema visual»)
+fonts/                Bree Serif y Nunito, servidas desde aquí (SIL OFL)
 js/config.js          Valores de partida y capa de ajustes editable del docente
 js/cloud.js           Cuentas y sincronización con Appwrite (degrada a local)
 js/classview.js       Resumen de la clase (cálculo puro + lectura remota)
@@ -285,8 +286,45 @@ js/game.js            Motor de misiones, recompensas y anti-grinding
 js/app.js             Interfaz, navegación y arranque
 sw.js                 Caché offline (network-first)
 manifest.webmanifest  Instalación PWA
+tools/build-standalone.py  Genera la versión de un solo archivo (dist/)
 docs/PRD.md           Documento de diseño completo
 ```
+
+## El sistema visual
+
+Todo el estilo sale de un puñado de fichas declaradas en `:root`, no de valores
+sueltos repartidos por el archivo. Cambiar una ficha cambia la plataforma entera.
+
+| Familia | Para qué |
+|---|---|
+| **Superficies** (`--paper`, `--surface`, `--surface-raised`, `--surface-sunken`) | Cuatro niveles de profundidad. Antes casi todo compartía el mismo crema y la jerarquía dependía solo del borde. |
+| **Tipografía** (`--font-display`, `--font-text`, `--t-xs` … `--t-3xl`) | Bree Serif en los titulares —voz de diario de campo— y Nunito en el texto. Escala de ocho pasos: cada uno se nota sin dar saltos. |
+| **Espaciado** (`--s-1` … `--s-8`) y **radios** (`--r-sm` … `--r-pill`) | El contenedor siempre es más redondo que lo que lleva dentro, como en el papel real. |
+| **Elevación** (`--e-1`, `--e-2`, `--e-3`, `--e-inset`) | Sombras con tinte de tinta, no grises: sobre pergamino un gris puro se ve sucio. |
+| **Anchos** (`--w-narrow`, `--w-content`, `--w-wide`) | Cada pantalla declara cuánto quiere ocupar en vez de una columna fija de 680 px. |
+
+Tres decisiones que conviene no deshacer sin pensarlo:
+
+- **Las tipografías se sirven desde `fonts/`, no desde un CDN.** En un centro la
+  red puede bloquear `fonts.googleapis.com` o caerse a mitad de sesión, y una
+  plataforma que se despinta a medio uso no parece profesional. Son 66 KB del
+  subconjunto latino, y así la versión de un solo archivo funciona desde un USB.
+- **En misión desaparecen las pestañas.** Ya estaban bloqueadas por código;
+  mostrarlas era ofrecer una salida que no existía. El reto se queda solo en
+  pantalla, centrado y a la altura de los ojos.
+- **Todo degradado lleva su `background-color` de reserva.** Si el degradado no
+  pinta, el texto de encima sigue teniendo fondo, y las herramientas de medición
+  de contraste leen el color real en vez de atravesarlo hasta la página.
+
+### Lo que se mide en cada cambio
+
+- **Contraste** — WCAG 2.1 AA (4,5:1; 3:1 en texto grande), compuesto sobre las
+  capas translúcidas reales, en las doce pantallas.
+- **Objetivos táctiles** — 44 × 44 px mínimo, incluyendo el ampliador de las
+  casillas. Son dedos de seis años sobre una tablet.
+- **Foco por teclado** — anillo propio de 3 px, visible sobre cualquier
+  superficie; solo aparece con `:focus-visible`, no al tocar con el dedo.
+- **Desborde horizontal** — a 390, 768, 1024 y 1440 px de ancho.
 
 ## Restricciones éticas (PRD §0.2)
 
