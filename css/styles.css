@@ -813,3 +813,44 @@ body.teacher-mode #main { padding-bottom: 2rem; }
 }
 .team-pick input { width: 18px; height: 18px; accent-color: var(--jungle); flex: 0 0 auto; }
 .team-pick-taken { opacity: .5; font-style: italic; }
+
+/* ══════════ CURSO Y TAMAÑO DE LETRA ══════════ */
+.onb-label { font-size: .9rem; font-weight: 700; color: var(--leather); margin-top: .3rem; }
+.grade-picker { display: grid; grid-template-columns: repeat(3, 1fr); gap: .4rem; }
+.grade-btn {
+  display: flex; flex-direction: column; align-items: center; gap: .1rem;
+  background: var(--parchment); border: 2px solid var(--parchment-dark);
+  border-radius: 14px; padding: .55rem .3rem; color: var(--ink-soft);
+  transition: transform .12s ease;
+}
+.grade-btn strong { font-size: 1.1rem; color: var(--ink); }
+.grade-btn small { font-size: .68rem; line-height: 1.1; }
+.grade-btn.active {
+  background: var(--jungle); border-color: var(--jungle); color: #e8f0e2;
+}
+.grade-btn.active strong { color: #fff; }
+.grade-btn:active { transform: scale(.96); }
+.camp-prefs { margin-top: 1rem; background: var(--card); border-radius: var(--radius);
+  box-shadow: var(--shadow); padding: .7rem .9rem; }
+
+/* Letra grande: para 1.º y 2.º, donde la lectura aún se construye */
+body.large-text { font-size: 1.18rem; }
+body.large-text .question-text { font-size: 1.45rem; line-height: 1.5; }
+body.large-text .option { font-size: 1.28rem; padding: 1rem 1.1rem; }
+body.large-text .feedback-title { font-size: 1.4rem; }
+body.large-text .feedback-explain { font-size: 1.1rem; }
+body.large-text .dialog-text p { font-size: 1.12rem; }
+body.large-text .btn { font-size: 1.15rem; }
+body.large-text .branch-info strong, body.large-text .stratum-info strong { font-size: 1.1rem; }
+
+/* Rango de cursos de un pozo, en el editor */
+.cfg-grades-row { gap: .3rem; }
+.grade-chip {
+  display: flex; align-items: center; gap: .25rem;
+  background: var(--parchment); border: 2px solid var(--parchment-dark);
+  border-radius: 999px; padding: .15rem .55rem; font-size: .78rem;
+  flex: 0 0 auto !important; min-width: 0 !important;
+}
+.grade-chip.on { background: #e8ecd8; border-color: var(--jungle); color: var(--ink); }
+.grade-chip input { width: 15px; height: 15px; accent-color: var(--jungle); }
+.ros-grade { max-width: 190px; }

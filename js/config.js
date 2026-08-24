@@ -33,7 +33,11 @@ const ATLAS_DEFAULTS = {
      La rellena el docente. Sirve para asignar cuadrillas marcando casillas
      (en vez de escribir nombres, que se prestaba a erratas) y para crear las
      cuentas de golpe. `account` marca las que ya existen en Appwrite. */
-  roster: [],   /* [{ name, username, password, account }] */
+  roster: [],   /* [{ name, username, password, account, grade }] */
+
+  /* Curso por defecto de la clase (1 a 6). Se usa al crear diarios nuevos
+     y como referencia cuando el docente mira el panel sin alumno. */
+  defaultGrade: 4,
 
   /* ── El curso: tres trimestres ── */
   course: {

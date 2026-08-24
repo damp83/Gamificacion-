@@ -75,6 +75,43 @@ async function askPin(text) {
   }
 }
 
+/* ── Selector de curso ──
+   Botones grandes con el curso y la edad: a los 6 años «4.º» solo no dice
+   nada, y el docente que ayuda necesita ver la edad de un vistazo. */
+function renderGradePicker(containerSel, hiddenSel, initial) {
+  const cont = $(containerSel);
+  if (!cont) return;
+  let value = initial || (ATLAS_CONFIG.defaultGrade || DEFAULT_GRADE);
+  const paint = () => {
+    cont.innerHTML = GRADES.map(g => `
+      <button type="button" class="grade-btn${g.n === value ? ' active' : ''}" data-grade="${g.n}">
+        <strong>${g.label}</strong><small>${g.age}</small></button>`).join('');
+    cont.querySelectorAll('.grade-btn').forEach(b => b.addEventListener('click', () => {
+      value = +b.dataset.grade;
+      if (hiddenSel && $(hiddenSel)) $(hiddenSel).value = String(value);
+      paint();
+    }));
+  };
+  if (hiddenSel && $(hiddenSel)) $(hiddenSel).value = String(value);
+  cont.dataset.grade = String(value);
+  paint();
+  return () => value;
+}
+let readGrade = () => ATLAS_CONFIG.defaultGrade || DEFAULT_GRADE;
+let readGradeReg = () => ATLAS_CONFIG.defaultGrade || DEFAULT_GRADE;
+
+/* Letra grande: obligatoria de fábrica en 1.º y 2.º, donde la lectura aún
+   se está construyendo y un texto pequeño convierte el reto en un examen
+   de vista. Se puede cambiar desde el campamento. */
+function applyTextSize() {
+  const band = S ? bandOf(S.profile.grade) : 2;
+  const pref = S && S.profile.accessibility ? S.profile.accessibility.large_text : undefined;
+  const grande = pref === undefined ? band === 1 : !!pref;
+  document.body.classList.toggle('large-text', grande);
+  const cb = $('#pref-large-text');
+  if (cb) cb.checked = grande;
+}
+
 function toast(msg, ms) {
   const t = $('#toast');
   t.textContent = msg;
@@ -108,7 +145,8 @@ function renderMap() {
   renderHud();
   const pct = Math.round(mapRevealPct() * 100);
   $('#map-reveal-fill').style.width = pct + '%';
-  $('#map-reveal-pct').textContent = `${pct}% del mundo dibujado`;
+  const gi = gradeInfo(S.profile.grade);
+  $('#map-reveal-pct').textContent = `${pct}% del mundo dibujado · ${gi.label} (${gi.age})`;
 
   $('#fatigue-banner').classList.toggle('hidden', S.daily.missions_today < ECO().fatigueThreshold);
 
@@ -392,6 +430,7 @@ function renderResult(r) {
 /* ── Campamento y almacén ── */
 function renderCamp() {
   renderHud();
+  applyTextSize();
   $('#camp-avatar').textContent = avatarEmoji();
   const equipped = $('#camp-gear-equipped');
   equipped.innerHTML = S.inventory.gear_equipped.length
@@ -842,6 +881,7 @@ function friendlyAuthError(e) {
 }
 
 function showAuth() {
+  readGradeReg = renderGradePicker('#grade-picker-reg', null) || readGradeReg;
   $('#screen-home').classList.add('hidden');
   $('#screen-teacher').classList.add('hidden');
   $('#screen-auth').classList.remove('hidden');
@@ -984,6 +1024,7 @@ function showCloudWarning() {
 }
 
 function showOnboarding() {
+  readGrade = renderGradePicker('#grade-picker', '#input-grade') || readGrade;
   $('#screen-home').classList.add('hidden');
   $('#screen-teacher').classList.add('hidden');
   $('#screen-auth').classList.add('hidden');
@@ -1012,7 +1053,16 @@ function wireGlobalListeners() {
     e.preventDefault();
     const name = $('#input-explorer-name').value.trim() || 'Exploradora';
     createState(name);
+    S.profile.grade = readGrade();
+    saveState();
     startApp();
+  });
+
+  $('#pref-large-text').addEventListener('change', e => {
+    S.profile.accessibility = S.profile.accessibility || {};
+    S.profile.accessibility.large_text = e.target.checked;
+    saveState();
+    applyTextSize();
   });
 
   /* Panel del docente (PIN de aula) */
@@ -1126,6 +1176,8 @@ function wireAuthListeners() {
       await cloudRegister(name, $('#reg-user').value, $('#reg-pass').value);
       try { localStorage.removeItem(STORAGE_KEY); } catch (e2) { /* sin almacenamiento */ }
       createState(name);        /* diario nuevo, se sube al primer guardado */
+      S.profile.grade = readGradeReg();
+      saveState();
       startApp();
     } catch (err) {
       authError(friendlyAuthError(err));
@@ -1145,6 +1197,7 @@ function startApp() {
   $('#screen-onboarding').classList.add('hidden');
   $('#app').classList.remove('hidden');
   const events = rolloverIfNeeded();
+  applyTextSize();
   renderHud();
   show('map');
   if (events.firstLoginBonus) {

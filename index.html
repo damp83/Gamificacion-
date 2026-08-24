@@ -119,13 +119,14 @@
       <section class="home-block home-adults">
         <h2>📋 Para familias y profesorado</h2>
         <p><strong>Expedición Atlas</strong> es una plataforma educativa gamificada para
-        3.º a 5.º de primaria. Su meta no es entretener: es sostener la atención y la
-        motivación mientras se aprende.</p>
+        <strong>toda la etapa de primaria: de 1.º a 6.º (6 a 12 años)</strong>. Su meta no es
+        entretener: es sostener la atención y la motivación mientras se aprende.</p>
         <ul class="home-facts">
           <li><strong>El progreso es aprendizaje real.</strong> Los estratos siguen la
           taxonomía de Bloom y solo se abren demostrando un 80 % de dominio.</li>
-          <li><strong>Se adapta a cada niño.</strong> La dificultad sube o baja según sus
-          últimas respuestas para mantenerlo en la zona de flujo.</li>
+          <li><strong>Se adapta a cada niño.</strong> El contenido se ajusta a su curso
+          —los números, el vocabulario y hasta la longitud de los enunciados— y la dificultad
+          sube o baja según sus últimas respuestas para mantenerlo en la zona de flujo.</li>
           <li><strong>Nada se pierde nunca.</strong> Ausentarse no borra sellos ni progreso,
           y no existe forma de restar puntos.</li>
           <li><strong>Sin compras reales ni rankings entre niños.</strong> Todo lo comprable
@@ -186,6 +187,8 @@
         <input type="text" id="reg-name" maxlength="20" placeholder="Tu nombre de explorador" required autocomplete="off">
         <input type="text" id="reg-user" placeholder="Elige un usuario (sin espacios)" required autocomplete="username">
         <input type="password" id="reg-pass" placeholder="Una contraseña (8 letras o más)" required minlength="8" autocomplete="new-password">
+        <span class="onb-label">¿En qué curso estás?</span>
+        <div id="grade-picker-reg" class="grade-picker"></div>
         <button type="submit" class="btn btn-primary">Crear mi diario 📔</button>
       </form>
 
@@ -211,6 +214,9 @@
       </div>
       <form id="onboarding-form">
         <input type="text" id="input-explorer-name" maxlength="20" placeholder="Tu nombre de explorador" required autocomplete="off">
+        <span class="onb-label">¿En qué curso estás?</span>
+        <div id="grade-picker" class="grade-picker"></div>
+        <input type="hidden" id="input-grade" value="4">
         <button type="submit" class="btn btn-primary">¡Empezar la expedición! 🎒</button>
       </form>
     </div>
@@ -317,6 +323,13 @@
           <div id="camp-gear-equipped" class="camp-gear-equipped"></div>
         </div>
         <div id="camp-scene" class="camp-scene"></div>
+        <div class="camp-prefs">
+          <label class="cfg-field cfg-field-inline">
+            <span class="cfg-label">🔠 Letra más grande</span>
+            <input type="checkbox" id="pref-large-text">
+          </label>
+        </div>
+
         <h3>🏪 Almacén de la Expedición</h3>
         <p class="shop-note">Todo lo del almacén es decorativo: ¡ninguna compra da ventaja en las excavaciones!</p>
         <div id="shop-list" class="shop-list"></div>

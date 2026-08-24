@@ -66,6 +66,10 @@ function migrateState(s) {
   }
   if (!Array.isArray(s.behavior_log)) s.behavior_log = [];
   if (typeof s.progression.team_contribution !== 'number') s.progression.team_contribution = 0;
+  /* diarios de antes de que existieran los cursos: se les asigna el que
+     tenía la plataforma entonces, para no cambiarles el contenido de golpe */
+  if (!s.profile.grade) s.profile.grade = DEFAULT_GRADE;
+  if (!s.profile.accessibility) s.profile.accessibility = {};
   if (!s.updated_at) s.updated_at = Date.now();
   for (const siteId in s.dig_sites) {
     for (const bId in s.dig_sites[siteId]) {
@@ -92,7 +96,11 @@ function defaultState(name) {
     updated_at: Date.now(),
     profile: {
       explorer_name: name,
+      grade: DEFAULT_GRADE,      /* 1.º a 6.º: decide qué contenido ve */
       created_at: todayStr(),
+      /* large_text se deja sin definir a propósito: mientras nadie lo toque,
+         manda el curso (grande en 1.º y 2.º). Fijarlo aquí en false anulaba
+         esa regla y los pequeños veían la letra normal. */
       accessibility: { reduced_motion: false }
     },
     progression: {
@@ -291,9 +299,9 @@ function getStratum(branchId, stratumId) {
 }
 
 /* Todos los pozos jugables ahora mismo, de todos los yacimientos activos */
-function playableBranchIds() {
+function playableBranchIds(grade) {
   const out = [];
-  for (const site of sitesEnabled()) for (const b of branchesEnabledOf(site)) out.push(b.id);
+  for (const site of sitesEnabled()) for (const b of branchesEnabledOf(site, grade)) out.push(b.id);
   return out;
 }
 /* Mastery = precisión media de las últimas MASTERY_WINDOW sesiones del estrato.

@@ -1,6 +1,6 @@
 # 🧭 Expedición Atlas: Los Diarios Perdidos
 
-Plataforma educativa gamificada de aventura arqueológica para primaria (8–10 años).
+Plataforma educativa gamificada de aventura arqueológica para **toda la primaria: 1.º a 6.º (6 a 12 años)**.
 PWA sin dependencias: HTML + CSS + JavaScript vanilla, funciona offline y se instala en tablet.
 
 > El diseño completo está en [`docs/PRD.md`](docs/PRD.md). Este repositorio implementa el **MVP (Fase T1)** del roadmap.
@@ -43,6 +43,26 @@ npx serve .
 Abre `http://localhost:8080`. Para instalarlo como app en tablet, usa «Añadir a pantalla de inicio» desde el navegador.
 
 > El service worker requiere servirse por HTTP(S); abrir `index.html` con `file://` funciona pero sin modo offline.
+
+## Toda la primaria: 1.º a 6.º
+
+Cada alumno tiene su **curso** (se elige al crear el diario y el docente puede fijarlo en la lista de clase). El curso decide tres cosas:
+
+| | 1.º y 2.º (6–8) | 3.º y 4.º (8–10) | 5.º y 6.º (10–12) |
+|---|---|---|---|
+| **Números** | hasta 100 / 1000 | hasta 10 000 | hasta 1 000 000 |
+| **Pozos** | El Sendero de las Huellas, Bóveda, Reloj | + La Balanza (fracciones) | + La Cámara Decimal |
+| **Contenido propio** | contar, series, par/impar, restar | llevadas, valor posicional, fracciones | decimales, porcentajes, comparar fracciones |
+| **Enunciados** | una línea, al grano | narrativos | narrativos |
+| **Letra** | grande de fábrica | normal | normal |
+
+Tres decisiones que conviene conocer:
+
+- **En 1.º y 2.º los enunciados van al grano.** «5 + 8 = ?» en vez de «El reloj de engranajes pide el resultado de 5 + 8 para girar». Un enunciado largo a los 6 años mide la lectura, no las matemáticas.
+- **La letra grande viene puesta en 1.º y 2.º**, y se puede quitar desde el Campamento. Mientras nadie la toque, manda el curso.
+- **Los distractores se escalan a la respuesta.** Con desplazamientos fijos, un alumno de 1.º con respuesta 14 veía opciones como 114 o números negativos: absurdos que además delatan cuál es la correcta.
+
+Los pozos que crees tú declaran a qué cursos sirven (casillas en el editor). Si no marcas ninguno en concreto, sirven a todos.
 
 ## La portada
 

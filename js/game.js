@@ -46,7 +46,7 @@ function startMission(branchId, stratumId, kind) {
   mission.tier = entryTier(branchId, stratumId);
   mission.usedIdx = [];   /* para no repetir retos del banco dentro de la misión */
   for (let i = 0; i < total; i++) {
-    const q = makeQuestion(def, stratumId, mission.tier, mission.usedIdx);
+    const q = makeQuestion(def, stratumId, mission.tier, mission.usedIdx, currentGrade());
     if (q) mission.questions.push(q);
   }
   if (!mission.questions.length) { mission = null; return null; }
@@ -88,7 +88,7 @@ function answerQuestion(optionIndex) {
    Premia la metacognición con 5 🪙 (máx. 5/día, PRD §2.4). */
 function restoreQuestion() {
   /* misma dificultad que el reto fallado: restaurar es reintentar, no escalar */
-  const variant = makeQuestion(branchDef(mission.branchId), mission.stratumId, mission.tier, mission.usedIdx)
+  const variant = makeQuestion(branchDef(mission.branchId), mission.stratumId, mission.tier, mission.usedIdx, currentGrade())
     || mission.current;
   mission.questions[mission.index] = variant;
   mission.current = variant;

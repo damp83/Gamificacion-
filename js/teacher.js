@@ -192,6 +192,9 @@ function cfgAlumnado(body) {
     ${field('Nombre del docente', `<input type="text" id="cfg-teacher-name" value="${(ATLAS_CONFIG.teacherName || '').replace(/"/g, '&quot;')}" placeholder="Diego Moya">`,
       'Aparece en la portada y en la sala de mapas.')}
     ${field('Nombre de la clase', `<input type="text" id="cfg-class-name" value="${(ATLAS_CONFIG.className || '').replace(/"/g, '&quot;')}" placeholder="4.º B">`)}
+    ${field('Curso de la clase', `<select id="cfg-default-grade">
+      ${GRADES.map(g => `<option value="${g.n}"${ATLAS_CONFIG.defaultGrade === g.n ? ' selected' : ''}>${g.label} · ${g.age}</option>`).join('')}
+    </select>`, 'Es el que se propone a quien crea su diario. Cada alumno puede tener el suyo.')}
 
     <h4 class="cfg-h4">Lista de clase <span class="cfg-tag">${roster.length} alumno(s)${nube ? ` · ${conCuenta} con cuenta` : ''}</span></h4>
 
@@ -205,6 +208,11 @@ function cfgAlumnado(body) {
           <div class="cfg-row">
             <label>Usuario <input type="text" class="ros-user" data-i="${i}" value="${(r.username || '').replace(/"/g, '&quot;')}"></label>
             <label>Contraseña <input type="text" class="ros-pass" data-i="${i}" value="${(r.password || '').replace(/"/g, '&quot;')}"></label>
+          </div>
+          <div class="cfg-row">
+            <label>Curso <select class="ros-grade" data-i="${i}">
+              ${GRADES.map(g => `<option value="${g.n}"${(r.grade || ATLAS_CONFIG.defaultGrade) === g.n ? ' selected' : ''}>${g.label} · ${g.age}</option>`).join('')}
+            </select></label>
             <span class="cfg-tag${r.account ? ' cfg-tag-ok' : ''}">${r.account ? '✓ cuenta creada' : 'sin cuenta'}</span>
           </div>
         </div>`).join('')
@@ -241,11 +249,13 @@ function cfgAlumnado(body) {
 
   onInput('#cfg-teacher-name', e => cfgSave('teacherName', e.target.value.trim()));
   onInput('#cfg-class-name', e => cfgSave('className', e.target.value.trim()));
+  onInput('#cfg-default-grade', e => cfgSave('defaultGrade', +e.target.value));
 
   const write = (i, key, val) => { const l = rosterCopy(); l[i][key] = val; cfgSave('roster', l, false); };
   $$('.ros-name').forEach(el => onInput(el, e => write(+e.target.dataset.i, 'name', e.target.value)));
   $$('.ros-user').forEach(el => onInput(el, e => write(+e.target.dataset.i, 'username', e.target.value.trim())));
   $$('.ros-pass').forEach(el => onInput(el, e => write(+e.target.dataset.i, 'password', e.target.value)));
+  $$('.ros-grade').forEach(el => onInput(el, e => write(+e.target.dataset.i, 'grade', +e.target.value)));
 
   $$('[data-delros]').forEach(el => el.addEventListener('click', async () => {
     const i = +el.dataset.delros;
@@ -261,7 +271,7 @@ function cfgAlumnado(body) {
   $('#ros-add').addEventListener('click', () => {
     const l = rosterCopy();
     const taken = l.map(r => r.username);
-    l.push({ name: '', username: makeUsername('', taken), password: makePassword(), account: false });
+    l.push({ name: '', username: makeUsername('', taken), password: makePassword(), account: false, grade: ATLAS_CONFIG.defaultGrade });
     cfgSave('roster', l, 'Añadido: escribe su nombre ✓');
   });
 
@@ -284,7 +294,7 @@ function cfgAlumnado(body) {
       if (l.some(r => (r.name || '').trim().toLowerCase() === name.toLowerCase())) { dup.push(name); continue; }
       const username = makeUsername(name, taken);
       taken.push(username);
-      l.push({ name, username, password: makePassword(), account: false });
+      l.push({ name, username, password: makePassword(), account: false, grade: ATLAS_CONFIG.defaultGrade });
       added++;
     }
     if (!added) {
@@ -482,6 +492,12 @@ function cfgYacimientos(body) {
                   <button class="cfg-del" data-delbranch="${si}:${bi}" title="Eliminar pozo">🗑️</button>
                 </div>
                 <textarea class="cfg-b2-desc" data-si="${si}" data-bi="${bi}" rows="2">${b.desc || ''}</textarea>
+                <div class="cfg-row cfg-grades-row">
+                  <span class="cfg-label">Cursos:</span>
+                  ${GRADES.map(g => `<label class="grade-chip${(!b.grades || b.grades.includes(g.n)) ? ' on' : ''}">
+                    <input type="checkbox" class="cfg-b2-grade" data-si="${si}" data-bi="${bi}" data-g="${g.n}"
+                      ${(!b.grades || b.grades.includes(g.n)) ? 'checked' : ''}>${g.label}</label>`).join('')}
+                </div>
                 <div class="cfg-row">
                   <label class="cfg-switch">Activo
                     <input type="checkbox" class="cfg-b2-on" data-si="${si}" data-bi="${bi}"${b.enabled !== false ? ' checked' : ''}></label>
@@ -539,6 +555,20 @@ function cfgYacimientos(body) {
   $$('.cfg-b2-icon').forEach(el => onInput(el, e => wBranch(+e.target.dataset.si, +e.target.dataset.bi, 'icon', e.target.value || '⛏️')));
   $$('.cfg-b2-name').forEach(el => onInput(el, e => wBranch(+e.target.dataset.si, +e.target.dataset.bi, 'name', e.target.value || 'Pozo')));
   $$('.cfg-b2-desc').forEach(el => onInput(el, e => wBranch(+e.target.dataset.si, +e.target.dataset.bi, 'desc', e.target.value)));
+  $$('.cfg-b2-grade').forEach(el => el.addEventListener('change', e => {
+    const si = +e.target.dataset.si, bi = +e.target.dataset.bi, g = +e.target.dataset.g;
+    const l = sitesCopy();
+    const b = l[si].branches[bi];
+    let gr = b.grades ? b.grades.slice() : GRADES.map(x => x.n);
+    gr = e.target.checked ? Array.from(new Set(gr.concat([g]))).sort((a, c) => a - c) : gr.filter(x => x !== g);
+    if (!gr.length) {   /* un pozo sin ningún curso no lo vería nadie */
+      e.target.checked = true;
+      toast('El pozo debe servir al menos a un curso.');
+      return;
+    }
+    b.grades = gr;
+    writeSites(l, false);
+  }));
   $$('.cfg-b2-on').forEach(el => onInput(el, e => {
     const si = +e.target.dataset.si, bi = +e.target.dataset.bi;
     if (!e.target.checked && countPlayableTotal() <= 1) {
@@ -561,7 +591,8 @@ function cfgYacimientos(body) {
     const l = sitesCopy();
     l[si].branches.push({
       id: slugify('pozo', 'branch'), name: 'Pozo nuevo', icon: '⛏️', desc: '',
-      enabled: true, source: 'bank', bank: { recordar: [], comprender: [], aplicar: [], analizar: [] }
+      enabled: true, source: 'bank', grades: GRADES.map(g => g.n),
+      bank: { recordar: [], comprender: [], aplicar: [], analizar: [] }
     });
     writeSites(l, 'Pozo creado: ahora escríbele retos ✓');
   }));
