@@ -1140,24 +1140,27 @@ function cfgCopia(body) {
   });
 
   /* ── Descargar la copia ── */
-  $('#cfg-bk-save').addEventListener('click', () => {
+  $('#cfg-bk-save').addEventListener('click', async () => {
+    const boton = $('#cfg-bk-save');
+    boton.disabled = true;
     const paquete = exportBackup();
-    const texto = JSON.stringify(paquete);
-    try {
-      const url = URL.createObjectURL(new Blob([texto], { type: 'application/json' }));
-      const a = document.createElement('a');
-      a.href = url; a.download = backupFileName(paquete);
-      document.body.appendChild(a); a.click(); a.remove();
-      setTimeout(() => URL.revokeObjectURL(url), 1000);
+    const r = await guardarArchivo(backupFileName(paquete), JSON.stringify(paquete), 'application/json');
+    boton.disabled = false;
+
+    if (r.ok) {
       marcarCopiaHecha();
       renderTeacherConfig();
       const n = backupResumen(paquete).diarios;
-      toast(`Copia descargada ✓ ${n === 1 ? 'un diario' : n + ' diarios'}`);
-    } catch (e) {
-      /* Algunos visores bloquean las descargas de la propia página: entonces
-         se ofrece el texto, que es lo mismo por otro camino. */
-      cfgBackupMsg('⚠️ Este visor no permite descargar archivos. Usa «Ver y copiar el texto», ahí abajo.');
+      toast(`Copia guardada ✓ ${n === 1 ? 'un diario' : n + ' diarios'}`);
+      return;
     }
+    /* Cada motivo pide una salida distinta, y ninguna es un código de error */
+    cfgBackupMsg({
+      cancelado: 'Has cancelado el guardado. La copia no se ha hecho.',
+      espera: '⚠️ Hay otra descarga en marcha. Espera un momento y vuelve a intentarlo.',
+      'demasiado-grande': '⚠️ La copia es demasiado grande para descargarla aquí. Usa «Ver y copiar el texto», ahí abajo.',
+      'no-disponible': '⚠️ Este visor no permite descargar archivos. Usa «Ver y copiar el texto», ahí abajo.'
+    }[r.motivo] || '⚠️ No se ha podido guardar la copia.');
   });
 
   /* ── Restaurar desde archivo ── */

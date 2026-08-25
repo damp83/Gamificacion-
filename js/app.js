@@ -1631,9 +1631,51 @@ function syncBackLabels() {
 }
 
 /* ── Arranque ── */
+/* ── Guardar archivos según dónde se esté ejecutando ──
+   En un servidor propio o abierta como archivo, descargar es un enlace y ya.
+   Dentro del visor de un Artifact eso no hace nada: la descarga la media el
+   propio visor. Se resuelve una vez al arrancar y se usa lo que haya. */
+let DESCARGAS = null;
+function prepararDescargas() {
+  try {
+    if (window.claude && typeof window.claude.use === 'function') {
+      window.claude.use('downloads')
+        .then(d => { DESCARGAS = d; })
+        .catch(() => { DESCARGAS = null; });
+    }
+  } catch (e) { DESCARGAS = null; }
+}
+
+/* Devuelve qué ha pasado para poder decírselo al docente en su idioma */
+async function guardarArchivo(nombre, texto, tipo) {
+  if (DESCARGAS) {
+    try {
+      await DESCARGAS.save({ filename: nombre, data: texto });
+      return { ok: true };
+    } catch (e) {
+      const code = (e && e.code) || 'unavailable';
+      if (code === 'declined') return { ok: false, motivo: 'cancelado' };
+      if (code === 'too_large') return { ok: false, motivo: 'demasiado-grande' };
+      if (code === 'rate_limited') return { ok: false, motivo: 'espera' };
+      return { ok: false, motivo: 'no-disponible' };
+    }
+  }
+  try {
+    const url = URL.createObjectURL(new Blob([texto], { type: tipo || 'application/json' }));
+    const a = document.createElement('a');
+    a.href = url; a.download = nombre;
+    document.body.appendChild(a); a.click(); a.remove();
+    setTimeout(() => URL.revokeObjectURL(url), 1000);
+    return { ok: true };
+  } catch (e) {
+    return { ok: false, motivo: 'no-disponible' };
+  }
+}
+
 async function boot() {
   loadTeacherConfig();   /* ajustes del docente sobre los valores de fábrica */
   loadConfigMeta();
+  prepararDescargas();
   wireGlobalListeners();
 
   /* Configurado para la nube pero el SDK no está disponible (sin red, CDN

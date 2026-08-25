@@ -6649,24 +6649,27 @@ function cfgCopia(body) {
   });
 
   /* ── Descargar la copia ── */
-  $('#cfg-bk-save').addEventListener('click', () => {
+  $('#cfg-bk-save').addEventListener('click', async () => {
+    const boton = $('#cfg-bk-save');
+    boton.disabled = true;
     const paquete = exportBackup();
-    const texto = JSON.stringify(paquete);
-    try {
-      const url = URL.createObjectURL(new Blob([texto], { type: 'application/json' }));
-      const a = document.createElement('a');
-      a.href = url; a.download = backupFileName(paquete);
-      document.body.appendChild(a); a.click(); a.remove();
-      setTimeout(() => URL.revokeObjectURL(url), 1000);
+    const r = await guardarArchivo(backupFileName(paquete), JSON.stringify(paquete), 'application/json');
+    boton.disabled = false;
+
+    if (r.ok) {
       marcarCopiaHecha();
       renderTeacherConfig();
       const n = backupResumen(paquete).diarios;
-      toast(`Copia descargada ✓ ${n === 1 ? 'un diario' : n + ' diarios'}`);
-    } catch (e) {
-      /* Algunos visores bloquean las descargas de la propia página: entonces
-         se ofrece el texto, que es lo mismo por otro camino. */
-      cfgBackupMsg('⚠️ Este visor no permite descargar archivos. Usa «Ver y copiar el texto», ahí abajo.');
+      toast(`Copia guardada ✓ ${n === 1 ? 'un diario' : n + ' diarios'}`);
+      return;
     }
+    /* Cada motivo pide una salida distinta, y ninguna es un código de error */
+    cfgBackupMsg({
+      cancelado: 'Has cancelado el guardado. La copia no se ha hecho.',
+      espera: '⚠️ Hay otra descarga en marcha. Espera un momento y vuelve a intentarlo.',
+      'demasiado-grande': '⚠️ La copia es demasiado grande para descargarla aquí. Usa «Ver y copiar el texto», ahí abajo.',
+      'no-disponible': '⚠️ Este visor no permite descargar archivos. Usa «Ver y copiar el texto», ahí abajo.'
+    }[r.motivo] || '⚠️ No se ha podido guardar la copia.');
   });
 
   /* ── Restaurar desde archivo ── */
@@ -8385,9 +8388,51 @@ function syncBackLabels() {
 }
 
 /* ── Arranque ── */
+/* ── Guardar archivos según dónde se esté ejecutando ──
+   En un servidor propio o abierta como archivo, descargar es un enlace y ya.
+   Dentro del visor de un Artifact eso no hace nada: la descarga la media el
+   propio visor. Se resuelve una vez al arrancar y se usa lo que haya. */
+let DESCARGAS = null;
+function prepararDescargas() {
+  try {
+    if (window.claude && typeof window.claude.use === 'function') {
+      window.claude.use('downloads')
+        .then(d => { DESCARGAS = d; })
+        .catch(() => { DESCARGAS = null; });
+    }
+  } catch (e) { DESCARGAS = null; }
+}
+
+/* Devuelve qué ha pasado para poder decírselo al docente en su idioma */
+async function guardarArchivo(nombre, texto, tipo) {
+  if (DESCARGAS) {
+    try {
+      await DESCARGAS.save({ filename: nombre, data: texto });
+      return { ok: true };
+    } catch (e) {
+      const code = (e && e.code) || 'unavailable';
+      if (code === 'declined') return { ok: false, motivo: 'cancelado' };
+      if (code === 'too_large') return { ok: false, motivo: 'demasiado-grande' };
+      if (code === 'rate_limited') return { ok: false, motivo: 'espera' };
+      return { ok: false, motivo: 'no-disponible' };
+    }
+  }
+  try {
+    const url = URL.createObjectURL(new Blob([texto], { type: tipo || 'application/json' }));
+    const a = document.createElement('a');
+    a.href = url; a.download = nombre;
+    document.body.appendChild(a); a.click(); a.remove();
+    setTimeout(() => URL.revokeObjectURL(url), 1000);
+    return { ok: true };
+  } catch (e) {
+    return { ok: false, motivo: 'no-disponible' };
+  }
+}
+
 async function boot() {
   loadTeacherConfig();   /* ajustes del docente sobre los valores de fábrica */
   loadConfigMeta();
+  prepararDescargas();
   wireGlobalListeners();
 
   /* Configurado para la nube pero el SDK no está disponible (sin red, CDN

@@ -214,6 +214,10 @@ navegador o de máquina, se pierde y no hay de dónde recuperarlo.
 - Si el visor bloquea las descargas, en el mismo sitio hay un plegable para
   copiar el texto y pegarlo en un `.json` a mano.
 
+> La app detecta dónde se está ejecutando: en tu servidor o como archivo suelto
+> descarga con un enlace normal; dentro del visor de un Artifact usa la descarga
+> que media el propio visor, porque ahí un enlace no haría nada.
+
 
 ## El curso: tres trimestres
 
