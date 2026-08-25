@@ -25,6 +25,7 @@ PWA sin dependencias: HTML + CSS + JavaScript vanilla, funciona offline y se ins
 | **Dashboard docente** | KPIs de cabecera: tiempo de excavación, zona de flujo, autocorrección, mastery por estrato, señales de alerta |
 | **Curso completo** | Tres trimestres con fechas configurables; PE, estratos, sellos y méritos se acumulan por trimestre |
 | **Clase dirigida** | El docente pregunta desde su equipo y el alumnado responde en voz alta, sin entrar en la app. Turnos repartidos, méritos desde el propio turno y el diario de cada alumno guardado en ese equipo |
+| **Varios docentes** | Un claustro comparte el despliegue: cada docente entra con su cuenta, ve solo sus clases y las sincroniza entre equipos. El aislamiento lo imponen los permisos por documento de Appwrite |
 | **Cuentas de alumno** | Registro y acceso con usuario y contraseña vía Appwrite; el diario se sincroniza entre clase y casa |
 | **Méritos de Campamento** | Doblones por comportamientos (ayudar, cuidar el material, participar…), concedidos por el docente con PIN y topes diarios |
 | **Panel de Configuración** | El docente edita en la propia app el curso, los reconocimientos, las cuadrillas, los pozos, el almacén, la economía y el acceso — sin tocar código |
@@ -133,7 +134,52 @@ Sirve para no configurar veinte tablets a mano: un docente publica sus ajustes y
 
 > El id del documento es siempre `clase` (`appwrite.configDocId`), así que hay una única configuración por proyecto. Para dos clases distintas, dos proyectos o dos ids.
 
-### 4. Rellenar `js/config.js`
+### 4. Colección de aulas (para varios docentes)
+
+Sirve para que **un claustro entero comparta el despliegue** y cada docente
+trabaje con sus clases sin ver las de los demás. Si te la saltas, la plataforma
+funciona con una sola clase guardada en el equipo, como hasta ahora.
+
+1. **Create collection** (por ejemplo `aulas`). Copia su ID.
+2. Atributos:
+
+   | Atributo     | Tipo   | Tamaño | Obligatorio |
+   |--------------|--------|--------|-------------|
+   | `owner`      | String | 64     | sí          |
+   | `name`       | String | 64     | sí          |
+   | `teacher`    | String | 64     | no          |
+   | `config`     | String | 200000 | no          |
+   | `updated_at` | String | 20     | no          |
+
+3. Añade a la colección de **diarios** dos atributos más: `aula` (String 64) y
+   `owner` (String 64). Crea un **índice** por `aula` — sin él, listar los
+   diarios de una clase recorre la colección entera.
+4. **Document security** activado en las dos colecciones.
+5. En **Permissions** de las dos, da **Create** al rol `users`: es lo que
+   permite a un docente crear su clase y sus diarios. Leer, escribir y borrar
+   quedan restringidos por los permisos de cada documento.
+
+> **De dónde sale el aislamiento.** Cada clase y cada diario nacen con permisos
+> de lectura, escritura y borrado **solo para la cuenta de su docente**. Que el
+> cliente filtre por `owner` es una comodidad para no descargar de más; la
+> barrera es que el documento de otro docente sencillamente no se puede leer.
+
+#### Verifícalo tú antes de meter datos reales
+
+Esto no lo he podido probar contra Appwrite de verdad, solo contra un doble que
+reproduce sus permisos. Antes de que entren clases reales, haz esta comprobación
+una vez — son cinco minutos y cubre lo único que de verdad importa:
+
+1. Crea **dos cuentas de docente** (A y B) desde *Mis clases → Crear cuenta*.
+2. Con A, crea una clase y dirige un turno a un alumno cualquiera.
+3. Cierra sesión y entra con B: **su lista de clases debe estar vacía**.
+4. En la consola de Appwrite, copia el ID del aula de A. Con B en el navegador,
+   abre la consola y ejecuta `await cloudPullAula('<id>')`.
+   **Debe responder `reason: 'sin-permiso'`.** Si devuelve los datos, los
+   permisos de la colección no están como deben y hay que revisarlos antes de
+   seguir.
+
+### 5. Rellenar `js/config.js`
 
 ```js
 appwrite: {
@@ -142,7 +188,8 @@ appwrite: {
   databaseId: 'TU_DATABASE_ID',
   collectionId: 'TU_COLLECTION_ID',
   configCollectionId: 'TU_CONFIG_COLLECTION_ID',   // opcional
-  configDocId: 'clase'
+  configDocId: 'clase',
+  aulasCollectionId: 'TU_AULAS_COLLECTION_ID'      // opcional: varios docentes
 },
 ```
 
@@ -217,6 +264,25 @@ navegador o de máquina, se pierde y no hay de dónde recuperarlo.
 > La app detecta dónde se está ejecutando: en tu servidor o como archivo suelto
 > descarga con un enlace normal; dentro del visor de un Artifact usa la descarga
 > que media el propio visor, porque ahí un enlace no haría nada.
+
+### Varios docentes, cada uno con sus clases
+
+Con la colección de aulas configurada, la plataforma pasa a servir a un claustro:
+
+- Cada docente **entra con su cuenta** desde *Sala de mapas → 🏫 Mis clases*.
+- Ve **solo sus clases**. Las de los demás no aparecen y, si intenta abrir una
+  por su id, Appwrite se lo impide.
+- Al **abrir una clase**, sus diarios y sus ajustes se traen a ese equipo. Al
+  trabajar, cada diario se guarda **en el documento de esa clase** (agrupado, no
+  uno por respuesta: la red del centro no está para eso).
+- **Desde otro equipo**, entra con su cuenta, abre la misma clase y la recupera.
+- **Traer de la nube fusiona por lo más reciente**, así que trabajar sin red en
+  el portátil y sincronizar después no pisa nada.
+- **Cambiar de clase vacía los diarios locales**, para no mezclar dos clases en
+  el mismo equipo. Están a salvo en su clase: vuelven al abrirla.
+
+El id de cada diario se deriva de la clase y del alumno, así que el mismo niño
+escrito desde dos equipos va **al mismo documento** en vez de crear duplicados.
 
 
 ## El curso: tres trimestres

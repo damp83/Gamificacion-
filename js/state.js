@@ -159,7 +159,7 @@ function defaultState(name) {
    La vista de clase necesitaba descargar el diario entero de cada alumno
    (23 KB) para pintar una ficha de doce cifras: 9,2 MB para 400 alumnos. Este
    resumen viaja en su propio campo (<1 KB) y es lo único que esa vista lee. */
-function buildSummary() {
+function buildSummaryOf(S) {
   if (!S) return null;
   const level = levelFromXp(S.progression.xp_total || 0);
   let total = 0, mastered = 0, masterySum = 0;
@@ -218,6 +218,9 @@ function buildSummary() {
     updated_at: Date.now()
   };
 }
+
+/* El resumen del diario que está vivo ahora mismo */
+function buildSummary() { return buildSummaryOf(S); }
 
 let S = null; /* estado vivo */
 
@@ -284,6 +287,67 @@ function closeDiary() {
   diarioActivo = null;
   S = null;
   return loadState();
+}
+
+/* ══════════ CLASE ACTIVA EN ESTE DISPOSITIVO ══════════
+   Con varios docentes, un mismo equipo puede usarse para clases distintas
+   (el portátil que se pasa de mano en mano en el seminario). Se recuerda
+   cuál está abierta para no mezclar diarios de dos clases. */
+const AULA_KEY = 'atlas_aula_activa_v1';
+let AULA = { id: '', name: '', pulledAt: 0 };
+
+function loadAula() {
+  try {
+    const raw = localStorage.getItem(AULA_KEY);
+    if (raw) AULA = { id: '', name: '', pulledAt: 0, ...JSON.parse(raw) };
+  } catch (e) { /* se queda la vacía */ }
+  return AULA;
+}
+function saveAula() {
+  try { localStorage.setItem(AULA_KEY, JSON.stringify(AULA)); } catch (e) { /* sin sitio */ }
+}
+function aulaActiva() { return AULA.id || ''; }
+function setAulaActiva(id, nombre) {
+  AULA = { id: id || '', name: nombre || '', pulledAt: AULA.pulledAt || 0 };
+  saveAula();
+}
+/* Cambiar de clase vacía los diarios locales: son de la clase anterior y
+   mezclarlos con los de la nueva sería el peor error posible. */
+function cerrarAula() {
+  saveDiaries({});
+  AULA = { id: '', name: '', pulledAt: 0 };
+  saveAula();
+}
+
+/* ── Fusión al traer de la nube ──
+   La misma regla que la copia de seguridad: gana el más reciente. Un docente
+   puede haber trabajado en el portátil sin red y traer luego lo del aula. */
+function fusionarDiarios(entrantes) {
+  const actuales = loadDiaries();
+  let nuevos = 0, actualizados = 0, conservados = 0;
+  for (const d of entrantes) {
+    let estado = null;
+    try { estado = JSON.parse(d.state); } catch (e) { continue; }
+    if (!estado || !estado.profile) continue;
+    const k = diaryKey(estado.profile.explorer_name);
+    if (!k) continue;
+    const hay = actuales[k];
+    if (!hay) { actuales[k] = estado; nuevos++; }
+    else if ((estado.updated_at || 0) > (hay.updated_at || 0)) { actuales[k] = estado; actualizados++; }
+    else conservados++;
+  }
+  saveDiaries(actuales);
+  return { nuevos, actualizados, conservados, total: Object.keys(actuales).length };
+}
+
+/* Diarios que este equipo tiene más nuevos que la nube: los que hay que subir */
+function diariosPorSubir(desde) {
+  const map = loadDiaries();
+  const out = [];
+  for (const k in map) {
+    if (!desde || (map[k].updated_at || 0) > desde) out.push({ clave: k, estado: map[k] });
+  }
+  return out;
 }
 
 /* ══════════ COPIA DE SEGURIDAD COMPLETA ══════════
@@ -400,7 +464,11 @@ function saveState() {
     const map = loadDiaries();
     map[diarioActivo] = S;
     saveDiaries(map);
-    return;   /* el diario de un alumno no se sube a la cuenta del docente */
+    /* Si hay una clase abierta en la nube, este diario va a SU documento
+       —no al del docente—, con los permisos de la clase. Sin clase abierta
+       se queda aquí, como siempre. */
+    if (typeof aulaScheduleSave === 'function') aulaScheduleSave(diarioActivo);
+    return;
   }
   try { localStorage.setItem(STORAGE_KEY, JSON.stringify(S)); } catch (e) { /* almacenamiento no disponible */ }
   if (typeof cloudScheduleSave === 'function') cloudScheduleSave();

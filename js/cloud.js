@@ -215,6 +215,226 @@ async function calcularSync() {
   return { estado: 'adoptada', paquete: p };
 }
 
+/* ══════════ AULAS: VARIOS DOCENTES, CADA UNO CON SUS CLASES ══════════
+   Un mismo proyecto de Appwrite sirve a todo un claustro. El modelo es:
+
+     aulas/<id>     ← una clase. Su DUEÑO es la cuenta del docente.
+     diarios/<id>   ← un diario de alumno, con el campo `aula` apuntando
+                      a su clase y los mismos permisos que ella.
+
+   El aislamiento entre docentes NO depende de que el cliente filtre bien:
+   depende de los permisos por documento de Appwrite. El filtro por `owner`
+   es una comodidad para no descargar de más, no la barrera. La barrera es
+   que un documento de otro docente sencillamente no se puede leer. */
+
+function aulasOn() {
+  const c = ATLAS_CONFIG.appwrite;
+  return !!(CLOUD.enabled && c.aulasCollectionId && c.databaseId);
+}
+
+/* Permisos de todo lo que pertenece a una clase: solo su docente. */
+function permisosDeAula(ownerId) {
+  return [
+    Appwrite.Permission.read(Appwrite.Role.user(ownerId)),
+    Appwrite.Permission.update(Appwrite.Role.user(ownerId)),
+    Appwrite.Permission.delete(Appwrite.Role.user(ownerId))
+  ];
+}
+
+function errorNube(e) {
+  const msg = (e && e.message) || '';
+  if (/not authorized|missing scope|permission/i.test(msg)) return { ok: false, reason: 'sin-permiso', detail: msg };
+  if (/could not be found|not found/i.test(msg)) return { ok: false, reason: 'no-existe', detail: msg };
+  return { ok: false, reason: 'error', detail: msg };
+}
+
+/* ── Las clases de ESTE docente ── */
+async function cloudListAulas() {
+  if (!aulasOn()) return { ok: false, reason: 'sin-nube' };
+  if (!CLOUD.user) return { ok: false, reason: 'sin-sesion' };
+  const c = ATLAS_CONFIG.appwrite;
+  try {
+    const res = await CLOUD.db.listDocuments(c.databaseId, c.aulasCollectionId, [
+      Appwrite.Query.equal('owner', CLOUD.user.$id),
+      Appwrite.Query.limit(100)
+    ]);
+    return {
+      ok: true,
+      aulas: res.documents.map(d => ({
+        id: d.$id, name: d.name || 'Clase', teacher: d.teacher || '',
+        updated_at: Number(d.updated_at) || 0
+      }))
+    };
+  } catch (e) { return errorNube(e); }
+}
+
+async function cloudCreateAula(nombre) {
+  if (!aulasOn()) return { ok: false, reason: 'sin-nube' };
+  if (!CLOUD.user) return { ok: false, reason: 'sin-sesion' };
+  const c = ATLAS_CONFIG.appwrite;
+  const uid = CLOUD.user.$id;
+  try {
+    const doc = await CLOUD.db.createDocument(c.databaseId, c.aulasCollectionId, 'unique()', {
+      owner: uid,
+      name: String(nombre || 'Mi clase').trim() || 'Mi clase',
+      teacher: ATLAS_CONFIG.teacherName || '',
+      config: JSON.stringify(configParaCompartir()),
+      updated_at: String(Date.now())
+    }, permisosDeAula(uid));
+    return { ok: true, aula: { id: doc.$id, name: doc.name, teacher: doc.teacher } };
+  } catch (e) { return errorNube(e); }
+}
+
+/* Guarda los ajustes de la clase activa (no los diarios: van aparte) */
+async function cloudSaveAulaConfig() {
+  if (!aulasOn() || !aulaActiva()) return { ok: false, reason: 'sin-nube' };
+  const c = ATLAS_CONFIG.appwrite;
+  /* El nombre de la clase vive en su documento. Sincronizar desde un equipo
+     donde no esté puesto NO puede rebautizarla: antes la dejaba en «Clase». */
+  const data = {
+    teacher: ATLAS_CONFIG.teacherName || '',
+    config: JSON.stringify(configParaCompartir()),
+    updated_at: String(Date.now())
+  };
+  const nombre = (ATLAS_CONFIG.className || '').trim() || (AULA.name || '').trim();
+  if (nombre) data.name = nombre;
+
+  try {
+    await CLOUD.db.updateDocument(c.databaseId, c.aulasCollectionId, aulaActiva(), data);
+    return { ok: true };
+  } catch (e) { return errorNube(e); }
+}
+
+/* ── Diarios de una clase ── */
+const AULA_PAGE = 100;
+
+async function cloudPullAula(aulaId) {
+  if (!aulasOn()) return { ok: false, reason: 'sin-nube' };
+  const c = ATLAS_CONFIG.appwrite;
+  try {
+    /* Los ajustes de la clase */
+    const doc = await CLOUD.db.getDocument(c.databaseId, c.aulasCollectionId, aulaId);
+    let ajustes = null;
+    try { ajustes = JSON.parse(doc.config || '{}'); } catch (e) { ajustes = null; }
+
+    /* Y todos sus diarios, paginando */
+    const docs = [];
+    let cursor = null;
+    for (let p = 0; p < 20; p++) {
+      const q = [Appwrite.Query.equal('aula', aulaId), Appwrite.Query.limit(AULA_PAGE)];
+      if (cursor) q.push(Appwrite.Query.cursorAfter(cursor));
+      const res = await CLOUD.db.listDocuments(c.databaseId, c.collectionId, q);
+      docs.push(...res.documents);
+      if (res.documents.length < AULA_PAGE) break;
+      cursor = res.documents[res.documents.length - 1].$id;
+    }
+    return {
+      ok: true,
+      aula: { id: doc.$id, name: doc.name, teacher: doc.teacher },
+      ajustes,
+      diarios: docs
+    };
+  } catch (e) { return errorNube(e); }
+}
+
+/* El id del documento se deriva de la clase y del alumno: así el mismo
+   alumno desde dos equipos escribe en el MISMO documento en vez de crear
+   duplicados que luego nadie sabe cuál es el bueno. */
+function docIdDiario(aulaId, clave) {
+  const limpio = String(clave).normalize('NFD').replace(/[̀-ͯ]/g, '')
+    .replace(/[^a-z0-9]+/gi, '-').replace(/^-|-$/g, '').toLowerCase();
+  return (aulaId + '_' + limpio).slice(0, 36);
+}
+
+async function cloudPushDiario(clave, estado) {
+  if (!aulasOn() || !aulaActiva() || !CLOUD.user) return { ok: false, reason: 'sin-nube' };
+  const c = ATLAS_CONFIG.appwrite;
+  const uid = CLOUD.user.$id;
+  const id = docIdDiario(aulaActiva(), clave);
+  const data = {
+    aula: aulaActiva(),
+    owner: uid,
+    name: estado.profile.explorer_name,
+    state: JSON.stringify(estado),
+    updated_at: String(estado.updated_at || Date.now())
+  };
+  try { const s = buildSummaryOf(estado); if (s) data.summary = JSON.stringify(s); }
+  catch (e) { /* sin resumen, el diario se guarda igual */ }
+
+  try {
+    await CLOUD.db.updateDocument(c.databaseId, c.collectionId, id, data);
+    return { ok: true, id };
+  } catch (e) {
+    try {
+      await CLOUD.db.createDocument(c.databaseId, c.collectionId, id, data, permisosDeAula(uid));
+      return { ok: true, id, creado: true };
+    } catch (e2) { return errorNube(e2); }
+  }
+}
+
+/* ── Subida perezosa de diarios ──
+   Durante un turno se guarda en cada respuesta. Enviar uno por respuesta
+   sería castigar la red del centro; se agrupan y se envían al terminar. */
+const AULA_COLA = new Set();
+let aulaTimer = 0;
+
+function aulaScheduleSave(clave) {
+  if (!aulasOn() || !aulaActiva()) return;
+  AULA_COLA.add(clave);
+  clearTimeout(aulaTimer);
+  aulaTimer = setTimeout(vaciarColaAula, 3000);
+}
+
+async function vaciarColaAula() {
+  if (!aulasOn() || !aulaActiva() || !AULA_COLA.size) return { ok: true, enviados: 0 };
+  const map = loadDiaries();
+  const pendientes = [...AULA_COLA];
+  AULA_COLA.clear();
+  let enviados = 0, fallidos = 0;
+  for (const clave of pendientes) {
+    const estado = map[clave];
+    if (!estado) continue;
+    const r = await cloudPushDiario(clave, estado);
+    if (r.ok) enviados++;
+    else { fallidos++; AULA_COLA.add(clave); }   /* se reintenta en la próxima */
+  }
+  return { ok: !fallidos, enviados, fallidos };
+}
+
+/* ── Abrir una clase en este equipo ──
+   Trae sus ajustes y sus diarios, fusionando con lo que hubiera aquí. */
+async function abrirAula(aulaId, nombre) {
+  const res = await cloudPullAula(aulaId);
+  if (!res.ok) return res;
+
+  /* Si se cambia de clase, los diarios de la anterior no pueden quedarse */
+  if (aulaActiva() && aulaActiva() !== aulaId) cerrarAula();
+  setAulaActiva(aulaId, res.aula.name || nombre || '');
+
+  if (res.ajustes && typeof res.ajustes === 'object') {
+    /* Los ajustes de la clase mandan, pero sin tocar lo que nunca viaja
+       (contraseñas, PIN, datos de conexión de este equipo). */
+    adoptSharedConfig({ overlay: res.ajustes, updated_at: Date.now(), by: res.aula.teacher || '' });
+  }
+  /* El nombre lo manda el documento de la clase, no lo que hubiera aquí */
+  if (res.aula.name) setTeacherConfig('className', res.aula.name);
+  const fus = fusionarDiarios(res.diarios || []);
+  return { ok: true, aula: res.aula, ...fus };
+}
+
+/* Subir todo lo que este equipo tenga y la nube no: al recuperar la red */
+async function sincronizarAula() {
+  if (!aulasOn() || !aulaActiva()) return { ok: false, reason: 'sin-nube' };
+  const pendientes = diariosPorSubir(0);
+  let enviados = 0, fallidos = 0;
+  for (const p of pendientes) {
+    const r = await cloudPushDiario(p.clave, p.estado);
+    if (r.ok) enviados++; else fallidos++;
+  }
+  const cfg = await cloudSaveAulaConfig();
+  return { ok: !fallidos, enviados, fallidos, ajustes: cfg.ok };
+}
+
 /* guardado perezoso: saveState() lo invoca; agrupa ráfagas en un envío */
 function cloudScheduleSave() {
   if (!CLOUD.enabled || !CLOUD.user) return;

@@ -17,7 +17,11 @@ const ATLAS_DEFAULTS = {
     /* Colección aparte para la configuración compartida del equipo docente.
        Vacío = cada tablet con sus propios ajustes, como hasta ahora. */
     configCollectionId: '',
-    configDocId: 'clase'
+    configDocId: 'clase',
+    /* ── Aulas (varios docentes, cada uno con sus clases) ──
+       Una colección con un documento por clase, cuyo dueño es la cuenta del
+       docente. Vacío = una sola clase en este equipo, sin sincronizar. */
+    aulasCollectionId: ''
   },
 
   /* Los alumnos entran con USUARIO, no con email (más fácil a los 8-10

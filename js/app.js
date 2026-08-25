@@ -6,7 +6,7 @@
 const $ = sel => document.querySelector(sel);
 const $$ = sel => document.querySelectorAll(sel);
 
-const SCREENS = ['map', 'branch', 'guardian', 'mission', 'result', 'camp', 'merits', 'team', 'logbook', 'dashboard', 'class', 'config', 'aula'];
+const SCREENS = ['map', 'branch', 'guardian', 'mission', 'result', 'camp', 'merits', 'team', 'logbook', 'dashboard', 'class', 'config', 'aula', 'aulas'];
 
 function show(screenId) {
   SCREENS.forEach(s => $(`#screen-${s}`).classList.toggle('hidden', s !== screenId));
@@ -19,6 +19,7 @@ function show(screenId) {
   if (screenId === 'merits') renderMerits();
   if (screenId === 'team') renderTeam();
   if (screenId === 'aula') { renderAula(); syncBackLabels(); }
+  if (screenId === 'aulas') { renderAulas(); syncBackLabels(); }
   if (screenId === 'config') { renderTeacherConfig(); syncBackLabels(); }
   if (screenId === 'class') { renderClassView(); syncBackLabels(); }
   if (screenId === 'logbook') renderLogbook();
@@ -68,6 +69,15 @@ function openModal({ text, withInput, okLabel, cancelLabel }) {
 function askConfirm(text, okLabel) {
   return openModal({ text, okLabel: okLabel || 'Sí, adelante' }).then(v => v === true);
 }
+/* Sustituye a prompt(): pide un texto y devuelve null si se cancela.
+   El valor inicial se pone a mano porque openModal() limpia el campo. */
+function askPrompt(text, inicial, okLabel) {
+  const p = openModal({ text, withInput: true, okLabel: okLabel || 'Aceptar' });
+  const input = $('#modal-input');
+  if (input && inicial) { input.value = inicial; input.select(); }
+  return p.then(v => (v === null || v === true) ? null : String(v).trim() || null);
+}
+
 /* Sustituye a prompt() para el PIN; reintenta hasta acertar o cancelar */
 async function askPin(text) {
   while (true) {
@@ -943,6 +953,173 @@ function showTeacherPanel() {
 }
 
 
+/* ══════════ MIS CLASES ══════════
+   Con varios docentes en el mismo despliegue, cada uno entra con su cuenta y
+   ve solo sus clases. El aislamiento lo garantizan los permisos de Appwrite;
+   esta pantalla es el camino para llegar a ellas. */
+
+function aulasMsg(texto, tono) {
+  const el = $('#aulas-msg');
+  el.textContent = texto || '';
+  el.className = 'cfg-warn' + (texto ? '' : ' hidden');
+  if (texto && tono === 'ok') el.className = 'cfg-equipo cfg-equipo-ok';
+}
+
+function docError(texto) {
+  const el = $('#doc-error');
+  el.textContent = texto || '';
+  el.classList.toggle('hidden', !texto);
+}
+
+async function renderAulas() {
+  const acceso = $('#aulas-acceso');
+  const zona = $('#aulas-lista-zona');
+
+  if (!aulasOn()) {
+    acceso.classList.add('hidden');
+    zona.classList.add('hidden');
+    $('#aulas-sub').innerHTML = 'Para que <strong>varios docentes</strong> usen la plataforma con ' +
+      'sus clases por separado hace falta configurar Appwrite y la colección de aulas, en ' +
+      '<em>Configurar la expedición → Acceso y nube</em>. Sin eso, esta plataforma funciona ' +
+      'con una sola clase guardada en este equipo.';
+    return;
+  }
+  if (!cloudUser()) {
+    acceso.classList.remove('hidden');
+    zona.classList.add('hidden');
+    docError('');
+    return;
+  }
+  acceso.classList.add('hidden');
+  zona.classList.remove('hidden');
+
+  const lista = $('#aulas-lista');
+  lista.innerHTML = '<p class="class-loading">Buscando tus clases…</p>';
+  const res = await cloudListAulas();
+  if (!res.ok) {
+    lista.innerHTML = '';
+    aulasMsg(res.reason === 'sin-permiso'
+      ? '⚠️ Tu cuenta no puede leer la colección de aulas. Revisa sus permisos en Appwrite.'
+      : '⚠️ No se han podido consultar tus clases' + (res.detail ? ': ' + res.detail : '.'));
+    return;
+  }
+  aulasMsg('');
+
+  if (!res.aulas.length) {
+    lista.innerHTML = '<p class="empty-note">Todavía no tienes ninguna clase. Crea la primera ' +
+      'y empieza a dirigir sesiones: sus diarios quedarán guardados en tu cuenta.</p>';
+    return;
+  }
+
+  lista.innerHTML = '';
+  for (const a of res.aulas) {
+    const abierta = aulaActiva() === a.id;
+    const card = document.createElement('button');
+    card.className = 'aula-alumno-card' + (abierta ? ' aula-ya' : '');
+    card.innerHTML = `<span class="aula-card-avatar">${abierta ? '📂' : '🏫'}</span>
+      <span class="aula-card-nombre">${a.name}</span>
+      <span class="aula-card-meta">${abierta ? 'abierta en este equipo' : 'pulsa para abrirla'}</span>`;
+    card.addEventListener('click', () => abrirAulaUI(a));
+    lista.appendChild(card);
+  }
+}
+
+async function abrirAulaUI(a) {
+  if (aulaActiva() && aulaActiva() !== a.id) {
+    const ok = await askConfirm(
+      `Vas a cambiar de «${AULA.name || 'la clase abierta'}» a «${a.name}».\n\n` +
+      'Los diarios de la clase anterior se quitan de este equipo para no mezclarlos. ' +
+      'Están guardados en su propia clase: se recuperan al volver a abrirla.',
+      'Cambiar de clase');
+    if (!ok) return;
+  }
+  aulasMsg('Abriendo la clase…');
+  const r = await abrirAula(a.id, a.name);
+  if (!r.ok) {
+    aulasMsg(r.reason === 'sin-permiso'
+      ? '⚠️ Esa clase no es tuya o su permiso no te deja leerla.'
+      : '⚠️ No se ha podido abrir' + (r.detail ? ': ' + r.detail : '.'));
+    return;
+  }
+  toast(`«${r.aula.name}» abierta ✓ ${r.nuevos + r.actualizados} diario(s) traído(s)`);
+  renderAulas();
+  showTeacherPortal();
+}
+
+/* Crear una clase: se queda abierta al momento, que es lo que se espera */
+async function crearAulaUI() {
+  const nombre = await askPrompt('¿Cómo se llama la clase?', ATLAS_CONFIG.className || '4.º B', 'Crear');
+  if (!nombre) return;
+  aulasMsg('Creando…');
+  const r = await cloudCreateAula(nombre);
+  if (!r.ok) {
+    aulasMsg(r.reason === 'sin-permiso'
+      ? '⚠️ Tu cuenta no puede crear aulas. En Appwrite, da permiso de Create al rol «users» en esa colección.'
+      : '⚠️ No se ha podido crear' + (r.detail ? ': ' + r.detail : '.'));
+    return;
+  }
+  setTeacherConfig('className', nombre);
+  setAulaActiva(r.aula.id, r.aula.name);
+  await cloudSaveAulaConfig();
+  aulasMsg('');
+  toast(`Clase «${r.aula.name}» creada ✓`);
+  renderAulas();
+}
+
+function wireAulas() {
+  $('#aulas-salir').addEventListener('click', () => showTeacherPortal());
+  $('#aula-nueva').addEventListener('click', crearAulaUI);
+
+  $$('[data-dtab]').forEach(b => b.addEventListener('click', () => {
+    const cual = b.dataset.dtab;
+    $$('[data-dtab]').forEach(x => x.classList.toggle('active', x === b));
+    $('#docente-login').classList.toggle('hidden', cual !== 'login');
+    $('#docente-registro').classList.toggle('hidden', cual !== 'registro');
+    docError('');
+  }));
+
+  $('#docente-login').addEventListener('submit', async e => {
+    e.preventDefault();
+    docError('');
+    const r = await cloudLogin($('#doc-user').value.trim(), $('#doc-pass').value);
+    if (!r.ok) { docError(r.message || 'No se ha podido entrar. Revisa usuario y contraseña.'); return; }
+    renderAulas();
+  });
+
+  $('#docente-registro').addEventListener('submit', async e => {
+    e.preventDefault();
+    docError('');
+    const nombre = $('#doc-nombre').value.trim();
+    const r = await cloudRegister(nombre, $('#doc-user2').value.trim(), $('#doc-pass2').value);
+    if (!r.ok) { docError(r.message || 'No se ha podido crear la cuenta.'); return; }
+    if (nombre) setTeacherConfig('teacherName', nombre);
+    renderAulas();
+  });
+
+  $('#doc-salir').addEventListener('click', async () => {
+    if (!(await askConfirm('¿Cerrar tu sesión de docente? Los diarios de la clase abierta se quedan en este equipo.', 'Cerrar sesión'))) return;
+    await cloudLogout();
+    renderAulas();
+  });
+}
+
+/* Barra de la sala de mapas: qué clase está abierta y si falta por subir */
+function renderAulaBar() {
+  const bar = $('#teacher-aula-bar');
+  if (!bar) return;
+  if (!aulasOn()) { bar.classList.add('hidden'); return; }
+  bar.classList.remove('hidden');
+  const abierta = aulaActiva();
+  bar.innerHTML = `<span class="teacher-warn-icon">🏫</span>
+    <div>${abierta
+      ? `Clase abierta: <strong>${AULA.name || 'sin nombre'}</strong>. Lo que trabajes aquí se guarda en ella.`
+      : cloudUser()
+        ? 'No tienes ninguna clase abierta. Ábrela para que lo que trabajes se guarde en tu cuenta.'
+        : 'Entra con tu cuenta de docente para trabajar con tus clases.'}</div>
+    <button class="btn btn-secondary btn-small" id="ir-aulas">🏫 Mis clases</button>`;
+  $('#ir-aulas').addEventListener('click', () => { teacherScreen('aulas'); });
+}
+
 /* ══════════ CLASE DIRIGIDA ══════════
    La pantalla que usa el docente para llevar la sesión: elige a quién
    pregunta, lee el reto en voz alta y marca lo que responde el alumno.
@@ -1607,6 +1784,7 @@ function showTeacherPortal() {
     $('#teacher-go-backup').addEventListener('click', () => { cfgSection = 'copia'; teacherScreen('config'); });
   }
 
+  renderAulaBar();
   $('#screen-home').classList.add('hidden');
   $('#app').classList.add('hidden');
   $('#screen-teacher').classList.remove('hidden');
@@ -1675,6 +1853,7 @@ async function guardarArchivo(nombre, texto, tipo) {
 async function boot() {
   loadTeacherConfig();   /* ajustes del docente sobre los valores de fábrica */
   loadConfigMeta();
+  loadAula();
   prepararDescargas();
   wireGlobalListeners();
 
@@ -1729,6 +1908,7 @@ function wireGlobalListeners() {
     show(el.dataset.nav);
   }));
   wireAula();
+  wireAulas();
   $('#guardian-back').addEventListener('click', () => {
     if (guardianBranch) openBranch(guardianBranch); else show('map');
   });

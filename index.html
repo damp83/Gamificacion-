@@ -156,6 +156,7 @@
         <p id="teacher-greeting" class="home-lead">Desde aquí ves cómo va la clase y preparas la expedición.</p>
       </header>
       <div id="teacher-backup-warn" class="teacher-warn hidden"></div>
+      <div id="teacher-aula-bar" class="teacher-aula hidden"></div>
 
       <div class="home-doors">
         <button class="home-door home-door-aula" id="teacher-go-aula">
@@ -291,6 +292,47 @@
         <p id="branch-desc" class="branch-desc"></p>
         <div id="strata-list" class="strata-list"></div>
         <div id="branch-guardian" class="branch-guardian"></div>
+      </section>
+
+      <!-- ══════════ MIS CLASES (varios docentes) ══════════ -->
+      <section id="screen-aulas" class="screen hidden">
+        <button class="btn btn-back" id="aulas-salir">← Volver a la sala de mapas</button>
+        <h2>🏫 Mis clases</h2>
+        <p class="aula-sub" id="aulas-sub">Cada docente ve solo las suyas. Al abrir una, sus
+        diarios se traen a este equipo; al trabajar, se guardan en ella.</p>
+
+        <div id="aulas-acceso" class="hidden">
+          <div class="onboarding-card">
+            <h3>Entra con tu cuenta de docente</h3>
+            <p class="cfg-hint">Es lo que separa tus clases de las de los demás. Si aún no
+            tienes cuenta, créala aquí mismo.</p>
+            <div class="auth-tabs">
+              <button class="auth-tab active" data-dtab="login">Entrar</button>
+              <button class="auth-tab" data-dtab="registro">Crear cuenta</button>
+            </div>
+            <form id="docente-login">
+              <input type="text" id="doc-user" placeholder="Usuario" autocomplete="username">
+              <input type="password" id="doc-pass" placeholder="Contraseña" autocomplete="current-password">
+              <button class="btn btn-primary" type="submit">Entrar</button>
+            </form>
+            <form id="docente-registro" class="hidden">
+              <input type="text" id="doc-nombre" placeholder="Tu nombre (Diego Moya)">
+              <input type="text" id="doc-user2" placeholder="Usuario">
+              <input type="password" id="doc-pass2" placeholder="Contraseña (8 caracteres o más)" autocomplete="new-password">
+              <button class="btn btn-primary" type="submit">Crear mi cuenta</button>
+            </form>
+            <p id="doc-error" class="auth-error hidden"></p>
+          </div>
+        </div>
+
+        <div id="aulas-lista-zona" class="hidden">
+          <div id="aulas-lista" class="aula-lista"></div>
+          <div class="cfg-equipo-botones">
+            <button class="btn btn-secondary btn-small" id="aula-nueva">➕ Crear una clase</button>
+            <button class="btn btn-quit btn-small" id="doc-salir">Cerrar sesión</button>
+          </div>
+          <p id="aulas-msg" class="cfg-warn hidden"></p>
+        </div>
       </section>
 
       <!-- ══════════ CLASE DIRIGIDA ══════════ -->

@@ -1699,6 +1699,25 @@ input[type="checkbox"]::after, input[type="radio"]::after {
 .teacher-warn > div { flex: 1; min-width: 14rem; }
 .teacher-warn-icon { font-size: 1.6rem; line-height: 1; }
 
+/* Barra de clase abierta, en la sala de mapas */
+.teacher-aula {
+  display: flex; align-items: center; gap: .9rem; flex-wrap: wrap;
+  background: var(--surface); border-left: 4px solid var(--jungle-light);
+  border-radius: var(--r-md); padding: .85rem 1.1rem;
+  margin-bottom: var(--s-5); font-size: var(--t-sm); text-align: left;
+  box-shadow: var(--e-1);
+}
+.teacher-aula > div { flex: 1; min-width: 14rem; }
+#screen-aulas .onboarding-card { max-width: 28rem; margin: 0 auto; text-align: left; }
+#screen-aulas .onboarding-card h3 { margin-bottom: .3rem; }
+#screen-aulas form { display: flex; flex-direction: column; gap: .7rem; margin-top: var(--s-4); }
+#screen-aulas input {
+  padding: .8rem 1rem; font-size: var(--t-base); font-family: var(--font-text);
+  border-radius: var(--r-md); min-height: var(--tap);
+  border: 2px solid rgba(122, 74, 33, .28); background: var(--paper); color: var(--ink);
+}
+#screen-aulas input:focus { outline: none; border-color: var(--brass); box-shadow: 0 0 0 3px rgba(138,90,11,.18); }
+
 </style>
 
 
@@ -1840,6 +1859,7 @@ input[type="checkbox"]::after, input[type="radio"]::after {
         <p id="teacher-greeting" class="home-lead">Desde aquí ves cómo va la clase y preparas la expedición.</p>
       </header>
       <div id="teacher-backup-warn" class="teacher-warn hidden"></div>
+      <div id="teacher-aula-bar" class="teacher-aula hidden"></div>
 
       <div class="home-doors">
         <button class="home-door home-door-aula" id="teacher-go-aula">
@@ -1975,6 +1995,47 @@ input[type="checkbox"]::after, input[type="radio"]::after {
         <p id="branch-desc" class="branch-desc"></p>
         <div id="strata-list" class="strata-list"></div>
         <div id="branch-guardian" class="branch-guardian"></div>
+      </section>
+
+      <!-- ══════════ MIS CLASES (varios docentes) ══════════ -->
+      <section id="screen-aulas" class="screen hidden">
+        <button class="btn btn-back" id="aulas-salir">← Volver a la sala de mapas</button>
+        <h2>🏫 Mis clases</h2>
+        <p class="aula-sub" id="aulas-sub">Cada docente ve solo las suyas. Al abrir una, sus
+        diarios se traen a este equipo; al trabajar, se guardan en ella.</p>
+
+        <div id="aulas-acceso" class="hidden">
+          <div class="onboarding-card">
+            <h3>Entra con tu cuenta de docente</h3>
+            <p class="cfg-hint">Es lo que separa tus clases de las de los demás. Si aún no
+            tienes cuenta, créala aquí mismo.</p>
+            <div class="auth-tabs">
+              <button class="auth-tab active" data-dtab="login">Entrar</button>
+              <button class="auth-tab" data-dtab="registro">Crear cuenta</button>
+            </div>
+            <form id="docente-login">
+              <input type="text" id="doc-user" placeholder="Usuario" autocomplete="username">
+              <input type="password" id="doc-pass" placeholder="Contraseña" autocomplete="current-password">
+              <button class="btn btn-primary" type="submit">Entrar</button>
+            </form>
+            <form id="docente-registro" class="hidden">
+              <input type="text" id="doc-nombre" placeholder="Tu nombre (Diego Moya)">
+              <input type="text" id="doc-user2" placeholder="Usuario">
+              <input type="password" id="doc-pass2" placeholder="Contraseña (8 caracteres o más)" autocomplete="new-password">
+              <button class="btn btn-primary" type="submit">Crear mi cuenta</button>
+            </form>
+            <p id="doc-error" class="auth-error hidden"></p>
+          </div>
+        </div>
+
+        <div id="aulas-lista-zona" class="hidden">
+          <div id="aulas-lista" class="aula-lista"></div>
+          <div class="cfg-equipo-botones">
+            <button class="btn btn-secondary btn-small" id="aula-nueva">➕ Crear una clase</button>
+            <button class="btn btn-quit btn-small" id="doc-salir">Cerrar sesión</button>
+          </div>
+          <p id="aulas-msg" class="cfg-warn hidden"></p>
+        </div>
       </section>
 
       <!-- ══════════ CLASE DIRIGIDA ══════════ -->
@@ -3359,7 +3420,11 @@ const ATLAS_DEFAULTS = {
     /* Colección aparte para la configuración compartida del equipo docente.
        Vacío = cada tablet con sus propios ajustes, como hasta ahora. */
     configCollectionId: '',
-    configDocId: 'clase'
+    configDocId: 'clase',
+    /* ── Aulas (varios docentes, cada uno con sus clases) ──
+       Una colección con un documento por clase, cuyo dueño es la cuenta del
+       docente. Vacío = una sola clase en este equipo, sin sincronizar. */
+    aulasCollectionId: ''
   },
 
   /* Los alumnos entran con USUARIO, no con email (más fácil a los 8-10
@@ -3901,6 +3966,226 @@ async function calcularSync() {
   return { estado: 'adoptada', paquete: p };
 }
 
+/* ══════════ AULAS: VARIOS DOCENTES, CADA UNO CON SUS CLASES ══════════
+   Un mismo proyecto de Appwrite sirve a todo un claustro. El modelo es:
+
+     aulas/<id>     ← una clase. Su DUEÑO es la cuenta del docente.
+     diarios/<id>   ← un diario de alumno, con el campo `aula` apuntando
+                      a su clase y los mismos permisos que ella.
+
+   El aislamiento entre docentes NO depende de que el cliente filtre bien:
+   depende de los permisos por documento de Appwrite. El filtro por `owner`
+   es una comodidad para no descargar de más, no la barrera. La barrera es
+   que un documento de otro docente sencillamente no se puede leer. */
+
+function aulasOn() {
+  const c = ATLAS_CONFIG.appwrite;
+  return !!(CLOUD.enabled && c.aulasCollectionId && c.databaseId);
+}
+
+/* Permisos de todo lo que pertenece a una clase: solo su docente. */
+function permisosDeAula(ownerId) {
+  return [
+    Appwrite.Permission.read(Appwrite.Role.user(ownerId)),
+    Appwrite.Permission.update(Appwrite.Role.user(ownerId)),
+    Appwrite.Permission.delete(Appwrite.Role.user(ownerId))
+  ];
+}
+
+function errorNube(e) {
+  const msg = (e && e.message) || '';
+  if (/not authorized|missing scope|permission/i.test(msg)) return { ok: false, reason: 'sin-permiso', detail: msg };
+  if (/could not be found|not found/i.test(msg)) return { ok: false, reason: 'no-existe', detail: msg };
+  return { ok: false, reason: 'error', detail: msg };
+}
+
+/* ── Las clases de ESTE docente ── */
+async function cloudListAulas() {
+  if (!aulasOn()) return { ok: false, reason: 'sin-nube' };
+  if (!CLOUD.user) return { ok: false, reason: 'sin-sesion' };
+  const c = ATLAS_CONFIG.appwrite;
+  try {
+    const res = await CLOUD.db.listDocuments(c.databaseId, c.aulasCollectionId, [
+      Appwrite.Query.equal('owner', CLOUD.user.$id),
+      Appwrite.Query.limit(100)
+    ]);
+    return {
+      ok: true,
+      aulas: res.documents.map(d => ({
+        id: d.$id, name: d.name || 'Clase', teacher: d.teacher || '',
+        updated_at: Number(d.updated_at) || 0
+      }))
+    };
+  } catch (e) { return errorNube(e); }
+}
+
+async function cloudCreateAula(nombre) {
+  if (!aulasOn()) return { ok: false, reason: 'sin-nube' };
+  if (!CLOUD.user) return { ok: false, reason: 'sin-sesion' };
+  const c = ATLAS_CONFIG.appwrite;
+  const uid = CLOUD.user.$id;
+  try {
+    const doc = await CLOUD.db.createDocument(c.databaseId, c.aulasCollectionId, 'unique()', {
+      owner: uid,
+      name: String(nombre || 'Mi clase').trim() || 'Mi clase',
+      teacher: ATLAS_CONFIG.teacherName || '',
+      config: JSON.stringify(configParaCompartir()),
+      updated_at: String(Date.now())
+    }, permisosDeAula(uid));
+    return { ok: true, aula: { id: doc.$id, name: doc.name, teacher: doc.teacher } };
+  } catch (e) { return errorNube(e); }
+}
+
+/* Guarda los ajustes de la clase activa (no los diarios: van aparte) */
+async function cloudSaveAulaConfig() {
+  if (!aulasOn() || !aulaActiva()) return { ok: false, reason: 'sin-nube' };
+  const c = ATLAS_CONFIG.appwrite;
+  /* El nombre de la clase vive en su documento. Sincronizar desde un equipo
+     donde no esté puesto NO puede rebautizarla: antes la dejaba en «Clase». */
+  const data = {
+    teacher: ATLAS_CONFIG.teacherName || '',
+    config: JSON.stringify(configParaCompartir()),
+    updated_at: String(Date.now())
+  };
+  const nombre = (ATLAS_CONFIG.className || '').trim() || (AULA.name || '').trim();
+  if (nombre) data.name = nombre;
+
+  try {
+    await CLOUD.db.updateDocument(c.databaseId, c.aulasCollectionId, aulaActiva(), data);
+    return { ok: true };
+  } catch (e) { return errorNube(e); }
+}
+
+/* ── Diarios de una clase ── */
+const AULA_PAGE = 100;
+
+async function cloudPullAula(aulaId) {
+  if (!aulasOn()) return { ok: false, reason: 'sin-nube' };
+  const c = ATLAS_CONFIG.appwrite;
+  try {
+    /* Los ajustes de la clase */
+    const doc = await CLOUD.db.getDocument(c.databaseId, c.aulasCollectionId, aulaId);
+    let ajustes = null;
+    try { ajustes = JSON.parse(doc.config || '{}'); } catch (e) { ajustes = null; }
+
+    /* Y todos sus diarios, paginando */
+    const docs = [];
+    let cursor = null;
+    for (let p = 0; p < 20; p++) {
+      const q = [Appwrite.Query.equal('aula', aulaId), Appwrite.Query.limit(AULA_PAGE)];
+      if (cursor) q.push(Appwrite.Query.cursorAfter(cursor));
+      const res = await CLOUD.db.listDocuments(c.databaseId, c.collectionId, q);
+      docs.push(...res.documents);
+      if (res.documents.length < AULA_PAGE) break;
+      cursor = res.documents[res.documents.length - 1].$id;
+    }
+    return {
+      ok: true,
+      aula: { id: doc.$id, name: doc.name, teacher: doc.teacher },
+      ajustes,
+      diarios: docs
+    };
+  } catch (e) { return errorNube(e); }
+}
+
+/* El id del documento se deriva de la clase y del alumno: así el mismo
+   alumno desde dos equipos escribe en el MISMO documento en vez de crear
+   duplicados que luego nadie sabe cuál es el bueno. */
+function docIdDiario(aulaId, clave) {
+  const limpio = String(clave).normalize('NFD').replace(/[̀-ͯ]/g, '')
+    .replace(/[^a-z0-9]+/gi, '-').replace(/^-|-$/g, '').toLowerCase();
+  return (aulaId + '_' + limpio).slice(0, 36);
+}
+
+async function cloudPushDiario(clave, estado) {
+  if (!aulasOn() || !aulaActiva() || !CLOUD.user) return { ok: false, reason: 'sin-nube' };
+  const c = ATLAS_CONFIG.appwrite;
+  const uid = CLOUD.user.$id;
+  const id = docIdDiario(aulaActiva(), clave);
+  const data = {
+    aula: aulaActiva(),
+    owner: uid,
+    name: estado.profile.explorer_name,
+    state: JSON.stringify(estado),
+    updated_at: String(estado.updated_at || Date.now())
+  };
+  try { const s = buildSummaryOf(estado); if (s) data.summary = JSON.stringify(s); }
+  catch (e) { /* sin resumen, el diario se guarda igual */ }
+
+  try {
+    await CLOUD.db.updateDocument(c.databaseId, c.collectionId, id, data);
+    return { ok: true, id };
+  } catch (e) {
+    try {
+      await CLOUD.db.createDocument(c.databaseId, c.collectionId, id, data, permisosDeAula(uid));
+      return { ok: true, id, creado: true };
+    } catch (e2) { return errorNube(e2); }
+  }
+}
+
+/* ── Subida perezosa de diarios ──
+   Durante un turno se guarda en cada respuesta. Enviar uno por respuesta
+   sería castigar la red del centro; se agrupan y se envían al terminar. */
+const AULA_COLA = new Set();
+let aulaTimer = 0;
+
+function aulaScheduleSave(clave) {
+  if (!aulasOn() || !aulaActiva()) return;
+  AULA_COLA.add(clave);
+  clearTimeout(aulaTimer);
+  aulaTimer = setTimeout(vaciarColaAula, 3000);
+}
+
+async function vaciarColaAula() {
+  if (!aulasOn() || !aulaActiva() || !AULA_COLA.size) return { ok: true, enviados: 0 };
+  const map = loadDiaries();
+  const pendientes = [...AULA_COLA];
+  AULA_COLA.clear();
+  let enviados = 0, fallidos = 0;
+  for (const clave of pendientes) {
+    const estado = map[clave];
+    if (!estado) continue;
+    const r = await cloudPushDiario(clave, estado);
+    if (r.ok) enviados++;
+    else { fallidos++; AULA_COLA.add(clave); }   /* se reintenta en la próxima */
+  }
+  return { ok: !fallidos, enviados, fallidos };
+}
+
+/* ── Abrir una clase en este equipo ──
+   Trae sus ajustes y sus diarios, fusionando con lo que hubiera aquí. */
+async function abrirAula(aulaId, nombre) {
+  const res = await cloudPullAula(aulaId);
+  if (!res.ok) return res;
+
+  /* Si se cambia de clase, los diarios de la anterior no pueden quedarse */
+  if (aulaActiva() && aulaActiva() !== aulaId) cerrarAula();
+  setAulaActiva(aulaId, res.aula.name || nombre || '');
+
+  if (res.ajustes && typeof res.ajustes === 'object') {
+    /* Los ajustes de la clase mandan, pero sin tocar lo que nunca viaja
+       (contraseñas, PIN, datos de conexión de este equipo). */
+    adoptSharedConfig({ overlay: res.ajustes, updated_at: Date.now(), by: res.aula.teacher || '' });
+  }
+  /* El nombre lo manda el documento de la clase, no lo que hubiera aquí */
+  if (res.aula.name) setTeacherConfig('className', res.aula.name);
+  const fus = fusionarDiarios(res.diarios || []);
+  return { ok: true, aula: res.aula, ...fus };
+}
+
+/* Subir todo lo que este equipo tenga y la nube no: al recuperar la red */
+async function sincronizarAula() {
+  if (!aulasOn() || !aulaActiva()) return { ok: false, reason: 'sin-nube' };
+  const pendientes = diariosPorSubir(0);
+  let enviados = 0, fallidos = 0;
+  for (const p of pendientes) {
+    const r = await cloudPushDiario(p.clave, p.estado);
+    if (r.ok) enviados++; else fallidos++;
+  }
+  const cfg = await cloudSaveAulaConfig();
+  return { ok: !fallidos, enviados, fallidos, ajustes: cfg.ok };
+}
+
 /* guardado perezoso: saveState() lo invoca; agrupa ráfagas en un envío */
 function cloudScheduleSave() {
   if (!CLOUD.enabled || !CLOUD.user) return;
@@ -4075,7 +4360,7 @@ function defaultState(name) {
    La vista de clase necesitaba descargar el diario entero de cada alumno
    (23 KB) para pintar una ficha de doce cifras: 9,2 MB para 400 alumnos. Este
    resumen viaja en su propio campo (<1 KB) y es lo único que esa vista lee. */
-function buildSummary() {
+function buildSummaryOf(S) {
   if (!S) return null;
   const level = levelFromXp(S.progression.xp_total || 0);
   let total = 0, mastered = 0, masterySum = 0;
@@ -4134,6 +4419,9 @@ function buildSummary() {
     updated_at: Date.now()
   };
 }
+
+/* El resumen del diario que está vivo ahora mismo */
+function buildSummary() { return buildSummaryOf(S); }
 
 let S = null; /* estado vivo */
 
@@ -4200,6 +4488,67 @@ function closeDiary() {
   diarioActivo = null;
   S = null;
   return loadState();
+}
+
+/* ══════════ CLASE ACTIVA EN ESTE DISPOSITIVO ══════════
+   Con varios docentes, un mismo equipo puede usarse para clases distintas
+   (el portátil que se pasa de mano en mano en el seminario). Se recuerda
+   cuál está abierta para no mezclar diarios de dos clases. */
+const AULA_KEY = 'atlas_aula_activa_v1';
+let AULA = { id: '', name: '', pulledAt: 0 };
+
+function loadAula() {
+  try {
+    const raw = localStorage.getItem(AULA_KEY);
+    if (raw) AULA = { id: '', name: '', pulledAt: 0, ...JSON.parse(raw) };
+  } catch (e) { /* se queda la vacía */ }
+  return AULA;
+}
+function saveAula() {
+  try { localStorage.setItem(AULA_KEY, JSON.stringify(AULA)); } catch (e) { /* sin sitio */ }
+}
+function aulaActiva() { return AULA.id || ''; }
+function setAulaActiva(id, nombre) {
+  AULA = { id: id || '', name: nombre || '', pulledAt: AULA.pulledAt || 0 };
+  saveAula();
+}
+/* Cambiar de clase vacía los diarios locales: son de la clase anterior y
+   mezclarlos con los de la nueva sería el peor error posible. */
+function cerrarAula() {
+  saveDiaries({});
+  AULA = { id: '', name: '', pulledAt: 0 };
+  saveAula();
+}
+
+/* ── Fusión al traer de la nube ──
+   La misma regla que la copia de seguridad: gana el más reciente. Un docente
+   puede haber trabajado en el portátil sin red y traer luego lo del aula. */
+function fusionarDiarios(entrantes) {
+  const actuales = loadDiaries();
+  let nuevos = 0, actualizados = 0, conservados = 0;
+  for (const d of entrantes) {
+    let estado = null;
+    try { estado = JSON.parse(d.state); } catch (e) { continue; }
+    if (!estado || !estado.profile) continue;
+    const k = diaryKey(estado.profile.explorer_name);
+    if (!k) continue;
+    const hay = actuales[k];
+    if (!hay) { actuales[k] = estado; nuevos++; }
+    else if ((estado.updated_at || 0) > (hay.updated_at || 0)) { actuales[k] = estado; actualizados++; }
+    else conservados++;
+  }
+  saveDiaries(actuales);
+  return { nuevos, actualizados, conservados, total: Object.keys(actuales).length };
+}
+
+/* Diarios que este equipo tiene más nuevos que la nube: los que hay que subir */
+function diariosPorSubir(desde) {
+  const map = loadDiaries();
+  const out = [];
+  for (const k in map) {
+    if (!desde || (map[k].updated_at || 0) > desde) out.push({ clave: k, estado: map[k] });
+  }
+  return out;
 }
 
 /* ══════════ COPIA DE SEGURIDAD COMPLETA ══════════
@@ -4316,7 +4665,11 @@ function saveState() {
     const map = loadDiaries();
     map[diarioActivo] = S;
     saveDiaries(map);
-    return;   /* el diario de un alumno no se sube a la cuenta del docente */
+    /* Si hay una clase abierta en la nube, este diario va a SU documento
+       —no al del docente—, con los permisos de la clase. Sin clase abierta
+       se queda aquí, como siempre. */
+    if (typeof aulaScheduleSave === 'function') aulaScheduleSave(diarioActivo);
+    return;
   }
   try { localStorage.setItem(STORAGE_KEY, JSON.stringify(S)); } catch (e) { /* almacenamiento no disponible */ }
   if (typeof cloudScheduleSave === 'function') cloudScheduleSave();
@@ -6507,7 +6860,9 @@ function cfgAcceso(body) {
     ${field('Endpoint', `<input type="text" id="cfg-aw-ep" value="${a.endpoint}" placeholder="https://cloud.appwrite.io/v1">`)}
     ${field('Project ID', `<input type="text" id="cfg-aw-pid" value="${a.projectId}">`)}
     ${field('Database ID', `<input type="text" id="cfg-aw-did" value="${a.databaseId}">`)}
-    ${field('Collection ID', `<input type="text" id="cfg-aw-cid" value="${a.collectionId}">`)}
+    ${field('Collection ID (diarios)', `<input type="text" id="cfg-aw-cid" value="${a.collectionId}">`)}
+    ${field('Collection ID (aulas)', `<input type="text" id="cfg-aw-aid" value="${a.aulasCollectionId || ''}">`,
+      'Solo si quieres que varios docentes usen la plataforma con sus clases por separado. Cada clase pertenece a la cuenta de su docente y las demás no pueden leerla.')}
     <p class="cfg-warn">Tras cambiar los datos de Appwrite hay que recargar la página para que surtan efecto.</p>`;
 
   onInput('#cfg-pin', e => cfgSave('teacherPin', e.target.value || '1234'));
@@ -6515,6 +6870,7 @@ function cfgAcceso(body) {
   onInput('#cfg-aw-pid', e => cfgSave('appwrite.projectId', e.target.value.trim()));
   onInput('#cfg-aw-did', e => cfgSave('appwrite.databaseId', e.target.value.trim()));
   onInput('#cfg-aw-cid', e => cfgSave('appwrite.collectionId', e.target.value.trim()));
+  onInput('#cfg-aw-aid', e => cfgSave('appwrite.aulasCollectionId', e.target.value.trim()));
 }
 
 /* ══════════ COPIA DE SEGURIDAD ══════════ */
@@ -6763,7 +7119,7 @@ async function aplicarCopia(raw, destino) {
 const $ = sel => document.querySelector(sel);
 const $$ = sel => document.querySelectorAll(sel);
 
-const SCREENS = ['map', 'branch', 'guardian', 'mission', 'result', 'camp', 'merits', 'team', 'logbook', 'dashboard', 'class', 'config', 'aula'];
+const SCREENS = ['map', 'branch', 'guardian', 'mission', 'result', 'camp', 'merits', 'team', 'logbook', 'dashboard', 'class', 'config', 'aula', 'aulas'];
 
 function show(screenId) {
   SCREENS.forEach(s => $(`#screen-${s}`).classList.toggle('hidden', s !== screenId));
@@ -6776,6 +7132,7 @@ function show(screenId) {
   if (screenId === 'merits') renderMerits();
   if (screenId === 'team') renderTeam();
   if (screenId === 'aula') { renderAula(); syncBackLabels(); }
+  if (screenId === 'aulas') { renderAulas(); syncBackLabels(); }
   if (screenId === 'config') { renderTeacherConfig(); syncBackLabels(); }
   if (screenId === 'class') { renderClassView(); syncBackLabels(); }
   if (screenId === 'logbook') renderLogbook();
@@ -6825,6 +7182,15 @@ function openModal({ text, withInput, okLabel, cancelLabel }) {
 function askConfirm(text, okLabel) {
   return openModal({ text, okLabel: okLabel || 'Sí, adelante' }).then(v => v === true);
 }
+/* Sustituye a prompt(): pide un texto y devuelve null si se cancela.
+   El valor inicial se pone a mano porque openModal() limpia el campo. */
+function askPrompt(text, inicial, okLabel) {
+  const p = openModal({ text, withInput: true, okLabel: okLabel || 'Aceptar' });
+  const input = $('#modal-input');
+  if (input && inicial) { input.value = inicial; input.select(); }
+  return p.then(v => (v === null || v === true) ? null : String(v).trim() || null);
+}
+
 /* Sustituye a prompt() para el PIN; reintenta hasta acertar o cancelar */
 async function askPin(text) {
   while (true) {
@@ -7700,6 +8066,173 @@ function showTeacherPanel() {
 }
 
 
+/* ══════════ MIS CLASES ══════════
+   Con varios docentes en el mismo despliegue, cada uno entra con su cuenta y
+   ve solo sus clases. El aislamiento lo garantizan los permisos de Appwrite;
+   esta pantalla es el camino para llegar a ellas. */
+
+function aulasMsg(texto, tono) {
+  const el = $('#aulas-msg');
+  el.textContent = texto || '';
+  el.className = 'cfg-warn' + (texto ? '' : ' hidden');
+  if (texto && tono === 'ok') el.className = 'cfg-equipo cfg-equipo-ok';
+}
+
+function docError(texto) {
+  const el = $('#doc-error');
+  el.textContent = texto || '';
+  el.classList.toggle('hidden', !texto);
+}
+
+async function renderAulas() {
+  const acceso = $('#aulas-acceso');
+  const zona = $('#aulas-lista-zona');
+
+  if (!aulasOn()) {
+    acceso.classList.add('hidden');
+    zona.classList.add('hidden');
+    $('#aulas-sub').innerHTML = 'Para que <strong>varios docentes</strong> usen la plataforma con ' +
+      'sus clases por separado hace falta configurar Appwrite y la colección de aulas, en ' +
+      '<em>Configurar la expedición → Acceso y nube</em>. Sin eso, esta plataforma funciona ' +
+      'con una sola clase guardada en este equipo.';
+    return;
+  }
+  if (!cloudUser()) {
+    acceso.classList.remove('hidden');
+    zona.classList.add('hidden');
+    docError('');
+    return;
+  }
+  acceso.classList.add('hidden');
+  zona.classList.remove('hidden');
+
+  const lista = $('#aulas-lista');
+  lista.innerHTML = '<p class="class-loading">Buscando tus clases…</p>';
+  const res = await cloudListAulas();
+  if (!res.ok) {
+    lista.innerHTML = '';
+    aulasMsg(res.reason === 'sin-permiso'
+      ? '⚠️ Tu cuenta no puede leer la colección de aulas. Revisa sus permisos en Appwrite.'
+      : '⚠️ No se han podido consultar tus clases' + (res.detail ? ': ' + res.detail : '.'));
+    return;
+  }
+  aulasMsg('');
+
+  if (!res.aulas.length) {
+    lista.innerHTML = '<p class="empty-note">Todavía no tienes ninguna clase. Crea la primera ' +
+      'y empieza a dirigir sesiones: sus diarios quedarán guardados en tu cuenta.</p>';
+    return;
+  }
+
+  lista.innerHTML = '';
+  for (const a of res.aulas) {
+    const abierta = aulaActiva() === a.id;
+    const card = document.createElement('button');
+    card.className = 'aula-alumno-card' + (abierta ? ' aula-ya' : '');
+    card.innerHTML = `<span class="aula-card-avatar">${abierta ? '📂' : '🏫'}</span>
+      <span class="aula-card-nombre">${a.name}</span>
+      <span class="aula-card-meta">${abierta ? 'abierta en este equipo' : 'pulsa para abrirla'}</span>`;
+    card.addEventListener('click', () => abrirAulaUI(a));
+    lista.appendChild(card);
+  }
+}
+
+async function abrirAulaUI(a) {
+  if (aulaActiva() && aulaActiva() !== a.id) {
+    const ok = await askConfirm(
+      `Vas a cambiar de «${AULA.name || 'la clase abierta'}» a «${a.name}».\n\n` +
+      'Los diarios de la clase anterior se quitan de este equipo para no mezclarlos. ' +
+      'Están guardados en su propia clase: se recuperan al volver a abrirla.',
+      'Cambiar de clase');
+    if (!ok) return;
+  }
+  aulasMsg('Abriendo la clase…');
+  const r = await abrirAula(a.id, a.name);
+  if (!r.ok) {
+    aulasMsg(r.reason === 'sin-permiso'
+      ? '⚠️ Esa clase no es tuya o su permiso no te deja leerla.'
+      : '⚠️ No se ha podido abrir' + (r.detail ? ': ' + r.detail : '.'));
+    return;
+  }
+  toast(`«${r.aula.name}» abierta ✓ ${r.nuevos + r.actualizados} diario(s) traído(s)`);
+  renderAulas();
+  showTeacherPortal();
+}
+
+/* Crear una clase: se queda abierta al momento, que es lo que se espera */
+async function crearAulaUI() {
+  const nombre = await askPrompt('¿Cómo se llama la clase?', ATLAS_CONFIG.className || '4.º B', 'Crear');
+  if (!nombre) return;
+  aulasMsg('Creando…');
+  const r = await cloudCreateAula(nombre);
+  if (!r.ok) {
+    aulasMsg(r.reason === 'sin-permiso'
+      ? '⚠️ Tu cuenta no puede crear aulas. En Appwrite, da permiso de Create al rol «users» en esa colección.'
+      : '⚠️ No se ha podido crear' + (r.detail ? ': ' + r.detail : '.'));
+    return;
+  }
+  setTeacherConfig('className', nombre);
+  setAulaActiva(r.aula.id, r.aula.name);
+  await cloudSaveAulaConfig();
+  aulasMsg('');
+  toast(`Clase «${r.aula.name}» creada ✓`);
+  renderAulas();
+}
+
+function wireAulas() {
+  $('#aulas-salir').addEventListener('click', () => showTeacherPortal());
+  $('#aula-nueva').addEventListener('click', crearAulaUI);
+
+  $$('[data-dtab]').forEach(b => b.addEventListener('click', () => {
+    const cual = b.dataset.dtab;
+    $$('[data-dtab]').forEach(x => x.classList.toggle('active', x === b));
+    $('#docente-login').classList.toggle('hidden', cual !== 'login');
+    $('#docente-registro').classList.toggle('hidden', cual !== 'registro');
+    docError('');
+  }));
+
+  $('#docente-login').addEventListener('submit', async e => {
+    e.preventDefault();
+    docError('');
+    const r = await cloudLogin($('#doc-user').value.trim(), $('#doc-pass').value);
+    if (!r.ok) { docError(r.message || 'No se ha podido entrar. Revisa usuario y contraseña.'); return; }
+    renderAulas();
+  });
+
+  $('#docente-registro').addEventListener('submit', async e => {
+    e.preventDefault();
+    docError('');
+    const nombre = $('#doc-nombre').value.trim();
+    const r = await cloudRegister(nombre, $('#doc-user2').value.trim(), $('#doc-pass2').value);
+    if (!r.ok) { docError(r.message || 'No se ha podido crear la cuenta.'); return; }
+    if (nombre) setTeacherConfig('teacherName', nombre);
+    renderAulas();
+  });
+
+  $('#doc-salir').addEventListener('click', async () => {
+    if (!(await askConfirm('¿Cerrar tu sesión de docente? Los diarios de la clase abierta se quedan en este equipo.', 'Cerrar sesión'))) return;
+    await cloudLogout();
+    renderAulas();
+  });
+}
+
+/* Barra de la sala de mapas: qué clase está abierta y si falta por subir */
+function renderAulaBar() {
+  const bar = $('#teacher-aula-bar');
+  if (!bar) return;
+  if (!aulasOn()) { bar.classList.add('hidden'); return; }
+  bar.classList.remove('hidden');
+  const abierta = aulaActiva();
+  bar.innerHTML = `<span class="teacher-warn-icon">🏫</span>
+    <div>${abierta
+      ? `Clase abierta: <strong>${AULA.name || 'sin nombre'}</strong>. Lo que trabajes aquí se guarda en ella.`
+      : cloudUser()
+        ? 'No tienes ninguna clase abierta. Ábrela para que lo que trabajes se guarde en tu cuenta.'
+        : 'Entra con tu cuenta de docente para trabajar con tus clases.'}</div>
+    <button class="btn btn-secondary btn-small" id="ir-aulas">🏫 Mis clases</button>`;
+  $('#ir-aulas').addEventListener('click', () => { teacherScreen('aulas'); });
+}
+
 /* ══════════ CLASE DIRIGIDA ══════════
    La pantalla que usa el docente para llevar la sesión: elige a quién
    pregunta, lee el reto en voz alta y marca lo que responde el alumno.
@@ -8364,6 +8897,7 @@ function showTeacherPortal() {
     $('#teacher-go-backup').addEventListener('click', () => { cfgSection = 'copia'; teacherScreen('config'); });
   }
 
+  renderAulaBar();
   $('#screen-home').classList.add('hidden');
   $('#app').classList.add('hidden');
   $('#screen-teacher').classList.remove('hidden');
@@ -8432,6 +8966,7 @@ async function guardarArchivo(nombre, texto, tipo) {
 async function boot() {
   loadTeacherConfig();   /* ajustes del docente sobre los valores de fábrica */
   loadConfigMeta();
+  loadAula();
   prepararDescargas();
   wireGlobalListeners();
 
@@ -8486,6 +9021,7 @@ function wireGlobalListeners() {
     show(el.dataset.nav);
   }));
   wireAula();
+  wireAulas();
   $('#guardian-back').addEventListener('click', () => {
     if (guardianBranch) openBranch(guardianBranch); else show('map');
   });

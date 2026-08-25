@@ -998,7 +998,9 @@ function cfgAcceso(body) {
     ${field('Endpoint', `<input type="text" id="cfg-aw-ep" value="${a.endpoint}" placeholder="https://cloud.appwrite.io/v1">`)}
     ${field('Project ID', `<input type="text" id="cfg-aw-pid" value="${a.projectId}">`)}
     ${field('Database ID', `<input type="text" id="cfg-aw-did" value="${a.databaseId}">`)}
-    ${field('Collection ID', `<input type="text" id="cfg-aw-cid" value="${a.collectionId}">`)}
+    ${field('Collection ID (diarios)', `<input type="text" id="cfg-aw-cid" value="${a.collectionId}">`)}
+    ${field('Collection ID (aulas)', `<input type="text" id="cfg-aw-aid" value="${a.aulasCollectionId || ''}">`,
+      'Solo si quieres que varios docentes usen la plataforma con sus clases por separado. Cada clase pertenece a la cuenta de su docente y las demás no pueden leerla.')}
     <p class="cfg-warn">Tras cambiar los datos de Appwrite hay que recargar la página para que surtan efecto.</p>`;
 
   onInput('#cfg-pin', e => cfgSave('teacherPin', e.target.value || '1234'));
@@ -1006,6 +1008,7 @@ function cfgAcceso(body) {
   onInput('#cfg-aw-pid', e => cfgSave('appwrite.projectId', e.target.value.trim()));
   onInput('#cfg-aw-did', e => cfgSave('appwrite.databaseId', e.target.value.trim()));
   onInput('#cfg-aw-cid', e => cfgSave('appwrite.collectionId', e.target.value.trim()));
+  onInput('#cfg-aw-aid', e => cfgSave('appwrite.aulasCollectionId', e.target.value.trim()));
 }
 
 /* ══════════ COPIA DE SEGURIDAD ══════════ */
