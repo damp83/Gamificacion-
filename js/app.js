@@ -1078,22 +1078,42 @@ function wireAulas() {
     docError('');
   }));
 
+  /* cloudLogin y cloudRegister LANZAN si algo falla: no devuelven {ok}.
+     Tratarlas como si lo hicieran daba error al entrar bien y silencio al
+     fallar, que son las dos formas de estar mal a la vez. */
   $('#docente-login').addEventListener('submit', async e => {
     e.preventDefault();
     docError('');
-    const r = await cloudLogin($('#doc-user').value.trim(), $('#doc-pass').value);
-    if (!r.ok) { docError(r.message || 'No se ha podido entrar. Revisa usuario y contraseña.'); return; }
-    renderAulas();
+    const btn = $('#docente-login button');
+    btn.disabled = true; btn.textContent = 'Entrando…';
+    try {
+      await cloudLogin($('#doc-user').value.trim(), $('#doc-pass').value);
+      /* La sesión del docente no arrastra ningún diario de alumno */
+      closeDiary();
+      renderAulas();
+    } catch (err) {
+      docError(friendlyAuthError(err));
+    } finally {
+      btn.disabled = false; btn.textContent = 'Entrar';
+    }
   });
 
   $('#docente-registro').addEventListener('submit', async e => {
     e.preventDefault();
     docError('');
+    const btn = $('#docente-registro button');
+    btn.disabled = true; btn.textContent = 'Creando…';
     const nombre = $('#doc-nombre').value.trim();
-    const r = await cloudRegister(nombre, $('#doc-user2').value.trim(), $('#doc-pass2').value);
-    if (!r.ok) { docError(r.message || 'No se ha podido crear la cuenta.'); return; }
-    if (nombre) setTeacherConfig('teacherName', nombre);
-    renderAulas();
+    try {
+      await cloudRegister(nombre || 'Docente', $('#doc-user2').value.trim(), $('#doc-pass2').value);
+      if (nombre) setTeacherConfig('teacherName', nombre);
+      closeDiary();
+      renderAulas();
+    } catch (err) {
+      docError(friendlyAuthError(err));
+    } finally {
+      btn.disabled = false; btn.textContent = 'Crear mi cuenta';
+    }
   });
 
   $('#doc-salir').addEventListener('click', async () => {
