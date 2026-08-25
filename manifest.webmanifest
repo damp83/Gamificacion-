@@ -1,7 +1,7 @@
 {
   "name": "Expedición Atlas: Los Diarios Perdidos",
   "short_name": "Expedición Atlas",
-  "description": "Plataforma educativa gamificada de aventura arqueológica para primaria (8–10 años).",
+  "description": "Plataforma educativa gamificada de aventura arqueológica para toda la primaria (6 a 12 años).",
   "lang": "es-ES",
   "start_url": "./index.html",
   "scope": "./",
