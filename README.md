@@ -411,12 +411,26 @@ Tres decisiones que conviene no deshacer sin pensarlo:
 
 No hay compilación ni dependencias: el repositorio **es** el sitio web.
 
-**Recomendado — GitHub Pages.** *Settings → Pages → Deploy from a branch* y listo.
+**Recomendado — GitHub Pages.** El flujo de trabajo `.github/workflows/pages.yml`
+ya está puesto y publica en cada push. Solo falta **activar Pages una vez**, que
+es lo único que no puede hacerse desde el repositorio:
+
+> **Settings → Pages → Build and deployment → Source: `GitHub Actions`**
+
+Con eso hecho, el siguiente push —o *Actions → Publicar en GitHub Pages → Run
+workflow*— deja el sitio en `https://<usuario>.github.io/<repositorio>/`.
+
 `index.html` está en la raíz y todas las rutas son relativas, así que funciona
-igual en `usuario.github.io/repo/`. Al ser una PWA, el navegador ofrece
-**«Instalar»**: queda un icono en el escritorio o en la pantalla de inicio que
-abre sin barra de navegador, y el service worker cachea todo para que siga
-funcionando sin internet. Actualizar es hacer push.
+igual en una subcarpeta. Al ser una PWA, el navegador ofrece **«Instalar»**:
+queda un icono en el escritorio o en la pantalla de inicio que abre sin barra de
+navegador, y el service worker cachea todo para que siga funcionando sin
+internet. Actualizar es hacer push.
+
+> El flujo lleva `enablement: true`, que intenta activar Pages solo. En la
+> práctica el token de Actions no tiene permiso para crear el sitio
+> (`Resource not accessible by integration`), así que la primera activación es
+> a mano de todos modos. Hasta que se active, cada push deja una ejecución en
+> rojo en Actions: es ese paso, no el sitio.
 
 > Con repositorio público la URL es pública. En el código no hay datos personales
 > —los nombres y contraseñas del alumnado viven en el navegador, nunca en el
