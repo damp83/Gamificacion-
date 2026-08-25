@@ -193,6 +193,28 @@ pantalla.
 > el equipo del docente guarda el diario de cada alumno y la vista general de la
 > clase los lee de ahí. Para que además entren desde casa, sí hace falta la nube.
 
+### Copia de seguridad: lo primero que hay que saber
+
+En clase dirigida **el curso entero de tu clase vive en el navegador de ese
+equipo**. Si el centro borra el perfil al cerrar sesión —muy habitual en las
+imágenes gestionadas—, alguien limpia los datos de navegación, o cambias de
+navegador o de máquina, se pierde y no hay de dónde recuperarlo.
+
+**Configuración → Copia de seguridad → 💾 Descargar copia** guarda un archivo
+`.json` con **los diarios y los ajustes**. Guárdalo donde guardas todo lo demás.
+
+- **Restaurar fusiona, no sustituye.** De cada alumno se queda la versión más
+  reciente, así que recuperar una copia del viernes un lunes no borra lo que se
+  hizo el lunes por la mañana. El resumen te dice cuántos entraron nuevos,
+  cuántos se actualizaron y cuántos ya estaban más al día.
+- **La sala de mapas te avisa** si nunca has hecho una copia o si hace más de una
+  semana de la última, pero solo cuando hay diarios que perder.
+- La copia lleva nombres y contraseñas del alumnado: trátala como el cuaderno de
+  notas.
+- Si el visor bloquea las descargas, en el mismo sitio hay un plegable para
+  copiar el texto y pegarlo en un `.json` a mano.
+
+
 ## El curso: tres trimestres
 
 Las fechas se editan en `js/config.js`. Cada trimestre acumula sus propias cifras (PE, estratos dominados, sellos y méritos), visibles en el cuaderno del docente. Nada se reinicia al cambiar de trimestre: el mapa, el rango y el museo son del curso entero; los trimestres solo dividen el relato del progreso.
@@ -380,6 +402,32 @@ Tres decisiones que conviene no deshacer sin pensarlo:
 - **Foco por teclado** — anillo propio de 3 px, visible sobre cualquier
   superficie; solo aparece con `:focus-visible`, no al tocar con el dedo.
 - **Desborde horizontal** — a 390, 768, 1024 y 1440 px de ancho.
+
+## Cómo ponerla en marcha
+
+No hay compilación ni dependencias: el repositorio **es** el sitio web.
+
+**Recomendado — GitHub Pages.** *Settings → Pages → Deploy from a branch* y listo.
+`index.html` está en la raíz y todas las rutas son relativas, así que funciona
+igual en `usuario.github.io/repo/`. Al ser una PWA, el navegador ofrece
+**«Instalar»**: queda un icono en el escritorio o en la pantalla de inicio que
+abre sin barra de navegador, y el service worker cachea todo para que siga
+funcionando sin internet. Actualizar es hacer push.
+
+> Con repositorio público la URL es pública. En el código no hay datos personales
+> —los nombres y contraseñas del alumnado viven en el navegador, nunca en el
+> repositorio—, pero el PIN del docente sí se ve; es una barrera de aula, no
+> seguridad. Para mantenerlo privado sin coste, Cloudflare Pages o Netlify.
+
+**Sin internet o desde un USB — archivo único.** `python3 tools/build-standalone.py`
+genera `dist/Expedicion-Atlas.html` (~490 KB): un solo archivo con el CSS, el JS y
+las tipografías dentro. Se abre con doble clic y guarda los diarios igual.
+Dos avisos: ahí no hay service worker, y **los datos de ese archivo y los de la
+versión web son islas separadas**, no se sincronizan.
+
+**No hace falta un `.exe`.** Sería Chromium envolviendo este mismo HTML, con
+avisos de SmartScreen, sin permisos de instalación en un PC gestionado y con
+actualizaciones a mano. La PWA instalada da lo mismo sin ninguno de esos problemas.
 
 ## Restricciones éticas (PRD §0.2)
 

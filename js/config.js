@@ -258,12 +258,12 @@ function saveTeacherConfig() {
    entonces, se adopta solo. Si las dos han cambiado, no se toca nada y el
    panel lo avisa: decidir por el docente sería peor que preguntarle. */
 const CONFIG_META_KEY = 'atlas_config_meta_v1';
-let ATLAS_CONFIG_META = { touchedAt: 0, sharedAt: 0, by: '' };
+let ATLAS_CONFIG_META = { touchedAt: 0, sharedAt: 0, by: '', backupAt: 0 };
 
 function loadConfigMeta() {
   try {
     const raw = localStorage.getItem(CONFIG_META_KEY);
-    if (raw) ATLAS_CONFIG_META = { touchedAt: 0, sharedAt: 0, by: '', ...JSON.parse(raw) };
+    if (raw) ATLAS_CONFIG_META = { touchedAt: 0, sharedAt: 0, by: '', backupAt: 0, ...JSON.parse(raw) };
   } catch (e) { /* se queda con los valores por defecto */ }
   return ATLAS_CONFIG_META;
 }

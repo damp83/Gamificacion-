@@ -1034,8 +1034,22 @@ function textoConfigEquipo() {
   }
 }
 
+/* Aviso de copia pendiente: solo aparece si de verdad hay algo que perder */
+function avisoCopia() {
+  const p = typeof copiaPendiente === 'function' ? copiaPendiente() : null;
+  if (!p) {
+    const d = typeof diasSinCopia === 'function' ? diasSinCopia() : null;
+    return d === null ? '' :
+      `<p class="cfg-equipo cfg-equipo-ok">Última copia: ${d === 0 ? 'hoy' : 'hace ' + d + ' día(s)'}.</p>`;
+  }
+  return `<p class="cfg-equipo cfg-equipo-aviso">⚠️ ${p.motivo === 'nunca'
+    ? `Nunca has hecho una copia y ya hay <strong>${p.diarios === 1 ? 'un diario' : p.diarios + ' diarios'}</strong> guardado${p.diarios === 1 ? '' : 's'} solo aquí.`
+    : `Hace <strong>${p.dias} días</strong> de la última copia, y hay ${p.diarios === 1 ? 'un diario' : p.diarios + ' diarios'} guardado${p.diarios === 1 ? '' : 's'} solo aquí.`}</p>`;
+}
+
 function cfgCopia(body) {
   const est = textoConfigEquipo();
+  const nDiarios = (typeof allDiaries === 'function' ? allDiaries() : []).length;
   const hayEquipo = typeof sharedConfigOn === 'function' && sharedConfigOn();
   body.innerHTML = `
     <h4 class="cfg-h4">🏫 Ajustes de todo el equipo docente</h4>
@@ -1054,14 +1068,35 @@ function cfgCopia(body) {
     El progreso de los alumnos no se toca nunca.</p>` : ''}
     <p id="cfg-pub-msg" class="cfg-warn${cfgNotice ? '' : ' hidden'}">${cfgNotice}</p>
 
-    <h4 class="cfg-h4">📋 Copiar y pegar a mano</h4>
-    <p class="cfg-intro">Sin nube (o entre centros), los ajustes se llevan copiando este código.</p>
-    ${field('Tus ajustes', `<textarea id="cfg-export" rows="7" readonly>${JSON.stringify(ATLAS_OVERLAY, null, 2)}</textarea>`)}
-    <button class="btn btn-secondary btn-small" id="cfg-copy">📋 Copiar</button>
-    <h4 class="cfg-h4">Pegar ajustes de otra tablet</h4>
-    <textarea id="cfg-import" rows="5" placeholder="Pega aquí el código copiado"></textarea>
-    <button class="btn btn-secondary btn-small" id="cfg-do-import">📥 Aplicar</button>
-    <p id="cfg-import-err" class="cfg-warn hidden"></p>
+    <h4 class="cfg-h4">💾 Copia de seguridad de la clase</h4>
+    <p class="cfg-intro">Los diarios de tu clase viven <strong>en este equipo</strong>. Si el centro
+    borra el perfil al cerrar sesión, o alguien limpia los datos de navegación, se pierden y no hay
+    de dónde recuperarlos. La copia se lleva <strong>los diarios y los ajustes</strong>: guárdala en
+    tu unidad de siempre de vez en cuando.</p>
+    ${avisoCopia()}
+    <p class="cfg-hint">La copia contiene <strong>${nDiarios === 1 ? 'un diario' : nDiarios + ' diarios'}</strong>${
+      nDiarios ? ` de ${(ATLAS_CONFIG.className || 'tu clase')}` : ''}. Incluye los nombres del
+      alumnado y sus contraseñas: trátala como el cuaderno de notas.</p>
+    <div class="cfg-equipo-botones">
+      <button class="btn btn-primary btn-small" id="cfg-bk-save">💾 Descargar copia</button>
+      <button class="btn btn-secondary btn-small" id="cfg-bk-load">📂 Restaurar desde un archivo</button>
+      <input type="file" id="cfg-bk-file" accept=".json,application/json" class="hidden">
+    </div>
+    <p id="cfg-bk-msg" class="cfg-warn hidden"></p>
+    <p class="cfg-hint">Restaurar <strong>fusiona</strong>: de cada alumno se queda la versión más
+    reciente, así que recuperar una copia del viernes no borra lo que se hizo el lunes.</p>
+
+    <details class="cfg-detalle">
+      <summary>Si la descarga no funciona (algunos visores la bloquean)</summary>
+      <p class="cfg-hint">Pulsa para ver el texto de la copia, cópialo y pégalo en un archivo
+      <code>.json</code>. Sirve igual para restaurar.</p>
+      <button class="btn btn-secondary btn-small" id="cfg-bk-text">📋 Ver y copiar el texto</button>
+      <textarea id="cfg-export" rows="6" readonly placeholder="Aquí saldrá el texto de la copia"></textarea>
+      <h4 class="cfg-h4">Pegar una copia</h4>
+      <textarea id="cfg-import" rows="5" placeholder="Pega aquí el texto de una copia"></textarea>
+      <button class="btn btn-secondary btn-small" id="cfg-do-import">📥 Restaurar lo pegado</button>
+      <p id="cfg-import-err" class="cfg-warn hidden"></p>
+    </details>
     <h4 class="cfg-h4">Volver a empezar</h4>
     <button class="btn btn-quit" id="cfg-reset">♻️ Restaurar todos los valores de fábrica</button>
     <p class="cfg-hint">Esto solo borra tus ajustes. El progreso de los alumnos no se toca.</p>`;
@@ -1104,38 +1139,106 @@ function cfgCopia(body) {
     toast('Ajustes del equipo aplicados ✓');
   });
 
-  $('#cfg-copy').addEventListener('click', async () => {
-    const text = $('#cfg-export').value;
+  /* ── Descargar la copia ── */
+  $('#cfg-bk-save').addEventListener('click', () => {
+    const paquete = exportBackup();
+    const texto = JSON.stringify(paquete);
     try {
-      await navigator.clipboard.writeText(text);
-      toast('Ajustes copiados ✓');
+      const url = URL.createObjectURL(new Blob([texto], { type: 'application/json' }));
+      const a = document.createElement('a');
+      a.href = url; a.download = backupFileName(paquete);
+      document.body.appendChild(a); a.click(); a.remove();
+      setTimeout(() => URL.revokeObjectURL(url), 1000);
+      marcarCopiaHecha();
+      renderTeacherConfig();
+      const n = backupResumen(paquete).diarios;
+      toast(`Copia descargada ✓ ${n === 1 ? 'un diario' : n + ' diarios'}`);
     } catch (e) {
-      /* sin permiso de portapapeles: seleccionar para copiar a mano */
-      $('#cfg-export').select();
-      toast('Selecciona y copia con el teclado.');
+      /* Algunos visores bloquean las descargas de la propia página: entonces
+         se ofrece el texto, que es lo mismo por otro camino. */
+      cfgBackupMsg('⚠️ Este visor no permite descargar archivos. Usa «Ver y copiar el texto», ahí abajo.');
     }
   });
-  $('#cfg-do-import').addEventListener('click', () => {
-    const err = $('#cfg-import-err');
-    const raw = $('#cfg-import').value.trim();
-    if (!raw) { err.textContent = 'Pega primero el código.'; err.classList.remove('hidden'); return; }
-    let parsed;
-    try { parsed = JSON.parse(raw); }
-    catch (e) { err.textContent = 'Ese código no es válido. Cópialo entero, desde la primera llave hasta la última.'; err.classList.remove('hidden'); return; }
-    if (!parsed || typeof parsed !== 'object' || Array.isArray(parsed)) {
-      err.textContent = 'Ese código no parece unos ajustes de Expedición Atlas.';
-      err.classList.remove('hidden'); return;
-    }
-    applyOverlay(parsed);
-    saveTeacherConfig();
-    err.classList.add('hidden');
-    renderTeacherConfig();
-    toast('Ajustes aplicados ✓');
+
+  /* ── Restaurar desde archivo ── */
+  const file = $('#cfg-bk-file');
+  $('#cfg-bk-load').addEventListener('click', () => file.click());
+  file.addEventListener('change', () => {
+    const f = file.files && file.files[0];
+    if (!f) return;
+    const lector = new FileReader();
+    lector.onload = () => { aplicarCopia(lector.result); file.value = ''; };
+    lector.onerror = () => { cfgBackupMsg('⚠️ No se ha podido leer ese archivo.'); file.value = ''; };
+    lector.readAsText(f);
   });
+
+  /* ── Ver el texto (reserva cuando la descarga está bloqueada) ── */
+  $('#cfg-bk-text').addEventListener('click', async () => {
+    const texto = JSON.stringify(exportBackup());
+    const area = $('#cfg-export');
+    area.value = texto;
+    try {
+      await navigator.clipboard.writeText(texto);
+      marcarCopiaHecha();
+      toast('Copia en el portapapeles ✓ Pégala en un archivo .json');
+    } catch (e) {
+      area.select();
+      toast('Selecciona el texto y cópialo con el teclado.');
+    }
+  });
+
+  $('#cfg-do-import').addEventListener('click', () => aplicarCopia($('#cfg-import').value, '#cfg-import-err'));
   $('#cfg-reset').addEventListener('click', async () => {
     if (!(await askConfirm('¿Restaurar todos los valores de fábrica? Se perderán tus ajustes. El progreso de los alumnos NO se toca.', 'Restaurar'))) return;
     resetTeacherConfig();
     renderTeacherConfig();
     toast('Valores de fábrica restaurados ✓');
   });
+}
+
+/* ── Aplicar una copia, venga de un archivo o pegada a mano ──
+   El aviso sale junto al campo que se ha usado: si alguien pega texto dentro
+   del bloque plegable y el error aparece arriba del todo, no lo ve. */
+function cfgBackupMsg(texto, destino) {
+  const el = $(destino || '#cfg-bk-msg') || $('#cfg-bk-msg');
+  if (!el) { toast(texto); return; }
+  el.innerHTML = texto;
+  el.classList.remove('hidden');
+}
+
+async function aplicarCopia(raw, destino) {
+  const texto = String(raw || '').trim();
+  if (!texto) { cfgBackupMsg('Elige un archivo o pega antes el texto de la copia.', destino); return; }
+
+  let paquete;
+  try { paquete = JSON.parse(texto); }
+  catch (e) { cfgBackupMsg('⚠️ Ese archivo no se entiende. ¿Es la copia entera, desde la primera llave hasta la última?', destino); return; }
+
+  /* Compatibilidad: las copias antiguas eran solo los ajustes, sin marca */
+  if (!esBackupValido(paquete)) {
+    if (paquete && typeof paquete === 'object' && !Array.isArray(paquete)) {
+      if (!(await askConfirm('Eso parece una copia antigua, solo con los ajustes (sin diarios). ¿Aplicar los ajustes?', 'Aplicar'))) return;
+      applyOverlay(migrateOverlay(paquete));
+      saveTeacherConfig();
+      renderTeacherConfig();
+      toast('Ajustes aplicados ✓');
+      return;
+    }
+    cfgBackupMsg('⚠️ Eso no es una copia de Expedición Atlas.', destino);
+    return;
+  }
+
+  const r = backupResumen(paquete);
+  const ok = await askConfirm(
+    `Copia del ${r.fecha}${r.clase ? ' · ' + r.clase : ''}${r.docente ? ' · ' + r.docente : ''}.\n` +
+    `Contiene ${r.diarios} diario(s)${r.ajustes ? ' y los ajustes' : ''}.\n\n` +
+    'Se fusiona con lo que ya hay: de cada alumno se queda la versión más reciente. No se borra a nadie.',
+    'Restaurar');
+  if (!ok) return;
+
+  const res = importBackup(paquete);
+  if (!res.ok) { cfgBackupMsg('⚠️ No se ha podido restaurar esa copia.', destino); return; }
+  renderTeacherConfig();
+  toast(`Restaurado ✓ ${res.nuevos} nuevo(s), ${res.actualizados} actualizado(s), ` +
+        `${res.conservados} ya estaban más al día`, 4000);
 }

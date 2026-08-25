@@ -1589,6 +1589,24 @@ function showTeacherPortal() {
   $('#teacher-greeting').textContent = nombre
     ? `Bienvenido, ${nombre}. Desde aquí ves cómo va ${clase || 'la clase'} y preparas la expedición.`
     : 'Desde aquí ves cómo va la clase y preparas la expedición. Puedes poner tu nombre en Configuración → Alumnado.';
+  /* El aviso de copia va aquí, no enterrado en el panel: nadie abre
+     «Copia de seguridad» por iniciativa propia, y es lo que salva el curso. */
+  const aviso = $('#teacher-backup-warn');
+  const pend = copiaPendiente();
+  aviso.classList.toggle('hidden', !pend);
+  if (pend) {
+    aviso.innerHTML = `<span class="teacher-warn-icon">💾</span>
+      <div><strong>${pend.motivo === 'nunca'
+        ? 'Todavía no has guardado ninguna copia'
+        : `Hace ${pend.dias} días de tu última copia`}.</strong>
+      ${pend.diarios === 1
+        ? 'El diario de la clase está'
+        : `Los ${pend.diarios} diarios de la clase están`} solo en este equipo: si se borra el
+      perfil o se limpian los datos de navegación, se ${pend.diarios === 1 ? 'pierde' : 'pierden'}.</div>
+      <button class="btn btn-secondary btn-small" id="teacher-go-backup">💾 Guardar copia</button>`;
+    $('#teacher-go-backup').addEventListener('click', () => { cfgSection = 'copia'; teacherScreen('config'); });
+  }
+
   $('#screen-home').classList.add('hidden');
   $('#app').classList.add('hidden');
   $('#screen-teacher').classList.remove('hidden');

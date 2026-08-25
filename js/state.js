@@ -286,6 +286,113 @@ function closeDiary() {
   return loadState();
 }
 
+/* ══════════ COPIA DE SEGURIDAD COMPLETA ══════════
+   En clase dirigida el curso entero de la clase vive en el localStorage de
+   este equipo. Si el centro borra el perfil al cerrar sesión, o alguien
+   limpia los datos de navegación, se pierde todo y no hay de dónde tirar.
+   Esta copia se lleva lo único que importa: los diarios y los ajustes. */
+const BACKUP_MARCA = 'expedicion-atlas-copia';
+const BACKUP_VERSION = 1;
+
+function exportBackup() {
+  let propio = null;
+  try {
+    const raw = localStorage.getItem(STORAGE_KEY);
+    if (raw) propio = JSON.parse(raw);
+  } catch (e) { /* sin diario propio, o ilegible */ }
+  return {
+    atlas: BACKUP_MARCA,
+    v: BACKUP_VERSION,
+    fecha: new Date().toISOString(),
+    docente: ATLAS_CONFIG.teacherName || '',
+    clase: ATLAS_CONFIG.className || '',
+    ajustes: deepClone(ATLAS_OVERLAY),
+    diarios: loadDiaries(),
+    diarioPropio: propio
+  };
+}
+
+/* Nombre de archivo que se entiende dentro de seis meses en una carpeta
+   con veinte copias: clase y fecha, sin espacios ni acentos. */
+function backupFileName(paquete) {
+  const limpio = t => String(t || '').normalize('NFD').replace(/[\u0300-\u036f]/g, '')
+    .replace(/[^A-Za-z0-9]+/g, '-').replace(/^-|-$/g, '').toLowerCase();
+  const clase = limpio(paquete.clase) || 'clase';
+  return `expedicion-atlas-${clase}-${(paquete.fecha || '').slice(0, 10)}.json`;
+}
+
+function backupResumen(paquete) {
+  const n = Object.keys(paquete.diarios || {}).length;
+  return {
+    diarios: n,
+    fecha: (paquete.fecha || '').slice(0, 10),
+    clase: paquete.clase || '',
+    docente: paquete.docente || '',
+    ajustes: !!(paquete.ajustes && Object.keys(paquete.ajustes).length)
+  };
+}
+
+function esBackupValido(o) {
+  return !!(o && typeof o === 'object' && o.atlas === BACKUP_MARCA && typeof o.diarios === 'object');
+}
+
+/* Restaurar FUSIONA, no sustituye: de cada alumno se queda la versión más
+   reciente. Restaurar una copia del viernes un lunes no puede borrar lo que
+   se hizo el lunes por la mañana; ese es el desastre clásico. */
+function importBackup(paquete) {
+  if (!esBackupValido(paquete)) return { ok: false, reason: 'no-es-copia' };
+
+  const actuales = loadDiaries();
+  const entrantes = paquete.diarios || {};
+  let nuevos = 0, actualizados = 0, conservados = 0;
+
+  for (const k in entrantes) {
+    const viene = entrantes[k];
+    if (!viene || !viene.profile) continue;
+    const hay = actuales[k];
+    if (!hay) { actuales[k] = viene; nuevos++; }
+    else if ((viene.updated_at || 0) > (hay.updated_at || 0)) { actuales[k] = viene; actualizados++; }
+    else conservados++;
+  }
+  saveDiaries(actuales);
+
+  if (paquete.ajustes && typeof paquete.ajustes === 'object') {
+    applyOverlay(migrateOverlay(deepClone(paquete.ajustes)));
+    saveTeacherConfig();
+  }
+  if (paquete.diarioPropio && paquete.diarioPropio.profile) {
+    let propio = null;
+    try { propio = JSON.parse(localStorage.getItem(STORAGE_KEY) || 'null'); } catch (e) { propio = null; }
+    if (!propio || (paquete.diarioPropio.updated_at || 0) > (propio.updated_at || 0)) {
+      try { localStorage.setItem(STORAGE_KEY, JSON.stringify(paquete.diarioPropio)); } catch (e) { /* sin sitio */ }
+    }
+  }
+  marcarCopiaHecha();
+  return { ok: true, nuevos, actualizados, conservados, total: Object.keys(actuales).length };
+}
+
+/* ── Aviso de copia pendiente ──
+   Un docente no se acuerda de hacer copias, y con razón: no es su trabajo.
+   Se anota cuándo se hizo la última para poder avisarle. */
+function marcarCopiaHecha() {
+  ATLAS_CONFIG_META.backupAt = Date.now();
+  saveConfigMeta();
+}
+function diasSinCopia() {
+  const t = ATLAS_CONFIG_META.backupAt || 0;
+  if (!t) return null;                       /* nunca se ha hecho una */
+  return Math.floor((Date.now() - t) / 86400000);
+}
+/* ¿Hay trabajo que se podría perder? Solo molesta si de verdad hay algo */
+function copiaPendiente(diasAviso) {
+  const cuantos = Object.keys(loadDiaries()).length;
+  if (!cuantos) return null;
+  const dias = diasSinCopia();
+  if (dias === null) return { motivo: 'nunca', diarios: cuantos };
+  if (dias >= (diasAviso === undefined ? 7 : diasAviso)) return { motivo: 'vieja', dias, diarios: cuantos };
+  return null;
+}
+
 function saveState() {
   if (!S) return;
   S.updated_at = Date.now(); /* para resolver «¿qué copia es más nueva?» entre dispositivos */
