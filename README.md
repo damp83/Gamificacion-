@@ -450,12 +450,50 @@ sueltos repartidos por el archivo. Cambiar una ficha cambia la plataforma entera
 | **Elevación** (`--e-1`, `--e-2`, `--e-3`, `--e-inset`) | Sombras con tinte de tinta, no grises: sobre pergamino un gris puro se ve sucio. |
 | **Anchos** (`--w-narrow`, `--w-content`, `--w-wide`) | Cada pantalla declara cuánto quiere ocupar en vez de una columna fija de 680 px. |
 
-Tres decisiones que conviene no deshacer sin pensarlo:
+### Emoji o dibujo: quién manda en cada icono
+
+La regla es de una línea: **los emoji son contenido del docente; el dibujo es
+mobiliario de la app.**
+
+Los yacimientos, los pozos, los méritos, los artículos del almacén y los
+animales de las cuadrillas siguen siendo emoji, porque el docente los teclea y
+los cambia cuando quiere desde el panel. Todo lo demás —el HUD, las pestañas,
+los cuatro estratos de Bloom, el pico, el candado, el doblón, los sellos de
+resultado— es un `<symbol>` del sprite que hay al principio de `index.html`, y
+se pinta con `ico('nombre')` desde JavaScript o con `<use href="#i-nombre">`
+desde el HTML.
+
+El motivo no es de gusto. Un emoji lo dibuja el sistema operativo: el mismo
+🪙 es una cosa en un iPad, otra en un Android y otra en Windows, cambia de
+estilo con cada actualización y a 20 px se convierte en una mancha. Un sprite
+propio se ve igual en los seis dispositivos de un aula, hereda el color de
+donde se ponga (`currentColor`) y pesa 6 KB para los cuarenta iconos.
+
+Para añadir uno: un `<symbol id="i-loquesea" viewBox="0 0 24 24">` con trazo de
+1,7, sin declarar `fill` ni `stroke` —se heredan del `<svg class="ico">`, que es
+la única vía que atraviesa el árbol en sombra de un `<use>`—. Si una forma tiene
+que ir maciza, se le pone `fill="currentColor" stroke="none"` en el propio
+elemento.
+
+### Cinco decisiones que conviene no deshacer sin pensarlo
 
 - **Las tipografías se sirven desde `fonts/`, no desde un CDN.** En un centro la
   red puede bloquear `fonts.googleapis.com` o caerse a mitad de sesión, y una
   plataforma que se despinta a medio uso no parece profesional. Son 66 KB del
   subconjunto latino, y así la versión de un solo archivo funciona desde un USB.
+  Ninguna página pide nada a Google: si vuelve a aparecer un `<link>` a
+  `fonts.googleapis.com`, sobra.
+- **El pozo se dibuja como un corte del terreno.** Cada estrato tiene su tono de
+  tierra —arena clara arriba, arcilla abajo—, una línea de sedimento irregular
+  entre capas, grano diagonal en lo que sigue enterrado y filo de latón en lo
+  excavado. Antes eran cuatro filas blancas iguales y la palabra «estrato» no
+  significaba nada a la vista.
+- **El fondo tiene paisaje.** Un templo lejano y tres crestas de duna fijos al
+  pie de la ventana (`body::after`), muy bajos de contraste y detrás de todo.
+  La mitad inferior de casi cada pantalla se quedaba en pergamino vacío. Ojo al
+  tocarlo: el `#` de un color dentro de `url(data:image/svg+xml,…)` **tiene que
+  ir como `%23`**, o abre un identificador de fragmento y trunca el SVG entero
+  sin dar ningún error.
 - **En misión desaparecen las pestañas.** Ya estaban bloqueadas por código;
   mostrarlas era ofrecer una salida que no existía. El reto se queda solo en
   pantalla, centrado y a la altura de los ojos.
@@ -472,6 +510,20 @@ Tres decisiones que conviene no deshacer sin pensarlo:
 - **Foco por teclado** — anillo propio de 3 px, visible sobre cualquier
   superficie; solo aparece con `:focus-visible`, no al tocar con el dedo.
 - **Desborde horizontal** — a 390, 768, 1024 y 1440 px de ancho.
+- **Declaraciones perdidas** — `check-css.js` vuelve a parsear la hoja en el
+  navegador y avisa si alguna regla se ha quedado sin declaraciones. Un color
+  mal escrito no rompe la página: la regla desaparece en silencio y el fallo
+  solo se ve mirando una captura. Ha pasado dos veces.
+
+### El movimiento
+
+Todo dura menos de medio segundo, ocurre una sola vez y no lleva información
+que no esté también en el color y el texto: acertar levanta la losa, fallar la
+mueve dos veces de lado (corto, nunca un temblor largo: con el error el tono es
+cómico, no punitivo), el sello del resultado se estampa, el aro del nivel da un
+destello al subir y las tarjetas del mapa entran escalonadas. Con
+`prefers-reduced-motion` desaparece entero y la interfaz sigue diciendo lo
+mismo.
 
 ## Cómo ponerla en marcha
 

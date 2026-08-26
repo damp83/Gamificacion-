@@ -245,6 +245,53 @@ button:disabled { cursor: not-allowed; opacity: .55; }
 .dialog.kira { background: var(--jungle-tint); border-left-color: var(--jungle); }
 .dialog.kira .dialog-text > strong { color: var(--jungle); }
 
+/* ── Horizonte ──
+   La mitad de abajo de casi todas las pantallas se quedaba vacía: pergamino
+   y nada más. En lugar de estirar el contenido para taparlo, el fondo pasa a
+   tener paisaje —un templo lejano y tres crestas de duna— tan bajo de
+   contraste que nunca compite con el texto que pase por encima. Va fijo al
+   pie de la ventana y detrás de todo. */
+body::after {
+  content: '';
+  position: fixed; left: 0; right: 0; bottom: 0;
+  height: min(46vh, 27rem);
+  z-index: -1;
+  pointer-events: none;
+  /* Dos capas: el paisaje recortado y, debajo, la arena en la que el papel
+     se va posando. Sin ese degradado las dunas flotaban sobre el pergamino
+     y parecían una mancha de impresión. */
+  background-image:
+    url("data:image/svg+xml,<svg xmlns=%22http://www.w3.org/2000/svg%22 viewBox=%220 0 1440 400%22 preserveAspectRatio=%22none%22> <g fill=%22%236b4318%22 fill-opacity=%22.13%22 transform=%22translate(0 62)%22> <path d=%22M556 214v-30h16v-16h22v-16h26v-15h50v15h26v16h22v16h16v30z%22/> <path d=%22M604 214v-40h56v40z%22 fill-opacity=%22.5%22/> <path d=%22M872 214v-22h12v-12h18v-12h20v-11h34v11h20v12h18v12h12v22z%22 fill-opacity=%22.7%22/> </g> <path d=%22M0 232c140-40 250-12 372 14s226 36 354 10 222-52 362-32 282 66 352 44v192H0z%22 fill=%22%236b4318%22 fill-opacity=%22.14%22/> <path d=%22M0 288c158-30 258 6 392 30s244 22 375-6 238-48 369-25 190 52 304 32v121H0z%22 fill=%22%238a5a0b%22 fill-opacity=%22.17%22/> <path d=%22M0 336c176-22 274 10 418 26s272 8 409-13 257-32 392-11 155 30 221 17v45H0z%22 fill=%22%236b4318%22 fill-opacity=%22.22%22/> </svg>"),
+    linear-gradient(180deg,
+      rgba(200, 160, 96, 0) 0%,
+      rgba(200, 160, 96, .10) 46%,
+      rgba(184, 141, 78, .22) 100%);
+  background-repeat: no-repeat, no-repeat;
+  background-position: bottom center, bottom center;
+  background-size: 100% 100%, 100% 100%;
+}
+/* En misión el horizonte estorba: el reto se queda solo con el pergamino. */
+body.en-mision::after { opacity: .35; }
+
+/* ── Iconos dibujados ──
+   Un solo trazo, `currentColor` y tamaño en `em`: el mismo símbolo sirve
+   sobre cuero, sobre papel y dentro de un botón sin declararlo tres veces.
+   `fill`/`stroke` se heredan hacia dentro del <use>, que es la única vía
+   que atraviesa el árbol en sombra de un símbolo. */
+.ico {
+  width: 1.15em; height: 1.15em;
+  flex-shrink: 0;
+  vertical-align: -.18em;
+  fill: none;
+  stroke: currentColor;
+  stroke-width: 1.7;
+  stroke-linecap: round;
+  stroke-linejoin: round;
+}
+/* En una caja grande el trazo fino se rompe; en una pequeña, engorda. */
+.ico-lg { stroke-width: 1.5; }
+.ico-sm { stroke-width: 2; }
+
 /* ── HUD ──
    Barra de estado permanente. Se le da profundidad con un degradado corto y
    un filete dorado inferior: sin él, el marrón plano chocaba con el papel. */
@@ -252,39 +299,90 @@ button:disabled { cursor: not-allowed; opacity: .55; }
   position: sticky; top: 0; z-index: 20;
   display: flex; justify-content: space-between; align-items: center; gap: var(--s-4);
   background-color: var(--leather-dark);
-  background-image: linear-gradient(180deg, #5b3617 0%, var(--leather-dark) 100%);
-  border-bottom: 2px solid rgba(240, 195, 60, .35);
+  /* Cuero curtido: una luz cenital, una veta cálida cruzada y el fondo
+     hundido abajo. Un marrón plano se leía como una barra de navegación
+     cualquiera; esto se lee como material. */
+  background-image:
+    linear-gradient(180deg, rgba(255, 226, 170, .13) 0%, rgba(255, 226, 170, 0) 42%),
+    linear-gradient(96deg, #6a4019 0%, #52310f 46%, #3f2409 100%);
   color: #fdf3dd;
   padding: .5rem clamp(.9rem, 4vw, 2rem);
-  box-shadow: var(--e-2);
+  /* El filete de latón va como sombra y no como borde: así no suma altura
+     ni desplaza el contenido pegajoso del principio. */
+  box-shadow:
+    inset 0 -2px 0 rgba(240, 195, 60, .40),
+    inset 0 -3px 0 rgba(0, 0, 0, .35),
+    0 3px 10px rgba(30, 17, 4, .30);
 }
-.hud-left { display: flex; align-items: center; gap: .6rem; min-width: 0; }
+.hud-left { display: flex; align-items: center; gap: .65rem; min-width: 0; }
 .hud-avatar {
-  font-size: 1.5rem; line-height: 1;
-  width: 2.4rem; height: 2.4rem; flex-shrink: 0;
+  font-size: 1.45rem; line-height: 1;
+  width: 2.5rem; height: 2.5rem; flex-shrink: 0;
   display: grid; place-items: center;
-  background: rgba(255, 255, 255, .1); border-radius: var(--r-pill);
-  border: 1px solid rgba(240, 195, 60, .3);
+  border-radius: var(--r-pill);
+  /* Medallón: hueco por dentro, con un aro de latón que le da grosor. */
+  background:
+    radial-gradient(circle at 50% 22%, rgba(255, 240, 205, .22), rgba(0, 0, 0, .30) 78%);
+  box-shadow:
+    inset 0 2px 4px rgba(0, 0, 0, .45),
+    0 0 0 1.5px rgba(240, 195, 60, .45),
+    0 1px 0 rgba(255, 235, 190, .18);
 }
 .hud-identity { display: flex; flex-direction: column; line-height: 1.15; min-width: 0; }
-#hud-name { font-weight: 800; font-size: var(--t-base); }
+#hud-name {
+  font-family: var(--font-display); font-size: var(--t-md);
+  letter-spacing: .01em;
+  /* Grabado: una luz por debajo, como letras hundidas en el cuero. */
+  text-shadow: 0 1px 0 rgba(0, 0, 0, .45), 0 -1px 0 rgba(255, 225, 170, .10);
+}
 .hud-rank {
   font-size: var(--t-xs); color: var(--gold);
-  text-transform: uppercase; letter-spacing: .06em; font-weight: 700;
+  text-transform: uppercase; letter-spacing: .09em; font-weight: 800;
 }
-.hud-right { display: flex; gap: var(--s-4); align-items: center; }
-.hud-stat { display: flex; align-items: center; gap: .35rem; font-weight: 800; }
-.hud-level { display: flex; flex-direction: column; gap: .2rem; line-height: 1.1; }
-#hud-level { font-size: var(--t-xs); text-transform: uppercase; letter-spacing: .06em; }
-.xp-bar {
-  width: 84px; height: 6px; background: rgba(0, 0, 0, .3);
-  border-radius: var(--r-pill); overflow: hidden;
+.hud-right { display: flex; gap: .55rem; align-items: center; }
+
+/* Los indicadores viven en cajetines hundidos, como los herrajes de una
+   caja de instrumentos. Antes eran texto suelto sobre el marrón. */
+.hud-stat {
+  display: flex; align-items: center; gap: .45rem;
+  font-weight: 800; line-height: 1;
+  padding: .3rem .6rem; border-radius: var(--r-pill);
+  background: rgba(0, 0, 0, .26);
+  box-shadow: inset 0 1px 3px rgba(0, 0, 0, .40), 0 1px 0 rgba(255, 235, 190, .10);
 }
-.xp-fill {
-  height: 100%; border-radius: var(--r-pill);
-  background: linear-gradient(90deg, var(--brass-light), var(--gold));
-  transition: width .5s cubic-bezier(.2, .8, .3, 1);
+.hud-stat-icon { display: grid; place-items: center; color: var(--gold); }
+.hud-stat-icon .ico { width: 1.25rem; height: 1.25rem; }
+.hud-num { font-variant-numeric: tabular-nums; font-size: var(--t-md); }
+
+/* Anillo de nivel: el número dentro y los PE cerrando la vuelta. */
+.hud-stat-level { gap: .5rem; padding-left: .32rem; }
+.lvl-ring { position: relative; width: 2.3rem; height: 2.3rem; display: block; }
+.lvl-ring svg { width: 100%; height: 100%; transform: rotate(-90deg); display: block; }
+.lvl-ring circle { fill: none; stroke-width: 3.6; stroke-linecap: round; }
+.lvl-track { stroke: rgba(255, 236, 200, .22); }
+.lvl-fill {
+  stroke: var(--gold);
+  transition: stroke-dashoffset .6s cubic-bezier(.2, .8, .3, 1);
+  filter: drop-shadow(0 0 3px rgba(240, 195, 60, .55));
 }
+.lvl-ring b {
+  position: absolute; inset: 0; display: grid; place-items: center;
+  font-family: var(--font-display); font-size: var(--t-md); color: #fff6e2;
+  font-weight: 400; font-variant-numeric: tabular-nums;
+}
+.hud-stat-label {
+  font-size: var(--t-xs); text-transform: uppercase;
+  letter-spacing: .09em; color: var(--brass-light);
+}
+/* Al subir de nivel, el aro da un golpe de luz. */
+@keyframes sube-nivel {
+  0%   { box-shadow: inset 0 1px 3px rgba(0,0,0,.40), 0 0 0 0 rgba(240, 195, 60, .75); }
+  60%  { box-shadow: inset 0 1px 3px rgba(0,0,0,.40), 0 0 0 12px rgba(240, 195, 60, 0); }
+  100% { box-shadow: inset 0 1px 3px rgba(0,0,0,.40), 0 0 0 0 rgba(240, 195, 60, 0); }
+}
+.hud-stat-level.lvl-up { animation: sube-nivel 1s ease-out; }
+.hud-stat-level.lvl-up .lvl-ring b { animation: late 1s ease-out; }
+@keyframes late { 0%,100% { transform: scale(1); } 35% { transform: scale(1.28); } }
 
 /* ── Layout ──
    La columna era de 680 px fijos: en una tablet apaisada o un portátil
@@ -303,8 +401,24 @@ button:disabled { cursor: not-allowed; opacity: .55; }
   * { transition-duration: .01ms !important; }
 }
 
-/* Encabezado de pantalla: título y una línea que explica de qué va */
-.screen > h2 { margin-bottom: var(--s-2); }
+/* Encabezado de pantalla: título y una línea que explica de qué va. El icono
+   va en un medallón de latón —no suelto junto al texto— para que el titular
+   tenga peso de portada de capítulo y no de encabezado de formulario. */
+.screen > h2, #screen-home h2 {
+  margin-bottom: var(--s-2);
+  display: flex; align-items: center; gap: .7rem;
+}
+.screen > h2 > .ico, #screen-home h2 > .ico {
+  width: 2.6rem; height: 2.6rem; padding: .45rem;
+  flex-shrink: 0; stroke-width: 1.5;
+  color: var(--brass); border-radius: var(--r-md);
+  background-color: var(--brass-tint);
+  background-image: linear-gradient(158deg, #fdf1d2, var(--brass-tint));
+  box-shadow:
+    inset 0 0 0 1px rgba(138, 90, 11, .26),
+    inset 0 -2px 4px rgba(138, 90, 11, .12),
+    0 1px 0 rgba(255, 255, 255, .7);
+}
 .screen h3 {
   color: var(--leather); margin: var(--s-5) 0 var(--s-3);
   display: flex; align-items: baseline; gap: .5rem;
@@ -331,29 +445,44 @@ body.en-mision #main { padding-bottom: var(--s-5); }
 }
 .tab {
   flex: 1 1 0; max-width: 8rem;
-  background: transparent; border: none; color: #e4d3b0;
-  display: flex; flex-direction: column; align-items: center; gap: .1rem;
+  background: transparent; border: none; color: #e0cda8;
+  display: flex; flex-direction: column; align-items: center; gap: .18rem;
   font-family: var(--font-text);
-  font-size: var(--t-xs); font-weight: 700; padding: .35rem .2rem;
+  font-size: var(--t-xs); font-weight: 700; padding: .3rem .2rem .35rem;
   border-radius: var(--r-md);
-  transition: color .15s ease, background-color .15s ease;
+  transition: color .16s ease, transform .16s ease;
 }
-.tab:hover { color: #fdf3dd; background: rgba(255, 255, 255, .06); }
-.tab span { font-size: 1.3rem; line-height: 1.1; }
-/* El realce claro dejaba el dorado en 4,33:1 sobre sí mismo. Oscurecerlo
-   sube a 8:1, y el filete superior marca la selección con más fuerza que
-   el tinte que había antes. */
-.tab.active {
-  background: rgba(0, 0, 0, .3); color: var(--gold);
-  box-shadow: inset 0 3px 0 var(--gold);
+.tab-ico {
+  display: grid; place-items: center;
+  width: 2.15rem; height: 2.15rem; border-radius: var(--r-md);
+  transition: background-color .16s ease, box-shadow .16s ease, color .16s ease;
+}
+.tab-ico .ico { width: 1.4rem; height: 1.4rem; }
+.tab-label { line-height: 1.1; }
+.tab:hover { color: #fff4de; }
+.tab:hover .tab-ico { background: rgba(255, 255, 255, .09); }
+.tab:active { transform: translateY(1px); }
+/* El realce claro dejaba el dorado en 4,33:1 sobre sí mismo. Sobre el hueco
+   oscuro llega a 8:1, y ahora además el icono se enciende: la pestaña
+   elegida parece una lámpara, no un rectángulo pintado. */
+.tab.active { color: var(--gold); }
+.tab.active .tab-ico {
+  color: #2a1806;
+  background-image: linear-gradient(180deg, var(--gold) 0%, var(--brass-light) 100%);
+  background-color: var(--gold);
+  box-shadow:
+    0 2px 7px rgba(240, 195, 60, .40),
+    inset 0 1px 0 rgba(255, 250, 230, .70),
+    inset 0 -2px 0 rgba(122, 74, 33, .30);
 }
 
 /* ── Mapa ── */
 .map-header { margin-bottom: var(--s-5); }
 .map-reveal { margin-top: var(--s-3); }
 .map-reveal-bar {
-  height: 10px; background: var(--surface-sunken); border-radius: var(--r-pill);
-  overflow: hidden; box-shadow: var(--e-inset);
+  height: 12px; background: rgba(122, 74, 33, .14); border-radius: var(--r-pill);
+  overflow: hidden;
+  box-shadow: inset 0 2px 4px rgba(51, 36, 15, .22), 0 1px 0 rgba(255, 255, 255, .5);
 }
 #map-reveal-fill {
   height: 100%; width: 0; border-radius: var(--r-pill);
@@ -367,7 +496,8 @@ body.en-mision #main { padding-bottom: var(--s-5); }
 
 /* Avisos del día: mismo esqueleto, distinto color según lo que sea */
 .daily-banner, .fatigue-banner {
-  display: flex; gap: .6rem; align-items: center;
+  display: flex; gap: .6rem; align-items: flex-start;
+  line-height: 1.55;
   border-radius: var(--r-md); padding: .75rem 1rem;
   margin-bottom: var(--s-4); font-size: var(--t-sm);
   box-shadow: var(--e-1);
@@ -381,21 +511,41 @@ body.en-mision #main { padding-bottom: var(--s-5); }
 /* Cabecera de yacimiento: banda de cuero, no otra tarjeta crema. Así se
    distingue de un golpe de vista el continente del contenido. */
 .site-header {
+  position: relative;
   display: flex; gap: .9rem; align-items: center;
   background-color: var(--leather-dark);
-  background-image: linear-gradient(135deg, #6d421d, var(--leather-dark));
+  /* Piedra tallada: luz cenital, veta diagonal y sombra en el canto. Una
+     banda de color plano se leía como el encabezado de una tabla. */
+  background-image:
+    linear-gradient(180deg, rgba(255, 225, 170, .14) 0%, rgba(255, 225, 170, 0) 38%),
+    linear-gradient(118deg, #6f441e 0%, #56340f 52%, #402508 100%);
   color: #f7ead2;
-  border-radius: var(--r-lg); box-shadow: var(--e-2);
-  padding: .85rem 1.1rem;
+  border-radius: var(--r-lg);
+  padding: .9rem 1.15rem;
   margin: var(--s-6) 0 var(--s-3);
+  box-shadow:
+    inset 0 1px 0 rgba(255, 235, 190, .16),
+    inset 0 -2px 0 rgba(0, 0, 0, .30),
+    var(--e-2);
+}
+/* Filete de latón al pie, como el metal que remata una placa grabada. */
+.site-header::after {
+  content: ''; position: absolute; left: 1.15rem; right: 1.15rem; bottom: 0;
+  height: 2px; border-radius: var(--r-pill);
+  background: linear-gradient(90deg,
+    transparent, rgba(240, 195, 60, .55) 22%, rgba(240, 195, 60, .55) 78%, transparent);
 }
 .site-header:first-child { margin-top: 0; }
 .site-icon {
-  font-size: 1.9rem; line-height: 1;
-  width: 3rem; height: 3rem; flex-shrink: 0;
+  font-size: 1.85rem; line-height: 1;
+  width: 3.1rem; height: 3.1rem; flex-shrink: 0;
   display: grid; place-items: center;
-  background: rgba(255, 255, 255, .12); border-radius: var(--r-md);
-  border: 1px solid rgba(240, 195, 60, .3);
+  border-radius: var(--r-md);
+  background:
+    radial-gradient(circle at 50% 20%, rgba(255, 240, 205, .20), rgba(0, 0, 0, .26) 80%);
+  box-shadow:
+    inset 0 2px 5px rgba(0, 0, 0, .40),
+    0 0 0 1.5px rgba(240, 195, 60, .38);
 }
 .site-header h3 { margin: 0; color: #fff6e2; font-size: var(--t-lg); }
 .site-header h3::after { display: none; }   /* el filete es para las secciones */
@@ -409,33 +559,64 @@ body.en-mision #main { padding-bottom: var(--s-5); }
   margin-bottom: var(--s-3);
 }
 .branch-card {
+  position: relative; overflow: hidden;
   display: flex; align-items: center; gap: .85rem; width: 100%;
-  background: var(--surface); border: var(--line);
-  border-radius: var(--r-lg); box-shadow: var(--e-1);
+  background-color: var(--surface);
+  /* Papel grueso: una luz en el canto de arriba y sombra caliente debajo.
+     El borde de 1 px que había antes lo dejaba plano como un formulario. */
+  background-image: linear-gradient(180deg, #fffefa 0%, var(--surface) 58%, #fbf5e6 100%);
+  border: none;
+  border-radius: var(--r-lg);
+  box-shadow:
+    inset 0 1px 0 #fff,
+    inset 0 0 0 1px rgba(122, 74, 33, .16),
+    var(--e-1);
   padding: .9rem 1rem; text-align: left; font-size: var(--t-base);
   font-family: var(--font-text); color: var(--ink);
-  transition: transform .14s ease, box-shadow .14s ease, border-color .14s ease;
+  transition: transform .16s cubic-bezier(.2, .8, .3, 1), box-shadow .16s ease;
 }
-.branch-card:hover { transform: translateY(-2px); box-shadow: var(--e-2); border-color: var(--brass); }
-.branch-card:active { transform: translateY(0); box-shadow: var(--e-1); }
+.branch-card:hover {
+  transform: translateY(-3px);
+  box-shadow:
+    inset 0 1px 0 #fff,
+    inset 0 0 0 1px rgba(138, 90, 11, .45),
+    var(--e-3);
+}
+.branch-card:active { transform: translateY(-1px); }
 /* Hueco de icono de tamaño fijo: los emoji tienen anchos distintos y sin
    esto los títulos de cada fila empezaban en una x diferente. */
 .branch-icon {
-  font-size: 1.6rem; line-height: 1;
-  width: 2.9rem; height: 2.9rem; flex-shrink: 0;
+  font-size: 1.55rem; line-height: 1;
+  width: 3rem; height: 3rem; flex-shrink: 0;
   display: grid; place-items: center;
-  background: var(--brass-tint); border-radius: var(--r-md);
+  border-radius: var(--r-md);
+  background-color: var(--brass-tint);
+  background-image: linear-gradient(158deg, #fdf0cf 0%, var(--brass-tint) 100%);
+  box-shadow: inset 0 0 0 1px rgba(138, 90, 11, .22), inset 0 -2px 4px rgba(138, 90, 11, .12);
 }
 .branch-info { flex: 1; min-width: 0; }
 .branch-info strong { display: block; color: var(--ink); font-size: var(--t-md); font-weight: 800; }
 .branch-info small { color: var(--ink-soft); font-size: var(--t-xs); }
-.branch-strata-dots { display: flex; gap: .3rem; margin: .3rem 0 .2rem; }
-.dot { width: 11px; height: 11px; border-radius: 50%; }
-.dot-mastered { background: var(--gold); box-shadow: 0 0 0 1.5px var(--brass); }
-.dot-open { background: var(--jungle-light); }
-.dot-locked { background: transparent; box-shadow: 0 0 0 1.5px rgba(107, 86, 56, .45); }
-.branch-go { font-size: 1.2rem; opacity: .5; transition: opacity .14s ease, transform .14s ease; }
-.branch-card:hover .branch-go { opacity: 1; transform: translateX(2px); }
+
+/* Los cuatro estratos, en vertical y a escala: es el testigo de un sondeo.
+   Cuatro puntos sueltos no decían de qué profundidad hablaban. */
+.branch-strata-dots {
+  display: flex; gap: 3px; margin: .4rem 0 .3rem;
+  padding: 3px; border-radius: 5px; width: max-content;
+  background: rgba(122, 74, 33, .10);
+  box-shadow: inset 0 1px 2px rgba(51, 36, 15, .14);
+}
+.dot { width: 15px; height: 9px; border-radius: 2px; }
+.dot-mastered {
+  background-image: linear-gradient(180deg, var(--gold), var(--brass-light));
+  background-color: var(--gold);
+  box-shadow: inset 0 1px 0 rgba(255, 250, 225, .8), 0 0 5px rgba(240, 195, 60, .55);
+}
+.dot-open { background: var(--jungle-light); box-shadow: inset 0 1px 0 rgba(255, 255, 255, .35); }
+.dot-locked { background: rgba(107, 86, 56, .22); }
+.branch-go { color: var(--brass); opacity: .45; transition: opacity .16s ease, transform .16s ease; }
+.branch-go .ico { width: 1.5rem; height: 1.5rem; }
+.branch-card:hover .branch-go { opacity: 1; transform: rotate(-14deg); }
 
 .bazar-card { margin-top: var(--s-6); }
 .bazar-inner {
@@ -445,64 +626,136 @@ body.en-mision #main { padding-bottom: var(--s-5); }
   padding: .9rem 1.1rem; box-shadow: var(--e-1);
 }
 .bazar-icon {
-  font-size: 1.6rem; line-height: 1;
   width: 2.9rem; height: 2.9rem; flex-shrink: 0;
   display: grid; place-items: center;
-  background: rgba(141, 92, 130, .12); border-radius: var(--r-md);
+  color: #7a4c70;
+  background: rgba(141, 92, 130, .14); border-radius: var(--r-md);
+  box-shadow: inset 0 0 0 1px rgba(141, 92, 130, .28);
 }
+.bazar-icon .ico { width: 1.6rem; height: 1.6rem; }
 .bazar-inner strong { font-size: var(--t-md); }
 .bazar-inner p { font-size: var(--t-sm); color: var(--ink-soft); }
 .bazar-inner div { flex: 1; min-width: 0; }
 
 /* ── Estratos ── */
 .branch-desc { color: var(--ink-soft); font-size: var(--t-base); margin-bottom: var(--s-5); max-width: var(--w-narrow); }
+/* El pozo se dibuja como un corte del terreno visto de perfil: cada estrato
+   es una capa de tierra con su propio tono, más clara arriba (arena de la
+   superficie) y más oscura y arcillosa según se baja. Antes eran cuatro
+   filas blancas iguales y la palabra «estrato» no significaba nada. */
 .strata-list {
   display: flex; flex-direction: column;
   border-radius: var(--r-lg); overflow: hidden;
-  box-shadow: var(--e-2); background: var(--surface);
+  background: var(--surface);
+  box-shadow:
+    var(--e-3),
+    inset 0 0 0 1px rgba(122, 74, 33, .18);
 }
 .stratum-row {
+  position: relative;
   display: flex; align-items: center; gap: .85rem; width: 100%;
-  background: var(--surface); border: none;
-  border-left: 5px solid var(--brass);
-  padding: .9rem 1rem; text-align: left;
+  border: none;
+  padding: .95rem 1rem; text-align: left;
   font-family: var(--font-text); font-size: var(--t-base); color: var(--ink);
-  border-bottom: var(--line);
-  transition: background-color .14s ease;
+  transition: background-color .16s ease, transform .16s ease;
 }
-.stratum-row:last-child { border-bottom: none; }
-.stratum-row:not(:disabled):hover { background: #fff8e8; }
-.stratum-row.locked { background: var(--paper-deep); border-left-color: rgba(107, 86, 56, .5); }
-/* Número de estrato en una columna fija: alinea todas las filas y da la
-   sensación de profundidad de una pared excavada. */
+/* Línea de sedimento entre capas: irregular, no un filete de tabla. */
+.stratum-row + .stratum-row::before {
+  content: ''; position: absolute; left: 0; right: 0; top: 0; height: 3px;
+  background:
+    linear-gradient(90deg,
+      rgba(122, 74, 33, .26) 0%, rgba(122, 74, 33, .10) 18%,
+      rgba(122, 74, 33, .30) 37%, rgba(122, 74, 33, .12) 58%,
+      rgba(122, 74, 33, .28) 76%, rgba(122, 74, 33, .13) 100%);
+}
+/* Tonos de tierra por profundidad. */
+.stratum-row:nth-child(1) { background: #fffaee; }
+.stratum-row:nth-child(2) { background: #fbf2df; }
+.stratum-row:nth-child(3) { background: #f6ead0; }
+.stratum-row:nth-child(4) { background: #f1e1c2; }
+
+/* Una capa aún enterrada: apagada y con grano, como tierra sin tocar. */
+.stratum-row.locked {
+  color: var(--ink-soft);
+  background-image:
+    repeating-linear-gradient(114deg,
+      rgba(107, 86, 56, .07) 0 3px, transparent 3px 7px);
+}
+.stratum-row.locked .stratum-icon { color: var(--ink-faint); }
+
+/* Una capa excavada: limpia, con el filo de latón a la izquierda. */
+.stratum-row.excavado { box-shadow: inset 4px 0 0 var(--gold); }
+.stratum-row.excavado .stratum-icon {
+  color: var(--brass);
+  background-image: linear-gradient(160deg, #fdeec3, var(--brass-tint));
+  box-shadow: inset 0 0 0 1px rgba(138, 90, 11, .30), var(--e-1);
+}
+
+.stratum-row:not(:disabled):hover { background-color: #fff9ea; }
+.stratum-row:not(:disabled):active { transform: translateY(1px); }
+
+/* Regla de profundidad: la palabra pequeña arriba y el número grande
+   debajo, como la cota de una pared de excavación. En una sola línea el
+   texto se salía de la columna. */
 .stratum-depth {
-  flex-shrink: 0; width: 2.1rem; text-align: center;
-  font-family: var(--font-display);
-  font-size: var(--t-xs); color: var(--brass);
-  text-transform: uppercase; letter-spacing: .04em;
+  flex-shrink: 0; width: 3.1rem;
+  display: flex; flex-direction: column; align-items: center; line-height: 1;
+  color: var(--brass);
 }
+.stratum-depth i {
+  font-style: normal; font-size: .6rem; font-weight: 800;
+  text-transform: uppercase; letter-spacing: .1em;
+  color: var(--ink-faint);
+}
+.stratum-depth b {
+  font-family: var(--font-display); font-weight: 400;
+  font-size: var(--t-lg); line-height: 1.05;
+  font-variant-numeric: tabular-nums;
+}
+.stratum-row.locked .stratum-depth { color: var(--ink-faint); }
+
 .stratum-icon {
-  font-size: 1.5rem; line-height: 1;
-  width: 2.6rem; height: 2.6rem; flex-shrink: 0;
+  width: 2.7rem; height: 2.7rem; flex-shrink: 0;
   display: grid; place-items: center;
-  background: var(--surface-sunken); border-radius: var(--r-md);
+  color: var(--leather);
+  background-color: var(--surface-sunken); border-radius: var(--r-md);
+  box-shadow: inset 0 0 0 1px rgba(122, 74, 33, .16), var(--e-inset);
+  transition: color .16s ease, box-shadow .16s ease;
 }
+.stratum-icon .ico { width: 1.5rem; height: 1.5rem; }
 .stratum-info { flex: 1; min-width: 0; }
 /* título en su propia línea: en los estratos bloqueados no hay barra de
    dominio que lo separe del texto de ayuda y quedaban pegados */
 .stratum-info strong { display: block; font-size: var(--t-base); font-weight: 800; }
 .stratum-info small { color: var(--ink-soft); font-size: var(--t-xs); display: block; }
-.stratum-go { font-size: 1.2rem; opacity: .5; }
-.stratum-row:not(:disabled):hover .stratum-go { opacity: 1; }
+.stratum-go {
+  color: var(--brass); opacity: .45;
+  transition: opacity .16s ease, transform .16s ease;
+}
+.stratum-go .ico { width: 1.45rem; height: 1.45rem; }
+/* El pico se hunde un poco al pasar por encima: el gesto de picar. */
+.stratum-row:not(:disabled):hover .stratum-go { opacity: 1; transform: rotate(-14deg) translateY(1px); }
+/* La barra de dominio cruzaba la fila entera de lado a lado y se leía como
+   un separador. Acotada y más gruesa, vuelve a ser un medidor. */
 .mastery-bar {
-  height: 7px; background: var(--surface-sunken); border-radius: var(--r-pill);
-  overflow: hidden; margin: .35rem 0 .2rem; box-shadow: var(--e-inset);
+  height: 9px; max-width: 15rem;
+  background: rgba(122, 74, 33, .13); border-radius: var(--r-pill);
+  overflow: hidden; margin: .4rem 0 .25rem;
+  box-shadow: inset 0 1px 3px rgba(51, 36, 15, .20);
 }
 .mastery-fill {
-  height: 100%; background: var(--jungle-light); border-radius: var(--r-pill);
+  height: 100%; border-radius: var(--r-pill);
+  background-color: var(--jungle-light);
+  background-image: linear-gradient(180deg, rgba(255, 255, 255, .38), rgba(0, 0, 0, .06));
   transition: width .5s cubic-bezier(.2, .8, .3, 1);
 }
-.mastery-fill.gold { background: linear-gradient(90deg, var(--brass-light), var(--gold)); }
+.mastery-fill.gold {
+  background-color: var(--gold);
+  background-image:
+    linear-gradient(180deg, rgba(255, 252, 235, .55), rgba(138, 90, 11, .18)),
+    linear-gradient(90deg, var(--brass-light), var(--gold));
+  box-shadow: 0 0 7px rgba(240, 195, 60, .55);
+}
 
 /* ── Misión ──
    La pantalla donde más rato pasa un niño. Antes la tarjeta flotaba arriba
@@ -515,26 +768,66 @@ body.en-mision #main { padding-bottom: var(--s-5); }
   display: flex; flex-direction: column; justify-content: center;
   max-width: var(--w-narrow); margin: 0 auto;
 }
+/* Cartela de misión: dónde se está excavando y cuánto queda. Va sobre una
+   banda de piedra clara, no suelta sobre el papel, para que se lea como el
+   marco del reto y no como una migaja de navegación. */
 .mission-header {
   display: flex; justify-content: space-between; align-items: center; gap: .8rem;
   margin-bottom: var(--s-4); flex-wrap: wrap;
-  font-weight: 700; color: var(--leather);
-  font-size: var(--t-sm); text-transform: uppercase; letter-spacing: .04em;
+  font-weight: 800; color: var(--leather);
+  font-size: var(--t-sm); text-transform: uppercase; letter-spacing: .06em;
+  padding: .5rem .9rem; border-radius: var(--r-pill);
+  background: rgba(255, 253, 247, .72);
+  box-shadow: inset 0 0 0 1px rgba(122, 74, 33, .16);
 }
-.mission-progress { display: flex; gap: .3rem; }
+#mission-title { display: flex; align-items: center; gap: .45rem; min-width: 0; }
+#mission-title .ico { width: 1.15rem; height: 1.15rem; }
+.mh-site { display: inline-flex; align-items: center; gap: .35rem; }
+/* Separador en forma de rombo: marca el salto de yacimiento a estrato sin
+   meter otro punto medio en una línea que ya lleva dos. */
+.mh-sep {
+  width: 5px; height: 5px; flex-shrink: 0;
+  background: var(--brass); transform: rotate(45deg); opacity: .55;
+}
+.mission-progress { display: flex; gap: .35rem; }
 .qdot {
-  width: 10px; height: 10px; border-radius: 50%;
-  background: transparent; box-shadow: 0 0 0 1.5px rgba(138, 90, 11, .5);
-  transition: background-color .2s ease, transform .2s ease;
+  width: 11px; height: 11px; border-radius: 50%;
+  background: rgba(122, 74, 33, .14);
+  box-shadow: inset 0 1px 2px rgba(51, 36, 15, .25);
+  transition: background-color .2s ease, transform .2s ease, box-shadow .2s ease;
 }
-.qdot-ok { background: var(--jungle-light); box-shadow: 0 0 0 1.5px var(--jungle); }
-.qdot-fail { background: var(--danger); box-shadow: 0 0 0 1.5px var(--danger); }
-.qdot-current { background: var(--gold); box-shadow: 0 0 0 1.5px var(--brass); transform: scale(1.3); }
+.qdot-ok {
+  background: var(--jungle-light);
+  box-shadow: inset 0 1px 0 rgba(255, 255, 255, .45), 0 0 0 1.5px var(--jungle);
+}
+.qdot-fail {
+  background: var(--danger);
+  box-shadow: inset 0 1px 0 rgba(255, 255, 255, .30), 0 0 0 1.5px var(--danger);
+}
+.qdot-current {
+  background: var(--gold); transform: scale(1.35);
+  box-shadow: 0 0 0 1.5px var(--brass), 0 0 7px rgba(240, 195, 60, .8);
+}
 
 .question-card, .feedback-card, .result-card {
-  background: var(--surface-raised); border-radius: var(--r-xl);
-  border: none; box-shadow: var(--e-3);
+  position: relative;
+  background-color: var(--surface-raised);
+  /* Ficha de excavación: papel grueso con luz arriba y peso abajo. */
+  background-image: linear-gradient(180deg, #ffffff 0%, #fffdf7 62%, #fdf7ea 100%);
+  border-radius: var(--r-xl);
+  border: none;
+  box-shadow:
+    inset 0 1px 0 #fff,
+    inset 0 0 0 1px rgba(122, 74, 33, .14),
+    var(--e-3);
   padding: clamp(1.2rem, 3vw, 2rem);
+}
+/* Cinta de latón en el canto superior: remata la tarjeta y le da un frente. */
+.question-card::before, .result-card::before {
+  content: ''; position: absolute; left: 14%; right: 14%; top: 0; height: 3px;
+  border-radius: var(--r-pill);
+  background: linear-gradient(90deg,
+    transparent, var(--brass-light) 25%, var(--gold) 50%, var(--brass-light) 75%, transparent);
 }
 .question-text {
   font-size: clamp(1.15rem, 2.4vw, 1.4rem); font-weight: 700; line-height: 1.4;
@@ -543,12 +836,20 @@ body.en-mision #main { padding-bottom: var(--s-5); }
 /* Dos columnas cuando el hueco lo permite: cuatro opciones cortas apiladas
    obligaban a barrer toda la pantalla con la vista. */
 .options { display: grid; gap: .6rem; grid-template-columns: repeat(auto-fit, minmax(15rem, 1fr)); }
+/* Cada opción es una losa: canto claro arriba, base oscura abajo y un
+   desplazamiento real al pulsar, como una tecla que se hunde. Antes eran
+   rectángulos planos y responder no se notaba en la mano. */
 .option {
   display: flex; align-items: center; gap: .75rem;
   padding: .9rem 1rem; font-family: var(--font-text);
   font-size: var(--t-md); font-weight: 600; text-align: left; color: var(--ink);
-  background: var(--paper); border: 2px solid transparent;
-  box-shadow: var(--e-1);
+  background-color: var(--paper);
+  background-image: linear-gradient(180deg, #f8ecd6 0%, var(--paper) 100%);
+  border: 2px solid transparent;
+  box-shadow:
+    inset 0 1px 0 rgba(255, 255, 255, .75),
+    0 3px 0 rgba(122, 74, 33, .22),
+    var(--e-1);
   border-radius: var(--r-md); min-height: 3.4rem;
   transition: transform .12s ease, border-color .12s ease, box-shadow .12s ease, background-color .12s ease;
 }
@@ -556,17 +857,30 @@ body.en-mision #main { padding-bottom: var(--s-5); }
    («la C»), y de paso alinea todos los textos en la misma x. */
 .option::before {
   content: attr(data-letra);
-  flex-shrink: 0; width: 1.9rem; height: 1.9rem;
+  flex-shrink: 0; width: 2rem; height: 2rem;
   display: grid; place-items: center;
-  background: var(--brass-tint); color: var(--leather-dark);
+  background-color: var(--brass-tint);
+  background-image: linear-gradient(180deg, #fdf1d3, var(--brass-tint));
+  color: var(--leather-dark);
   border-radius: var(--r-sm);
+  box-shadow: inset 0 0 0 1px rgba(138, 90, 11, .28), 0 1px 0 rgba(255, 255, 255, .6);
   font-family: var(--font-display); font-size: var(--t-sm);
+  transition: background-color .12s ease, color .12s ease;
 }
 .option:not(:disabled):hover {
-  border-color: var(--brass); background: var(--surface-raised);
-  transform: translateY(-2px); box-shadow: var(--e-2);
+  border-color: var(--brass); background-color: #fffdf6;
+  background-image: linear-gradient(180deg, #fffdf6 0%, #fdf6e6 100%);
+  transform: translateY(-2px);
+  box-shadow:
+    inset 0 1px 0 #fff,
+    0 5px 0 rgba(122, 74, 33, .22),
+    var(--e-2);
 }
-.option:not(:disabled):active { transform: translateY(0); }
+/* Se hunde de verdad: baja los 3 px que tenía de canto. */
+.option:not(:disabled):active {
+  transform: translateY(3px);
+  box-shadow: inset 0 1px 0 rgba(255, 255, 255, .6), 0 0 0 rgba(122, 74, 33, .22), var(--e-1);
+}
 /* Al corregir, las opciones se deshabilitan; la opacidad general de
    :disabled dejaba el acierto y el fallo casi ilegibles justo cuando hay que
    mirarlos. Se devuelve la opacidad a las tres marcadas y se atenúan solo
@@ -598,6 +912,77 @@ body.en-mision #main { padding-bottom: var(--s-5); }
 }
 .result-card { text-align: center; }
 .big-emoji { font-size: 3.4rem; text-align: center; line-height: 1; margin-bottom: var(--s-3); }
+
+/* Sello de expedición. Un emoji de 3,4 rem hacía de trofeo, y a ese tamaño
+   se ve el estilo de cada sistema operativo, no el del juego. Esto es un
+   disco de latón que se estampa al llegar. */
+.sello {
+  width: 5.4rem; height: 5.4rem; margin: 0 auto var(--s-4);
+  display: grid; place-items: center;
+  border-radius: var(--r-pill);
+  color: var(--ink-soft);
+  background-color: var(--surface-sunken);
+  background-image: radial-gradient(circle at 50% 26%, #fffdf5, var(--surface-sunken) 78%);
+  box-shadow:
+    inset 0 0 0 2px rgba(122, 74, 33, .28),
+    inset 0 0 0 5px rgba(255, 255, 255, .55),
+    inset 0 -3px 6px rgba(122, 74, 33, .16),
+    var(--e-2);
+  animation: estampa .5s cubic-bezier(.2, 1.4, .4, 1);
+}
+.sello .ico { width: 2.5rem; height: 2.5rem; }
+/* Cuando se ha logrado, el sello es de latón encendido. */
+.sello-logro {
+  color: var(--leather-dark);
+  background-color: var(--gold);
+  background-image: radial-gradient(circle at 50% 24%, #fff3c8, var(--brass-light) 62%, #d9a520 100%);
+  box-shadow:
+    inset 0 0 0 2px rgba(138, 90, 11, .55),
+    inset 0 0 0 5px rgba(255, 250, 225, .60),
+    inset 0 -3px 8px rgba(138, 90, 11, .30),
+    0 0 22px rgba(240, 195, 60, .55),
+    var(--e-2);
+}
+/* Los tres tonos del aviso inmediato. El acierto y el fallo ya no dependen
+   de qué emoji tocara: cada uno tiene su color y su símbolo fijos. */
+.sello-bien {
+  color: #2b5024;
+  background-color: var(--jungle-tint);
+  background-image: radial-gradient(circle at 50% 24%, #f3fbe9, var(--jungle-tint) 76%);
+  box-shadow:
+    inset 0 0 0 2px rgba(55, 98, 47, .45),
+    inset 0 0 0 5px rgba(255, 255, 255, .60),
+    0 0 20px rgba(111, 158, 89, .40),
+    var(--e-2);
+}
+.sello-mal {
+  color: #8d2f1e;
+  background-color: var(--danger-tint);
+  background-image: radial-gradient(circle at 50% 24%, #fdf0ec, var(--danger-tint) 76%);
+  box-shadow:
+    inset 0 0 0 2px rgba(168, 58, 37, .42),
+    inset 0 0 0 5px rgba(255, 255, 255, .60),
+    var(--e-2);
+}
+.sello-bien .ico, .sello-mal .ico { stroke-width: 2.6; }
+/* El sello del fallo no rebota: llega de lado, sin celebrarse. */
+.sello-mal { animation: llega-mal .34s ease-out; }
+@keyframes llega-mal {
+  from { transform: translateX(-10px); opacity: 0; }
+  to   { transform: none; opacity: 1; }
+}
+@media (prefers-reduced-motion: reduce) { .sello-mal { animation: none; } }
+
+/* Cae y se asienta, como un cuño sobre el papel. */
+@keyframes estampa {
+  0%   { transform: scale(1.7) rotate(-9deg); opacity: 0; }
+  55%  { opacity: 1; }
+  100% { transform: scale(1) rotate(0); opacity: 1; }
+}
+@media (prefers-reduced-motion: reduce) { .sello { animation: none; } }
+
+/* Los iconos dentro de las filas de recompensa van en su tono de marca. */
+.reward-row .ico { color: var(--brass); }
 .result-card h2 { margin-bottom: var(--s-4); }
 .result-rewards {
   margin: var(--s-5) 0; text-align: left;
@@ -1711,3 +2096,145 @@ input[type="checkbox"]::after, input[type="radio"]::after {
   border: 2px solid rgba(122, 74, 33, .28); background: var(--paper); color: var(--ink);
 }
 #screen-aulas input:focus { outline: none; border-color: var(--brass); box-shadow: 0 0 0 3px rgba(138,90,11,.18); }
+
+/* ═══════════════════════════════════════════════════════════
+   MOVIMIENTO
+   Un juego responde cuando lo tocas. Hasta ahora la interfaz cambiaba de
+   estado sin decirlo: acertar y fallar se distinguían solo por el color.
+   Todo lo de aquí abajo es corto (menos de medio segundo), ocurre una sola
+   vez y desaparece entero con `prefers-reduced-motion`.
+   ═══════════════════════════════════════════════════════════ */
+
+/* Acierto: la losa da un salto y se enciende en verde. */
+@keyframes acierto {
+  0%   { transform: translateY(3px) scale(1); }
+  38%  { transform: translateY(-5px) scale(1.035); }
+  70%  { transform: translateY(0) scale(.995); }
+  100% { transform: translateY(0) scale(1); }
+}
+.option-correct {
+  animation: acierto .46s cubic-bezier(.2, .9, .3, 1);
+  box-shadow:
+    inset 0 1px 0 rgba(255, 255, 255, .7),
+    0 3px 0 rgba(55, 98, 47, .35),
+    0 0 0 4px rgba(111, 158, 89, .28),
+    var(--e-2) !important;
+}
+/* Fallo: dos golpes cortos de lado. Nunca un temblor largo: el tono del
+   juego con el error es cómico, no punitivo. */
+@keyframes fallo {
+  0%, 100% { transform: translateX(0); }
+  22%      { transform: translateX(-6px); }
+  55%      { transform: translateX(5px); }
+  80%      { transform: translateX(-2px); }
+}
+.option-wrong {
+  animation: fallo .34s ease-in-out;
+  box-shadow:
+    inset 0 1px 0 rgba(255, 255, 255, .6),
+    0 3px 0 rgba(168, 58, 37, .32),
+    var(--e-2) !important;
+}
+/* La respuesta buena, cuando no era la elegida, se señala con calma. */
+@keyframes revela {
+  0%   { box-shadow: 0 0 0 0 rgba(55, 98, 47, .45); }
+  100% { box-shadow: 0 0 0 9px rgba(55, 98, 47, 0); }
+}
+.option-reveal { animation: revela .9s ease-out .1s 2; }
+
+/* Las tarjetas del mapa entran escalonadas, como piezas que se colocan.
+   Sin esto la pantalla aparecía de golpe y no había sensación de llegada. */
+@keyframes surge {
+  from { opacity: 0; transform: translateY(10px); }
+  to   { opacity: 1; transform: none; }
+}
+.site-header, .branch-card, .stratum-row, .bazar-card {
+  animation: surge .34s cubic-bezier(.2, .8, .3, 1) backwards;
+}
+.site-branches .branch-card:nth-child(1) { animation-delay: .04s; }
+.site-branches .branch-card:nth-child(2) { animation-delay: .08s; }
+.site-branches .branch-card:nth-child(3) { animation-delay: .12s; }
+.site-branches .branch-card:nth-child(4) { animation-delay: .16s; }
+.strata-list .stratum-row:nth-child(1) { animation-delay: .03s; }
+.strata-list .stratum-row:nth-child(2) { animation-delay: .09s; }
+.strata-list .stratum-row:nth-child(3) { animation-delay: .15s; }
+.strata-list .stratum-row:nth-child(4) { animation-delay: .21s; }
+
+/* Nada de lo anterior es información: quien pide menos movimiento lo pierde
+   entero y la interfaz sigue diciendo lo mismo con el color y el texto. */
+@media (prefers-reduced-motion: reduce) {
+  .option-correct, .option-wrong, .option-reveal,
+  .site-header, .branch-card, .stratum-row, .bazar-card,
+  .hud-stat-level.lvl-up, .hud-stat-level.lvl-up .lvl-ring b {
+    animation: none !important;
+  }
+}
+
+/* ── Iconos en su sitio ──
+   Al pasar de emoji a dibujo, los huecos que antes se llenaban con una
+   fuente de emoji quedan a cargo del CSS: aquí se les da el tamaño y el
+   color de cada contexto. */
+/* El dorado sobre crema casi no se veía: el emblema va en latón, que es el
+   tono que aguanta sobre papel. */
+.home-crest .ico { width: 3.2rem; height: 3.2rem; color: var(--brass); stroke-width: 1.5; }
+.home-door-icon .ico { width: 2.5rem; height: 2.5rem; }
+.home-rule .ico, .guardian-free .ico { color: var(--brass); vertical-align: -.22em; }
+.guardian-face .ico { width: 4.2rem; height: 4.2rem; color: var(--leather); }
+.screen h3 > .ico { width: 1.5rem; height: 1.5rem; color: var(--brass); flex-shrink: 0; }
+.btn .ico { width: 1.2rem; height: 1.2rem; }
+.cfg-label .ico { color: var(--brass); }
+/* Dentro de un botón de color, el icono va del color del texto del botón. */
+.btn-primary .ico, .btn-secondary .ico { color: currentColor; }
+
+/* La moneda vale como signo de la divisa dentro de una frase: va del tono
+   del latón y alineada con la línea base del texto que la rodea. */
+.student-stats .ico, .class-note .ico, .class-meta .ico, .shop-info .ico,
+.merit-info .ico, .award-meta .ico, .logbook-stat .ico, .fund-total .ico,
+.team-goal-nums .ico, .student-num .ico, .daily-banner .ico, .bazar-inner .ico,
+.guardian-meta .ico, .kira .ico {
+  color: var(--brass);
+}
+.student-stats span { display: inline-flex; align-items: center; gap: .3rem; }
+
+/* ── El HUD en pantallas estrechas ──
+   En un móvil de 390 px la identidad y los dos indicadores no caben en una
+   línea: el rango se partía en tres renglones y la cabecera se comía un
+   tercio de la pantalla. El nombre manda; el rango se recorta y la palabra
+   «Nivel» sobra porque el anillo ya lo dice. */
+@media (max-width: 34rem) {
+  #hud { padding: .4rem .7rem; gap: .5rem; }
+  .hud-identity { overflow: hidden; }
+  #hud-name, .hud-rank {
+    white-space: nowrap; overflow: hidden; text-overflow: ellipsis;
+  }
+  .hud-rank { letter-spacing: .05em; }
+  .hud-stat-label { display: none; }
+  .hud-stat { padding: .25rem .5rem; }
+  .hud-avatar { width: 2.2rem; height: 2.2rem; font-size: 1.25rem; }
+  .lvl-ring { width: 2rem; height: 2rem; }
+  .lvl-ring b { font-size: var(--t-base); }
+
+  /* La cartela de misión no cabe entera: el nombre del yacimiento se cae
+     porque acabas de salir de él y ya sabes dónde estás. Se queda el
+     estrato, que es lo que cambia de reto en reto, y los puntos. */
+  .mh-site, .mh-sep { display: none; }
+  .mission-header { flex-wrap: nowrap; padding: .45rem .8rem; }
+  #mission-title { flex: 1; overflow: hidden; }
+  #mission-title > .ico { flex-shrink: 0; }
+
+  /* Y en el pozo, la cota de profundidad se aprieta para dejar sitio al
+     nombre del estrato, que es lo que hay que leer. */
+  .stratum-row { padding: .8rem .7rem; gap: .6rem; }
+  .stratum-depth { width: 2.4rem; }
+  .stratum-depth i { font-size: .52rem; letter-spacing: .06em; }
+  .stratum-icon { width: 2.3rem; height: 2.3rem; }
+  .stratum-icon .ico { width: 1.3rem; height: 1.3rem; }
+}
+
+/* El ancla del aviso diario se alinea con la primera línea, no con el centro
+   del bloque: en un móvil el texto ocupa tres renglones y centrarla la
+   dejaba flotando en mitad de la nada. */
+.daily-banner > .ico, .fatigue-banner > .ico {
+  color: var(--jungle); margin-top: .18rem; flex-shrink: 0;
+}
+.fatigue-banner > .ico { color: var(--brass); }

@@ -49,11 +49,13 @@ for nombre in ('bree-serif-latin', 'nunito-latin', 'nunito-italic-latin'):
     if css == antes:
         sys.exit(f'ERROR: no se encontró la referencia a {nombre}.woff2 en styles.css')
 
+# Las tres etiquetas que pedían las tipografías a Google se han quitado: son
+# de antes de servirlas desde fonts/, y ya solo hacían daño. Sin red —en un
+# colegio, o abriendo el archivo suelto— eran tres peticiones fallidas en cada
+# arranque, y con red mandaban a Google la visita de cada niño sin necesidad,
+# porque las letras ya viajan incrustadas aquí abajo.
 doc = f"""<meta charset="utf-8">
 <title>Expedición Atlas</title>
-<link rel="preconnect" href="https://fonts.googleapis.com">
-<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Bree+Serif&family=Nunito:wght@400;600;700;800&display=swap">
 <style>
 {css}
 </style>

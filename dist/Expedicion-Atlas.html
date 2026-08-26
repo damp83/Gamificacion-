@@ -1,8 +1,5 @@
 <meta charset="utf-8">
 <title>Expedición Atlas</title>
-<link rel="preconnect" href="https://fonts.googleapis.com">
-<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Bree+Serif&family=Nunito:wght@400;600;700;800&display=swap">
 <style>
 /* ═══════════════════════════════════════════════════════════
    Expedición Atlas — styles.css
@@ -251,6 +248,53 @@ button:disabled { cursor: not-allowed; opacity: .55; }
 .dialog.kira { background: var(--jungle-tint); border-left-color: var(--jungle); }
 .dialog.kira .dialog-text > strong { color: var(--jungle); }
 
+/* ── Horizonte ──
+   La mitad de abajo de casi todas las pantallas se quedaba vacía: pergamino
+   y nada más. En lugar de estirar el contenido para taparlo, el fondo pasa a
+   tener paisaje —un templo lejano y tres crestas de duna— tan bajo de
+   contraste que nunca compite con el texto que pase por encima. Va fijo al
+   pie de la ventana y detrás de todo. */
+body::after {
+  content: '';
+  position: fixed; left: 0; right: 0; bottom: 0;
+  height: min(46vh, 27rem);
+  z-index: -1;
+  pointer-events: none;
+  /* Dos capas: el paisaje recortado y, debajo, la arena en la que el papel
+     se va posando. Sin ese degradado las dunas flotaban sobre el pergamino
+     y parecían una mancha de impresión. */
+  background-image:
+    url("data:image/svg+xml,<svg xmlns=%22http://www.w3.org/2000/svg%22 viewBox=%220 0 1440 400%22 preserveAspectRatio=%22none%22> <g fill=%22%236b4318%22 fill-opacity=%22.13%22 transform=%22translate(0 62)%22> <path d=%22M556 214v-30h16v-16h22v-16h26v-15h50v15h26v16h22v16h16v30z%22/> <path d=%22M604 214v-40h56v40z%22 fill-opacity=%22.5%22/> <path d=%22M872 214v-22h12v-12h18v-12h20v-11h34v11h20v12h18v12h12v22z%22 fill-opacity=%22.7%22/> </g> <path d=%22M0 232c140-40 250-12 372 14s226 36 354 10 222-52 362-32 282 66 352 44v192H0z%22 fill=%22%236b4318%22 fill-opacity=%22.14%22/> <path d=%22M0 288c158-30 258 6 392 30s244 22 375-6 238-48 369-25 190 52 304 32v121H0z%22 fill=%22%238a5a0b%22 fill-opacity=%22.17%22/> <path d=%22M0 336c176-22 274 10 418 26s272 8 409-13 257-32 392-11 155 30 221 17v45H0z%22 fill=%22%236b4318%22 fill-opacity=%22.22%22/> </svg>"),
+    linear-gradient(180deg,
+      rgba(200, 160, 96, 0) 0%,
+      rgba(200, 160, 96, .10) 46%,
+      rgba(184, 141, 78, .22) 100%);
+  background-repeat: no-repeat, no-repeat;
+  background-position: bottom center, bottom center;
+  background-size: 100% 100%, 100% 100%;
+}
+/* En misión el horizonte estorba: el reto se queda solo con el pergamino. */
+body.en-mision::after { opacity: .35; }
+
+/* ── Iconos dibujados ──
+   Un solo trazo, `currentColor` y tamaño en `em`: el mismo símbolo sirve
+   sobre cuero, sobre papel y dentro de un botón sin declararlo tres veces.
+   `fill`/`stroke` se heredan hacia dentro del <use>, que es la única vía
+   que atraviesa el árbol en sombra de un símbolo. */
+.ico {
+  width: 1.15em; height: 1.15em;
+  flex-shrink: 0;
+  vertical-align: -.18em;
+  fill: none;
+  stroke: currentColor;
+  stroke-width: 1.7;
+  stroke-linecap: round;
+  stroke-linejoin: round;
+}
+/* En una caja grande el trazo fino se rompe; en una pequeña, engorda. */
+.ico-lg { stroke-width: 1.5; }
+.ico-sm { stroke-width: 2; }
+
 /* ── HUD ──
    Barra de estado permanente. Se le da profundidad con un degradado corto y
    un filete dorado inferior: sin él, el marrón plano chocaba con el papel. */
@@ -258,39 +302,90 @@ button:disabled { cursor: not-allowed; opacity: .55; }
   position: sticky; top: 0; z-index: 20;
   display: flex; justify-content: space-between; align-items: center; gap: var(--s-4);
   background-color: var(--leather-dark);
-  background-image: linear-gradient(180deg, #5b3617 0%, var(--leather-dark) 100%);
-  border-bottom: 2px solid rgba(240, 195, 60, .35);
+  /* Cuero curtido: una luz cenital, una veta cálida cruzada y el fondo
+     hundido abajo. Un marrón plano se leía como una barra de navegación
+     cualquiera; esto se lee como material. */
+  background-image:
+    linear-gradient(180deg, rgba(255, 226, 170, .13) 0%, rgba(255, 226, 170, 0) 42%),
+    linear-gradient(96deg, #6a4019 0%, #52310f 46%, #3f2409 100%);
   color: #fdf3dd;
   padding: .5rem clamp(.9rem, 4vw, 2rem);
-  box-shadow: var(--e-2);
+  /* El filete de latón va como sombra y no como borde: así no suma altura
+     ni desplaza el contenido pegajoso del principio. */
+  box-shadow:
+    inset 0 -2px 0 rgba(240, 195, 60, .40),
+    inset 0 -3px 0 rgba(0, 0, 0, .35),
+    0 3px 10px rgba(30, 17, 4, .30);
 }
-.hud-left { display: flex; align-items: center; gap: .6rem; min-width: 0; }
+.hud-left { display: flex; align-items: center; gap: .65rem; min-width: 0; }
 .hud-avatar {
-  font-size: 1.5rem; line-height: 1;
-  width: 2.4rem; height: 2.4rem; flex-shrink: 0;
+  font-size: 1.45rem; line-height: 1;
+  width: 2.5rem; height: 2.5rem; flex-shrink: 0;
   display: grid; place-items: center;
-  background: rgba(255, 255, 255, .1); border-radius: var(--r-pill);
-  border: 1px solid rgba(240, 195, 60, .3);
+  border-radius: var(--r-pill);
+  /* Medallón: hueco por dentro, con un aro de latón que le da grosor. */
+  background:
+    radial-gradient(circle at 50% 22%, rgba(255, 240, 205, .22), rgba(0, 0, 0, .30) 78%);
+  box-shadow:
+    inset 0 2px 4px rgba(0, 0, 0, .45),
+    0 0 0 1.5px rgba(240, 195, 60, .45),
+    0 1px 0 rgba(255, 235, 190, .18);
 }
 .hud-identity { display: flex; flex-direction: column; line-height: 1.15; min-width: 0; }
-#hud-name { font-weight: 800; font-size: var(--t-base); }
+#hud-name {
+  font-family: var(--font-display); font-size: var(--t-md);
+  letter-spacing: .01em;
+  /* Grabado: una luz por debajo, como letras hundidas en el cuero. */
+  text-shadow: 0 1px 0 rgba(0, 0, 0, .45), 0 -1px 0 rgba(255, 225, 170, .10);
+}
 .hud-rank {
   font-size: var(--t-xs); color: var(--gold);
-  text-transform: uppercase; letter-spacing: .06em; font-weight: 700;
+  text-transform: uppercase; letter-spacing: .09em; font-weight: 800;
 }
-.hud-right { display: flex; gap: var(--s-4); align-items: center; }
-.hud-stat { display: flex; align-items: center; gap: .35rem; font-weight: 800; }
-.hud-level { display: flex; flex-direction: column; gap: .2rem; line-height: 1.1; }
-#hud-level { font-size: var(--t-xs); text-transform: uppercase; letter-spacing: .06em; }
-.xp-bar {
-  width: 84px; height: 6px; background: rgba(0, 0, 0, .3);
-  border-radius: var(--r-pill); overflow: hidden;
+.hud-right { display: flex; gap: .55rem; align-items: center; }
+
+/* Los indicadores viven en cajetines hundidos, como los herrajes de una
+   caja de instrumentos. Antes eran texto suelto sobre el marrón. */
+.hud-stat {
+  display: flex; align-items: center; gap: .45rem;
+  font-weight: 800; line-height: 1;
+  padding: .3rem .6rem; border-radius: var(--r-pill);
+  background: rgba(0, 0, 0, .26);
+  box-shadow: inset 0 1px 3px rgba(0, 0, 0, .40), 0 1px 0 rgba(255, 235, 190, .10);
 }
-.xp-fill {
-  height: 100%; border-radius: var(--r-pill);
-  background: linear-gradient(90deg, var(--brass-light), var(--gold));
-  transition: width .5s cubic-bezier(.2, .8, .3, 1);
+.hud-stat-icon { display: grid; place-items: center; color: var(--gold); }
+.hud-stat-icon .ico { width: 1.25rem; height: 1.25rem; }
+.hud-num { font-variant-numeric: tabular-nums; font-size: var(--t-md); }
+
+/* Anillo de nivel: el número dentro y los PE cerrando la vuelta. */
+.hud-stat-level { gap: .5rem; padding-left: .32rem; }
+.lvl-ring { position: relative; width: 2.3rem; height: 2.3rem; display: block; }
+.lvl-ring svg { width: 100%; height: 100%; transform: rotate(-90deg); display: block; }
+.lvl-ring circle { fill: none; stroke-width: 3.6; stroke-linecap: round; }
+.lvl-track { stroke: rgba(255, 236, 200, .22); }
+.lvl-fill {
+  stroke: var(--gold);
+  transition: stroke-dashoffset .6s cubic-bezier(.2, .8, .3, 1);
+  filter: drop-shadow(0 0 3px rgba(240, 195, 60, .55));
 }
+.lvl-ring b {
+  position: absolute; inset: 0; display: grid; place-items: center;
+  font-family: var(--font-display); font-size: var(--t-md); color: #fff6e2;
+  font-weight: 400; font-variant-numeric: tabular-nums;
+}
+.hud-stat-label {
+  font-size: var(--t-xs); text-transform: uppercase;
+  letter-spacing: .09em; color: var(--brass-light);
+}
+/* Al subir de nivel, el aro da un golpe de luz. */
+@keyframes sube-nivel {
+  0%   { box-shadow: inset 0 1px 3px rgba(0,0,0,.40), 0 0 0 0 rgba(240, 195, 60, .75); }
+  60%  { box-shadow: inset 0 1px 3px rgba(0,0,0,.40), 0 0 0 12px rgba(240, 195, 60, 0); }
+  100% { box-shadow: inset 0 1px 3px rgba(0,0,0,.40), 0 0 0 0 rgba(240, 195, 60, 0); }
+}
+.hud-stat-level.lvl-up { animation: sube-nivel 1s ease-out; }
+.hud-stat-level.lvl-up .lvl-ring b { animation: late 1s ease-out; }
+@keyframes late { 0%,100% { transform: scale(1); } 35% { transform: scale(1.28); } }
 
 /* ── Layout ──
    La columna era de 680 px fijos: en una tablet apaisada o un portátil
@@ -309,8 +404,24 @@ button:disabled { cursor: not-allowed; opacity: .55; }
   * { transition-duration: .01ms !important; }
 }
 
-/* Encabezado de pantalla: título y una línea que explica de qué va */
-.screen > h2 { margin-bottom: var(--s-2); }
+/* Encabezado de pantalla: título y una línea que explica de qué va. El icono
+   va en un medallón de latón —no suelto junto al texto— para que el titular
+   tenga peso de portada de capítulo y no de encabezado de formulario. */
+.screen > h2, #screen-home h2 {
+  margin-bottom: var(--s-2);
+  display: flex; align-items: center; gap: .7rem;
+}
+.screen > h2 > .ico, #screen-home h2 > .ico {
+  width: 2.6rem; height: 2.6rem; padding: .45rem;
+  flex-shrink: 0; stroke-width: 1.5;
+  color: var(--brass); border-radius: var(--r-md);
+  background-color: var(--brass-tint);
+  background-image: linear-gradient(158deg, #fdf1d2, var(--brass-tint));
+  box-shadow:
+    inset 0 0 0 1px rgba(138, 90, 11, .26),
+    inset 0 -2px 4px rgba(138, 90, 11, .12),
+    0 1px 0 rgba(255, 255, 255, .7);
+}
 .screen h3 {
   color: var(--leather); margin: var(--s-5) 0 var(--s-3);
   display: flex; align-items: baseline; gap: .5rem;
@@ -337,29 +448,44 @@ body.en-mision #main { padding-bottom: var(--s-5); }
 }
 .tab {
   flex: 1 1 0; max-width: 8rem;
-  background: transparent; border: none; color: #e4d3b0;
-  display: flex; flex-direction: column; align-items: center; gap: .1rem;
+  background: transparent; border: none; color: #e0cda8;
+  display: flex; flex-direction: column; align-items: center; gap: .18rem;
   font-family: var(--font-text);
-  font-size: var(--t-xs); font-weight: 700; padding: .35rem .2rem;
+  font-size: var(--t-xs); font-weight: 700; padding: .3rem .2rem .35rem;
   border-radius: var(--r-md);
-  transition: color .15s ease, background-color .15s ease;
+  transition: color .16s ease, transform .16s ease;
 }
-.tab:hover { color: #fdf3dd; background: rgba(255, 255, 255, .06); }
-.tab span { font-size: 1.3rem; line-height: 1.1; }
-/* El realce claro dejaba el dorado en 4,33:1 sobre sí mismo. Oscurecerlo
-   sube a 8:1, y el filete superior marca la selección con más fuerza que
-   el tinte que había antes. */
-.tab.active {
-  background: rgba(0, 0, 0, .3); color: var(--gold);
-  box-shadow: inset 0 3px 0 var(--gold);
+.tab-ico {
+  display: grid; place-items: center;
+  width: 2.15rem; height: 2.15rem; border-radius: var(--r-md);
+  transition: background-color .16s ease, box-shadow .16s ease, color .16s ease;
+}
+.tab-ico .ico { width: 1.4rem; height: 1.4rem; }
+.tab-label { line-height: 1.1; }
+.tab:hover { color: #fff4de; }
+.tab:hover .tab-ico { background: rgba(255, 255, 255, .09); }
+.tab:active { transform: translateY(1px); }
+/* El realce claro dejaba el dorado en 4,33:1 sobre sí mismo. Sobre el hueco
+   oscuro llega a 8:1, y ahora además el icono se enciende: la pestaña
+   elegida parece una lámpara, no un rectángulo pintado. */
+.tab.active { color: var(--gold); }
+.tab.active .tab-ico {
+  color: #2a1806;
+  background-image: linear-gradient(180deg, var(--gold) 0%, var(--brass-light) 100%);
+  background-color: var(--gold);
+  box-shadow:
+    0 2px 7px rgba(240, 195, 60, .40),
+    inset 0 1px 0 rgba(255, 250, 230, .70),
+    inset 0 -2px 0 rgba(122, 74, 33, .30);
 }
 
 /* ── Mapa ── */
 .map-header { margin-bottom: var(--s-5); }
 .map-reveal { margin-top: var(--s-3); }
 .map-reveal-bar {
-  height: 10px; background: var(--surface-sunken); border-radius: var(--r-pill);
-  overflow: hidden; box-shadow: var(--e-inset);
+  height: 12px; background: rgba(122, 74, 33, .14); border-radius: var(--r-pill);
+  overflow: hidden;
+  box-shadow: inset 0 2px 4px rgba(51, 36, 15, .22), 0 1px 0 rgba(255, 255, 255, .5);
 }
 #map-reveal-fill {
   height: 100%; width: 0; border-radius: var(--r-pill);
@@ -373,7 +499,8 @@ body.en-mision #main { padding-bottom: var(--s-5); }
 
 /* Avisos del día: mismo esqueleto, distinto color según lo que sea */
 .daily-banner, .fatigue-banner {
-  display: flex; gap: .6rem; align-items: center;
+  display: flex; gap: .6rem; align-items: flex-start;
+  line-height: 1.55;
   border-radius: var(--r-md); padding: .75rem 1rem;
   margin-bottom: var(--s-4); font-size: var(--t-sm);
   box-shadow: var(--e-1);
@@ -387,21 +514,41 @@ body.en-mision #main { padding-bottom: var(--s-5); }
 /* Cabecera de yacimiento: banda de cuero, no otra tarjeta crema. Así se
    distingue de un golpe de vista el continente del contenido. */
 .site-header {
+  position: relative;
   display: flex; gap: .9rem; align-items: center;
   background-color: var(--leather-dark);
-  background-image: linear-gradient(135deg, #6d421d, var(--leather-dark));
+  /* Piedra tallada: luz cenital, veta diagonal y sombra en el canto. Una
+     banda de color plano se leía como el encabezado de una tabla. */
+  background-image:
+    linear-gradient(180deg, rgba(255, 225, 170, .14) 0%, rgba(255, 225, 170, 0) 38%),
+    linear-gradient(118deg, #6f441e 0%, #56340f 52%, #402508 100%);
   color: #f7ead2;
-  border-radius: var(--r-lg); box-shadow: var(--e-2);
-  padding: .85rem 1.1rem;
+  border-radius: var(--r-lg);
+  padding: .9rem 1.15rem;
   margin: var(--s-6) 0 var(--s-3);
+  box-shadow:
+    inset 0 1px 0 rgba(255, 235, 190, .16),
+    inset 0 -2px 0 rgba(0, 0, 0, .30),
+    var(--e-2);
+}
+/* Filete de latón al pie, como el metal que remata una placa grabada. */
+.site-header::after {
+  content: ''; position: absolute; left: 1.15rem; right: 1.15rem; bottom: 0;
+  height: 2px; border-radius: var(--r-pill);
+  background: linear-gradient(90deg,
+    transparent, rgba(240, 195, 60, .55) 22%, rgba(240, 195, 60, .55) 78%, transparent);
 }
 .site-header:first-child { margin-top: 0; }
 .site-icon {
-  font-size: 1.9rem; line-height: 1;
-  width: 3rem; height: 3rem; flex-shrink: 0;
+  font-size: 1.85rem; line-height: 1;
+  width: 3.1rem; height: 3.1rem; flex-shrink: 0;
   display: grid; place-items: center;
-  background: rgba(255, 255, 255, .12); border-radius: var(--r-md);
-  border: 1px solid rgba(240, 195, 60, .3);
+  border-radius: var(--r-md);
+  background:
+    radial-gradient(circle at 50% 20%, rgba(255, 240, 205, .20), rgba(0, 0, 0, .26) 80%);
+  box-shadow:
+    inset 0 2px 5px rgba(0, 0, 0, .40),
+    0 0 0 1.5px rgba(240, 195, 60, .38);
 }
 .site-header h3 { margin: 0; color: #fff6e2; font-size: var(--t-lg); }
 .site-header h3::after { display: none; }   /* el filete es para las secciones */
@@ -415,33 +562,64 @@ body.en-mision #main { padding-bottom: var(--s-5); }
   margin-bottom: var(--s-3);
 }
 .branch-card {
+  position: relative; overflow: hidden;
   display: flex; align-items: center; gap: .85rem; width: 100%;
-  background: var(--surface); border: var(--line);
-  border-radius: var(--r-lg); box-shadow: var(--e-1);
+  background-color: var(--surface);
+  /* Papel grueso: una luz en el canto de arriba y sombra caliente debajo.
+     El borde de 1 px que había antes lo dejaba plano como un formulario. */
+  background-image: linear-gradient(180deg, #fffefa 0%, var(--surface) 58%, #fbf5e6 100%);
+  border: none;
+  border-radius: var(--r-lg);
+  box-shadow:
+    inset 0 1px 0 #fff,
+    inset 0 0 0 1px rgba(122, 74, 33, .16),
+    var(--e-1);
   padding: .9rem 1rem; text-align: left; font-size: var(--t-base);
   font-family: var(--font-text); color: var(--ink);
-  transition: transform .14s ease, box-shadow .14s ease, border-color .14s ease;
+  transition: transform .16s cubic-bezier(.2, .8, .3, 1), box-shadow .16s ease;
 }
-.branch-card:hover { transform: translateY(-2px); box-shadow: var(--e-2); border-color: var(--brass); }
-.branch-card:active { transform: translateY(0); box-shadow: var(--e-1); }
+.branch-card:hover {
+  transform: translateY(-3px);
+  box-shadow:
+    inset 0 1px 0 #fff,
+    inset 0 0 0 1px rgba(138, 90, 11, .45),
+    var(--e-3);
+}
+.branch-card:active { transform: translateY(-1px); }
 /* Hueco de icono de tamaño fijo: los emoji tienen anchos distintos y sin
    esto los títulos de cada fila empezaban en una x diferente. */
 .branch-icon {
-  font-size: 1.6rem; line-height: 1;
-  width: 2.9rem; height: 2.9rem; flex-shrink: 0;
+  font-size: 1.55rem; line-height: 1;
+  width: 3rem; height: 3rem; flex-shrink: 0;
   display: grid; place-items: center;
-  background: var(--brass-tint); border-radius: var(--r-md);
+  border-radius: var(--r-md);
+  background-color: var(--brass-tint);
+  background-image: linear-gradient(158deg, #fdf0cf 0%, var(--brass-tint) 100%);
+  box-shadow: inset 0 0 0 1px rgba(138, 90, 11, .22), inset 0 -2px 4px rgba(138, 90, 11, .12);
 }
 .branch-info { flex: 1; min-width: 0; }
 .branch-info strong { display: block; color: var(--ink); font-size: var(--t-md); font-weight: 800; }
 .branch-info small { color: var(--ink-soft); font-size: var(--t-xs); }
-.branch-strata-dots { display: flex; gap: .3rem; margin: .3rem 0 .2rem; }
-.dot { width: 11px; height: 11px; border-radius: 50%; }
-.dot-mastered { background: var(--gold); box-shadow: 0 0 0 1.5px var(--brass); }
-.dot-open { background: var(--jungle-light); }
-.dot-locked { background: transparent; box-shadow: 0 0 0 1.5px rgba(107, 86, 56, .45); }
-.branch-go { font-size: 1.2rem; opacity: .5; transition: opacity .14s ease, transform .14s ease; }
-.branch-card:hover .branch-go { opacity: 1; transform: translateX(2px); }
+
+/* Los cuatro estratos, en vertical y a escala: es el testigo de un sondeo.
+   Cuatro puntos sueltos no decían de qué profundidad hablaban. */
+.branch-strata-dots {
+  display: flex; gap: 3px; margin: .4rem 0 .3rem;
+  padding: 3px; border-radius: 5px; width: max-content;
+  background: rgba(122, 74, 33, .10);
+  box-shadow: inset 0 1px 2px rgba(51, 36, 15, .14);
+}
+.dot { width: 15px; height: 9px; border-radius: 2px; }
+.dot-mastered {
+  background-image: linear-gradient(180deg, var(--gold), var(--brass-light));
+  background-color: var(--gold);
+  box-shadow: inset 0 1px 0 rgba(255, 250, 225, .8), 0 0 5px rgba(240, 195, 60, .55);
+}
+.dot-open { background: var(--jungle-light); box-shadow: inset 0 1px 0 rgba(255, 255, 255, .35); }
+.dot-locked { background: rgba(107, 86, 56, .22); }
+.branch-go { color: var(--brass); opacity: .45; transition: opacity .16s ease, transform .16s ease; }
+.branch-go .ico { width: 1.5rem; height: 1.5rem; }
+.branch-card:hover .branch-go { opacity: 1; transform: rotate(-14deg); }
 
 .bazar-card { margin-top: var(--s-6); }
 .bazar-inner {
@@ -451,64 +629,136 @@ body.en-mision #main { padding-bottom: var(--s-5); }
   padding: .9rem 1.1rem; box-shadow: var(--e-1);
 }
 .bazar-icon {
-  font-size: 1.6rem; line-height: 1;
   width: 2.9rem; height: 2.9rem; flex-shrink: 0;
   display: grid; place-items: center;
-  background: rgba(141, 92, 130, .12); border-radius: var(--r-md);
+  color: #7a4c70;
+  background: rgba(141, 92, 130, .14); border-radius: var(--r-md);
+  box-shadow: inset 0 0 0 1px rgba(141, 92, 130, .28);
 }
+.bazar-icon .ico { width: 1.6rem; height: 1.6rem; }
 .bazar-inner strong { font-size: var(--t-md); }
 .bazar-inner p { font-size: var(--t-sm); color: var(--ink-soft); }
 .bazar-inner div { flex: 1; min-width: 0; }
 
 /* ── Estratos ── */
 .branch-desc { color: var(--ink-soft); font-size: var(--t-base); margin-bottom: var(--s-5); max-width: var(--w-narrow); }
+/* El pozo se dibuja como un corte del terreno visto de perfil: cada estrato
+   es una capa de tierra con su propio tono, más clara arriba (arena de la
+   superficie) y más oscura y arcillosa según se baja. Antes eran cuatro
+   filas blancas iguales y la palabra «estrato» no significaba nada. */
 .strata-list {
   display: flex; flex-direction: column;
   border-radius: var(--r-lg); overflow: hidden;
-  box-shadow: var(--e-2); background: var(--surface);
+  background: var(--surface);
+  box-shadow:
+    var(--e-3),
+    inset 0 0 0 1px rgba(122, 74, 33, .18);
 }
 .stratum-row {
+  position: relative;
   display: flex; align-items: center; gap: .85rem; width: 100%;
-  background: var(--surface); border: none;
-  border-left: 5px solid var(--brass);
-  padding: .9rem 1rem; text-align: left;
+  border: none;
+  padding: .95rem 1rem; text-align: left;
   font-family: var(--font-text); font-size: var(--t-base); color: var(--ink);
-  border-bottom: var(--line);
-  transition: background-color .14s ease;
+  transition: background-color .16s ease, transform .16s ease;
 }
-.stratum-row:last-child { border-bottom: none; }
-.stratum-row:not(:disabled):hover { background: #fff8e8; }
-.stratum-row.locked { background: var(--paper-deep); border-left-color: rgba(107, 86, 56, .5); }
-/* Número de estrato en una columna fija: alinea todas las filas y da la
-   sensación de profundidad de una pared excavada. */
+/* Línea de sedimento entre capas: irregular, no un filete de tabla. */
+.stratum-row + .stratum-row::before {
+  content: ''; position: absolute; left: 0; right: 0; top: 0; height: 3px;
+  background:
+    linear-gradient(90deg,
+      rgba(122, 74, 33, .26) 0%, rgba(122, 74, 33, .10) 18%,
+      rgba(122, 74, 33, .30) 37%, rgba(122, 74, 33, .12) 58%,
+      rgba(122, 74, 33, .28) 76%, rgba(122, 74, 33, .13) 100%);
+}
+/* Tonos de tierra por profundidad. */
+.stratum-row:nth-child(1) { background: #fffaee; }
+.stratum-row:nth-child(2) { background: #fbf2df; }
+.stratum-row:nth-child(3) { background: #f6ead0; }
+.stratum-row:nth-child(4) { background: #f1e1c2; }
+
+/* Una capa aún enterrada: apagada y con grano, como tierra sin tocar. */
+.stratum-row.locked {
+  color: var(--ink-soft);
+  background-image:
+    repeating-linear-gradient(114deg,
+      rgba(107, 86, 56, .07) 0 3px, transparent 3px 7px);
+}
+.stratum-row.locked .stratum-icon { color: var(--ink-faint); }
+
+/* Una capa excavada: limpia, con el filo de latón a la izquierda. */
+.stratum-row.excavado { box-shadow: inset 4px 0 0 var(--gold); }
+.stratum-row.excavado .stratum-icon {
+  color: var(--brass);
+  background-image: linear-gradient(160deg, #fdeec3, var(--brass-tint));
+  box-shadow: inset 0 0 0 1px rgba(138, 90, 11, .30), var(--e-1);
+}
+
+.stratum-row:not(:disabled):hover { background-color: #fff9ea; }
+.stratum-row:not(:disabled):active { transform: translateY(1px); }
+
+/* Regla de profundidad: la palabra pequeña arriba y el número grande
+   debajo, como la cota de una pared de excavación. En una sola línea el
+   texto se salía de la columna. */
 .stratum-depth {
-  flex-shrink: 0; width: 2.1rem; text-align: center;
-  font-family: var(--font-display);
-  font-size: var(--t-xs); color: var(--brass);
-  text-transform: uppercase; letter-spacing: .04em;
+  flex-shrink: 0; width: 3.1rem;
+  display: flex; flex-direction: column; align-items: center; line-height: 1;
+  color: var(--brass);
 }
+.stratum-depth i {
+  font-style: normal; font-size: .6rem; font-weight: 800;
+  text-transform: uppercase; letter-spacing: .1em;
+  color: var(--ink-faint);
+}
+.stratum-depth b {
+  font-family: var(--font-display); font-weight: 400;
+  font-size: var(--t-lg); line-height: 1.05;
+  font-variant-numeric: tabular-nums;
+}
+.stratum-row.locked .stratum-depth { color: var(--ink-faint); }
+
 .stratum-icon {
-  font-size: 1.5rem; line-height: 1;
-  width: 2.6rem; height: 2.6rem; flex-shrink: 0;
+  width: 2.7rem; height: 2.7rem; flex-shrink: 0;
   display: grid; place-items: center;
-  background: var(--surface-sunken); border-radius: var(--r-md);
+  color: var(--leather);
+  background-color: var(--surface-sunken); border-radius: var(--r-md);
+  box-shadow: inset 0 0 0 1px rgba(122, 74, 33, .16), var(--e-inset);
+  transition: color .16s ease, box-shadow .16s ease;
 }
+.stratum-icon .ico { width: 1.5rem; height: 1.5rem; }
 .stratum-info { flex: 1; min-width: 0; }
 /* título en su propia línea: en los estratos bloqueados no hay barra de
    dominio que lo separe del texto de ayuda y quedaban pegados */
 .stratum-info strong { display: block; font-size: var(--t-base); font-weight: 800; }
 .stratum-info small { color: var(--ink-soft); font-size: var(--t-xs); display: block; }
-.stratum-go { font-size: 1.2rem; opacity: .5; }
-.stratum-row:not(:disabled):hover .stratum-go { opacity: 1; }
+.stratum-go {
+  color: var(--brass); opacity: .45;
+  transition: opacity .16s ease, transform .16s ease;
+}
+.stratum-go .ico { width: 1.45rem; height: 1.45rem; }
+/* El pico se hunde un poco al pasar por encima: el gesto de picar. */
+.stratum-row:not(:disabled):hover .stratum-go { opacity: 1; transform: rotate(-14deg) translateY(1px); }
+/* La barra de dominio cruzaba la fila entera de lado a lado y se leía como
+   un separador. Acotada y más gruesa, vuelve a ser un medidor. */
 .mastery-bar {
-  height: 7px; background: var(--surface-sunken); border-radius: var(--r-pill);
-  overflow: hidden; margin: .35rem 0 .2rem; box-shadow: var(--e-inset);
+  height: 9px; max-width: 15rem;
+  background: rgba(122, 74, 33, .13); border-radius: var(--r-pill);
+  overflow: hidden; margin: .4rem 0 .25rem;
+  box-shadow: inset 0 1px 3px rgba(51, 36, 15, .20);
 }
 .mastery-fill {
-  height: 100%; background: var(--jungle-light); border-radius: var(--r-pill);
+  height: 100%; border-radius: var(--r-pill);
+  background-color: var(--jungle-light);
+  background-image: linear-gradient(180deg, rgba(255, 255, 255, .38), rgba(0, 0, 0, .06));
   transition: width .5s cubic-bezier(.2, .8, .3, 1);
 }
-.mastery-fill.gold { background: linear-gradient(90deg, var(--brass-light), var(--gold)); }
+.mastery-fill.gold {
+  background-color: var(--gold);
+  background-image:
+    linear-gradient(180deg, rgba(255, 252, 235, .55), rgba(138, 90, 11, .18)),
+    linear-gradient(90deg, var(--brass-light), var(--gold));
+  box-shadow: 0 0 7px rgba(240, 195, 60, .55);
+}
 
 /* ── Misión ──
    La pantalla donde más rato pasa un niño. Antes la tarjeta flotaba arriba
@@ -521,26 +771,66 @@ body.en-mision #main { padding-bottom: var(--s-5); }
   display: flex; flex-direction: column; justify-content: center;
   max-width: var(--w-narrow); margin: 0 auto;
 }
+/* Cartela de misión: dónde se está excavando y cuánto queda. Va sobre una
+   banda de piedra clara, no suelta sobre el papel, para que se lea como el
+   marco del reto y no como una migaja de navegación. */
 .mission-header {
   display: flex; justify-content: space-between; align-items: center; gap: .8rem;
   margin-bottom: var(--s-4); flex-wrap: wrap;
-  font-weight: 700; color: var(--leather);
-  font-size: var(--t-sm); text-transform: uppercase; letter-spacing: .04em;
+  font-weight: 800; color: var(--leather);
+  font-size: var(--t-sm); text-transform: uppercase; letter-spacing: .06em;
+  padding: .5rem .9rem; border-radius: var(--r-pill);
+  background: rgba(255, 253, 247, .72);
+  box-shadow: inset 0 0 0 1px rgba(122, 74, 33, .16);
 }
-.mission-progress { display: flex; gap: .3rem; }
+#mission-title { display: flex; align-items: center; gap: .45rem; min-width: 0; }
+#mission-title .ico { width: 1.15rem; height: 1.15rem; }
+.mh-site { display: inline-flex; align-items: center; gap: .35rem; }
+/* Separador en forma de rombo: marca el salto de yacimiento a estrato sin
+   meter otro punto medio en una línea que ya lleva dos. */
+.mh-sep {
+  width: 5px; height: 5px; flex-shrink: 0;
+  background: var(--brass); transform: rotate(45deg); opacity: .55;
+}
+.mission-progress { display: flex; gap: .35rem; }
 .qdot {
-  width: 10px; height: 10px; border-radius: 50%;
-  background: transparent; box-shadow: 0 0 0 1.5px rgba(138, 90, 11, .5);
-  transition: background-color .2s ease, transform .2s ease;
+  width: 11px; height: 11px; border-radius: 50%;
+  background: rgba(122, 74, 33, .14);
+  box-shadow: inset 0 1px 2px rgba(51, 36, 15, .25);
+  transition: background-color .2s ease, transform .2s ease, box-shadow .2s ease;
 }
-.qdot-ok { background: var(--jungle-light); box-shadow: 0 0 0 1.5px var(--jungle); }
-.qdot-fail { background: var(--danger); box-shadow: 0 0 0 1.5px var(--danger); }
-.qdot-current { background: var(--gold); box-shadow: 0 0 0 1.5px var(--brass); transform: scale(1.3); }
+.qdot-ok {
+  background: var(--jungle-light);
+  box-shadow: inset 0 1px 0 rgba(255, 255, 255, .45), 0 0 0 1.5px var(--jungle);
+}
+.qdot-fail {
+  background: var(--danger);
+  box-shadow: inset 0 1px 0 rgba(255, 255, 255, .30), 0 0 0 1.5px var(--danger);
+}
+.qdot-current {
+  background: var(--gold); transform: scale(1.35);
+  box-shadow: 0 0 0 1.5px var(--brass), 0 0 7px rgba(240, 195, 60, .8);
+}
 
 .question-card, .feedback-card, .result-card {
-  background: var(--surface-raised); border-radius: var(--r-xl);
-  border: none; box-shadow: var(--e-3);
+  position: relative;
+  background-color: var(--surface-raised);
+  /* Ficha de excavación: papel grueso con luz arriba y peso abajo. */
+  background-image: linear-gradient(180deg, #ffffff 0%, #fffdf7 62%, #fdf7ea 100%);
+  border-radius: var(--r-xl);
+  border: none;
+  box-shadow:
+    inset 0 1px 0 #fff,
+    inset 0 0 0 1px rgba(122, 74, 33, .14),
+    var(--e-3);
   padding: clamp(1.2rem, 3vw, 2rem);
+}
+/* Cinta de latón en el canto superior: remata la tarjeta y le da un frente. */
+.question-card::before, .result-card::before {
+  content: ''; position: absolute; left: 14%; right: 14%; top: 0; height: 3px;
+  border-radius: var(--r-pill);
+  background: linear-gradient(90deg,
+    transparent, var(--brass-light) 25%, var(--gold) 50%, var(--brass-light) 75%, transparent);
 }
 .question-text {
   font-size: clamp(1.15rem, 2.4vw, 1.4rem); font-weight: 700; line-height: 1.4;
@@ -549,12 +839,20 @@ body.en-mision #main { padding-bottom: var(--s-5); }
 /* Dos columnas cuando el hueco lo permite: cuatro opciones cortas apiladas
    obligaban a barrer toda la pantalla con la vista. */
 .options { display: grid; gap: .6rem; grid-template-columns: repeat(auto-fit, minmax(15rem, 1fr)); }
+/* Cada opción es una losa: canto claro arriba, base oscura abajo y un
+   desplazamiento real al pulsar, como una tecla que se hunde. Antes eran
+   rectángulos planos y responder no se notaba en la mano. */
 .option {
   display: flex; align-items: center; gap: .75rem;
   padding: .9rem 1rem; font-family: var(--font-text);
   font-size: var(--t-md); font-weight: 600; text-align: left; color: var(--ink);
-  background: var(--paper); border: 2px solid transparent;
-  box-shadow: var(--e-1);
+  background-color: var(--paper);
+  background-image: linear-gradient(180deg, #f8ecd6 0%, var(--paper) 100%);
+  border: 2px solid transparent;
+  box-shadow:
+    inset 0 1px 0 rgba(255, 255, 255, .75),
+    0 3px 0 rgba(122, 74, 33, .22),
+    var(--e-1);
   border-radius: var(--r-md); min-height: 3.4rem;
   transition: transform .12s ease, border-color .12s ease, box-shadow .12s ease, background-color .12s ease;
 }
@@ -562,17 +860,30 @@ body.en-mision #main { padding-bottom: var(--s-5); }
    («la C»), y de paso alinea todos los textos en la misma x. */
 .option::before {
   content: attr(data-letra);
-  flex-shrink: 0; width: 1.9rem; height: 1.9rem;
+  flex-shrink: 0; width: 2rem; height: 2rem;
   display: grid; place-items: center;
-  background: var(--brass-tint); color: var(--leather-dark);
+  background-color: var(--brass-tint);
+  background-image: linear-gradient(180deg, #fdf1d3, var(--brass-tint));
+  color: var(--leather-dark);
   border-radius: var(--r-sm);
+  box-shadow: inset 0 0 0 1px rgba(138, 90, 11, .28), 0 1px 0 rgba(255, 255, 255, .6);
   font-family: var(--font-display); font-size: var(--t-sm);
+  transition: background-color .12s ease, color .12s ease;
 }
 .option:not(:disabled):hover {
-  border-color: var(--brass); background: var(--surface-raised);
-  transform: translateY(-2px); box-shadow: var(--e-2);
+  border-color: var(--brass); background-color: #fffdf6;
+  background-image: linear-gradient(180deg, #fffdf6 0%, #fdf6e6 100%);
+  transform: translateY(-2px);
+  box-shadow:
+    inset 0 1px 0 #fff,
+    0 5px 0 rgba(122, 74, 33, .22),
+    var(--e-2);
 }
-.option:not(:disabled):active { transform: translateY(0); }
+/* Se hunde de verdad: baja los 3 px que tenía de canto. */
+.option:not(:disabled):active {
+  transform: translateY(3px);
+  box-shadow: inset 0 1px 0 rgba(255, 255, 255, .6), 0 0 0 rgba(122, 74, 33, .22), var(--e-1);
+}
 /* Al corregir, las opciones se deshabilitan; la opacidad general de
    :disabled dejaba el acierto y el fallo casi ilegibles justo cuando hay que
    mirarlos. Se devuelve la opacidad a las tres marcadas y se atenúan solo
@@ -604,6 +915,77 @@ body.en-mision #main { padding-bottom: var(--s-5); }
 }
 .result-card { text-align: center; }
 .big-emoji { font-size: 3.4rem; text-align: center; line-height: 1; margin-bottom: var(--s-3); }
+
+/* Sello de expedición. Un emoji de 3,4 rem hacía de trofeo, y a ese tamaño
+   se ve el estilo de cada sistema operativo, no el del juego. Esto es un
+   disco de latón que se estampa al llegar. */
+.sello {
+  width: 5.4rem; height: 5.4rem; margin: 0 auto var(--s-4);
+  display: grid; place-items: center;
+  border-radius: var(--r-pill);
+  color: var(--ink-soft);
+  background-color: var(--surface-sunken);
+  background-image: radial-gradient(circle at 50% 26%, #fffdf5, var(--surface-sunken) 78%);
+  box-shadow:
+    inset 0 0 0 2px rgba(122, 74, 33, .28),
+    inset 0 0 0 5px rgba(255, 255, 255, .55),
+    inset 0 -3px 6px rgba(122, 74, 33, .16),
+    var(--e-2);
+  animation: estampa .5s cubic-bezier(.2, 1.4, .4, 1);
+}
+.sello .ico { width: 2.5rem; height: 2.5rem; }
+/* Cuando se ha logrado, el sello es de latón encendido. */
+.sello-logro {
+  color: var(--leather-dark);
+  background-color: var(--gold);
+  background-image: radial-gradient(circle at 50% 24%, #fff3c8, var(--brass-light) 62%, #d9a520 100%);
+  box-shadow:
+    inset 0 0 0 2px rgba(138, 90, 11, .55),
+    inset 0 0 0 5px rgba(255, 250, 225, .60),
+    inset 0 -3px 8px rgba(138, 90, 11, .30),
+    0 0 22px rgba(240, 195, 60, .55),
+    var(--e-2);
+}
+/* Los tres tonos del aviso inmediato. El acierto y el fallo ya no dependen
+   de qué emoji tocara: cada uno tiene su color y su símbolo fijos. */
+.sello-bien {
+  color: #2b5024;
+  background-color: var(--jungle-tint);
+  background-image: radial-gradient(circle at 50% 24%, #f3fbe9, var(--jungle-tint) 76%);
+  box-shadow:
+    inset 0 0 0 2px rgba(55, 98, 47, .45),
+    inset 0 0 0 5px rgba(255, 255, 255, .60),
+    0 0 20px rgba(111, 158, 89, .40),
+    var(--e-2);
+}
+.sello-mal {
+  color: #8d2f1e;
+  background-color: var(--danger-tint);
+  background-image: radial-gradient(circle at 50% 24%, #fdf0ec, var(--danger-tint) 76%);
+  box-shadow:
+    inset 0 0 0 2px rgba(168, 58, 37, .42),
+    inset 0 0 0 5px rgba(255, 255, 255, .60),
+    var(--e-2);
+}
+.sello-bien .ico, .sello-mal .ico { stroke-width: 2.6; }
+/* El sello del fallo no rebota: llega de lado, sin celebrarse. */
+.sello-mal { animation: llega-mal .34s ease-out; }
+@keyframes llega-mal {
+  from { transform: translateX(-10px); opacity: 0; }
+  to   { transform: none; opacity: 1; }
+}
+@media (prefers-reduced-motion: reduce) { .sello-mal { animation: none; } }
+
+/* Cae y se asienta, como un cuño sobre el papel. */
+@keyframes estampa {
+  0%   { transform: scale(1.7) rotate(-9deg); opacity: 0; }
+  55%  { opacity: 1; }
+  100% { transform: scale(1) rotate(0); opacity: 1; }
+}
+@media (prefers-reduced-motion: reduce) { .sello { animation: none; } }
+
+/* Los iconos dentro de las filas de recompensa van en su tono de marca. */
+.reward-row .ico { color: var(--brass); }
 .result-card h2 { margin-bottom: var(--s-4); }
 .result-rewards {
   margin: var(--s-5) 0; text-align: left;
@@ -1718,7 +2100,432 @@ input[type="checkbox"]::after, input[type="radio"]::after {
 }
 #screen-aulas input:focus { outline: none; border-color: var(--brass); box-shadow: 0 0 0 3px rgba(138,90,11,.18); }
 
+/* ═══════════════════════════════════════════════════════════
+   MOVIMIENTO
+   Un juego responde cuando lo tocas. Hasta ahora la interfaz cambiaba de
+   estado sin decirlo: acertar y fallar se distinguían solo por el color.
+   Todo lo de aquí abajo es corto (menos de medio segundo), ocurre una sola
+   vez y desaparece entero con `prefers-reduced-motion`.
+   ═══════════════════════════════════════════════════════════ */
+
+/* Acierto: la losa da un salto y se enciende en verde. */
+@keyframes acierto {
+  0%   { transform: translateY(3px) scale(1); }
+  38%  { transform: translateY(-5px) scale(1.035); }
+  70%  { transform: translateY(0) scale(.995); }
+  100% { transform: translateY(0) scale(1); }
+}
+.option-correct {
+  animation: acierto .46s cubic-bezier(.2, .9, .3, 1);
+  box-shadow:
+    inset 0 1px 0 rgba(255, 255, 255, .7),
+    0 3px 0 rgba(55, 98, 47, .35),
+    0 0 0 4px rgba(111, 158, 89, .28),
+    var(--e-2) !important;
+}
+/* Fallo: dos golpes cortos de lado. Nunca un temblor largo: el tono del
+   juego con el error es cómico, no punitivo. */
+@keyframes fallo {
+  0%, 100% { transform: translateX(0); }
+  22%      { transform: translateX(-6px); }
+  55%      { transform: translateX(5px); }
+  80%      { transform: translateX(-2px); }
+}
+.option-wrong {
+  animation: fallo .34s ease-in-out;
+  box-shadow:
+    inset 0 1px 0 rgba(255, 255, 255, .6),
+    0 3px 0 rgba(168, 58, 37, .32),
+    var(--e-2) !important;
+}
+/* La respuesta buena, cuando no era la elegida, se señala con calma. */
+@keyframes revela {
+  0%   { box-shadow: 0 0 0 0 rgba(55, 98, 47, .45); }
+  100% { box-shadow: 0 0 0 9px rgba(55, 98, 47, 0); }
+}
+.option-reveal { animation: revela .9s ease-out .1s 2; }
+
+/* Las tarjetas del mapa entran escalonadas, como piezas que se colocan.
+   Sin esto la pantalla aparecía de golpe y no había sensación de llegada. */
+@keyframes surge {
+  from { opacity: 0; transform: translateY(10px); }
+  to   { opacity: 1; transform: none; }
+}
+.site-header, .branch-card, .stratum-row, .bazar-card {
+  animation: surge .34s cubic-bezier(.2, .8, .3, 1) backwards;
+}
+.site-branches .branch-card:nth-child(1) { animation-delay: .04s; }
+.site-branches .branch-card:nth-child(2) { animation-delay: .08s; }
+.site-branches .branch-card:nth-child(3) { animation-delay: .12s; }
+.site-branches .branch-card:nth-child(4) { animation-delay: .16s; }
+.strata-list .stratum-row:nth-child(1) { animation-delay: .03s; }
+.strata-list .stratum-row:nth-child(2) { animation-delay: .09s; }
+.strata-list .stratum-row:nth-child(3) { animation-delay: .15s; }
+.strata-list .stratum-row:nth-child(4) { animation-delay: .21s; }
+
+/* Nada de lo anterior es información: quien pide menos movimiento lo pierde
+   entero y la interfaz sigue diciendo lo mismo con el color y el texto. */
+@media (prefers-reduced-motion: reduce) {
+  .option-correct, .option-wrong, .option-reveal,
+  .site-header, .branch-card, .stratum-row, .bazar-card,
+  .hud-stat-level.lvl-up, .hud-stat-level.lvl-up .lvl-ring b {
+    animation: none !important;
+  }
+}
+
+/* ── Iconos en su sitio ──
+   Al pasar de emoji a dibujo, los huecos que antes se llenaban con una
+   fuente de emoji quedan a cargo del CSS: aquí se les da el tamaño y el
+   color de cada contexto. */
+/* El dorado sobre crema casi no se veía: el emblema va en latón, que es el
+   tono que aguanta sobre papel. */
+.home-crest .ico { width: 3.2rem; height: 3.2rem; color: var(--brass); stroke-width: 1.5; }
+.home-door-icon .ico { width: 2.5rem; height: 2.5rem; }
+.home-rule .ico, .guardian-free .ico { color: var(--brass); vertical-align: -.22em; }
+.guardian-face .ico { width: 4.2rem; height: 4.2rem; color: var(--leather); }
+.screen h3 > .ico { width: 1.5rem; height: 1.5rem; color: var(--brass); flex-shrink: 0; }
+.btn .ico { width: 1.2rem; height: 1.2rem; }
+.cfg-label .ico { color: var(--brass); }
+/* Dentro de un botón de color, el icono va del color del texto del botón. */
+.btn-primary .ico, .btn-secondary .ico { color: currentColor; }
+
+/* La moneda vale como signo de la divisa dentro de una frase: va del tono
+   del latón y alineada con la línea base del texto que la rodea. */
+.student-stats .ico, .class-note .ico, .class-meta .ico, .shop-info .ico,
+.merit-info .ico, .award-meta .ico, .logbook-stat .ico, .fund-total .ico,
+.team-goal-nums .ico, .student-num .ico, .daily-banner .ico, .bazar-inner .ico,
+.guardian-meta .ico, .kira .ico {
+  color: var(--brass);
+}
+.student-stats span { display: inline-flex; align-items: center; gap: .3rem; }
+
+/* ── El HUD en pantallas estrechas ──
+   En un móvil de 390 px la identidad y los dos indicadores no caben en una
+   línea: el rango se partía en tres renglones y la cabecera se comía un
+   tercio de la pantalla. El nombre manda; el rango se recorta y la palabra
+   «Nivel» sobra porque el anillo ya lo dice. */
+@media (max-width: 34rem) {
+  #hud { padding: .4rem .7rem; gap: .5rem; }
+  .hud-identity { overflow: hidden; }
+  #hud-name, .hud-rank {
+    white-space: nowrap; overflow: hidden; text-overflow: ellipsis;
+  }
+  .hud-rank { letter-spacing: .05em; }
+  .hud-stat-label { display: none; }
+  .hud-stat { padding: .25rem .5rem; }
+  .hud-avatar { width: 2.2rem; height: 2.2rem; font-size: 1.25rem; }
+  .lvl-ring { width: 2rem; height: 2rem; }
+  .lvl-ring b { font-size: var(--t-base); }
+
+  /* La cartela de misión no cabe entera: el nombre del yacimiento se cae
+     porque acabas de salir de él y ya sabes dónde estás. Se queda el
+     estrato, que es lo que cambia de reto en reto, y los puntos. */
+  .mh-site, .mh-sep { display: none; }
+  .mission-header { flex-wrap: nowrap; padding: .45rem .8rem; }
+  #mission-title { flex: 1; overflow: hidden; }
+  #mission-title > .ico { flex-shrink: 0; }
+
+  /* Y en el pozo, la cota de profundidad se aprieta para dejar sitio al
+     nombre del estrato, que es lo que hay que leer. */
+  .stratum-row { padding: .8rem .7rem; gap: .6rem; }
+  .stratum-depth { width: 2.4rem; }
+  .stratum-depth i { font-size: .52rem; letter-spacing: .06em; }
+  .stratum-icon { width: 2.3rem; height: 2.3rem; }
+  .stratum-icon .ico { width: 1.3rem; height: 1.3rem; }
+}
+
+/* El ancla del aviso diario se alinea con la primera línea, no con el centro
+   del bloque: en un móvil el texto ocupa tres renglones y centrarla la
+   dejaba flotando en mitad de la nada. */
+.daily-banner > .ico, .fatigue-banner > .ico {
+  color: var(--jungle); margin-top: .18rem; flex-shrink: 0;
+}
+.fatigue-banner > .ico { color: var(--brass); }
+
 </style>
+
+<!-- ══════════ ICONOGRAFÍA ══════════
+     Los emoji que el docente elige (yacimientos, méritos, tienda, cuadrillas)
+     siguen siendo emoji: son contenido suyo y los cambia cuando quiere.
+     El mobiliario de la app —el HUD, la barra de pestañas, los estratos, el
+     pico— es dibujo propio: así deja de parecer una web con emoji pegados y
+     empieza a parecer un juego. Trazo de 1,7 y `currentColor`, para que cada
+     icono tome el color y el tamaño del sitio donde se pone. -->
+<svg id="atlas-sprite" aria-hidden="true" focusable="false"
+     style="position:absolute;width:0;height:0;overflow:hidden">
+  <symbol id="i-map" viewBox="0 0 24 24">
+    <path d="M3 6.2 9 4l6 2.2L21 4v13.8L15 20l-6-2.2L3 20z"/>
+    <path d="M9 4v13.8M15 6.2V20"/>
+  </symbol>
+
+  <symbol id="i-tent" viewBox="0 0 24 24">
+    <path d="M3.2 19.7 12 5.1l8.8 14.6"/>
+    <path d="M2.3 19.7h19.4"/>
+    <path d="M9.1 19.7 12 11.3l2.9 8.4"/>
+    <path d="M12 5.1V2.9"/>
+  </symbol>
+
+  <symbol id="i-medal" viewBox="0 0 24 24">
+    <path d="M8.5 2.8 11 7.7M15.5 2.8 13 7.7"/>
+    <circle cx="12" cy="14.3" r="6"/>
+    <path d="M12 11l1.03 2.09 2.31.34-1.67 1.63.39 2.3L12 16.28l-2.06 1.08.39-2.3-1.67-1.63 2.31-.34z" fill="currentColor" stroke="none"/>
+  </symbol>
+
+  <symbol id="i-hut" viewBox="0 0 24 24">
+    <path d="M2.6 10.6 12 4l9.4 6.6"/>
+    <path d="M4.9 10.4V20h14.2v-9.6"/>
+    <path d="M9.6 20v-4.5a2.4 2.4 0 0 1 4.8 0V20"/>
+  </symbol>
+
+  <symbol id="i-logbook" viewBox="0 0 24 24">
+    <path d="M6 3.6h10.2a1.8 1.8 0 0 1 1.8 1.8v13.2a1.8 1.8 0 0 1-1.8 1.8H6a1.5 1.5 0 0 1-1.5-1.5V5.1A1.5 1.5 0 0 1 6 3.6z"/>
+    <path d="M8.6 3.6v16.8"/>
+    <path d="M11.4 8.6h3.8M11.4 12.2h3.8"/>
+  </symbol>
+
+  <symbol id="i-chart" viewBox="0 0 24 24">
+    <path d="M3.8 20.2h16.4"/>
+    <path d="M7 20.2v-6.4M12 20.2V7.4M17 20.2v-9.2"/>
+  </symbol>
+
+  <symbol id="i-pickaxe" viewBox="0 0 24 24">
+    <path d="M3.3 12.9C6.3 5.9 17.7 5.9 20.7 12.9"/>
+    <path d="M12 8.1v12.6"/>
+    <path d="M10.1 10.1h3.8"/>
+  </symbol>
+
+  <symbol id="i-lock" viewBox="0 0 24 24">
+    <path d="M7.4 10.4V8a4.6 4.6 0 0 1 9.2 0v2.4"/>
+    <rect x="4.8" y="10.4" width="14.4" height="9.4" rx="2.1"/>
+    <path d="M12 14.2v2.2"/>
+  </symbol>
+
+  <symbol id="i-coin" viewBox="0 0 24 24">
+    <circle cx="12" cy="12" r="8.5"/>
+    <path d="M12 5.9l1.95 4.15L18.1 12l-4.15 1.95L12 18.1l-1.95-4.15L5.9 12l4.15-1.95z" fill="currentColor" stroke="none"/>
+  </symbol>
+
+  <symbol id="i-star" viewBox="0 0 24 24">
+    <path d="M12 3.6l2.63 5.33 5.88.86-4.25 4.15 1 5.86L12 17l-5.26 2.76 1-5.86-4.25-4.15 5.88-.86z"/>
+  </symbol>
+
+  <symbol id="i-door" viewBox="0 0 24 24">
+    <path d="M13.6 4.4H6.4a1.6 1.6 0 0 0-1.6 1.6v12a1.6 1.6 0 0 0 1.6 1.6h7.2"/>
+    <path d="M19.2 12H9.8"/>
+    <path d="M16.4 8.8 19.6 12l-3.2 3.2"/>
+  </symbol>
+
+  <symbol id="i-explorer" viewBox="0 0 24 24">
+    <path d="M3.9 10.2h16.2"/>
+    <path d="M7 10.2a5 5 0 0 1 10 0"/>
+    <path d="M9.2 10.6v2.9a2.8 2.8 0 0 0 5.6 0v-2.9"/>
+    <path d="M4.9 20.9a7.1 7.1 0 0 1 14.2 0"/>
+  </symbol>
+
+  <symbol id="i-shard" viewBox="0 0 24 24">
+    <path d="M3.4 13.6 8.9 8.4l4.7 5.1-5.2 5z"/>
+    <path d="M14 4.4l5.9 2-1 6.2-5.4-2.5z"/>
+    <path d="M6.4 12.9a3.4 3.4 0 0 1 3.2-3"/>
+  </symbol>
+
+  <symbol id="i-vessel" viewBox="0 0 24 24">
+    <path d="M8.8 3.6h6.4"/>
+    <path d="M9.7 3.6v2.3c-2.6 1.6-3.9 4.2-3.9 6.9 0 3.5 2.8 6.4 6.2 6.4s6.2-2.9 6.2-6.4c0-2.7-1.3-5.3-3.9-6.9V3.6"/>
+    <path d="M5.9 11.4C4.1 10.9 3.4 9.2 4.4 8M18.1 11.4c1.8-.5 2.5-2.2 1.5-3.4"/>
+  </symbol>
+
+  <symbol id="i-scales" viewBox="0 0 24 24">
+    <path d="M12 4.6v14.2M7.6 20.2h8.8"/>
+    <path d="M4.4 8.4h15.2"/>
+    <path d="M4.4 8.4 1.9 13.9h5z"/>
+    <path d="M19.6 8.4 17.1 13.9h5z"/>
+  </symbol>
+
+  <symbol id="i-lens" viewBox="0 0 24 24">
+    <circle cx="10.6" cy="10.6" r="6.1"/>
+    <path d="M15 15 20.4 20.4"/>
+  </symbol>
+
+  <symbol id="i-crate" viewBox="0 0 24 24">
+    <rect x="3.7" y="6.5" width="16.6" height="13" rx="1.7"/>
+    <path d="M3.7 10.8h16.6"/>
+    <path d="M9.4 6.5v4.3M14.6 6.5v4.3"/>
+  </symbol>
+
+  <symbol id="i-dune" viewBox="0 0 24 24">
+    <path d="M2.4 18.4c3.3-7 8.2-7 11.4 0"/>
+    <path d="M11.8 18.4c2.5-4.6 5.7-4.6 9.8 0"/>
+    <circle cx="17.4" cy="6.6" r="2.6"/>
+  </symbol>
+
+  <symbol id="i-basket" viewBox="0 0 24 24">
+    <path d="M3.2 9.5h17.6l-1.8 9.3a2 2 0 0 1-2 1.6H7a2 2 0 0 1-2-1.6z"/>
+    <path d="M8.3 9.5a3.7 3.7 0 0 1 7.4 0"/>
+    <path d="M9.7 13.1v3.6M14.3 13.1v3.6"/>
+  </symbol>
+
+  <symbol id="i-idol" viewBox="0 0 24 24">
+    <path d="M7.2 20.2V9.3a4.8 4.8 0 0 1 9.6 0v10.9"/>
+    <path d="M8.6 10.6h1.9M13.5 10.6h1.9"/>
+    <path d="M12 12.4v2.7"/>
+    <path d="M10 17.2h4"/>
+    <path d="M5.2 20.2h13.6"/>
+  </symbol>
+
+  <symbol id="i-flag" viewBox="0 0 24 24">
+    <path d="M6.2 20.4V4"/>
+    <path d="M6.2 5.2h11.5l-2.4 3.6 2.4 3.6H6.2"/>
+  </symbol>
+
+  <symbol id="i-leaf" viewBox="0 0 24 24">
+    <path d="M4.7 19.3C3.1 12.5 8.1 4.6 20 4c.6 10.5-5.2 16.3-15.3 15.3z"/>
+    <path d="M5.5 19.5C8.7 13.4 12.8 9.6 17.5 7.4"/>
+  </symbol>
+
+  <symbol id="i-anchor" viewBox="0 0 24 24">
+    <circle cx="12" cy="5.1" r="2"/>
+    <path d="M12 7.1v13.2"/>
+    <path d="M8.4 10h7.2"/>
+    <path d="M4.3 13.5c0 3.9 3.4 6.8 7.7 6.8s7.7-2.9 7.7-6.8"/>
+  </symbol>
+
+  <symbol id="i-check" viewBox="0 0 24 24">
+    <path d="M4.8 12.6 9.7 17.5 19.3 6.9"/>
+  </symbol>
+
+  <symbol id="i-cross" viewBox="0 0 24 24">
+    <path d="M6.6 6.6 17.4 17.4M17.4 6.6 6.6 17.4"/>
+  </symbol>
+
+  <symbol id="i-clock" viewBox="0 0 24 24">
+    <circle cx="12" cy="12.6" r="8.2"/>
+    <path d="M12 8.2v4.4l2.9 2.1"/>
+    <path d="M9.4 2.4h5.2"/>
+  </symbol>
+
+  <symbol id="i-calendar" viewBox="0 0 24 24">
+    <rect x="3.6" y="5.2" width="16.8" height="15.2" rx="2.4"/>
+    <path d="M3.6 10h16.8"/>
+    <path d="M8.4 2.8v4.4M15.6 2.8v4.4"/>
+  </symbol>
+
+  <symbol id="i-target" viewBox="0 0 24 24">
+    <circle cx="12" cy="12" r="8.4"/>
+    <circle cx="12" cy="12" r="4.4"/>
+    <circle cx="12" cy="12" r="1.1" fill="currentColor" stroke="none"/>
+  </symbol>
+
+  <symbol id="i-phone" viewBox="0 0 24 24">
+    <rect x="6.4" y="2.6" width="11.2" height="18.8" rx="2.6"/>
+    <path d="M10.6 18.4h2.8"/>
+  </symbol>
+
+  <symbol id="i-pin" viewBox="0 0 24 24">
+    <path d="M12 21.4V14"/>
+    <path d="M8.2 3.4h7.6l-1.1 3.4 3 4.2H6.3l3-4.2z"/>
+  </symbol>
+
+  <symbol id="i-plus" viewBox="0 0 24 24">
+    <path d="M12 4.8v14.4M4.8 12h14.4"/>
+  </symbol>
+
+  <symbol id="i-dice" viewBox="0 0 24 24">
+    <rect x="3.6" y="3.6" width="16.8" height="16.8" rx="3.4"/>
+    <circle cx="8.6" cy="8.6" r="1.25" fill="currentColor" stroke="none"/>
+    <circle cx="15.4" cy="15.4" r="1.25" fill="currentColor" stroke="none"/>
+    <circle cx="12" cy="12" r="1.25" fill="currentColor" stroke="none"/>
+  </symbol>
+
+  <symbol id="i-wrench" viewBox="0 0 24 24">
+    <path d="M15.6 3.4a5.6 5.6 0 0 0-5.2 8.7L3.9 18.6a2 2 0 0 0 2.8 2.8l6.5-6.5a5.6 5.6 0 0 0 6.9-7.5l-2.9 2.9-2.7-.7-.7-2.7z"/>
+  </symbol>
+
+  <symbol id="i-refresh" viewBox="0 0 24 24">
+    <path d="M20.2 12a8.2 8.2 0 1 1-2.6-6"/>
+    <path d="M20.6 4.4v5.2h-5.2"/>
+  </symbol>
+
+  <symbol id="i-shop" viewBox="0 0 24 24">
+    <path d="M3.6 4.6h16.8l1.2 4.4a3 3 0 0 1-5.8 1 3 3 0 0 1-5.8 0 3 3 0 0 1-5.8-1z"/>
+    <path d="M5 10.6v8.8h14v-8.8"/>
+    <path d="M9.6 19.4v-4.6h4.8v4.6"/>
+  </symbol>
+
+  <symbol id="i-globe" viewBox="0 0 24 24">
+    <circle cx="12" cy="12" r="8.6"/>
+    <path d="M3.4 12h17.2"/>
+    <path d="M12 3.4c2.4 2.5 3.6 5.4 3.6 8.6S14.4 18.1 12 20.6c-2.4-2.5-3.6-5.4-3.6-8.6S9.6 5.9 12 3.4z"/>
+  </symbol>
+
+  <symbol id="i-route" viewBox="0 0 24 24">
+    <circle cx="5.8" cy="18.2" r="2.6"/>
+    <circle cx="18.2" cy="5.8" r="2.6"/>
+    <path d="M8.4 18.2h6a3.6 3.6 0 0 0 0-7.2h-4.8a3.6 3.6 0 0 1 0-7.2h6"/>
+  </symbol>
+
+  <symbol id="i-text" viewBox="0 0 24 24">
+    <path d="M3.4 19 8.9 5.4 14.4 19"/>
+    <path d="M5.5 14.4h6.8"/>
+    <path d="M15.9 19V9.6M20.6 19V9.6M15.9 12.4h4.7"/>
+  </symbol>
+
+  <symbol id="i-group" viewBox="0 0 24 24">
+    <circle cx="9" cy="8.4" r="3.4"/>
+    <path d="M2.9 20.1a6.1 6.1 0 0 1 12.2 0"/>
+    <path d="M16.1 5.6a3.4 3.4 0 0 1 0 5.6"/>
+    <path d="M17.4 14.9a6.1 6.1 0 0 1 3.7 5.2"/>
+  </symbol>
+
+  <symbol id="i-temple" viewBox="0 0 24 24">
+    <path d="M2.6 8.4 12 3.4l9.4 5"/>
+    <path d="M4.6 8.4v9.2M9.5 8.4v9.2M14.5 8.4v9.2M19.4 8.4v9.2"/>
+    <path d="M3.1 17.6h17.8M2.2 20.6h19.6"/>
+  </symbol>
+
+  <symbol id="i-clipboard" viewBox="0 0 24 24">
+    <path d="M9 4.4H6.6a1.8 1.8 0 0 0-1.8 1.8v12.6a1.8 1.8 0 0 0 1.8 1.8h10.8a1.8 1.8 0 0 0 1.8-1.8V6.2a1.8 1.8 0 0 0-1.8-1.8H15"/>
+    <rect x="9" y="2.6" width="6" height="3.6" rx="1.2"/>
+    <path d="M8.6 11.4h6.8M8.6 15.2h4.6"/>
+  </symbol>
+
+  <symbol id="i-school" viewBox="0 0 24 24">
+    <path d="M12 2.6 3.4 7.2h17.2z"/>
+    <path d="M5.2 7.2v12M18.8 7.2v12"/>
+    <path d="M2.6 19.4h18.8"/>
+    <path d="M9.6 19.4v-4.6a2.4 2.4 0 0 1 4.8 0v4.6"/>
+    <path d="M12 4.9v.05"/>
+  </symbol>
+
+  <symbol id="i-mic" viewBox="0 0 24 24">
+    <rect x="9" y="2.6" width="6" height="11.2" rx="3"/>
+    <path d="M5.6 11.4a6.4 6.4 0 0 0 12.8 0"/>
+    <path d="M12 17.8v3.6M8.8 21.4h6.4"/>
+  </symbol>
+
+  <symbol id="i-gear" viewBox="0 0 24 24">
+    <circle cx="12" cy="12" r="3.1"/>
+    <path d="M12 2.6l1.5 2.2 2.6-.6.5 2.6 2.5 1-1.2 2.4 1.6 2.1-2.2 1.5.2 2.7-2.7.2-1.2 2.4L12 21.4l-2.1-1.7-2.6.9-.9-2.6-2.6-.7.5-2.6-2-1.8 1.8-2-.9-2.5 2.6-.9.3-2.7 2.7.4z"/>
+  </symbol>
+
+  <symbol id="i-beetle" viewBox="0 0 24 24">
+    <ellipse cx="12" cy="13.4" rx="5.2" ry="6.8"/>
+    <path d="M12 6.6v13.6"/>
+    <circle cx="12" cy="5.4" r="2.3"/>
+    <path d="M10.4 3.5 8.8 1.9M13.6 3.5 15.2 1.9"/>
+    <path d="M6.8 9.6 3.4 7.8M6.8 13.4H3M6.8 17.2 3.6 19.2"/>
+    <path d="M17.2 9.6 20.6 7.8M17.2 13.4H21M17.2 17.2 20.4 19.2"/>
+  </symbol>
+
+  <symbol id="i-feather" viewBox="0 0 24 24">
+    <path d="M20.2 3.8c1 6.6-2 11.8-7 13.8-2.6 1-5 .6-6.2-.8-1.4-1.6-1-4 .8-5.8C10.6 8.2 15 5.4 20.2 3.8z"/>
+    <path d="M3.6 20.4 9.8 14.2"/>
+  </symbol>
+
+  <symbol id="i-compass" viewBox="0 0 24 24">
+    <circle cx="12" cy="12" r="8.6"/>
+    <path d="M15.4 8.6 13.6 13.6 8.6 15.4l1.8-5z" fill="currentColor" stroke="none"/>
+  </symbol>
+</svg>
 
 
   <!-- ══════════ PORTADA ══════════ -->
@@ -1726,7 +2533,7 @@ input[type="checkbox"]::after, input[type="radio"]::after {
     <div class="home-wrap">
 
       <header class="home-hero">
-        <div class="home-crest">🧭</div>
+        <div class="home-crest"><svg class="ico ico-lg" viewBox="0 0 24 24" aria-hidden="true"><use href="#i-compass"/></svg></div>
         <h1>Expedición Atlas</h1>
         <p class="home-tagline">Los Diarios Perdidos</p>
         <p class="home-lead">Una aventura de arqueología donde el tesoro se llama
@@ -1737,12 +2544,12 @@ input[type="checkbox"]::after, input[type="radio"]::after {
 
       <div class="home-doors">
         <button class="home-door home-door-student" id="home-student">
-          <span class="home-door-icon">🎒</span>
+          <span class="home-door-icon"><svg class="ico ico-lg" viewBox="0 0 24 24" aria-hidden="true"><use href="#i-explorer"/></svg></span>
           <strong>Soy explorador</strong>
           <small>Entrar a mi diario y seguir excavando</small>
         </button>
         <button class="home-door home-door-teacher" id="home-teacher">
-          <span class="home-door-icon">🧭</span>
+          <span class="home-door-icon"><svg class="ico ico-lg" viewBox="0 0 24 24" aria-hidden="true"><use href="#i-compass"/></svg></span>
           <strong>Soy docente</strong>
           <small>Ver la clase y preparar la expedición</small>
         </button>
@@ -1753,7 +2560,7 @@ input[type="checkbox"]::after, input[type="radio"]::after {
 
       <!-- ── La historia, contada para el alumnado ── -->
       <section class="home-block">
-        <h2>🏺 ¿De qué va todo esto?</h2>
+        <h2><svg class="ico" viewBox="0 0 24 24" aria-hidden="true"><use href="#i-vessel"/></svg> ¿De qué va todo esto?</h2>
         <div class="dialog bruno home-dialog">
           <span class="dialog-avatar">🧔🏻‍♂️</span>
           <div class="dialog-text">
@@ -1764,14 +2571,14 @@ input[type="checkbox"]::after, input[type="radio"]::after {
             Llevamos un siglo buscándolos… y necesitamos gente valiente. ¡Como tú!»</p>
           </div>
         </div>
-        <p class="home-rule">🗺️ <strong>La regla de oro:</strong> el mapa solo se dibuja
+        <p class="home-rule"><svg class="ico" viewBox="0 0 24 24" aria-hidden="true"><use href="#i-map"/></svg> <strong>La regla de oro:</strong> el mapa solo se dibuja
         con lo que aprendes de verdad. Nada de trucos, nada de suerte. Tu aprendizaje
         <em>es</em> la aventura.</p>
       </section>
 
       <!-- ── Cómo se juega ── -->
       <section class="home-block">
-        <h2>⛏️ Cómo se excava</h2>
+        <h2><svg class="ico" viewBox="0 0 24 24" aria-hidden="true"><use href="#i-pickaxe"/></svg> Cómo se excava</h2>
         <ol class="home-steps">
           <li><span class="home-step-n">1</span>
             <div><strong>Eliges un yacimiento</strong> en el mapa. Tú decides por dónde empezar.</div></li>
@@ -1782,8 +2589,8 @@ input[type="checkbox"]::after, input[type="radio"]::after {
             <div><strong>Si fallas, no pasa nada.</strong> Caes en una trampa, Kira te explica
             el error y puedes <em>restaurar el hallazgo</em>. Equivocarse forma parte de excavar.</div></li>
           <li><span class="home-step-n">4</span>
-            <div><strong>Ganas Doblones</strong> 🪙 para tu campamento y tu equipo, y
-            <strong>Puntos de Expedición</strong> ⭐ que suben tu rango.</div></li>
+            <div><strong>Ganas Doblones</strong> <svg class="ico" viewBox="0 0 24 24" aria-hidden="true"><use href="#i-coin"/></svg> para tu campamento y tu equipo, y
+            <strong>Puntos de Expedición</strong> <svg class="ico" viewBox="0 0 24 24" aria-hidden="true"><use href="#i-star"/></svg> que suben tu rango.</div></li>
           <li><span class="home-step-n">5</span>
             <div><strong>El mapa se dibuja</strong> un poco más… y vuelta a empezar.</div></li>
         </ol>
@@ -1791,7 +2598,7 @@ input[type="checkbox"]::after, input[type="radio"]::after {
 
       <!-- ── El elenco ── -->
       <section class="home-block">
-        <h2>👥 Quién te acompaña</h2>
+        <h2><svg class="ico" viewBox="0 0 24 24" aria-hidden="true"><use href="#i-group"/></svg> Quién te acompaña</h2>
         <div class="home-cast">
           <div class="cast-card">
             <span class="cast-face">🧔🏻‍♂️</span>
@@ -1822,13 +2629,13 @@ input[type="checkbox"]::after, input[type="radio"]::after {
 
       <!-- ── Los yacimientos ── -->
       <section class="home-block">
-        <h2>🏛️ Dónde se excava</h2>
+        <h2><svg class="ico" viewBox="0 0 24 24" aria-hidden="true"><use href="#i-temple"/></svg> Dónde se excava</h2>
         <div id="home-sites" class="home-sites"></div>
       </section>
 
       <!-- ── Para las familias y el profesorado ── -->
       <section class="home-block home-adults">
-        <h2>📋 Para familias y profesorado</h2>
+        <h2><svg class="ico" viewBox="0 0 24 24" aria-hidden="true"><use href="#i-clipboard"/></svg> Para familias y profesorado</h2>
         <p><strong>Expedición Atlas</strong> es una plataforma educativa gamificada para
         <strong>toda la etapa de primaria: de 1.º a 6.º (6 a 12 años)</strong>. Su meta no es
         entretener: es sostener la atención y la motivación mientras se aprende.</p>
@@ -1854,7 +2661,7 @@ input[type="checkbox"]::after, input[type="radio"]::after {
   <section id="screen-teacher" class="screen hidden">
     <div class="home-wrap">
       <header class="home-hero home-hero-small">
-        <div class="home-crest">🧭</div>
+        <div class="home-crest"><svg class="ico ico-lg" viewBox="0 0 24 24" aria-hidden="true"><use href="#i-compass"/></svg></div>
         <h1>Sala de mapas</h1>
         <p id="teacher-greeting" class="home-lead">Desde aquí ves cómo va la clase y preparas la expedición.</p>
       </header>
@@ -1863,17 +2670,17 @@ input[type="checkbox"]::after, input[type="radio"]::after {
 
       <div class="home-doors">
         <button class="home-door home-door-aula" id="teacher-go-aula">
-          <span class="home-door-icon">🎤</span>
+          <span class="home-door-icon"><svg class="ico ico-lg" viewBox="0 0 24 24" aria-hidden="true"><use href="#i-mic"/></svg></span>
           <strong>Dirigir la clase</strong>
           <small>Preguntar en voz alta y anotar lo que responde cada alumno</small>
         </button>
         <button class="home-door" id="teacher-go-class">
-          <span class="home-door-icon">👥</span>
+          <span class="home-door-icon"><svg class="ico ico-lg" viewBox="0 0 24 24" aria-hidden="true"><use href="#i-group"/></svg></span>
           <strong>Vista general de la clase</strong>
           <small>Progreso de cada alumno y alertas de rescate</small>
         </button>
         <button class="home-door" id="teacher-go-config">
-          <span class="home-door-icon">⚙️</span>
+          <span class="home-door-icon"><svg class="ico ico-lg" viewBox="0 0 24 24" aria-hidden="true"><use href="#i-gear"/></svg></span>
           <strong>Configurar la expedición</strong>
           <small>Yacimientos, retos, méritos, cuadrillas y economía</small>
         </button>
@@ -1887,7 +2694,7 @@ input[type="checkbox"]::after, input[type="radio"]::after {
   <!-- ══════════ ACCESO (solo si hay Appwrite configurado) ══════════ -->
   <section id="screen-auth" class="screen hidden">
     <div class="onboarding-card">
-      <div class="big-emoji">🧭</div>
+      <div class="sello"><svg class="ico ico-lg" viewBox="0 0 24 24" aria-hidden="true"><use href="#i-compass"/></svg></div>
       <h1>Expedición Atlas</h1>
       <p class="subtitle">Los Diarios Perdidos</p>
 
@@ -1899,7 +2706,7 @@ input[type="checkbox"]::after, input[type="radio"]::after {
       <form id="login-form">
         <input type="text" id="login-user" placeholder="Tu usuario" required autocomplete="username">
         <input type="password" id="login-pass" placeholder="Tu contraseña secreta" required autocomplete="current-password">
-        <button type="submit" class="btn btn-primary">Entrar a la expedición 🎒</button>
+        <button type="submit" class="btn btn-primary">Entrar a la expedición <svg class="ico" viewBox="0 0 24 24" aria-hidden="true"><use href="#i-explorer"/></svg></button>
       </form>
 
       <form id="register-form" class="hidden">
@@ -1908,7 +2715,7 @@ input[type="checkbox"]::after, input[type="radio"]::after {
         <input type="password" id="reg-pass" placeholder="Una contraseña (8 letras o más)" required minlength="8" autocomplete="new-password">
         <span class="onb-label">¿En qué curso estás?</span>
         <div id="grade-picker-reg" class="grade-picker"></div>
-        <button type="submit" class="btn btn-primary">Crear mi diario 📔</button>
+        <button type="submit" class="btn btn-primary">Crear mi diario <svg class="ico" viewBox="0 0 24 24" aria-hidden="true"><use href="#i-logbook"/></svg></button>
       </form>
 
       <p id="auth-error" class="auth-error hidden"></p>
@@ -1919,7 +2726,7 @@ input[type="checkbox"]::after, input[type="radio"]::after {
   <!-- ══════════ ONBOARDING ══════════ -->
   <section id="screen-onboarding" class="screen">
     <div class="onboarding-card">
-      <div class="big-emoji">🧭</div>
+      <div class="sello"><svg class="ico ico-lg" viewBox="0 0 24 24" aria-hidden="true"><use href="#i-compass"/></svg></div>
       <h1>Expedición Atlas</h1>
       <p class="subtitle">Los Diarios Perdidos</p>
       <div class="dialog bruno">
@@ -1936,7 +2743,7 @@ input[type="checkbox"]::after, input[type="radio"]::after {
         <span class="onb-label">¿En qué curso estás?</span>
         <div id="grade-picker" class="grade-picker"></div>
         <input type="hidden" id="input-grade" value="4">
-        <button type="submit" class="btn btn-primary">¡Empezar la expedición! 🎒</button>
+        <button type="submit" class="btn btn-primary">¡Empezar la expedición! <svg class="ico" viewBox="0 0 24 24" aria-hidden="true"><use href="#i-explorer"/></svg></button>
       </form>
     </div>
   </section>
@@ -1952,18 +2759,27 @@ input[type="checkbox"]::after, input[type="radio"]::after {
         </div>
       </div>
       <div class="hud-right">
-        <div class="hud-stat" title="Puntos de Expedición (rango)">
-          <span class="hud-stat-icon">⭐</span>
-          <div class="hud-level">
-            <span id="hud-level">Nv. 1</span>
-            <div class="xp-bar"><div id="hud-xp-fill" class="xp-fill"></div></div>
-          </div>
+        <!-- El nivel se lee de un vistazo en el anillo; el número exacto de PE
+             queda en el título, para quien lo quiera. -->
+        <div class="hud-stat hud-stat-level" id="hud-level-stat" title="Puntos de Expedición (rango)">
+          <span class="lvl-ring" id="hud-ring">
+            <svg viewBox="0 0 40 40" aria-hidden="true">
+              <circle class="lvl-track" cx="20" cy="20" r="16.5"/>
+              <circle class="lvl-fill" id="hud-xp-fill" cx="20" cy="20" r="16.5"/>
+            </svg>
+            <b id="hud-level-num">1</b>
+          </span>
+          <span class="hud-stat-label">Nivel</span>
         </div>
-        <div class="hud-stat" title="Doblones">
-          <span class="hud-stat-icon">🪙</span>
-          <span id="hud-doubloons">0</span>
+        <div class="hud-stat hud-stat-coins" title="Doblones">
+          <span class="hud-stat-icon">
+            <svg class="ico" viewBox="0 0 24 24" aria-hidden="true"><use href="#i-coin"/></svg>
+          </span>
+          <span id="hud-doubloons" class="hud-num">0</span>
         </div>
-        <button id="btn-logout" class="hud-logout hidden" title="Cerrar sesión">🚪</button>
+        <button id="btn-logout" class="hud-logout hidden" title="Cerrar sesión" aria-label="Cerrar sesión">
+          <svg class="ico" viewBox="0 0 24 24" aria-hidden="true"><use href="#i-door"/></svg>
+        </button>
       </div>
     </header>
 
@@ -1972,7 +2788,7 @@ input[type="checkbox"]::after, input[type="radio"]::after {
       <!-- ══════════ MAPA ══════════ -->
       <section id="screen-map" class="screen">
         <div class="map-header">
-          <h2>🗺️ El Mapa del Atlas</h2>
+          <h2><svg class="ico" viewBox="0 0 24 24" aria-hidden="true"><use href="#i-map"/></svg> El Mapa del Atlas</h2>
           <div class="map-reveal">
             <div class="map-reveal-bar"><div id="map-reveal-fill"></div></div>
             <span id="map-reveal-pct">0% del mundo dibujado</span>
@@ -2000,7 +2816,7 @@ input[type="checkbox"]::after, input[type="radio"]::after {
       <!-- ══════════ MIS CLASES (varios docentes) ══════════ -->
       <section id="screen-aulas" class="screen hidden">
         <button class="btn btn-back" id="aulas-salir">← Volver a la sala de mapas</button>
-        <h2>🏫 Mis clases</h2>
+        <h2><svg class="ico" viewBox="0 0 24 24" aria-hidden="true"><use href="#i-school"/></svg> Mis clases</h2>
         <p class="aula-sub" id="aulas-sub">Cada docente ve solo las suyas. Al abrir una, sus
         diarios se traen a este equipo; al trabajar, se guardan en ella.</p>
 
@@ -2031,7 +2847,7 @@ input[type="checkbox"]::after, input[type="radio"]::after {
         <div id="aulas-lista-zona" class="hidden">
           <div id="aulas-lista" class="aula-lista"></div>
           <div class="cfg-equipo-botones">
-            <button class="btn btn-secondary btn-small" id="aula-nueva">➕ Crear una clase</button>
+            <button class="btn btn-secondary btn-small" id="aula-nueva"><svg class="ico" viewBox="0 0 24 24" aria-hidden="true"><use href="#i-plus"/></svg> Crear una clase</button>
             <button class="btn btn-quit btn-small" id="doc-salir">Cerrar sesión</button>
           </div>
           <p id="aulas-msg" class="cfg-warn hidden"></p>
@@ -2046,11 +2862,11 @@ input[type="checkbox"]::after, input[type="radio"]::after {
         <div id="aula-turnos">
           <div class="aula-head">
             <div>
-              <h2>🎤 Dirigir la clase</h2>
+              <h2><svg class="ico" viewBox="0 0 24 24" aria-hidden="true"><use href="#i-mic"/></svg> Dirigir la clase</h2>
               <p class="aula-sub">Tú preguntas, el alumnado responde en voz alta y tú marcas lo que
               ha dicho. Todo cuenta en su diario: no hace falta que entren en la app.</p>
             </div>
-            <button class="btn btn-primary" id="aula-siguiente">🎲 A quien le toque</button>
+            <button class="btn btn-primary" id="aula-siguiente"><svg class="ico" viewBox="0 0 24 24" aria-hidden="true"><use href="#i-dice"/></svg> A quien le toque</button>
           </div>
           <div class="aula-toolbar">
             <label class="cfg-label" for="aula-tema">Preguntar de</label>
@@ -2078,7 +2894,7 @@ input[type="checkbox"]::after, input[type="radio"]::after {
             <p class="question-text" id="aula-pregunta"></p>
             <div class="options" id="aula-opciones"></div>
             <div class="mission-tools">
-              <button class="btn btn-hint btn-small" id="aula-pista">🪲 Dar la pista de Kira</button>
+              <button class="btn btn-hint btn-small" id="aula-pista"><svg class="ico" viewBox="0 0 24 24" aria-hidden="true"><use href="#i-beetle"/></svg> Dar la pista de Kira</button>
               <button class="btn btn-quit btn-small" id="aula-saltar">Saltar esta</button>
             </div>
             <div id="aula-kira" class="dialog kira hidden"></div>
@@ -2089,13 +2905,13 @@ input[type="checkbox"]::after, input[type="radio"]::after {
             <p class="feedback-title" id="aula-fb-title"></p>
             <p class="feedback-explain" id="aula-fb-explain"></p>
             <div class="aula-fb-acciones">
-              <button class="btn btn-restore" id="aula-restaurar">🔧 Dejar que lo corrija (+5 🪙)</button>
+              <button class="btn btn-restore" id="aula-restaurar"><svg class="ico" viewBox="0 0 24 24" aria-hidden="true"><use href="#i-wrench"/></svg> Dejar que lo corrija (+5 🪙)</button>
               <button class="btn btn-primary" id="aula-continuar">Siguiente →</button>
             </div>
           </div>
 
           <div class="aula-meritos">
-            <h3>🏅 Méritos para&nbsp;<span id="aula-merito-quien"></span></h3>
+            <h3><svg class="ico" viewBox="0 0 24 24" aria-hidden="true"><use href="#i-medal"/></svg> Méritos para&nbsp;<span id="aula-merito-quien"></span></h3>
             <div id="aula-merito-lista" class="award-list"></div>
           </div>
         </div>
@@ -2105,12 +2921,12 @@ input[type="checkbox"]::after, input[type="radio"]::after {
       <section id="screen-guardian" class="screen hidden">
         <button class="btn btn-back" id="guardian-back">← Volver al pozo</button>
         <div class="guardian-hall">
-          <div class="guardian-face">🗿</div>
+          <div class="guardian-face"><svg class="ico ico-lg" viewBox="0 0 24 24" aria-hidden="true"><use href="#i-idol"/></svg></div>
           <h2 id="guardian-title">Cámara del Guardián</h2>
           <div id="guardian-dialog" class="dialog bruno"></div>
           <h3>Lo que te va a preguntar</h3>
           <div id="guardian-strata" class="guardian-strata"></div>
-          <p class="guardian-free">🪶 <strong>Fallar aquí no cuesta nada:</strong> no pierdes
+          <p class="guardian-free"><svg class="ico" viewBox="0 0 24 24" aria-hidden="true"><use href="#i-feather"/></svg> <strong>Fallar aquí no cuesta nada:</strong> no pierdes
           Puntos de Expedición, ni Doblones, ni dominio, ni nada de tu mapa. El Guardián
           solo comprueba si lo aprendido aguanta todo junto.</p>
           <div id="guardian-actions" class="guardian-actions"></div>
@@ -2132,14 +2948,15 @@ input[type="checkbox"]::after, input[type="radio"]::after {
           </div>
           <div class="mission-tools">
             <button id="btn-hint" class="btn btn-hint">🪲 Pista de Kira</button>
-            <button id="btn-quit" class="btn btn-quit">🏳️ Abandonar</button>
+            <button id="btn-quit" class="btn btn-quit">
+              <svg class="ico" viewBox="0 0 24 24" aria-hidden="true"><use href="#i-flag"/></svg> Abandonar</button>
           </div>
         </div>
         <div id="feedback-card" class="feedback-card hidden">
           <div id="feedback-icon" class="big-emoji"></div>
           <p id="feedback-title" class="feedback-title"></p>
           <p id="feedback-explain" class="feedback-explain"></p>
-          <button id="btn-restore" class="btn btn-restore hidden">🔧 Restaurar hallazgo (+5 🪙)</button>
+          <button id="btn-restore" class="btn btn-restore hidden"><svg class="ico" viewBox="0 0 24 24" aria-hidden="true"><use href="#i-wrench"/></svg> Restaurar hallazgo (+5 🪙)</button>
           <button id="btn-next" class="btn btn-primary">Continuar →</button>
         </div>
       </section>
@@ -2151,13 +2968,13 @@ input[type="checkbox"]::after, input[type="radio"]::after {
           <h2 id="result-title"></h2>
           <div id="result-rewards" class="result-rewards"></div>
           <div id="result-dialog" class="dialog bruno"></div>
-          <button class="btn btn-primary" data-nav="map">Volver al mapa 🗺️</button>
+          <button class="btn btn-primary" data-nav="map">Volver al mapa <svg class="ico" viewBox="0 0 24 24" aria-hidden="true"><use href="#i-map"/></svg></button>
         </div>
       </section>
 
       <!-- ══════════ CAMPAMENTO ══════════ -->
       <section id="screen-camp" class="screen hidden">
-        <h2>⛺ Campamento Base</h2>
+        <h2><svg class="ico" viewBox="0 0 24 24" aria-hidden="true"><use href="#i-tent"/></svg> Campamento Base</h2>
         <div class="camp-avatar-zone">
           <div id="camp-avatar" class="camp-avatar">🧒</div>
           <div id="camp-gear-equipped" class="camp-gear-equipped"></div>
@@ -2165,17 +2982,17 @@ input[type="checkbox"]::after, input[type="radio"]::after {
         <div id="camp-scene" class="camp-scene"></div>
         <div class="camp-prefs">
           <label class="cfg-field cfg-field-inline">
-            <span class="cfg-label">🔠 Letra más grande</span>
+            <span class="cfg-label"><svg class="ico" viewBox="0 0 24 24" aria-hidden="true"><use href="#i-text"/></svg> Letra más grande</span>
             <input type="checkbox" id="pref-large-text">
           </label>
         </div>
 
-        <h3>🏪 Almacén de la Expedición</h3>
+        <h3><svg class="ico" viewBox="0 0 24 24" aria-hidden="true"><use href="#i-shop"/></svg> Almacén de la Expedición</h3>
         <p class="shop-note">Todo lo del almacén es decorativo: ¡ninguna compra da ventaja en las excavaciones!</p>
         <div id="shop-list" class="shop-list"></div>
 
         <div id="fund-block" class="fund-block hidden">
-          <h3 id="fund-title">🌍 Fondo de la Sociedad Geográfica</h3>
+          <h3 id="fund-title"><svg class="ico" viewBox="0 0 24 24" aria-hidden="true"><use href="#i-globe"/></svg> Fondo de la Sociedad Geográfica</h3>
           <p id="fund-blurb" class="shop-note"></p>
           <div id="fund-progress" class="fund-progress"></div>
           <div id="fund-milestones" class="fund-milestones"></div>
@@ -2189,7 +3006,7 @@ input[type="checkbox"]::after, input[type="radio"]::after {
 
       <!-- ══════════ MÉRITOS DE CAMPAMENTO ══════════ -->
       <section id="screen-merits" class="screen hidden">
-        <h2>🏅 Méritos de Campamento</h2>
+        <h2><svg class="ico" viewBox="0 0 24 24" aria-hidden="true"><use href="#i-medal"/></svg> Méritos de Campamento</h2>
         <p class="merits-intro">Un buen explorador no solo excava bien: cuida a su equipo y su campamento.
         El Prof. Ocaña te da <strong>Doblones</strong> por ello. Los méritos no suben tu rango:
         el rango se gana solo aprendiendo.</p>
@@ -2222,14 +3039,14 @@ input[type="checkbox"]::after, input[type="radio"]::after {
 
       <!-- ══════════ CUADRILLA ══════════ -->
       <section id="screen-team" class="screen hidden">
-        <h2>🛖 Tu Cuadrilla</h2>
+        <h2><svg class="ico" viewBox="0 0 24 24" aria-hidden="true"><use href="#i-hut"/></svg> Tu Cuadrilla</h2>
         <div id="team-body"></div>
       </section>
 
       <!-- ══════════ VISTA GENERAL DE LA CLASE ══════════ -->
       <section id="screen-class" class="screen hidden">
         <button class="btn btn-back" data-nav="dashboard">← Volver al cuaderno</button>
-        <h2>👥 Vista general de la clase</h2>
+        <h2><svg class="ico" viewBox="0 0 24 24" aria-hidden="true"><use href="#i-group"/></svg> Vista general de la clase</h2>
         <div id="class-status" class="class-status"></div>
         <div id="class-body" class="hidden">
           <div id="class-kpis" class="kpi-grid"></div>
@@ -2241,13 +3058,13 @@ input[type="checkbox"]::after, input[type="radio"]::after {
               <option value="alfabetico">Nombre</option>
               <option value="progreso">Progreso</option>
             </select>
-            <button id="class-reload" class="btn btn-secondary btn-small">🔄 Actualizar</button>
+            <button id="class-reload" class="btn btn-secondary btn-small"><svg class="ico" viewBox="0 0 24 24" aria-hidden="true"><use href="#i-refresh"/></svg> Actualizar</button>
           </div>
 
           <div id="class-alerts"></div>
           <div id="class-students" class="class-students"></div>
 
-          <h3>🛖 Cuadrillas</h3>
+          <h3><svg class="ico" viewBox="0 0 24 24" aria-hidden="true"><use href="#i-hut"/></svg> Cuadrillas</h3>
           <div id="class-teams"></div>
           <div id="class-missing"></div>
 
@@ -2258,7 +3075,7 @@ input[type="checkbox"]::after, input[type="radio"]::after {
       <!-- ══════════ PANEL DE CONFIGURACIÓN ══════════ -->
       <section id="screen-config" class="screen hidden">
         <button class="btn btn-back" data-nav="dashboard">← Volver al cuaderno</button>
-        <h2>⚙️ Panel de Configuración</h2>
+        <h2><svg class="ico" viewBox="0 0 24 24" aria-hidden="true"><use href="#i-gear"/></svg> Panel de Configuración</h2>
         <p class="cfg-top-note">Los cambios se aplican al instante y se guardan en esta tablet.</p>
         <div class="cfg-shell">
           <nav id="cfg-nav" class="cfg-nav" aria-label="Secciones de la configuración"></nav>
@@ -2268,9 +3085,9 @@ input[type="checkbox"]::after, input[type="radio"]::after {
 
       <!-- ══════════ BITÁCORA ══════════ -->
       <section id="screen-logbook" class="screen hidden">
-        <h2>📔 Bitácora de Expedición</h2>
+        <h2><svg class="ico" viewBox="0 0 24 24" aria-hidden="true"><use href="#i-logbook"/></svg> Bitácora de Expedición</h2>
         <div id="logbook-summary" class="logbook-summary"></div>
-        <h3>🧭 Ruta de sellos</h3>
+        <h3><svg class="ico" viewBox="0 0 24 24" aria-hidden="true"><use href="#i-route"/></svg> Ruta de sellos</h3>
         <div id="logbook-stamps" class="logbook-stamps"></div>
         <p class="logbook-note">Un <strong>sello</strong> se estampa cada semana con 3 o más días de expedición.
         Los sellos nunca se borran: si una semana no se completa, solo queda un tramo de ruta sin dibujar.</p>
@@ -2278,13 +3095,13 @@ input[type="checkbox"]::after, input[type="radio"]::after {
 
       <!-- ══════════ DASHBOARD DOCENTE ══════════ -->
       <section id="screen-dashboard" class="screen hidden">
-        <h2>📊 Cuaderno del Docente</h2>
+        <h2><svg class="ico" viewBox="0 0 24 24" aria-hidden="true"><use href="#i-chart"/></svg> Cuaderno del Docente</h2>
         <p class="dashboard-note">Vista de progreso pedagógico. Ninguna métrica de actividad se celebra sola:
         lo que importa es el aprendizaje demostrado.</p>
         <div id="dashboard-kpis" class="kpi-grid"></div>
         <div class="dash-actions">
-          <button id="btn-open-class" class="btn btn-secondary btn-small">👥 Vista general de la clase</button>
-          <button id="btn-open-config" class="btn btn-secondary btn-small">⚙️ Configurar la expedición</button>
+          <button id="btn-open-class" class="btn btn-secondary btn-small"><svg class="ico" viewBox="0 0 24 24" aria-hidden="true"><use href="#i-group"/></svg> Vista general de la clase</button>
+          <button id="btn-open-config" class="btn btn-secondary btn-small"><svg class="ico" viewBox="0 0 24 24" aria-hidden="true"><use href="#i-gear"/></svg> Configurar la expedición</button>
         </div>
 
         <h3>El curso por trimestres</h3>
@@ -2299,12 +3116,12 @@ input[type="checkbox"]::after, input[type="radio"]::after {
     </main>
 
     <nav id="tabbar">
-      <button data-nav="map" class="tab active"><span>🗺️</span>Mapa</button>
-      <button data-nav="camp" class="tab"><span>⛺</span>Campamento</button>
-      <button data-nav="merits" class="tab"><span>🏅</span>Méritos</button>
-      <button data-nav="team" class="tab" id="tab-team"><span>🛖</span>Cuadrilla</button>
-      <button data-nav="logbook" class="tab"><span>📔</span>Bitácora</button>
-      <button data-nav="dashboard" class="tab"><span>📊</span>Docente</button>
+      <button data-nav="map" class="tab active"><span class="tab-ico"><svg class="ico" viewBox="0 0 24 24" aria-hidden="true"><use href="#i-map"/></svg></span><span class="tab-label">Mapa</span></button>
+      <button data-nav="camp" class="tab"><span class="tab-ico"><svg class="ico" viewBox="0 0 24 24" aria-hidden="true"><use href="#i-tent"/></svg></span><span class="tab-label">Campamento</span></button>
+      <button data-nav="merits" class="tab"><span class="tab-ico"><svg class="ico" viewBox="0 0 24 24" aria-hidden="true"><use href="#i-medal"/></svg></span><span class="tab-label">Méritos</span></button>
+      <button data-nav="team" class="tab" id="tab-team"><span class="tab-ico"><svg class="ico" viewBox="0 0 24 24" aria-hidden="true"><use href="#i-hut"/></svg></span><span class="tab-label">Cuadrilla</span></button>
+      <button data-nav="logbook" class="tab"><span class="tab-ico"><svg class="ico" viewBox="0 0 24 24" aria-hidden="true"><use href="#i-logbook"/></svg></span><span class="tab-label">Bitácora</span></button>
+      <button data-nav="dashboard" class="tab"><span class="tab-ico"><svg class="ico" viewBox="0 0 24 24" aria-hidden="true"><use href="#i-chart"/></svg></span><span class="tab-label">Docente</span></button>
     </nav>
   </div>
 
@@ -7119,6 +7936,27 @@ async function aplicarCopia(raw, destino) {
 const $ = sel => document.querySelector(sel);
 const $$ = sel => document.querySelectorAll(sel);
 
+/* Escapa texto que escribe el docente antes de meterlo en innerHTML: los
+   nombres de yacimiento los teclea una persona y pueden traer < o &. */
+function esc(t) {
+  return String(t == null ? '' : t)
+    .replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;')
+    .replace(/"/g, '&quot;');
+}
+
+/* ── Iconos propios ──
+   Devuelve un <svg> que apunta al símbolo del sprite de index.html. El icono
+   hereda color y tamaño de donde se ponga, así que el mismo pico sirve en
+   marrón sobre la tarjeta y en latón sobre la cabecera sin duplicar nada.
+   Los emoji que sí sobreviven son los que elige el docente (yacimientos,
+   méritos, tienda, cuadrillas): son su contenido, no el mobiliario. */
+function ico(nombre, clase) {
+  return `<svg class="ico${clase ? ' ' + clase : ''}" viewBox="0 0 24 24" aria-hidden="true"><use href="#i-${nombre}"/></svg>`;
+}
+
+/* Icono de cada estrato de Bloom, dibujado y no emoji. */
+const ICO_ESTRATO = { recordar: 'shard', comprender: 'vessel', aplicar: 'scales', analizar: 'lens' };
+
 const SCREENS = ['map', 'branch', 'guardian', 'mission', 'result', 'camp', 'merits', 'team', 'logbook', 'dashboard', 'class', 'config', 'aula', 'aulas'];
 
 function show(screenId) {
@@ -7254,11 +8092,26 @@ function renderHud() {
   const rank = rankForLevel(level);
   $('#hud-name').textContent = S.profile.explorer_name;
   $('#hud-rank').textContent = rank.name;
-  $('#hud-level').textContent = `Nv. ${level}`;
   $('#hud-doubloons').textContent = S.progression.doubloons_balance;
   const cur = xpForLevel(level), next = xpForLevel(level + 1);
   const pct = Math.min(100, Math.round(((S.progression.xp_total - cur) / (next - cur)) * 100));
-  $('#hud-xp-fill').style.width = pct + '%';
+
+  /* El nivel vive dentro de un anillo que se va cerrando con los PE. Se ve de
+     lejos, que es lo que hace falta cuando la tablet está en la mesa. */
+  const num = $('#hud-level-num');
+  const subeNivel = num.textContent !== String(level);
+  num.textContent = level;
+  const aro = $('#hud-xp-fill');
+  const vuelta = 2 * Math.PI * 16.5;
+  aro.style.strokeDasharray = vuelta.toFixed(2);
+  aro.style.strokeDashoffset = (vuelta * (1 - pct / 100)).toFixed(2);
+  const stat = $('#hud-level-stat');
+  stat.title = `Nivel ${level} · ${rank.name} · ${S.progression.xp_total} PE (${pct}% hasta el ${level + 1})`;
+  /* Al subir de nivel el anillo da un destello: el premio se ve, no solo se suma. */
+  if (subeNivel && num.dataset.visto) {
+    stat.classList.remove('lvl-up'); void stat.offsetWidth; stat.classList.add('lvl-up');
+  }
+  num.dataset.visto = '1';
   $('#hud-avatar').textContent = avatarEmoji();
 }
 function avatarEmoji() {
@@ -7275,7 +8128,7 @@ function renderMap() {
   const gi = gradeInfo(S.profile.grade);
   const frags = fragmentsRecovered();
   $('#map-reveal-pct').textContent = `${pct}% del mundo dibujado · ${gi.label} (${gi.age})` +
-    (frags ? ` · 🧩 ${frags} fragmento${frags === 1 ? '' : 's'} del Atlas` : '');
+    (frags ? ` · ${frags} fragmento${frags === 1 ? '' : 's'} del Atlas` : '');
 
   $('#fatigue-banner').classList.toggle('hidden', !isFatigued());
 
@@ -7320,7 +8173,7 @@ function renderMap() {
             return `<span class="dot ${cls}" title="${STRATA_META[sId].label}"></span>`;
           }).join('')}</div>
           <small>${mastered}/${withContent.length} estratos dominados</small>
-        </div><span class="branch-go">⛏️</span>`;
+        </div><span class="branch-go">${ico('pickaxe')}</span>`;
       card.addEventListener('click', () => openBranch(b.id));
       grid.appendChild(card);
     }
@@ -7335,11 +8188,11 @@ function renderMap() {
     const b = branchDef(target.branchId);
     const meta = STRATA_META[target.stratumId];
     bazar.innerHTML = `<div class="bazar-inner">
-      <span class="bazar-icon">${target.paraGuardian ? '🗿' : '🧺'}</span>
+      <span class="bazar-icon">${ico(target.paraGuardian ? 'idol' : 'basket')}</span>
       <div><strong>${target.paraGuardian ? 'Repaso para el Guardián' : 'Encargo del Bazar'}</strong>
       <p>${target.paraGuardian
         ? `El Guardián de ${b.name} pide que repases «${meta.name}» antes de dejarte volver a entrar.`
-        : `«${meta.name}» de ${b.name} se está cubriendo de arena… Un repaso rápido lo redescubrirá. (+10–15 🪙)`}</p></div>
+        : `«${meta.name}» de ${b.name} se está cubriendo de arena… Un repaso rápido lo redescubrirá. (+10–15 ${ico('coin')})`}</p></div>
       <button class="btn btn-secondary" id="btn-bazar">Repasar</button></div>`;
     $('#btn-bazar').addEventListener('click', () => {
       if (!startMission(target.branchId, target.stratumId, 'bazar')) { toast('Ese encargo ya no está disponible.'); return; }
@@ -7372,7 +8225,8 @@ function openBranch(branchId) {
     const cover = sandCover(st);
     const locked = st.status === 'locked';
     const row = document.createElement('button');
-    row.className = 'stratum-row' + (locked || !hasContent ? ' locked' : '');
+    row.className = 'stratum-row' + (locked || !hasContent ? ' locked' : '')
+      + (st.mastery >= 0.8 ? ' excavado' : '');
     row.disabled = locked || !hasContent;
     const masteryPct = Math.round(st.mastery * 100);
 
@@ -7384,14 +8238,14 @@ function openBranch(branchId) {
       detail = '<small>Se abre al dominar (≥80%) el estrato de arriba</small>';
     } else {
       detail = `<div class="mastery-bar"><div class="mastery-fill${st.mastery >= 0.8 ? ' gold' : ''}" style="width:${masteryPct}%"></div></div>
-        <small>Dominio: ${masteryPct}%${st.mastery >= 0.9 ? ' · ya excavado (PE al 10%)' : ''}${cover > 0.2 ? ' · 🏜️ cubierto de arena' : ''}</small>`;
+        <small>Dominio: ${masteryPct}%${st.mastery >= 0.9 ? ' · ya excavado (PE al 10%)' : ''}${cover > 0.2 ? ' · cubierto de arena' : ''}</small>`;
     }
 
     row.innerHTML = `
-      <span class="stratum-depth">Estrato ${i + 1}</span>
-      <span class="stratum-icon">${!hasContent ? '📭' : locked ? '🔒' : meta.icon}</span>
+      <span class="stratum-depth"><i>Estrato</i><b>${i + 1}</b></span>
+      <span class="stratum-icon">${ico(!hasContent ? 'crate' : locked ? 'lock' : ICO_ESTRATO[sId])}</span>
       <div class="stratum-info"><strong>${meta.label} · «${meta.name}»</strong>${detail}</div>
-      <span class="stratum-go">${locked || !hasContent ? '' : '⛏️'}</span>`;
+      <span class="stratum-go">${locked || !hasContent ? '' : ico('pickaxe')}</span>`;
 
     if (!row.disabled) {
       row.addEventListener('click', () => {
@@ -7419,16 +8273,16 @@ function renderBranchGuardian(branchId) {
   const nombres = (est.strata || []).map(sId => STRATA_META[sId].label).join(' · ');
   if (est.estado === 'superada') {
     cont.innerHTML = `<div class="guardian-card guardian-done">
-      <span class="guardian-card-icon">🗿</span>
+      <span class="guardian-card-icon">${ico('idol','ico-lg')}</span>
       <div><strong>Cámara del Guardián · superada</strong>
       <small>Recuperaste el fragmento del Atlas de este pozo${est.fecha ? ' el ' + est.fecha.split('-').reverse().slice(0,2).join('/') : ''}.</small></div>
-      <span class="guardian-card-go">🧩</span></div>`;
+      <span class="guardian-card-go">${ico('pickaxe')}</span></div>`;
     return;
   }
   if (est.estado === 'cerrada') {
     const faltan = est.faltan.map(sId => STRATA_META[sId].label).join(', ');
     cont.innerHTML = `<div class="guardian-card guardian-locked">
-      <span class="guardian-card-icon">🔒</span>
+      <span class="guardian-card-icon">${ico('lock','ico-lg')}</span>
       <div><strong>Cámara del Guardián</strong>
       <small>Se abre con todo el pozo dominado. Te falta: ${faltan}.</small></div></div>`;
     return;
@@ -7436,7 +8290,7 @@ function renderBranchGuardian(branchId) {
   if (est.estado === 'repaso') {
     const w = STRATA_META[est.weak] ? STRATA_META[est.weak].label : '';
     cont.innerHTML = `<div class="guardian-card guardian-wait">
-      <span class="guardian-card-icon">🧺</span>
+      <span class="guardian-card-icon">${ico('basket','ico-lg')}</span>
       <div><strong>El Guardián te espera</strong>
       <small>Pide un Encargo del Bazar sobre <strong>${w}</strong> antes de volver a intentarlo.
       Lo tienes en el mapa.</small></div></div>`;
@@ -7445,7 +8299,7 @@ function renderBranchGuardian(branchId) {
 
   const btn = document.createElement('button');
   btn.className = 'guardian-card guardian-open';
-  btn.innerHTML = `<span class="guardian-card-icon">🗿</span>
+  btn.innerHTML = `<span class="guardian-card-icon">${ico('idol','ico-lg')}</span>
     <div><strong>Cámara del Guardián</strong>
     <small>${est.intentos ? 'Vuelve a intentarlo. ' : ''}Todo el pozo dominado: ${nombres}</small></div>
     <span class="guardian-card-go">→</span>`;
@@ -7477,7 +8331,7 @@ function openGuardianHall(branchId) {
     const meta = STRATA_META[sId];
     const st = getStratum(branchId, sId);
     return `<div class="guardian-stratum">
-      <span class="guardian-stratum-icon">${meta.icon}</span>
+      <span class="guardian-stratum-icon">${ico(ICO_ESTRATO[sId])}</span>
       <div><strong>${meta.label}</strong><small>«${meta.name}» · lo llevas al ${Math.round(st.mastery * 100)}%</small></div>
     </div>`;
   }).join('');
@@ -7486,11 +8340,11 @@ function openGuardianHall(branchId) {
   const acts = $('#guardian-actions');
   acts.innerHTML = `<p class="guardian-meta">${total} retos encadenados ·
     hacen falta ${Math.round((g.passAccuracy || 0.8) * 100)}% de aciertos a la primera ·
-    premio: 🧩 un fragmento del Atlas y ${g.coins || 100} 🪙</p>`;
+    premio: ${ico('map')} un fragmento del Atlas y ${g.coins || 100} ${ico('coin')}</p>`;
   const entrar = document.createElement('button');
   entrar.className = 'btn btn-primary';
   entrar.id = 'guardian-enter';
-  entrar.textContent = 'Entrar en la cámara 🗿';
+  entrar.innerHTML = 'Entrar en la cámara ' + ico('idol');
   entrar.addEventListener('click', () => {
     if (!startGuardian(branchId)) { toast('La cámara no está abierta ahora mismo.'); openBranch(branchId); return; }
     renderMissionScreen();
@@ -7504,10 +8358,12 @@ function openGuardianHall(branchId) {
 function renderMissionScreen() {
   const b = branchDef(mission.branchId);
   const meta = STRATA_META[mission.stratumId];
-  $('#mission-title').textContent =
-      mission.kind === 'bazar'    ? `🧺 Encargo: ${meta.name}`
-    : mission.kind === 'guardian' ? `🗿 Cámara del Guardián · ${b.name}`
-    : `${b.icon} ${b.name} · ${meta.icon} ${meta.label}`;
+  $('#mission-title').innerHTML =
+      mission.kind === 'bazar'    ? `${ico('basket')} Encargo: ${esc(meta.name)}`
+    : mission.kind === 'guardian' ? `${ico('idol')} Cámara del Guardián · ${esc(b.name)}`
+    : `<span class="mh-site">${esc(b.icon)} ${esc(b.name)}</span>
+       <span class="mh-sep"></span>
+       ${ico(ICO_ESTRATO[mission.stratumId])} ${esc(meta.label)}`;
   renderQuestion();
 }
 function renderProgressDots() {
@@ -7539,7 +8395,7 @@ function renderQuestion() {
     optionsEl.appendChild(btn);
   });
   $('#btn-hint').disabled = false;
-  $('#btn-hint').textContent = '🪲 Pista de Kira';
+  $('#btn-hint').innerHTML = ico('beetle') + ' Pista de Kira';
 }
 
 function onAnswer(index, btn) {
@@ -7572,17 +8428,17 @@ function showFeedback(res, extra) {
   btnRestore.classList.add('hidden');
 
   if (extra.restored) {
-    $('#feedback-icon').textContent = '🔧✨';
+    selloFeedback('wrench', 'logro');
     $('#feedback-title').textContent = '¡Hallazgo restaurado!';
     $('#feedback-explain').textContent = extra.restoreCoins
-      ? `Corregiste tu propio error. +${extra.restoreCoins} 🪙 por restaurar el hallazgo.`
+      ? `Corregiste tu propio error. +${extra.restoreCoins} doblones por restaurar el hallazgo.`
       : 'Corregiste tu propio error. (Ya usaste las 5 restauraciones con premio de hoy.)';
   } else if (res.correct) {
-    $('#feedback-icon').textContent = pick(['💎', '🏺', '✨', '🗝️', '🪙']);
+    selloFeedback('check', 'bien');
     $('#feedback-title').textContent = pick(['¡Hallazgo descubierto!', '¡Excavación perfecta!', '¡Kira aplaude con las antenas!', '¡Tobías ladra de alegría!']);
     $('#feedback-explain').textContent = res.explanation;
   } else {
-    $('#feedback-icon').textContent = pick(['🪤', '🕸️', '🪨']);
+    selloFeedback('cross', 'mal');
     $('#feedback-title').textContent = pick([
       '¡Trampa! Bruno ya había caído en esa misma…',
       '¡Zas! Una reja… y Bruno dentro, contando chistes.',
@@ -7593,11 +8449,11 @@ function showFeedback(res, extra) {
     if (!mission.restoring) {
       btnRestore.classList.remove('hidden');
       btnRestore.textContent = S.daily.restores_today < ECO().restoresPerDay
-        ? '🔧 Restaurar hallazgo (+5 🪙)'
-        : '🔧 Restaurar hallazgo (sin premio hoy)';
+        ? 'Restaurar hallazgo (+5 doblones)'
+        : 'Restaurar hallazgo (sin premio hoy)';
     }
   }
-  $('#btn-next').textContent = mission.index >= mission.questions.length - 1 ? 'Terminar excavación 🏁' : 'Continuar →';
+  $('#btn-next').textContent = mission.index >= mission.questions.length - 1 ? 'Terminar excavación' : 'Continuar →';
 }
 
 $('#btn-restore') && null; /* listeners se registran en init */
@@ -7623,13 +8479,13 @@ function onRestore() {
 function onHint() {
   const h = requestHint();
   if (!h.ok) {
-    toast(h.reason === 'no-coins' ? 'No tienes Doblones para otra pista (10 🪙).' : 'Kira ya no tiene más pistas: ¡confía en tu pala!');
+    toast(h.reason === 'no-coins' ? 'No tienes Doblones para otra pista (cuesta 10).' : 'Kira ya no tiene más pistas: ¡confía en tu pala!');
     return;
   }
   $('#kira-box').classList.remove('hidden');
-  $('#kira-text').textContent = h.text + (h.cost ? ` (−${h.cost} 🪙)` : '');
+  $('#kira-text').textContent = h.text + (h.cost ? ` (−${h.cost} doblones)` : '');
   if (mission.hintsShown >= 2) { $('#btn-hint').disabled = true; }
-  else { $('#btn-hint').textContent = `🪲 Otra pista (${ECO().hintCost} 🪙)`; }
+  else { $('#btn-hint').innerHTML = `${ico('beetle')} Otra pista (${ECO().hintCost} ${ico('coin')})`; }
   renderHud();
 }
 
@@ -7638,7 +8494,8 @@ function renderResult(r) {
   if (r.kind === 'guardian') return renderGuardianResult(r);
   const meta = STRATA_META[r.stratumId];
   const good = r.accuracy >= 0.7;
-  $('#result-emoji').textContent = r.nowMastered ? '🏆' : good ? '💎' : '🧭';
+  /* Sello de expedición en vez de un emoji gigante: el premio se estampa. */
+  sello(r.nowMastered ? 'medal' : good ? 'star' : 'compass', r.nowMastered || good);
   $('#result-title').textContent = r.nowMastered
     ? `¡Estrato «${meta.name}» dominado!`
     : r.kind === 'bazar' ? 'Encargo completado' : 'Excavación terminada';
@@ -7646,9 +8503,9 @@ function renderResult(r) {
   const rewards = $('#result-rewards');
   rewards.innerHTML = `
     <div class="reward-row"><span>Aciertos a la primera</span><strong>${r.firstTryCorrect}/${r.total}</strong></div>
-    <div class="reward-row"><span>⭐ Puntos de Expedición</span><strong>+${r.pe}</strong></div>
-    <div class="reward-row"><span>🪙 Doblones</span><strong>+${r.coins}</strong></div>
-    ${r.restored ? `<div class="reward-row"><span>🔧 Hallazgos restaurados</span><strong>${r.restored}</strong></div>` : ''}
+    <div class="reward-row"><span>${ico('star')} Puntos de Expedición</span><strong>+${r.pe}</strong></div>
+    <div class="reward-row"><span>${ico('coin')} Doblones</span><strong>+${r.coins}</strong></div>
+    ${r.restored ? `<div class="reward-row"><span>${ico('vessel')} Hallazgos restaurados</span><strong>${r.restored}</strong></div>` : ''}
     ${r.notes.map(n => `<div class="reward-note">${n}</div>`).join('')}
     ${r.leveledUp ? `<div class="reward-levelup">🎉 ¡Has subido al nivel ${r.newLevel}! Ahora eres ${rankForLevel(r.newLevel).name}.</div>` : ''}
     ${r.nowMastered ? `<div class="reward-levelup">🗺️ ¡El mapa del Atlas se dibuja un poco más!</div>` : ''}
@@ -7666,13 +8523,29 @@ function renderResult(r) {
   renderHud();
 }
 
+/* Estampa el sello del resultado. `logrado` distingue el latón encendido
+   de la versión apagada, para que ganar y no ganar no se vean igual. */
+function sello(nombre, logrado) {
+  const el = $('#result-emoji');
+  el.className = 'sello' + (logrado ? ' sello-logro' : '');
+  el.innerHTML = ico(nombre, 'ico-lg');
+}
+
+/* Sello del aviso que aparece justo después de responder. `tono` decide el
+   color: bien, mal o logro. */
+function selloFeedback(nombre, tono) {
+  const el = $('#feedback-icon');
+  el.className = 'sello sello-' + tono;
+  el.innerHTML = ico(nombre, 'ico-lg');
+}
+
 /* ── Resultado de la Cámara del Guardián ──
    Ganar da un fragmento del Atlas; perder no quita nada. Lo que sí hace el
    Guardián en las dos es decir DÓNDE se falló: una evaluación que no explica
    el error no sirve de nada a un niño de nueve años. */
 function renderGuardianResult(r) {
   const b = branchDef(r.branchId);
-  $('#result-emoji').textContent = r.superada ? '🧩' : '🗿';
+  sello(r.superada ? 'map' : 'idol', r.superada);
   $('#result-title').textContent = r.superada
     ? '¡Fragmento del Atlas recuperado!'
     : 'El Guardián no te deja pasar… todavía';
@@ -7681,7 +8554,7 @@ function renderGuardianResult(r) {
   const desglose = (r.strata || []).map(sId => {
     const meta = STRATA_META[sId];
     const err = r.errorsByStratum[sId] || 0;
-    return `<div class="reward-row"><span>${meta.icon} ${meta.label}</span>
+    return `<div class="reward-row"><span>${ico(ICO_ESTRATO[sId])} ${meta.label}</span>
       <strong>${err ? err + (err === 1 ? ' fallo' : ' fallos') : 'sin fallos'}</strong></div>`;
   }).join('');
 
@@ -7690,11 +8563,11 @@ function renderGuardianResult(r) {
       <strong>${r.firstTryCorrect}/${r.total} (${Math.round(r.accuracy * 100)}%)</strong></div>
     <div class="reward-row"><span>Hacía falta</span><strong>${Math.round(r.umbral * 100)}%</strong></div>
     ${desglose}
-    ${r.pe ? `<div class="reward-row"><span>⭐ Puntos de Expedición</span><strong>+${r.pe}</strong></div>` : ''}
-    ${r.coins ? `<div class="reward-row"><span>🪙 Doblones</span><strong>+${r.coins}</strong></div>` : ''}
-    ${r.restored ? `<div class="reward-row"><span>🔧 Hallazgos restaurados</span><strong>${r.restored}</strong></div>` : ''}
+    ${r.pe ? `<div class="reward-row"><span>${ico('star')} Puntos de Expedición</span><strong>+${r.pe}</strong></div>` : ''}
+    ${r.coins ? `<div class="reward-row"><span>${ico('coin')} Doblones</span><strong>+${r.coins}</strong></div>` : ''}
+    ${r.restored ? `<div class="reward-row"><span>${ico('vessel')} Hallazgos restaurados</span><strong>${r.restored}</strong></div>` : ''}
     ${r.leveledUp ? `<div class="reward-levelup">🎉 ¡Has subido al nivel ${r.newLevel}! Ahora eres ${rankForLevel(r.newLevel).name}.</div>` : ''}
-    ${r.fragment ? `<div class="reward-levelup">🧩 Llevas ${r.fragmentsTotal} fragmento(s) del Atlas de Ossian.</div>` : ''}
+    ${r.fragment ? `<div class="reward-levelup">${ico('map')} Llevas ${r.fragmentsTotal} fragmento(s) del Atlas de Ossian.</div>` : ''}
     ${!r.superada ? `<div class="reward-note">No has perdido nada: ni PE, ni Doblones, ni dominio.
       El Guardián quiere que repases <strong>${STRATA_META[r.weakStratum] ? STRATA_META[r.weakStratum].label : ''}</strong>
       en un Encargo del Bazar y vuelvas.</div>` : ''}`;
@@ -7737,7 +8610,7 @@ function renderCamp() {
     const row = document.createElement('div');
     row.className = 'shop-item';
     row.innerHTML = `<span class="shop-icon">${item.icon}</span>
-      <div class="shop-info"><strong>${item.name}</strong><small>${item.cost} 🪙</small></div>`;
+      <div class="shop-info"><strong>${item.name}</strong><small>${item.cost} ${ico('coin')}</small></div>`;
     const btn = document.createElement('button');
     btn.className = 'btn btn-secondary btn-small';
     if (owned && item.type === 'gear') {
@@ -7797,7 +8670,7 @@ function renderFund() {
   $('#fund-progress').innerHTML = `
     <div class="fund-bar"><div class="fund-bar-fill" style="width:${pct}%"></div></div>
     <div class="fund-bar-legend">
-      <strong>${total} 🪙</strong> reunidos entre toda la clase
+      <strong>${total} ${ico('coin')}</strong> reunidos entre toda la clase
       ${siguiente ? `<span>· faltan <strong>${Math.max(0, hasta - total)}</strong> para ${siguiente.icon} ${siguiente.name}</span>` : ''}
     </div>`;
 
@@ -7806,8 +8679,8 @@ function renderFund() {
   $('#fund-milestones').innerHTML = hitos.map(m => {
     const hecho = total >= m.at;
     return `<div class="fund-milestone ${hecho ? 'fund-done' : ''}">
-      <span class="fund-icon">${hecho ? m.icon : '🔒'}</span>
-      <div><strong>${m.name}</strong><small>${hecho ? m.desc : `Se abre con ${m.at} 🪙 de la clase`}</small></div>
+      <span class="fund-icon">${hecho ? m.icon : ico('lock')}</span>
+      <div><strong>${m.name}</strong><small>${hecho ? m.desc : `Se abre con ${m.at} ${ico('coin')} de la clase`}</small></div>
     </div>`;
   }).join('');
 
@@ -7816,7 +8689,7 @@ function renderFund() {
   for (const n of (f.steps || [5, 10, 25, 50])) {
     const b = document.createElement('button');
     b.className = 'btn btn-secondary btn-small';
-    b.textContent = `${n} 🪙`;
+    b.innerHTML = `${n} ${ico('coin')}`;
     b.disabled = S.progression.doubloons_balance < n;
     b.addEventListener('click', () => {
       const res = donateToFund(n);
@@ -7825,7 +8698,7 @@ function renderFund() {
       const ahora = fundMilestoneFor(fundTotal()).alcanzados.length;
       toast(ahora > antes
         ? '¡Hito conseguido! La Sociedad se pone manos a la obra 🎉'
-        : `¡Gracias! ${n} 🪙 para el Fondo.`);
+        : `¡Gracias! ${n} doblones para el Fondo.`);
       renderCamp();
     });
     cont.appendChild(b);
@@ -7833,7 +8706,7 @@ function renderFund() {
 
   const mio = S.progression.fund_donated || 0;
   $('#fund-mine').textContent = mio
-    ? `Tú has aportado ${mio} 🪙 al Fondo. Donar no da ninguna ventaja: es por las ruinas.`
+    ? `Tú has aportado ${mio} ${ico('coin')} al Fondo. Donar no da ninguna ventaja: es por las ruinas.`
     : 'Donar es voluntario y no da ninguna ventaja en las excavaciones.';
 }
 
@@ -7956,8 +8829,8 @@ function renderTeam() {
       <p class="team-goal-note">Toda la clase excava hacia la misma meta. Cada Doblón que ganas
       aporta un poco, y <em>no se descuenta de tu bolsa</em>: cooperar no cuesta nada.</p>
       <div class="mastery-bar"><div class="mastery-fill${pct >= 100 ? ' gold' : ''}" style="width:${pct}%"></div></div>
-      <div class="team-goal-nums"><span>Tu aportación: <strong>${mine} 🪙</strong></span>
-        <span>Tu parte de la meta: <strong>${share} 🪙</strong></span></div>
+      <div class="team-goal-nums"><span>Tu aportación: <strong>${mine} ${ico('coin')}</strong></span>
+        <span>Tu parte de la meta: <strong>${share} ${ico('coin')}</strong></span></div>
     </div>
 
     <h3>Tus compañeros de cuadrilla</h3>
@@ -7993,7 +8866,7 @@ function renderMerits() {
   const tri = S.course.trimesters[currentTrimesterIndex()];
   $('#merits-summary').innerHTML = `
     <div class="logbook-stat"><strong>${st.total}</strong><span>méritos ganados</span></div>
-    <div class="logbook-stat"><strong>${st.coins}</strong><span>🪙 por comportamiento</span></div>
+    <div class="logbook-stat"><strong>${st.coins}</strong><span>${ico('coin')} por comportamiento</span></div>
     <div class="logbook-stat"><strong>${tri.merits}</strong><span>este trimestre</span></div>`;
 
   /* lo conseguido hoy, con el tope a la vista */
@@ -8002,7 +8875,7 @@ function renderMerits() {
     const n = S.behavior_log.filter(e => e.id === b.id && e.date === today).length;
     return `<div class="merit-row${n ? ' merit-earned' : ''}">
       <span class="merit-icon">${b.icon}</span>
-      <div class="merit-info"><strong>${b.name}</strong><small>${b.coins} 🪙 · hasta ${b.perDay} al día</small></div>
+      <div class="merit-info"><strong>${b.name}</strong><small>${b.coins} ${ico('coin')} · hasta ${b.perDay} al día</small></div>
       <span class="merit-count">${n ? '⭐'.repeat(Math.min(n, 5)) : '—'}</span>
     </div>`;
   }).join('');
@@ -8044,11 +8917,11 @@ function renderAwardList() {
     btn.disabled = full;
     btn.innerHTML = `<span class="award-icon">${b.icon}</span>
       <span class="award-name">${b.name}</span>
-      <span class="award-meta">+${b.coins} 🪙 · ${used}/${b.perDay}</span>`;
+      <span class="award-meta">+${b.coins} ${ico('coin')} · ${used}/${b.perDay}</span>`;
     btn.addEventListener('click', () => {
       const res = awardBehavior(b.id);
       if (res.ok) {
-        toast(`${b.icon} ¡${b.name}! +${b.coins} 🪙`);
+        toast(`${b.icon} ¡${b.name}! +${b.coins} doblones`);
         renderMerits();
         renderAwardList();
         showTeacherPanel();
@@ -8427,7 +9300,7 @@ function aulaFeedback(res, restaurando, coins) {
     $('#aula-fb-icon').textContent = res.correct ? '🔧✨' : '🪨';
     $('#aula-fb-title').textContent = res.correct ? '¡Hallazgo restaurado!' : 'Esta vez tampoco salió';
     $('#aula-fb-explain').textContent = res.correct
-      ? (coins ? `Se corrigió solo. +${coins} 🪙 por restaurar el hallazgo.` : 'Se corrigió solo. (Ya usó las 5 restauraciones con premio de hoy.)')
+      ? (coins ? `Se corrigió solo. +${coins} doblones por restaurar el hallazgo.` : 'Se corrigió solo. (Ya usó las 5 restauraciones con premio de hoy.)')
       : res.explanation;
   } else if (res.correct) {
     $('#aula-fb-icon').textContent = '💎';
@@ -8468,7 +9341,7 @@ function aulaTerminar() {
   }
   const r = finishMission();
   const quien = aulaAlumno ? aulaAlumno.name : '';
-  toast(`${quien}: ${r.firstTryCorrect}/${r.total} a la primera · +${r.pe} ⭐ · +${r.coins} 🪙`);
+  toast(`${quien}: ${r.firstTryCorrect}/${r.total} a la primera · +${r.pe} PE · +${r.coins} doblones`);
   if (r.nowMastered) toast(`¡${quien} ha dominado un estrato! 🗺️`, 3200);
   volverATurnos();
 }
@@ -8494,11 +9367,11 @@ function renderAulaMeritos() {
     btn.disabled = lleno;
     btn.innerHTML = `<span class="award-icon">${b.icon}</span>
       <span class="award-name">${b.name}</span>
-      <span class="award-meta">+${b.coins} 🪙 · ${usados}/${b.perDay}</span>`;
+      <span class="award-meta">+${b.coins} ${ico('coin')} · ${usados}/${b.perDay}</span>`;
     btn.addEventListener('click', () => {
       const res = awardBehavior(b.id);
       if (res.ok) {
-        toast(`${b.icon} ${aulaAlumno.name}: ${b.name} · +${b.coins} 🪙`);
+        toast(`${b.icon} ${aulaAlumno.name}: ${b.name} · +${b.coins} doblones`);
         renderAulaMeritos();
       } else toast('Ya se alcanzó el tope de hoy para ese mérito.');
     });
@@ -8537,7 +9410,7 @@ function wireAula() {
     caja.classList.remove('hidden');
     caja.innerHTML = `<span class="dialog-avatar">🪲</span>
       <div class="dialog-text"><strong>Kira</strong><p>${r.text}</p>
-      ${r.cost ? `<small>(−${r.cost} 🪙)</small>` : ''}</div>`;
+      ${r.cost ? `<small>(−${r.cost} ${ico('coin')})</small>` : ''}</div>`;
   });
 }
 
@@ -8623,12 +9496,12 @@ function paintClassView() {
       se guardan en este equipo, que es donde se dirigen las sesiones. Si además quieres que el alumnado
       entre por su cuenta desde casa, hace falta configurar Appwrite en «Acceso y nube».</div>`;
   } else if (d.localOnly && d.students.length) {
-    nota = `<div class="class-note">📱 <strong>Esta tablet solo guarda un diario.</strong> Sin cuentas
+    nota = `<div class="class-note">${ico('phone')} <strong>Esta tablet solo guarda un diario.</strong> Sin cuentas
       en la nube, cada dispositivo tiene el suyo, así que aquí solo puede aparecer quien lo esté usando
       ahora. Para ver a la clase entera, dirige las sesiones desde <em>Dirigir la clase</em> o hay que
       configurar Appwrite en «Acceso y nube».</div>`;
   } else if (d.localOnly) {
-    nota = `<div class="class-note">📱 <strong>Todavía no hay ningún diario.</strong> Empieza una sesión
+    nota = `<div class="class-note">${ico('phone')} <strong>Todavía no hay ningún diario.</strong> Empieza una sesión
       desde <em>Dirigir la clase</em> y se irá creando el de cada alumno al que preguntes.</div>`;
   }
   classStatus(recuento + nota);
@@ -8673,13 +9546,13 @@ function paintClassView() {
         </div>
       </div>
       <div class="student-stats">
-        <span title="Estratos dominados de los disponibles">⛏️ ${s.mastered}/${s.totalStrata} estratos</span>
-        <span title="Minutos de excavación en 7 días">⏱️ ${s.minutes7} min/7d</span>
-        <span title="Días activos de los 3 que exige el sello">📅 ${s.activeDays}/3 días</span>
-        <span title="Precisión en las últimas 10 respuestas">🎯 ${s.accuracy === null ? '—' : Math.round(s.accuracy * 100) + '%'}</span>
-        <span title="Hallazgos restaurados (autocorrección)">🔧 ${s.selfCorrections}</span>
-        <span title="Méritos concedidos">🏅 ${s.merits}</span>
-        <span title="Cámaras del Guardián superadas">🧩 ${s.fragments} fragmentos</span>
+        <span title="Estratos dominados de los disponibles">${ico('pickaxe')} ${s.mastered}/${s.totalStrata} estratos</span>
+        <span title="Minutos de excavación en 7 días">${ico('clock')} ${s.minutes7} min/7d</span>
+        <span title="Días activos de los 3 que exige el sello">${ico('calendar')} ${s.activeDays}/3 días</span>
+        <span title="Precisión en las últimas 10 respuestas">${ico('target')} ${s.accuracy === null ? '—' : Math.round(s.accuracy * 100) + '%'}</span>
+        <span title="Hallazgos restaurados (autocorrección)">${ico('wrench')} ${s.selfCorrections}</span>
+        <span title="Méritos concedidos">${ico('medal')} ${s.merits}</span>
+        <span title="Cámaras del Guardián superadas">${ico('map')} ${s.fragments} fragmentos</span>
       </div>
       ${s.signals.length ? `<div class="student-signals">${s.signals.map(x => `<span class="signal-chip">${x}</span>`).join('')}</div>` : ''}
       ${s.stuck.length ? `<small class="student-stuck">Atascado en: ${s.stuck.join(' · ')}</small>` : ''}
@@ -8694,7 +9567,7 @@ function paintClassView() {
         const pct = Math.min(100, Math.round((t.contribution / meta) * 100));
         return `<div class="class-team">
           <div class="class-team-head"><span>${t.icon} <strong>${t.name}</strong></span>
-            <span class="student-num">${t.contribution} / ${meta} 🪙</span></div>
+            <span class="student-num">${t.contribution} / ${meta} ${ico('coin')}</span></div>
           <div class="mastery-bar"><div class="mastery-fill${pct >= 100 ? ' gold' : ''}" style="width:${pct}%"></div></div>
           <small>${t.members} con diario${t.listed !== t.members ? ` de ${t.listed} asignados` : ''} · ${t.mastered} estratos entre todos</small>
         </div>`;
@@ -8751,17 +9624,17 @@ function paintClassFund(d) {
   const { siguiente } = fundMilestoneFor(real);
   cont.innerHTML = `
     <h3>🌍 ${f.name || 'Fondo de la Sociedad'}</h3>
-    <p class="class-meta">Donado de verdad entre todos: <strong>${real} 🪙</strong> ·
-      anotado en la configuración: <strong>${anotado} 🪙</strong>
-      ${siguiente ? `· siguiente hito: ${siguiente.icon} ${siguiente.name} (${siguiente.at} 🪙)` : ''}</p>
+    <p class="class-meta">Donado de verdad entre todos: <strong>${real} ${ico('coin')}</strong> ·
+      anotado en la configuración: <strong>${anotado} ${ico('coin')}</strong>
+      ${siguiente ? `· siguiente hito: ${siguiente.icon} ${siguiente.name} (${siguiente.at} ${ico('coin')})` : ''}</p>
     ${real !== anotado
-      ? `<button class="btn btn-secondary btn-small" id="class-fund-sync">📌 Anotar ${real} 🪙 para que lo vea la clase</button>`
+      ? `<button class="btn btn-secondary btn-small" id="class-fund-sync">${ico('pin')} Anotar ${real} ${ico('coin')} para que lo vea la clase</button>`
       : '<p class="cfg-hint">La clase ya ve el total correcto.</p>'}`;
 
   const btn = $('#class-fund-sync');
   if (btn) btn.addEventListener('click', () => {
     setTeacherConfig('fund.classTotal', real);
-    toast('Anotado ✓ La clase ya ve ' + real + ' 🪙 en el Fondo.');
+    toast('Anotado. La clase ya ve ' + real + ' doblones en el Fondo.');
     paintClassFund(d);
   });
 }
@@ -9206,11 +10079,14 @@ function startApp() {
   show('map');
   if (events.firstLoginBonus) {
     const banner = $('#daily-banner');
-    banner.innerHTML = `⚓ <strong>Primer desembarco del día:</strong> +${events.firstLoginBonus} 🪙 ¡Bienvenido de vuelta, ${S.profile.explorer_name}!`;
+    /* El texto va dentro de un <span>: el aviso es un flex y, suelto, cada
+       trozo se convertía en una columna propia y se partía en un móvil. */
+    banner.innerHTML = `${ico('anchor')}<span><strong>Primer desembarco del día:</strong>
+      +${events.firstLoginBonus} ${ico('coin')} ¡Bienvenido de vuelta, ${esc(S.profile.explorer_name)}!</span>`;
     banner.classList.remove('hidden');
     setTimeout(() => banner.classList.add('hidden'), 6000);
   }
-  if (events.weekStamped) { earnDoubloons(50); saveState(); renderHud(); toast('📍 ¡Sello semanal estampado en tu bitácora! +50 🪙', 4000); }
+  if (events.weekStamped) { earnDoubloons(50); saveState(); renderHud(); toast('¡Sello semanal estampado en tu bitácora! +50 doblones', 4000); }
   if (events.weekProtected) toast('🪢 Una cuerda de rescate protegió tu racha esta semana.', 4000);
 }
 

@@ -17,13 +17,296 @@
   <link rel="stylesheet" href="css/styles.css">
 </head>
 <body>
+<!-- ══════════ ICONOGRAFÍA ══════════
+     Los emoji que el docente elige (yacimientos, méritos, tienda, cuadrillas)
+     siguen siendo emoji: son contenido suyo y los cambia cuando quiere.
+     El mobiliario de la app —el HUD, la barra de pestañas, los estratos, el
+     pico— es dibujo propio: así deja de parecer una web con emoji pegados y
+     empieza a parecer un juego. Trazo de 1,7 y `currentColor`, para que cada
+     icono tome el color y el tamaño del sitio donde se pone. -->
+<svg id="atlas-sprite" aria-hidden="true" focusable="false"
+     style="position:absolute;width:0;height:0;overflow:hidden">
+  <symbol id="i-map" viewBox="0 0 24 24">
+    <path d="M3 6.2 9 4l6 2.2L21 4v13.8L15 20l-6-2.2L3 20z"/>
+    <path d="M9 4v13.8M15 6.2V20"/>
+  </symbol>
+
+  <symbol id="i-tent" viewBox="0 0 24 24">
+    <path d="M3.2 19.7 12 5.1l8.8 14.6"/>
+    <path d="M2.3 19.7h19.4"/>
+    <path d="M9.1 19.7 12 11.3l2.9 8.4"/>
+    <path d="M12 5.1V2.9"/>
+  </symbol>
+
+  <symbol id="i-medal" viewBox="0 0 24 24">
+    <path d="M8.5 2.8 11 7.7M15.5 2.8 13 7.7"/>
+    <circle cx="12" cy="14.3" r="6"/>
+    <path d="M12 11l1.03 2.09 2.31.34-1.67 1.63.39 2.3L12 16.28l-2.06 1.08.39-2.3-1.67-1.63 2.31-.34z" fill="currentColor" stroke="none"/>
+  </symbol>
+
+  <symbol id="i-hut" viewBox="0 0 24 24">
+    <path d="M2.6 10.6 12 4l9.4 6.6"/>
+    <path d="M4.9 10.4V20h14.2v-9.6"/>
+    <path d="M9.6 20v-4.5a2.4 2.4 0 0 1 4.8 0V20"/>
+  </symbol>
+
+  <symbol id="i-logbook" viewBox="0 0 24 24">
+    <path d="M6 3.6h10.2a1.8 1.8 0 0 1 1.8 1.8v13.2a1.8 1.8 0 0 1-1.8 1.8H6a1.5 1.5 0 0 1-1.5-1.5V5.1A1.5 1.5 0 0 1 6 3.6z"/>
+    <path d="M8.6 3.6v16.8"/>
+    <path d="M11.4 8.6h3.8M11.4 12.2h3.8"/>
+  </symbol>
+
+  <symbol id="i-chart" viewBox="0 0 24 24">
+    <path d="M3.8 20.2h16.4"/>
+    <path d="M7 20.2v-6.4M12 20.2V7.4M17 20.2v-9.2"/>
+  </symbol>
+
+  <symbol id="i-pickaxe" viewBox="0 0 24 24">
+    <path d="M3.3 12.9C6.3 5.9 17.7 5.9 20.7 12.9"/>
+    <path d="M12 8.1v12.6"/>
+    <path d="M10.1 10.1h3.8"/>
+  </symbol>
+
+  <symbol id="i-lock" viewBox="0 0 24 24">
+    <path d="M7.4 10.4V8a4.6 4.6 0 0 1 9.2 0v2.4"/>
+    <rect x="4.8" y="10.4" width="14.4" height="9.4" rx="2.1"/>
+    <path d="M12 14.2v2.2"/>
+  </symbol>
+
+  <symbol id="i-coin" viewBox="0 0 24 24">
+    <circle cx="12" cy="12" r="8.5"/>
+    <path d="M12 5.9l1.95 4.15L18.1 12l-4.15 1.95L12 18.1l-1.95-4.15L5.9 12l4.15-1.95z" fill="currentColor" stroke="none"/>
+  </symbol>
+
+  <symbol id="i-star" viewBox="0 0 24 24">
+    <path d="M12 3.6l2.63 5.33 5.88.86-4.25 4.15 1 5.86L12 17l-5.26 2.76 1-5.86-4.25-4.15 5.88-.86z"/>
+  </symbol>
+
+  <symbol id="i-door" viewBox="0 0 24 24">
+    <path d="M13.6 4.4H6.4a1.6 1.6 0 0 0-1.6 1.6v12a1.6 1.6 0 0 0 1.6 1.6h7.2"/>
+    <path d="M19.2 12H9.8"/>
+    <path d="M16.4 8.8 19.6 12l-3.2 3.2"/>
+  </symbol>
+
+  <symbol id="i-explorer" viewBox="0 0 24 24">
+    <path d="M3.9 10.2h16.2"/>
+    <path d="M7 10.2a5 5 0 0 1 10 0"/>
+    <path d="M9.2 10.6v2.9a2.8 2.8 0 0 0 5.6 0v-2.9"/>
+    <path d="M4.9 20.9a7.1 7.1 0 0 1 14.2 0"/>
+  </symbol>
+
+  <symbol id="i-shard" viewBox="0 0 24 24">
+    <path d="M3.4 13.6 8.9 8.4l4.7 5.1-5.2 5z"/>
+    <path d="M14 4.4l5.9 2-1 6.2-5.4-2.5z"/>
+    <path d="M6.4 12.9a3.4 3.4 0 0 1 3.2-3"/>
+  </symbol>
+
+  <symbol id="i-vessel" viewBox="0 0 24 24">
+    <path d="M8.8 3.6h6.4"/>
+    <path d="M9.7 3.6v2.3c-2.6 1.6-3.9 4.2-3.9 6.9 0 3.5 2.8 6.4 6.2 6.4s6.2-2.9 6.2-6.4c0-2.7-1.3-5.3-3.9-6.9V3.6"/>
+    <path d="M5.9 11.4C4.1 10.9 3.4 9.2 4.4 8M18.1 11.4c1.8-.5 2.5-2.2 1.5-3.4"/>
+  </symbol>
+
+  <symbol id="i-scales" viewBox="0 0 24 24">
+    <path d="M12 4.6v14.2M7.6 20.2h8.8"/>
+    <path d="M4.4 8.4h15.2"/>
+    <path d="M4.4 8.4 1.9 13.9h5z"/>
+    <path d="M19.6 8.4 17.1 13.9h5z"/>
+  </symbol>
+
+  <symbol id="i-lens" viewBox="0 0 24 24">
+    <circle cx="10.6" cy="10.6" r="6.1"/>
+    <path d="M15 15 20.4 20.4"/>
+  </symbol>
+
+  <symbol id="i-crate" viewBox="0 0 24 24">
+    <rect x="3.7" y="6.5" width="16.6" height="13" rx="1.7"/>
+    <path d="M3.7 10.8h16.6"/>
+    <path d="M9.4 6.5v4.3M14.6 6.5v4.3"/>
+  </symbol>
+
+  <symbol id="i-dune" viewBox="0 0 24 24">
+    <path d="M2.4 18.4c3.3-7 8.2-7 11.4 0"/>
+    <path d="M11.8 18.4c2.5-4.6 5.7-4.6 9.8 0"/>
+    <circle cx="17.4" cy="6.6" r="2.6"/>
+  </symbol>
+
+  <symbol id="i-basket" viewBox="0 0 24 24">
+    <path d="M3.2 9.5h17.6l-1.8 9.3a2 2 0 0 1-2 1.6H7a2 2 0 0 1-2-1.6z"/>
+    <path d="M8.3 9.5a3.7 3.7 0 0 1 7.4 0"/>
+    <path d="M9.7 13.1v3.6M14.3 13.1v3.6"/>
+  </symbol>
+
+  <symbol id="i-idol" viewBox="0 0 24 24">
+    <path d="M7.2 20.2V9.3a4.8 4.8 0 0 1 9.6 0v10.9"/>
+    <path d="M8.6 10.6h1.9M13.5 10.6h1.9"/>
+    <path d="M12 12.4v2.7"/>
+    <path d="M10 17.2h4"/>
+    <path d="M5.2 20.2h13.6"/>
+  </symbol>
+
+  <symbol id="i-flag" viewBox="0 0 24 24">
+    <path d="M6.2 20.4V4"/>
+    <path d="M6.2 5.2h11.5l-2.4 3.6 2.4 3.6H6.2"/>
+  </symbol>
+
+  <symbol id="i-leaf" viewBox="0 0 24 24">
+    <path d="M4.7 19.3C3.1 12.5 8.1 4.6 20 4c.6 10.5-5.2 16.3-15.3 15.3z"/>
+    <path d="M5.5 19.5C8.7 13.4 12.8 9.6 17.5 7.4"/>
+  </symbol>
+
+  <symbol id="i-anchor" viewBox="0 0 24 24">
+    <circle cx="12" cy="5.1" r="2"/>
+    <path d="M12 7.1v13.2"/>
+    <path d="M8.4 10h7.2"/>
+    <path d="M4.3 13.5c0 3.9 3.4 6.8 7.7 6.8s7.7-2.9 7.7-6.8"/>
+  </symbol>
+
+  <symbol id="i-check" viewBox="0 0 24 24">
+    <path d="M4.8 12.6 9.7 17.5 19.3 6.9"/>
+  </symbol>
+
+  <symbol id="i-cross" viewBox="0 0 24 24">
+    <path d="M6.6 6.6 17.4 17.4M17.4 6.6 6.6 17.4"/>
+  </symbol>
+
+  <symbol id="i-clock" viewBox="0 0 24 24">
+    <circle cx="12" cy="12.6" r="8.2"/>
+    <path d="M12 8.2v4.4l2.9 2.1"/>
+    <path d="M9.4 2.4h5.2"/>
+  </symbol>
+
+  <symbol id="i-calendar" viewBox="0 0 24 24">
+    <rect x="3.6" y="5.2" width="16.8" height="15.2" rx="2.4"/>
+    <path d="M3.6 10h16.8"/>
+    <path d="M8.4 2.8v4.4M15.6 2.8v4.4"/>
+  </symbol>
+
+  <symbol id="i-target" viewBox="0 0 24 24">
+    <circle cx="12" cy="12" r="8.4"/>
+    <circle cx="12" cy="12" r="4.4"/>
+    <circle cx="12" cy="12" r="1.1" fill="currentColor" stroke="none"/>
+  </symbol>
+
+  <symbol id="i-phone" viewBox="0 0 24 24">
+    <rect x="6.4" y="2.6" width="11.2" height="18.8" rx="2.6"/>
+    <path d="M10.6 18.4h2.8"/>
+  </symbol>
+
+  <symbol id="i-pin" viewBox="0 0 24 24">
+    <path d="M12 21.4V14"/>
+    <path d="M8.2 3.4h7.6l-1.1 3.4 3 4.2H6.3l3-4.2z"/>
+  </symbol>
+
+  <symbol id="i-plus" viewBox="0 0 24 24">
+    <path d="M12 4.8v14.4M4.8 12h14.4"/>
+  </symbol>
+
+  <symbol id="i-dice" viewBox="0 0 24 24">
+    <rect x="3.6" y="3.6" width="16.8" height="16.8" rx="3.4"/>
+    <circle cx="8.6" cy="8.6" r="1.25" fill="currentColor" stroke="none"/>
+    <circle cx="15.4" cy="15.4" r="1.25" fill="currentColor" stroke="none"/>
+    <circle cx="12" cy="12" r="1.25" fill="currentColor" stroke="none"/>
+  </symbol>
+
+  <symbol id="i-wrench" viewBox="0 0 24 24">
+    <path d="M15.6 3.4a5.6 5.6 0 0 0-5.2 8.7L3.9 18.6a2 2 0 0 0 2.8 2.8l6.5-6.5a5.6 5.6 0 0 0 6.9-7.5l-2.9 2.9-2.7-.7-.7-2.7z"/>
+  </symbol>
+
+  <symbol id="i-refresh" viewBox="0 0 24 24">
+    <path d="M20.2 12a8.2 8.2 0 1 1-2.6-6"/>
+    <path d="M20.6 4.4v5.2h-5.2"/>
+  </symbol>
+
+  <symbol id="i-shop" viewBox="0 0 24 24">
+    <path d="M3.6 4.6h16.8l1.2 4.4a3 3 0 0 1-5.8 1 3 3 0 0 1-5.8 0 3 3 0 0 1-5.8-1z"/>
+    <path d="M5 10.6v8.8h14v-8.8"/>
+    <path d="M9.6 19.4v-4.6h4.8v4.6"/>
+  </symbol>
+
+  <symbol id="i-globe" viewBox="0 0 24 24">
+    <circle cx="12" cy="12" r="8.6"/>
+    <path d="M3.4 12h17.2"/>
+    <path d="M12 3.4c2.4 2.5 3.6 5.4 3.6 8.6S14.4 18.1 12 20.6c-2.4-2.5-3.6-5.4-3.6-8.6S9.6 5.9 12 3.4z"/>
+  </symbol>
+
+  <symbol id="i-route" viewBox="0 0 24 24">
+    <circle cx="5.8" cy="18.2" r="2.6"/>
+    <circle cx="18.2" cy="5.8" r="2.6"/>
+    <path d="M8.4 18.2h6a3.6 3.6 0 0 0 0-7.2h-4.8a3.6 3.6 0 0 1 0-7.2h6"/>
+  </symbol>
+
+  <symbol id="i-text" viewBox="0 0 24 24">
+    <path d="M3.4 19 8.9 5.4 14.4 19"/>
+    <path d="M5.5 14.4h6.8"/>
+    <path d="M15.9 19V9.6M20.6 19V9.6M15.9 12.4h4.7"/>
+  </symbol>
+
+  <symbol id="i-group" viewBox="0 0 24 24">
+    <circle cx="9" cy="8.4" r="3.4"/>
+    <path d="M2.9 20.1a6.1 6.1 0 0 1 12.2 0"/>
+    <path d="M16.1 5.6a3.4 3.4 0 0 1 0 5.6"/>
+    <path d="M17.4 14.9a6.1 6.1 0 0 1 3.7 5.2"/>
+  </symbol>
+
+  <symbol id="i-temple" viewBox="0 0 24 24">
+    <path d="M2.6 8.4 12 3.4l9.4 5"/>
+    <path d="M4.6 8.4v9.2M9.5 8.4v9.2M14.5 8.4v9.2M19.4 8.4v9.2"/>
+    <path d="M3.1 17.6h17.8M2.2 20.6h19.6"/>
+  </symbol>
+
+  <symbol id="i-clipboard" viewBox="0 0 24 24">
+    <path d="M9 4.4H6.6a1.8 1.8 0 0 0-1.8 1.8v12.6a1.8 1.8 0 0 0 1.8 1.8h10.8a1.8 1.8 0 0 0 1.8-1.8V6.2a1.8 1.8 0 0 0-1.8-1.8H15"/>
+    <rect x="9" y="2.6" width="6" height="3.6" rx="1.2"/>
+    <path d="M8.6 11.4h6.8M8.6 15.2h4.6"/>
+  </symbol>
+
+  <symbol id="i-school" viewBox="0 0 24 24">
+    <path d="M12 2.6 3.4 7.2h17.2z"/>
+    <path d="M5.2 7.2v12M18.8 7.2v12"/>
+    <path d="M2.6 19.4h18.8"/>
+    <path d="M9.6 19.4v-4.6a2.4 2.4 0 0 1 4.8 0v4.6"/>
+    <path d="M12 4.9v.05"/>
+  </symbol>
+
+  <symbol id="i-mic" viewBox="0 0 24 24">
+    <rect x="9" y="2.6" width="6" height="11.2" rx="3"/>
+    <path d="M5.6 11.4a6.4 6.4 0 0 0 12.8 0"/>
+    <path d="M12 17.8v3.6M8.8 21.4h6.4"/>
+  </symbol>
+
+  <symbol id="i-gear" viewBox="0 0 24 24">
+    <circle cx="12" cy="12" r="3.1"/>
+    <path d="M12 2.6l1.5 2.2 2.6-.6.5 2.6 2.5 1-1.2 2.4 1.6 2.1-2.2 1.5.2 2.7-2.7.2-1.2 2.4L12 21.4l-2.1-1.7-2.6.9-.9-2.6-2.6-.7.5-2.6-2-1.8 1.8-2-.9-2.5 2.6-.9.3-2.7 2.7.4z"/>
+  </symbol>
+
+  <symbol id="i-beetle" viewBox="0 0 24 24">
+    <ellipse cx="12" cy="13.4" rx="5.2" ry="6.8"/>
+    <path d="M12 6.6v13.6"/>
+    <circle cx="12" cy="5.4" r="2.3"/>
+    <path d="M10.4 3.5 8.8 1.9M13.6 3.5 15.2 1.9"/>
+    <path d="M6.8 9.6 3.4 7.8M6.8 13.4H3M6.8 17.2 3.6 19.2"/>
+    <path d="M17.2 9.6 20.6 7.8M17.2 13.4H21M17.2 17.2 20.4 19.2"/>
+  </symbol>
+
+  <symbol id="i-feather" viewBox="0 0 24 24">
+    <path d="M20.2 3.8c1 6.6-2 11.8-7 13.8-2.6 1-5 .6-6.2-.8-1.4-1.6-1-4 .8-5.8C10.6 8.2 15 5.4 20.2 3.8z"/>
+    <path d="M3.6 20.4 9.8 14.2"/>
+  </symbol>
+
+  <symbol id="i-compass" viewBox="0 0 24 24">
+    <circle cx="12" cy="12" r="8.6"/>
+    <path d="M15.4 8.6 13.6 13.6 8.6 15.4l1.8-5z" fill="currentColor" stroke="none"/>
+  </symbol>
+</svg>
+
 
   <!-- ══════════ PORTADA ══════════ -->
   <section id="screen-home" class="screen hidden">
     <div class="home-wrap">
 
       <header class="home-hero">
-        <div class="home-crest">🧭</div>
+        <div class="home-crest"><svg class="ico ico-lg" viewBox="0 0 24 24" aria-hidden="true"><use href="#i-compass"/></svg></div>
         <h1>Expedición Atlas</h1>
         <p class="home-tagline">Los Diarios Perdidos</p>
         <p class="home-lead">Una aventura de arqueología donde el tesoro se llama
@@ -34,12 +317,12 @@
 
       <div class="home-doors">
         <button class="home-door home-door-student" id="home-student">
-          <span class="home-door-icon">🎒</span>
+          <span class="home-door-icon"><svg class="ico ico-lg" viewBox="0 0 24 24" aria-hidden="true"><use href="#i-explorer"/></svg></span>
           <strong>Soy explorador</strong>
           <small>Entrar a mi diario y seguir excavando</small>
         </button>
         <button class="home-door home-door-teacher" id="home-teacher">
-          <span class="home-door-icon">🧭</span>
+          <span class="home-door-icon"><svg class="ico ico-lg" viewBox="0 0 24 24" aria-hidden="true"><use href="#i-compass"/></svg></span>
           <strong>Soy docente</strong>
           <small>Ver la clase y preparar la expedición</small>
         </button>
@@ -50,7 +333,7 @@
 
       <!-- ── La historia, contada para el alumnado ── -->
       <section class="home-block">
-        <h2>🏺 ¿De qué va todo esto?</h2>
+        <h2><svg class="ico" viewBox="0 0 24 24" aria-hidden="true"><use href="#i-vessel"/></svg> ¿De qué va todo esto?</h2>
         <div class="dialog bruno home-dialog">
           <span class="dialog-avatar">🧔🏻‍♂️</span>
           <div class="dialog-text">
@@ -61,14 +344,14 @@
             Llevamos un siglo buscándolos… y necesitamos gente valiente. ¡Como tú!»</p>
           </div>
         </div>
-        <p class="home-rule">🗺️ <strong>La regla de oro:</strong> el mapa solo se dibuja
+        <p class="home-rule"><svg class="ico" viewBox="0 0 24 24" aria-hidden="true"><use href="#i-map"/></svg> <strong>La regla de oro:</strong> el mapa solo se dibuja
         con lo que aprendes de verdad. Nada de trucos, nada de suerte. Tu aprendizaje
         <em>es</em> la aventura.</p>
       </section>
 
       <!-- ── Cómo se juega ── -->
       <section class="home-block">
-        <h2>⛏️ Cómo se excava</h2>
+        <h2><svg class="ico" viewBox="0 0 24 24" aria-hidden="true"><use href="#i-pickaxe"/></svg> Cómo se excava</h2>
         <ol class="home-steps">
           <li><span class="home-step-n">1</span>
             <div><strong>Eliges un yacimiento</strong> en el mapa. Tú decides por dónde empezar.</div></li>
@@ -79,8 +362,8 @@
             <div><strong>Si fallas, no pasa nada.</strong> Caes en una trampa, Kira te explica
             el error y puedes <em>restaurar el hallazgo</em>. Equivocarse forma parte de excavar.</div></li>
           <li><span class="home-step-n">4</span>
-            <div><strong>Ganas Doblones</strong> 🪙 para tu campamento y tu equipo, y
-            <strong>Puntos de Expedición</strong> ⭐ que suben tu rango.</div></li>
+            <div><strong>Ganas Doblones</strong> <svg class="ico" viewBox="0 0 24 24" aria-hidden="true"><use href="#i-coin"/></svg> para tu campamento y tu equipo, y
+            <strong>Puntos de Expedición</strong> <svg class="ico" viewBox="0 0 24 24" aria-hidden="true"><use href="#i-star"/></svg> que suben tu rango.</div></li>
           <li><span class="home-step-n">5</span>
             <div><strong>El mapa se dibuja</strong> un poco más… y vuelta a empezar.</div></li>
         </ol>
@@ -88,7 +371,7 @@
 
       <!-- ── El elenco ── -->
       <section class="home-block">
-        <h2>👥 Quién te acompaña</h2>
+        <h2><svg class="ico" viewBox="0 0 24 24" aria-hidden="true"><use href="#i-group"/></svg> Quién te acompaña</h2>
         <div class="home-cast">
           <div class="cast-card">
             <span class="cast-face">🧔🏻‍♂️</span>
@@ -119,13 +402,13 @@
 
       <!-- ── Los yacimientos ── -->
       <section class="home-block">
-        <h2>🏛️ Dónde se excava</h2>
+        <h2><svg class="ico" viewBox="0 0 24 24" aria-hidden="true"><use href="#i-temple"/></svg> Dónde se excava</h2>
         <div id="home-sites" class="home-sites"></div>
       </section>
 
       <!-- ── Para las familias y el profesorado ── -->
       <section class="home-block home-adults">
-        <h2>📋 Para familias y profesorado</h2>
+        <h2><svg class="ico" viewBox="0 0 24 24" aria-hidden="true"><use href="#i-clipboard"/></svg> Para familias y profesorado</h2>
         <p><strong>Expedición Atlas</strong> es una plataforma educativa gamificada para
         <strong>toda la etapa de primaria: de 1.º a 6.º (6 a 12 años)</strong>. Su meta no es
         entretener: es sostener la atención y la motivación mientras se aprende.</p>
@@ -151,7 +434,7 @@
   <section id="screen-teacher" class="screen hidden">
     <div class="home-wrap">
       <header class="home-hero home-hero-small">
-        <div class="home-crest">🧭</div>
+        <div class="home-crest"><svg class="ico ico-lg" viewBox="0 0 24 24" aria-hidden="true"><use href="#i-compass"/></svg></div>
         <h1>Sala de mapas</h1>
         <p id="teacher-greeting" class="home-lead">Desde aquí ves cómo va la clase y preparas la expedición.</p>
       </header>
@@ -160,17 +443,17 @@
 
       <div class="home-doors">
         <button class="home-door home-door-aula" id="teacher-go-aula">
-          <span class="home-door-icon">🎤</span>
+          <span class="home-door-icon"><svg class="ico ico-lg" viewBox="0 0 24 24" aria-hidden="true"><use href="#i-mic"/></svg></span>
           <strong>Dirigir la clase</strong>
           <small>Preguntar en voz alta y anotar lo que responde cada alumno</small>
         </button>
         <button class="home-door" id="teacher-go-class">
-          <span class="home-door-icon">👥</span>
+          <span class="home-door-icon"><svg class="ico ico-lg" viewBox="0 0 24 24" aria-hidden="true"><use href="#i-group"/></svg></span>
           <strong>Vista general de la clase</strong>
           <small>Progreso de cada alumno y alertas de rescate</small>
         </button>
         <button class="home-door" id="teacher-go-config">
-          <span class="home-door-icon">⚙️</span>
+          <span class="home-door-icon"><svg class="ico ico-lg" viewBox="0 0 24 24" aria-hidden="true"><use href="#i-gear"/></svg></span>
           <strong>Configurar la expedición</strong>
           <small>Yacimientos, retos, méritos, cuadrillas y economía</small>
         </button>
@@ -184,7 +467,7 @@
   <!-- ══════════ ACCESO (solo si hay Appwrite configurado) ══════════ -->
   <section id="screen-auth" class="screen hidden">
     <div class="onboarding-card">
-      <div class="big-emoji">🧭</div>
+      <div class="sello"><svg class="ico ico-lg" viewBox="0 0 24 24" aria-hidden="true"><use href="#i-compass"/></svg></div>
       <h1>Expedición Atlas</h1>
       <p class="subtitle">Los Diarios Perdidos</p>
 
@@ -196,7 +479,7 @@
       <form id="login-form">
         <input type="text" id="login-user" placeholder="Tu usuario" required autocomplete="username">
         <input type="password" id="login-pass" placeholder="Tu contraseña secreta" required autocomplete="current-password">
-        <button type="submit" class="btn btn-primary">Entrar a la expedición 🎒</button>
+        <button type="submit" class="btn btn-primary">Entrar a la expedición <svg class="ico" viewBox="0 0 24 24" aria-hidden="true"><use href="#i-explorer"/></svg></button>
       </form>
 
       <form id="register-form" class="hidden">
@@ -205,7 +488,7 @@
         <input type="password" id="reg-pass" placeholder="Una contraseña (8 letras o más)" required minlength="8" autocomplete="new-password">
         <span class="onb-label">¿En qué curso estás?</span>
         <div id="grade-picker-reg" class="grade-picker"></div>
-        <button type="submit" class="btn btn-primary">Crear mi diario 📔</button>
+        <button type="submit" class="btn btn-primary">Crear mi diario <svg class="ico" viewBox="0 0 24 24" aria-hidden="true"><use href="#i-logbook"/></svg></button>
       </form>
 
       <p id="auth-error" class="auth-error hidden"></p>
@@ -216,7 +499,7 @@
   <!-- ══════════ ONBOARDING ══════════ -->
   <section id="screen-onboarding" class="screen">
     <div class="onboarding-card">
-      <div class="big-emoji">🧭</div>
+      <div class="sello"><svg class="ico ico-lg" viewBox="0 0 24 24" aria-hidden="true"><use href="#i-compass"/></svg></div>
       <h1>Expedición Atlas</h1>
       <p class="subtitle">Los Diarios Perdidos</p>
       <div class="dialog bruno">
@@ -233,7 +516,7 @@
         <span class="onb-label">¿En qué curso estás?</span>
         <div id="grade-picker" class="grade-picker"></div>
         <input type="hidden" id="input-grade" value="4">
-        <button type="submit" class="btn btn-primary">¡Empezar la expedición! 🎒</button>
+        <button type="submit" class="btn btn-primary">¡Empezar la expedición! <svg class="ico" viewBox="0 0 24 24" aria-hidden="true"><use href="#i-explorer"/></svg></button>
       </form>
     </div>
   </section>
@@ -249,18 +532,27 @@
         </div>
       </div>
       <div class="hud-right">
-        <div class="hud-stat" title="Puntos de Expedición (rango)">
-          <span class="hud-stat-icon">⭐</span>
-          <div class="hud-level">
-            <span id="hud-level">Nv. 1</span>
-            <div class="xp-bar"><div id="hud-xp-fill" class="xp-fill"></div></div>
-          </div>
+        <!-- El nivel se lee de un vistazo en el anillo; el número exacto de PE
+             queda en el título, para quien lo quiera. -->
+        <div class="hud-stat hud-stat-level" id="hud-level-stat" title="Puntos de Expedición (rango)">
+          <span class="lvl-ring" id="hud-ring">
+            <svg viewBox="0 0 40 40" aria-hidden="true">
+              <circle class="lvl-track" cx="20" cy="20" r="16.5"/>
+              <circle class="lvl-fill" id="hud-xp-fill" cx="20" cy="20" r="16.5"/>
+            </svg>
+            <b id="hud-level-num">1</b>
+          </span>
+          <span class="hud-stat-label">Nivel</span>
         </div>
-        <div class="hud-stat" title="Doblones">
-          <span class="hud-stat-icon">🪙</span>
-          <span id="hud-doubloons">0</span>
+        <div class="hud-stat hud-stat-coins" title="Doblones">
+          <span class="hud-stat-icon">
+            <svg class="ico" viewBox="0 0 24 24" aria-hidden="true"><use href="#i-coin"/></svg>
+          </span>
+          <span id="hud-doubloons" class="hud-num">0</span>
         </div>
-        <button id="btn-logout" class="hud-logout hidden" title="Cerrar sesión">🚪</button>
+        <button id="btn-logout" class="hud-logout hidden" title="Cerrar sesión" aria-label="Cerrar sesión">
+          <svg class="ico" viewBox="0 0 24 24" aria-hidden="true"><use href="#i-door"/></svg>
+        </button>
       </div>
     </header>
 
@@ -269,7 +561,7 @@
       <!-- ══════════ MAPA ══════════ -->
       <section id="screen-map" class="screen">
         <div class="map-header">
-          <h2>🗺️ El Mapa del Atlas</h2>
+          <h2><svg class="ico" viewBox="0 0 24 24" aria-hidden="true"><use href="#i-map"/></svg> El Mapa del Atlas</h2>
           <div class="map-reveal">
             <div class="map-reveal-bar"><div id="map-reveal-fill"></div></div>
             <span id="map-reveal-pct">0% del mundo dibujado</span>
@@ -297,7 +589,7 @@
       <!-- ══════════ MIS CLASES (varios docentes) ══════════ -->
       <section id="screen-aulas" class="screen hidden">
         <button class="btn btn-back" id="aulas-salir">← Volver a la sala de mapas</button>
-        <h2>🏫 Mis clases</h2>
+        <h2><svg class="ico" viewBox="0 0 24 24" aria-hidden="true"><use href="#i-school"/></svg> Mis clases</h2>
         <p class="aula-sub" id="aulas-sub">Cada docente ve solo las suyas. Al abrir una, sus
         diarios se traen a este equipo; al trabajar, se guardan en ella.</p>
 
@@ -328,7 +620,7 @@
         <div id="aulas-lista-zona" class="hidden">
           <div id="aulas-lista" class="aula-lista"></div>
           <div class="cfg-equipo-botones">
-            <button class="btn btn-secondary btn-small" id="aula-nueva">➕ Crear una clase</button>
+            <button class="btn btn-secondary btn-small" id="aula-nueva"><svg class="ico" viewBox="0 0 24 24" aria-hidden="true"><use href="#i-plus"/></svg> Crear una clase</button>
             <button class="btn btn-quit btn-small" id="doc-salir">Cerrar sesión</button>
           </div>
           <p id="aulas-msg" class="cfg-warn hidden"></p>
@@ -343,11 +635,11 @@
         <div id="aula-turnos">
           <div class="aula-head">
             <div>
-              <h2>🎤 Dirigir la clase</h2>
+              <h2><svg class="ico" viewBox="0 0 24 24" aria-hidden="true"><use href="#i-mic"/></svg> Dirigir la clase</h2>
               <p class="aula-sub">Tú preguntas, el alumnado responde en voz alta y tú marcas lo que
               ha dicho. Todo cuenta en su diario: no hace falta que entren en la app.</p>
             </div>
-            <button class="btn btn-primary" id="aula-siguiente">🎲 A quien le toque</button>
+            <button class="btn btn-primary" id="aula-siguiente"><svg class="ico" viewBox="0 0 24 24" aria-hidden="true"><use href="#i-dice"/></svg> A quien le toque</button>
           </div>
           <div class="aula-toolbar">
             <label class="cfg-label" for="aula-tema">Preguntar de</label>
@@ -375,7 +667,7 @@
             <p class="question-text" id="aula-pregunta"></p>
             <div class="options" id="aula-opciones"></div>
             <div class="mission-tools">
-              <button class="btn btn-hint btn-small" id="aula-pista">🪲 Dar la pista de Kira</button>
+              <button class="btn btn-hint btn-small" id="aula-pista"><svg class="ico" viewBox="0 0 24 24" aria-hidden="true"><use href="#i-beetle"/></svg> Dar la pista de Kira</button>
               <button class="btn btn-quit btn-small" id="aula-saltar">Saltar esta</button>
             </div>
             <div id="aula-kira" class="dialog kira hidden"></div>
@@ -386,13 +678,13 @@
             <p class="feedback-title" id="aula-fb-title"></p>
             <p class="feedback-explain" id="aula-fb-explain"></p>
             <div class="aula-fb-acciones">
-              <button class="btn btn-restore" id="aula-restaurar">🔧 Dejar que lo corrija (+5 🪙)</button>
+              <button class="btn btn-restore" id="aula-restaurar"><svg class="ico" viewBox="0 0 24 24" aria-hidden="true"><use href="#i-wrench"/></svg> Dejar que lo corrija (+5 🪙)</button>
               <button class="btn btn-primary" id="aula-continuar">Siguiente →</button>
             </div>
           </div>
 
           <div class="aula-meritos">
-            <h3>🏅 Méritos para&nbsp;<span id="aula-merito-quien"></span></h3>
+            <h3><svg class="ico" viewBox="0 0 24 24" aria-hidden="true"><use href="#i-medal"/></svg> Méritos para&nbsp;<span id="aula-merito-quien"></span></h3>
             <div id="aula-merito-lista" class="award-list"></div>
           </div>
         </div>
@@ -402,12 +694,12 @@
       <section id="screen-guardian" class="screen hidden">
         <button class="btn btn-back" id="guardian-back">← Volver al pozo</button>
         <div class="guardian-hall">
-          <div class="guardian-face">🗿</div>
+          <div class="guardian-face"><svg class="ico ico-lg" viewBox="0 0 24 24" aria-hidden="true"><use href="#i-idol"/></svg></div>
           <h2 id="guardian-title">Cámara del Guardián</h2>
           <div id="guardian-dialog" class="dialog bruno"></div>
           <h3>Lo que te va a preguntar</h3>
           <div id="guardian-strata" class="guardian-strata"></div>
-          <p class="guardian-free">🪶 <strong>Fallar aquí no cuesta nada:</strong> no pierdes
+          <p class="guardian-free"><svg class="ico" viewBox="0 0 24 24" aria-hidden="true"><use href="#i-feather"/></svg> <strong>Fallar aquí no cuesta nada:</strong> no pierdes
           Puntos de Expedición, ni Doblones, ni dominio, ni nada de tu mapa. El Guardián
           solo comprueba si lo aprendido aguanta todo junto.</p>
           <div id="guardian-actions" class="guardian-actions"></div>
@@ -429,14 +721,15 @@
           </div>
           <div class="mission-tools">
             <button id="btn-hint" class="btn btn-hint">🪲 Pista de Kira</button>
-            <button id="btn-quit" class="btn btn-quit">🏳️ Abandonar</button>
+            <button id="btn-quit" class="btn btn-quit">
+              <svg class="ico" viewBox="0 0 24 24" aria-hidden="true"><use href="#i-flag"/></svg> Abandonar</button>
           </div>
         </div>
         <div id="feedback-card" class="feedback-card hidden">
           <div id="feedback-icon" class="big-emoji"></div>
           <p id="feedback-title" class="feedback-title"></p>
           <p id="feedback-explain" class="feedback-explain"></p>
-          <button id="btn-restore" class="btn btn-restore hidden">🔧 Restaurar hallazgo (+5 🪙)</button>
+          <button id="btn-restore" class="btn btn-restore hidden"><svg class="ico" viewBox="0 0 24 24" aria-hidden="true"><use href="#i-wrench"/></svg> Restaurar hallazgo (+5 🪙)</button>
           <button id="btn-next" class="btn btn-primary">Continuar →</button>
         </div>
       </section>
@@ -448,13 +741,13 @@
           <h2 id="result-title"></h2>
           <div id="result-rewards" class="result-rewards"></div>
           <div id="result-dialog" class="dialog bruno"></div>
-          <button class="btn btn-primary" data-nav="map">Volver al mapa 🗺️</button>
+          <button class="btn btn-primary" data-nav="map">Volver al mapa <svg class="ico" viewBox="0 0 24 24" aria-hidden="true"><use href="#i-map"/></svg></button>
         </div>
       </section>
 
       <!-- ══════════ CAMPAMENTO ══════════ -->
       <section id="screen-camp" class="screen hidden">
-        <h2>⛺ Campamento Base</h2>
+        <h2><svg class="ico" viewBox="0 0 24 24" aria-hidden="true"><use href="#i-tent"/></svg> Campamento Base</h2>
         <div class="camp-avatar-zone">
           <div id="camp-avatar" class="camp-avatar">🧒</div>
           <div id="camp-gear-equipped" class="camp-gear-equipped"></div>
@@ -462,17 +755,17 @@
         <div id="camp-scene" class="camp-scene"></div>
         <div class="camp-prefs">
           <label class="cfg-field cfg-field-inline">
-            <span class="cfg-label">🔠 Letra más grande</span>
+            <span class="cfg-label"><svg class="ico" viewBox="0 0 24 24" aria-hidden="true"><use href="#i-text"/></svg> Letra más grande</span>
             <input type="checkbox" id="pref-large-text">
           </label>
         </div>
 
-        <h3>🏪 Almacén de la Expedición</h3>
+        <h3><svg class="ico" viewBox="0 0 24 24" aria-hidden="true"><use href="#i-shop"/></svg> Almacén de la Expedición</h3>
         <p class="shop-note">Todo lo del almacén es decorativo: ¡ninguna compra da ventaja en las excavaciones!</p>
         <div id="shop-list" class="shop-list"></div>
 
         <div id="fund-block" class="fund-block hidden">
-          <h3 id="fund-title">🌍 Fondo de la Sociedad Geográfica</h3>
+          <h3 id="fund-title"><svg class="ico" viewBox="0 0 24 24" aria-hidden="true"><use href="#i-globe"/></svg> Fondo de la Sociedad Geográfica</h3>
           <p id="fund-blurb" class="shop-note"></p>
           <div id="fund-progress" class="fund-progress"></div>
           <div id="fund-milestones" class="fund-milestones"></div>
@@ -486,7 +779,7 @@
 
       <!-- ══════════ MÉRITOS DE CAMPAMENTO ══════════ -->
       <section id="screen-merits" class="screen hidden">
-        <h2>🏅 Méritos de Campamento</h2>
+        <h2><svg class="ico" viewBox="0 0 24 24" aria-hidden="true"><use href="#i-medal"/></svg> Méritos de Campamento</h2>
         <p class="merits-intro">Un buen explorador no solo excava bien: cuida a su equipo y su campamento.
         El Prof. Ocaña te da <strong>Doblones</strong> por ello. Los méritos no suben tu rango:
         el rango se gana solo aprendiendo.</p>
@@ -519,14 +812,14 @@
 
       <!-- ══════════ CUADRILLA ══════════ -->
       <section id="screen-team" class="screen hidden">
-        <h2>🛖 Tu Cuadrilla</h2>
+        <h2><svg class="ico" viewBox="0 0 24 24" aria-hidden="true"><use href="#i-hut"/></svg> Tu Cuadrilla</h2>
         <div id="team-body"></div>
       </section>
 
       <!-- ══════════ VISTA GENERAL DE LA CLASE ══════════ -->
       <section id="screen-class" class="screen hidden">
         <button class="btn btn-back" data-nav="dashboard">← Volver al cuaderno</button>
-        <h2>👥 Vista general de la clase</h2>
+        <h2><svg class="ico" viewBox="0 0 24 24" aria-hidden="true"><use href="#i-group"/></svg> Vista general de la clase</h2>
         <div id="class-status" class="class-status"></div>
         <div id="class-body" class="hidden">
           <div id="class-kpis" class="kpi-grid"></div>
@@ -538,13 +831,13 @@
               <option value="alfabetico">Nombre</option>
               <option value="progreso">Progreso</option>
             </select>
-            <button id="class-reload" class="btn btn-secondary btn-small">🔄 Actualizar</button>
+            <button id="class-reload" class="btn btn-secondary btn-small"><svg class="ico" viewBox="0 0 24 24" aria-hidden="true"><use href="#i-refresh"/></svg> Actualizar</button>
           </div>
 
           <div id="class-alerts"></div>
           <div id="class-students" class="class-students"></div>
 
-          <h3>🛖 Cuadrillas</h3>
+          <h3><svg class="ico" viewBox="0 0 24 24" aria-hidden="true"><use href="#i-hut"/></svg> Cuadrillas</h3>
           <div id="class-teams"></div>
           <div id="class-missing"></div>
 
@@ -555,7 +848,7 @@
       <!-- ══════════ PANEL DE CONFIGURACIÓN ══════════ -->
       <section id="screen-config" class="screen hidden">
         <button class="btn btn-back" data-nav="dashboard">← Volver al cuaderno</button>
-        <h2>⚙️ Panel de Configuración</h2>
+        <h2><svg class="ico" viewBox="0 0 24 24" aria-hidden="true"><use href="#i-gear"/></svg> Panel de Configuración</h2>
         <p class="cfg-top-note">Los cambios se aplican al instante y se guardan en esta tablet.</p>
         <div class="cfg-shell">
           <nav id="cfg-nav" class="cfg-nav" aria-label="Secciones de la configuración"></nav>
@@ -565,9 +858,9 @@
 
       <!-- ══════════ BITÁCORA ══════════ -->
       <section id="screen-logbook" class="screen hidden">
-        <h2>📔 Bitácora de Expedición</h2>
+        <h2><svg class="ico" viewBox="0 0 24 24" aria-hidden="true"><use href="#i-logbook"/></svg> Bitácora de Expedición</h2>
         <div id="logbook-summary" class="logbook-summary"></div>
-        <h3>🧭 Ruta de sellos</h3>
+        <h3><svg class="ico" viewBox="0 0 24 24" aria-hidden="true"><use href="#i-route"/></svg> Ruta de sellos</h3>
         <div id="logbook-stamps" class="logbook-stamps"></div>
         <p class="logbook-note">Un <strong>sello</strong> se estampa cada semana con 3 o más días de expedición.
         Los sellos nunca se borran: si una semana no se completa, solo queda un tramo de ruta sin dibujar.</p>
@@ -575,13 +868,13 @@
 
       <!-- ══════════ DASHBOARD DOCENTE ══════════ -->
       <section id="screen-dashboard" class="screen hidden">
-        <h2>📊 Cuaderno del Docente</h2>
+        <h2><svg class="ico" viewBox="0 0 24 24" aria-hidden="true"><use href="#i-chart"/></svg> Cuaderno del Docente</h2>
         <p class="dashboard-note">Vista de progreso pedagógico. Ninguna métrica de actividad se celebra sola:
         lo que importa es el aprendizaje demostrado.</p>
         <div id="dashboard-kpis" class="kpi-grid"></div>
         <div class="dash-actions">
-          <button id="btn-open-class" class="btn btn-secondary btn-small">👥 Vista general de la clase</button>
-          <button id="btn-open-config" class="btn btn-secondary btn-small">⚙️ Configurar la expedición</button>
+          <button id="btn-open-class" class="btn btn-secondary btn-small"><svg class="ico" viewBox="0 0 24 24" aria-hidden="true"><use href="#i-group"/></svg> Vista general de la clase</button>
+          <button id="btn-open-config" class="btn btn-secondary btn-small"><svg class="ico" viewBox="0 0 24 24" aria-hidden="true"><use href="#i-gear"/></svg> Configurar la expedición</button>
         </div>
 
         <h3>El curso por trimestres</h3>
@@ -596,12 +889,12 @@
     </main>
 
     <nav id="tabbar">
-      <button data-nav="map" class="tab active"><span>🗺️</span>Mapa</button>
-      <button data-nav="camp" class="tab"><span>⛺</span>Campamento</button>
-      <button data-nav="merits" class="tab"><span>🏅</span>Méritos</button>
-      <button data-nav="team" class="tab" id="tab-team"><span>🛖</span>Cuadrilla</button>
-      <button data-nav="logbook" class="tab"><span>📔</span>Bitácora</button>
-      <button data-nav="dashboard" class="tab"><span>📊</span>Docente</button>
+      <button data-nav="map" class="tab active"><span class="tab-ico"><svg class="ico" viewBox="0 0 24 24" aria-hidden="true"><use href="#i-map"/></svg></span><span class="tab-label">Mapa</span></button>
+      <button data-nav="camp" class="tab"><span class="tab-ico"><svg class="ico" viewBox="0 0 24 24" aria-hidden="true"><use href="#i-tent"/></svg></span><span class="tab-label">Campamento</span></button>
+      <button data-nav="merits" class="tab"><span class="tab-ico"><svg class="ico" viewBox="0 0 24 24" aria-hidden="true"><use href="#i-medal"/></svg></span><span class="tab-label">Méritos</span></button>
+      <button data-nav="team" class="tab" id="tab-team"><span class="tab-ico"><svg class="ico" viewBox="0 0 24 24" aria-hidden="true"><use href="#i-hut"/></svg></span><span class="tab-label">Cuadrilla</span></button>
+      <button data-nav="logbook" class="tab"><span class="tab-ico"><svg class="ico" viewBox="0 0 24 24" aria-hidden="true"><use href="#i-logbook"/></svg></span><span class="tab-label">Bitácora</span></button>
+      <button data-nav="dashboard" class="tab"><span class="tab-ico"><svg class="ico" viewBox="0 0 24 24" aria-hidden="true"><use href="#i-chart"/></svg></span><span class="tab-label">Docente</span></button>
     </nav>
   </div>
 

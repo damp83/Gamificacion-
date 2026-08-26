@@ -6,6 +6,27 @@
 const $ = sel => document.querySelector(sel);
 const $$ = sel => document.querySelectorAll(sel);
 
+/* Escapa texto que escribe el docente antes de meterlo en innerHTML: los
+   nombres de yacimiento los teclea una persona y pueden traer < o &. */
+function esc(t) {
+  return String(t == null ? '' : t)
+    .replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;')
+    .replace(/"/g, '&quot;');
+}
+
+/* ── Iconos propios ──
+   Devuelve un <svg> que apunta al símbolo del sprite de index.html. El icono
+   hereda color y tamaño de donde se ponga, así que el mismo pico sirve en
+   marrón sobre la tarjeta y en latón sobre la cabecera sin duplicar nada.
+   Los emoji que sí sobreviven son los que elige el docente (yacimientos,
+   méritos, tienda, cuadrillas): son su contenido, no el mobiliario. */
+function ico(nombre, clase) {
+  return `<svg class="ico${clase ? ' ' + clase : ''}" viewBox="0 0 24 24" aria-hidden="true"><use href="#i-${nombre}"/></svg>`;
+}
+
+/* Icono de cada estrato de Bloom, dibujado y no emoji. */
+const ICO_ESTRATO = { recordar: 'shard', comprender: 'vessel', aplicar: 'scales', analizar: 'lens' };
+
 const SCREENS = ['map', 'branch', 'guardian', 'mission', 'result', 'camp', 'merits', 'team', 'logbook', 'dashboard', 'class', 'config', 'aula', 'aulas'];
 
 function show(screenId) {
@@ -141,11 +162,26 @@ function renderHud() {
   const rank = rankForLevel(level);
   $('#hud-name').textContent = S.profile.explorer_name;
   $('#hud-rank').textContent = rank.name;
-  $('#hud-level').textContent = `Nv. ${level}`;
   $('#hud-doubloons').textContent = S.progression.doubloons_balance;
   const cur = xpForLevel(level), next = xpForLevel(level + 1);
   const pct = Math.min(100, Math.round(((S.progression.xp_total - cur) / (next - cur)) * 100));
-  $('#hud-xp-fill').style.width = pct + '%';
+
+  /* El nivel vive dentro de un anillo que se va cerrando con los PE. Se ve de
+     lejos, que es lo que hace falta cuando la tablet está en la mesa. */
+  const num = $('#hud-level-num');
+  const subeNivel = num.textContent !== String(level);
+  num.textContent = level;
+  const aro = $('#hud-xp-fill');
+  const vuelta = 2 * Math.PI * 16.5;
+  aro.style.strokeDasharray = vuelta.toFixed(2);
+  aro.style.strokeDashoffset = (vuelta * (1 - pct / 100)).toFixed(2);
+  const stat = $('#hud-level-stat');
+  stat.title = `Nivel ${level} · ${rank.name} · ${S.progression.xp_total} PE (${pct}% hasta el ${level + 1})`;
+  /* Al subir de nivel el anillo da un destello: el premio se ve, no solo se suma. */
+  if (subeNivel && num.dataset.visto) {
+    stat.classList.remove('lvl-up'); void stat.offsetWidth; stat.classList.add('lvl-up');
+  }
+  num.dataset.visto = '1';
   $('#hud-avatar').textContent = avatarEmoji();
 }
 function avatarEmoji() {
@@ -162,7 +198,7 @@ function renderMap() {
   const gi = gradeInfo(S.profile.grade);
   const frags = fragmentsRecovered();
   $('#map-reveal-pct').textContent = `${pct}% del mundo dibujado · ${gi.label} (${gi.age})` +
-    (frags ? ` · 🧩 ${frags} fragmento${frags === 1 ? '' : 's'} del Atlas` : '');
+    (frags ? ` · ${frags} fragmento${frags === 1 ? '' : 's'} del Atlas` : '');
 
   $('#fatigue-banner').classList.toggle('hidden', !isFatigued());
 
@@ -207,7 +243,7 @@ function renderMap() {
             return `<span class="dot ${cls}" title="${STRATA_META[sId].label}"></span>`;
           }).join('')}</div>
           <small>${mastered}/${withContent.length} estratos dominados</small>
-        </div><span class="branch-go">⛏️</span>`;
+        </div><span class="branch-go">${ico('pickaxe')}</span>`;
       card.addEventListener('click', () => openBranch(b.id));
       grid.appendChild(card);
     }
@@ -222,11 +258,11 @@ function renderMap() {
     const b = branchDef(target.branchId);
     const meta = STRATA_META[target.stratumId];
     bazar.innerHTML = `<div class="bazar-inner">
-      <span class="bazar-icon">${target.paraGuardian ? '🗿' : '🧺'}</span>
+      <span class="bazar-icon">${ico(target.paraGuardian ? 'idol' : 'basket')}</span>
       <div><strong>${target.paraGuardian ? 'Repaso para el Guardián' : 'Encargo del Bazar'}</strong>
       <p>${target.paraGuardian
         ? `El Guardián de ${b.name} pide que repases «${meta.name}» antes de dejarte volver a entrar.`
-        : `«${meta.name}» de ${b.name} se está cubriendo de arena… Un repaso rápido lo redescubrirá. (+10–15 🪙)`}</p></div>
+        : `«${meta.name}» de ${b.name} se está cubriendo de arena… Un repaso rápido lo redescubrirá. (+10–15 ${ico('coin')})`}</p></div>
       <button class="btn btn-secondary" id="btn-bazar">Repasar</button></div>`;
     $('#btn-bazar').addEventListener('click', () => {
       if (!startMission(target.branchId, target.stratumId, 'bazar')) { toast('Ese encargo ya no está disponible.'); return; }
@@ -259,7 +295,8 @@ function openBranch(branchId) {
     const cover = sandCover(st);
     const locked = st.status === 'locked';
     const row = document.createElement('button');
-    row.className = 'stratum-row' + (locked || !hasContent ? ' locked' : '');
+    row.className = 'stratum-row' + (locked || !hasContent ? ' locked' : '')
+      + (st.mastery >= 0.8 ? ' excavado' : '');
     row.disabled = locked || !hasContent;
     const masteryPct = Math.round(st.mastery * 100);
 
@@ -271,14 +308,14 @@ function openBranch(branchId) {
       detail = '<small>Se abre al dominar (≥80%) el estrato de arriba</small>';
     } else {
       detail = `<div class="mastery-bar"><div class="mastery-fill${st.mastery >= 0.8 ? ' gold' : ''}" style="width:${masteryPct}%"></div></div>
-        <small>Dominio: ${masteryPct}%${st.mastery >= 0.9 ? ' · ya excavado (PE al 10%)' : ''}${cover > 0.2 ? ' · 🏜️ cubierto de arena' : ''}</small>`;
+        <small>Dominio: ${masteryPct}%${st.mastery >= 0.9 ? ' · ya excavado (PE al 10%)' : ''}${cover > 0.2 ? ' · cubierto de arena' : ''}</small>`;
     }
 
     row.innerHTML = `
-      <span class="stratum-depth">Estrato ${i + 1}</span>
-      <span class="stratum-icon">${!hasContent ? '📭' : locked ? '🔒' : meta.icon}</span>
+      <span class="stratum-depth"><i>Estrato</i><b>${i + 1}</b></span>
+      <span class="stratum-icon">${ico(!hasContent ? 'crate' : locked ? 'lock' : ICO_ESTRATO[sId])}</span>
       <div class="stratum-info"><strong>${meta.label} · «${meta.name}»</strong>${detail}</div>
-      <span class="stratum-go">${locked || !hasContent ? '' : '⛏️'}</span>`;
+      <span class="stratum-go">${locked || !hasContent ? '' : ico('pickaxe')}</span>`;
 
     if (!row.disabled) {
       row.addEventListener('click', () => {
@@ -306,16 +343,16 @@ function renderBranchGuardian(branchId) {
   const nombres = (est.strata || []).map(sId => STRATA_META[sId].label).join(' · ');
   if (est.estado === 'superada') {
     cont.innerHTML = `<div class="guardian-card guardian-done">
-      <span class="guardian-card-icon">🗿</span>
+      <span class="guardian-card-icon">${ico('idol','ico-lg')}</span>
       <div><strong>Cámara del Guardián · superada</strong>
       <small>Recuperaste el fragmento del Atlas de este pozo${est.fecha ? ' el ' + est.fecha.split('-').reverse().slice(0,2).join('/') : ''}.</small></div>
-      <span class="guardian-card-go">🧩</span></div>`;
+      <span class="guardian-card-go">${ico('pickaxe')}</span></div>`;
     return;
   }
   if (est.estado === 'cerrada') {
     const faltan = est.faltan.map(sId => STRATA_META[sId].label).join(', ');
     cont.innerHTML = `<div class="guardian-card guardian-locked">
-      <span class="guardian-card-icon">🔒</span>
+      <span class="guardian-card-icon">${ico('lock','ico-lg')}</span>
       <div><strong>Cámara del Guardián</strong>
       <small>Se abre con todo el pozo dominado. Te falta: ${faltan}.</small></div></div>`;
     return;
@@ -323,7 +360,7 @@ function renderBranchGuardian(branchId) {
   if (est.estado === 'repaso') {
     const w = STRATA_META[est.weak] ? STRATA_META[est.weak].label : '';
     cont.innerHTML = `<div class="guardian-card guardian-wait">
-      <span class="guardian-card-icon">🧺</span>
+      <span class="guardian-card-icon">${ico('basket','ico-lg')}</span>
       <div><strong>El Guardián te espera</strong>
       <small>Pide un Encargo del Bazar sobre <strong>${w}</strong> antes de volver a intentarlo.
       Lo tienes en el mapa.</small></div></div>`;
@@ -332,7 +369,7 @@ function renderBranchGuardian(branchId) {
 
   const btn = document.createElement('button');
   btn.className = 'guardian-card guardian-open';
-  btn.innerHTML = `<span class="guardian-card-icon">🗿</span>
+  btn.innerHTML = `<span class="guardian-card-icon">${ico('idol','ico-lg')}</span>
     <div><strong>Cámara del Guardián</strong>
     <small>${est.intentos ? 'Vuelve a intentarlo. ' : ''}Todo el pozo dominado: ${nombres}</small></div>
     <span class="guardian-card-go">→</span>`;
@@ -364,7 +401,7 @@ function openGuardianHall(branchId) {
     const meta = STRATA_META[sId];
     const st = getStratum(branchId, sId);
     return `<div class="guardian-stratum">
-      <span class="guardian-stratum-icon">${meta.icon}</span>
+      <span class="guardian-stratum-icon">${ico(ICO_ESTRATO[sId])}</span>
       <div><strong>${meta.label}</strong><small>«${meta.name}» · lo llevas al ${Math.round(st.mastery * 100)}%</small></div>
     </div>`;
   }).join('');
@@ -373,11 +410,11 @@ function openGuardianHall(branchId) {
   const acts = $('#guardian-actions');
   acts.innerHTML = `<p class="guardian-meta">${total} retos encadenados ·
     hacen falta ${Math.round((g.passAccuracy || 0.8) * 100)}% de aciertos a la primera ·
-    premio: 🧩 un fragmento del Atlas y ${g.coins || 100} 🪙</p>`;
+    premio: ${ico('map')} un fragmento del Atlas y ${g.coins || 100} ${ico('coin')}</p>`;
   const entrar = document.createElement('button');
   entrar.className = 'btn btn-primary';
   entrar.id = 'guardian-enter';
-  entrar.textContent = 'Entrar en la cámara 🗿';
+  entrar.innerHTML = 'Entrar en la cámara ' + ico('idol');
   entrar.addEventListener('click', () => {
     if (!startGuardian(branchId)) { toast('La cámara no está abierta ahora mismo.'); openBranch(branchId); return; }
     renderMissionScreen();
@@ -391,10 +428,12 @@ function openGuardianHall(branchId) {
 function renderMissionScreen() {
   const b = branchDef(mission.branchId);
   const meta = STRATA_META[mission.stratumId];
-  $('#mission-title').textContent =
-      mission.kind === 'bazar'    ? `🧺 Encargo: ${meta.name}`
-    : mission.kind === 'guardian' ? `🗿 Cámara del Guardián · ${b.name}`
-    : `${b.icon} ${b.name} · ${meta.icon} ${meta.label}`;
+  $('#mission-title').innerHTML =
+      mission.kind === 'bazar'    ? `${ico('basket')} Encargo: ${esc(meta.name)}`
+    : mission.kind === 'guardian' ? `${ico('idol')} Cámara del Guardián · ${esc(b.name)}`
+    : `<span class="mh-site">${esc(b.icon)} ${esc(b.name)}</span>
+       <span class="mh-sep"></span>
+       ${ico(ICO_ESTRATO[mission.stratumId])} ${esc(meta.label)}`;
   renderQuestion();
 }
 function renderProgressDots() {
@@ -426,7 +465,7 @@ function renderQuestion() {
     optionsEl.appendChild(btn);
   });
   $('#btn-hint').disabled = false;
-  $('#btn-hint').textContent = '🪲 Pista de Kira';
+  $('#btn-hint').innerHTML = ico('beetle') + ' Pista de Kira';
 }
 
 function onAnswer(index, btn) {
@@ -459,17 +498,17 @@ function showFeedback(res, extra) {
   btnRestore.classList.add('hidden');
 
   if (extra.restored) {
-    $('#feedback-icon').textContent = '🔧✨';
+    selloFeedback('wrench', 'logro');
     $('#feedback-title').textContent = '¡Hallazgo restaurado!';
     $('#feedback-explain').textContent = extra.restoreCoins
-      ? `Corregiste tu propio error. +${extra.restoreCoins} 🪙 por restaurar el hallazgo.`
+      ? `Corregiste tu propio error. +${extra.restoreCoins} doblones por restaurar el hallazgo.`
       : 'Corregiste tu propio error. (Ya usaste las 5 restauraciones con premio de hoy.)';
   } else if (res.correct) {
-    $('#feedback-icon').textContent = pick(['💎', '🏺', '✨', '🗝️', '🪙']);
+    selloFeedback('check', 'bien');
     $('#feedback-title').textContent = pick(['¡Hallazgo descubierto!', '¡Excavación perfecta!', '¡Kira aplaude con las antenas!', '¡Tobías ladra de alegría!']);
     $('#feedback-explain').textContent = res.explanation;
   } else {
-    $('#feedback-icon').textContent = pick(['🪤', '🕸️', '🪨']);
+    selloFeedback('cross', 'mal');
     $('#feedback-title').textContent = pick([
       '¡Trampa! Bruno ya había caído en esa misma…',
       '¡Zas! Una reja… y Bruno dentro, contando chistes.',
@@ -480,11 +519,11 @@ function showFeedback(res, extra) {
     if (!mission.restoring) {
       btnRestore.classList.remove('hidden');
       btnRestore.textContent = S.daily.restores_today < ECO().restoresPerDay
-        ? '🔧 Restaurar hallazgo (+5 🪙)'
-        : '🔧 Restaurar hallazgo (sin premio hoy)';
+        ? 'Restaurar hallazgo (+5 doblones)'
+        : 'Restaurar hallazgo (sin premio hoy)';
     }
   }
-  $('#btn-next').textContent = mission.index >= mission.questions.length - 1 ? 'Terminar excavación 🏁' : 'Continuar →';
+  $('#btn-next').textContent = mission.index >= mission.questions.length - 1 ? 'Terminar excavación' : 'Continuar →';
 }
 
 $('#btn-restore') && null; /* listeners se registran en init */
@@ -510,13 +549,13 @@ function onRestore() {
 function onHint() {
   const h = requestHint();
   if (!h.ok) {
-    toast(h.reason === 'no-coins' ? 'No tienes Doblones para otra pista (10 🪙).' : 'Kira ya no tiene más pistas: ¡confía en tu pala!');
+    toast(h.reason === 'no-coins' ? 'No tienes Doblones para otra pista (cuesta 10).' : 'Kira ya no tiene más pistas: ¡confía en tu pala!');
     return;
   }
   $('#kira-box').classList.remove('hidden');
-  $('#kira-text').textContent = h.text + (h.cost ? ` (−${h.cost} 🪙)` : '');
+  $('#kira-text').textContent = h.text + (h.cost ? ` (−${h.cost} doblones)` : '');
   if (mission.hintsShown >= 2) { $('#btn-hint').disabled = true; }
-  else { $('#btn-hint').textContent = `🪲 Otra pista (${ECO().hintCost} 🪙)`; }
+  else { $('#btn-hint').innerHTML = `${ico('beetle')} Otra pista (${ECO().hintCost} ${ico('coin')})`; }
   renderHud();
 }
 
@@ -525,7 +564,8 @@ function renderResult(r) {
   if (r.kind === 'guardian') return renderGuardianResult(r);
   const meta = STRATA_META[r.stratumId];
   const good = r.accuracy >= 0.7;
-  $('#result-emoji').textContent = r.nowMastered ? '🏆' : good ? '💎' : '🧭';
+  /* Sello de expedición en vez de un emoji gigante: el premio se estampa. */
+  sello(r.nowMastered ? 'medal' : good ? 'star' : 'compass', r.nowMastered || good);
   $('#result-title').textContent = r.nowMastered
     ? `¡Estrato «${meta.name}» dominado!`
     : r.kind === 'bazar' ? 'Encargo completado' : 'Excavación terminada';
@@ -533,9 +573,9 @@ function renderResult(r) {
   const rewards = $('#result-rewards');
   rewards.innerHTML = `
     <div class="reward-row"><span>Aciertos a la primera</span><strong>${r.firstTryCorrect}/${r.total}</strong></div>
-    <div class="reward-row"><span>⭐ Puntos de Expedición</span><strong>+${r.pe}</strong></div>
-    <div class="reward-row"><span>🪙 Doblones</span><strong>+${r.coins}</strong></div>
-    ${r.restored ? `<div class="reward-row"><span>🔧 Hallazgos restaurados</span><strong>${r.restored}</strong></div>` : ''}
+    <div class="reward-row"><span>${ico('star')} Puntos de Expedición</span><strong>+${r.pe}</strong></div>
+    <div class="reward-row"><span>${ico('coin')} Doblones</span><strong>+${r.coins}</strong></div>
+    ${r.restored ? `<div class="reward-row"><span>${ico('vessel')} Hallazgos restaurados</span><strong>${r.restored}</strong></div>` : ''}
     ${r.notes.map(n => `<div class="reward-note">${n}</div>`).join('')}
     ${r.leveledUp ? `<div class="reward-levelup">🎉 ¡Has subido al nivel ${r.newLevel}! Ahora eres ${rankForLevel(r.newLevel).name}.</div>` : ''}
     ${r.nowMastered ? `<div class="reward-levelup">🗺️ ¡El mapa del Atlas se dibuja un poco más!</div>` : ''}
@@ -553,13 +593,29 @@ function renderResult(r) {
   renderHud();
 }
 
+/* Estampa el sello del resultado. `logrado` distingue el latón encendido
+   de la versión apagada, para que ganar y no ganar no se vean igual. */
+function sello(nombre, logrado) {
+  const el = $('#result-emoji');
+  el.className = 'sello' + (logrado ? ' sello-logro' : '');
+  el.innerHTML = ico(nombre, 'ico-lg');
+}
+
+/* Sello del aviso que aparece justo después de responder. `tono` decide el
+   color: bien, mal o logro. */
+function selloFeedback(nombre, tono) {
+  const el = $('#feedback-icon');
+  el.className = 'sello sello-' + tono;
+  el.innerHTML = ico(nombre, 'ico-lg');
+}
+
 /* ── Resultado de la Cámara del Guardián ──
    Ganar da un fragmento del Atlas; perder no quita nada. Lo que sí hace el
    Guardián en las dos es decir DÓNDE se falló: una evaluación que no explica
    el error no sirve de nada a un niño de nueve años. */
 function renderGuardianResult(r) {
   const b = branchDef(r.branchId);
-  $('#result-emoji').textContent = r.superada ? '🧩' : '🗿';
+  sello(r.superada ? 'map' : 'idol', r.superada);
   $('#result-title').textContent = r.superada
     ? '¡Fragmento del Atlas recuperado!'
     : 'El Guardián no te deja pasar… todavía';
@@ -568,7 +624,7 @@ function renderGuardianResult(r) {
   const desglose = (r.strata || []).map(sId => {
     const meta = STRATA_META[sId];
     const err = r.errorsByStratum[sId] || 0;
-    return `<div class="reward-row"><span>${meta.icon} ${meta.label}</span>
+    return `<div class="reward-row"><span>${ico(ICO_ESTRATO[sId])} ${meta.label}</span>
       <strong>${err ? err + (err === 1 ? ' fallo' : ' fallos') : 'sin fallos'}</strong></div>`;
   }).join('');
 
@@ -577,11 +633,11 @@ function renderGuardianResult(r) {
       <strong>${r.firstTryCorrect}/${r.total} (${Math.round(r.accuracy * 100)}%)</strong></div>
     <div class="reward-row"><span>Hacía falta</span><strong>${Math.round(r.umbral * 100)}%</strong></div>
     ${desglose}
-    ${r.pe ? `<div class="reward-row"><span>⭐ Puntos de Expedición</span><strong>+${r.pe}</strong></div>` : ''}
-    ${r.coins ? `<div class="reward-row"><span>🪙 Doblones</span><strong>+${r.coins}</strong></div>` : ''}
-    ${r.restored ? `<div class="reward-row"><span>🔧 Hallazgos restaurados</span><strong>${r.restored}</strong></div>` : ''}
+    ${r.pe ? `<div class="reward-row"><span>${ico('star')} Puntos de Expedición</span><strong>+${r.pe}</strong></div>` : ''}
+    ${r.coins ? `<div class="reward-row"><span>${ico('coin')} Doblones</span><strong>+${r.coins}</strong></div>` : ''}
+    ${r.restored ? `<div class="reward-row"><span>${ico('vessel')} Hallazgos restaurados</span><strong>${r.restored}</strong></div>` : ''}
     ${r.leveledUp ? `<div class="reward-levelup">🎉 ¡Has subido al nivel ${r.newLevel}! Ahora eres ${rankForLevel(r.newLevel).name}.</div>` : ''}
-    ${r.fragment ? `<div class="reward-levelup">🧩 Llevas ${r.fragmentsTotal} fragmento(s) del Atlas de Ossian.</div>` : ''}
+    ${r.fragment ? `<div class="reward-levelup">${ico('map')} Llevas ${r.fragmentsTotal} fragmento(s) del Atlas de Ossian.</div>` : ''}
     ${!r.superada ? `<div class="reward-note">No has perdido nada: ni PE, ni Doblones, ni dominio.
       El Guardián quiere que repases <strong>${STRATA_META[r.weakStratum] ? STRATA_META[r.weakStratum].label : ''}</strong>
       en un Encargo del Bazar y vuelvas.</div>` : ''}`;
@@ -624,7 +680,7 @@ function renderCamp() {
     const row = document.createElement('div');
     row.className = 'shop-item';
     row.innerHTML = `<span class="shop-icon">${item.icon}</span>
-      <div class="shop-info"><strong>${item.name}</strong><small>${item.cost} 🪙</small></div>`;
+      <div class="shop-info"><strong>${item.name}</strong><small>${item.cost} ${ico('coin')}</small></div>`;
     const btn = document.createElement('button');
     btn.className = 'btn btn-secondary btn-small';
     if (owned && item.type === 'gear') {
@@ -684,7 +740,7 @@ function renderFund() {
   $('#fund-progress').innerHTML = `
     <div class="fund-bar"><div class="fund-bar-fill" style="width:${pct}%"></div></div>
     <div class="fund-bar-legend">
-      <strong>${total} 🪙</strong> reunidos entre toda la clase
+      <strong>${total} ${ico('coin')}</strong> reunidos entre toda la clase
       ${siguiente ? `<span>· faltan <strong>${Math.max(0, hasta - total)}</strong> para ${siguiente.icon} ${siguiente.name}</span>` : ''}
     </div>`;
 
@@ -693,8 +749,8 @@ function renderFund() {
   $('#fund-milestones').innerHTML = hitos.map(m => {
     const hecho = total >= m.at;
     return `<div class="fund-milestone ${hecho ? 'fund-done' : ''}">
-      <span class="fund-icon">${hecho ? m.icon : '🔒'}</span>
-      <div><strong>${m.name}</strong><small>${hecho ? m.desc : `Se abre con ${m.at} 🪙 de la clase`}</small></div>
+      <span class="fund-icon">${hecho ? m.icon : ico('lock')}</span>
+      <div><strong>${m.name}</strong><small>${hecho ? m.desc : `Se abre con ${m.at} ${ico('coin')} de la clase`}</small></div>
     </div>`;
   }).join('');
 
@@ -703,7 +759,7 @@ function renderFund() {
   for (const n of (f.steps || [5, 10, 25, 50])) {
     const b = document.createElement('button');
     b.className = 'btn btn-secondary btn-small';
-    b.textContent = `${n} 🪙`;
+    b.innerHTML = `${n} ${ico('coin')}`;
     b.disabled = S.progression.doubloons_balance < n;
     b.addEventListener('click', () => {
       const res = donateToFund(n);
@@ -712,7 +768,7 @@ function renderFund() {
       const ahora = fundMilestoneFor(fundTotal()).alcanzados.length;
       toast(ahora > antes
         ? '¡Hito conseguido! La Sociedad se pone manos a la obra 🎉'
-        : `¡Gracias! ${n} 🪙 para el Fondo.`);
+        : `¡Gracias! ${n} doblones para el Fondo.`);
       renderCamp();
     });
     cont.appendChild(b);
@@ -720,7 +776,7 @@ function renderFund() {
 
   const mio = S.progression.fund_donated || 0;
   $('#fund-mine').textContent = mio
-    ? `Tú has aportado ${mio} 🪙 al Fondo. Donar no da ninguna ventaja: es por las ruinas.`
+    ? `Tú has aportado ${mio} ${ico('coin')} al Fondo. Donar no da ninguna ventaja: es por las ruinas.`
     : 'Donar es voluntario y no da ninguna ventaja en las excavaciones.';
 }
 
@@ -843,8 +899,8 @@ function renderTeam() {
       <p class="team-goal-note">Toda la clase excava hacia la misma meta. Cada Doblón que ganas
       aporta un poco, y <em>no se descuenta de tu bolsa</em>: cooperar no cuesta nada.</p>
       <div class="mastery-bar"><div class="mastery-fill${pct >= 100 ? ' gold' : ''}" style="width:${pct}%"></div></div>
-      <div class="team-goal-nums"><span>Tu aportación: <strong>${mine} 🪙</strong></span>
-        <span>Tu parte de la meta: <strong>${share} 🪙</strong></span></div>
+      <div class="team-goal-nums"><span>Tu aportación: <strong>${mine} ${ico('coin')}</strong></span>
+        <span>Tu parte de la meta: <strong>${share} ${ico('coin')}</strong></span></div>
     </div>
 
     <h3>Tus compañeros de cuadrilla</h3>
@@ -880,7 +936,7 @@ function renderMerits() {
   const tri = S.course.trimesters[currentTrimesterIndex()];
   $('#merits-summary').innerHTML = `
     <div class="logbook-stat"><strong>${st.total}</strong><span>méritos ganados</span></div>
-    <div class="logbook-stat"><strong>${st.coins}</strong><span>🪙 por comportamiento</span></div>
+    <div class="logbook-stat"><strong>${st.coins}</strong><span>${ico('coin')} por comportamiento</span></div>
     <div class="logbook-stat"><strong>${tri.merits}</strong><span>este trimestre</span></div>`;
 
   /* lo conseguido hoy, con el tope a la vista */
@@ -889,7 +945,7 @@ function renderMerits() {
     const n = S.behavior_log.filter(e => e.id === b.id && e.date === today).length;
     return `<div class="merit-row${n ? ' merit-earned' : ''}">
       <span class="merit-icon">${b.icon}</span>
-      <div class="merit-info"><strong>${b.name}</strong><small>${b.coins} 🪙 · hasta ${b.perDay} al día</small></div>
+      <div class="merit-info"><strong>${b.name}</strong><small>${b.coins} ${ico('coin')} · hasta ${b.perDay} al día</small></div>
       <span class="merit-count">${n ? '⭐'.repeat(Math.min(n, 5)) : '—'}</span>
     </div>`;
   }).join('');
@@ -931,11 +987,11 @@ function renderAwardList() {
     btn.disabled = full;
     btn.innerHTML = `<span class="award-icon">${b.icon}</span>
       <span class="award-name">${b.name}</span>
-      <span class="award-meta">+${b.coins} 🪙 · ${used}/${b.perDay}</span>`;
+      <span class="award-meta">+${b.coins} ${ico('coin')} · ${used}/${b.perDay}</span>`;
     btn.addEventListener('click', () => {
       const res = awardBehavior(b.id);
       if (res.ok) {
-        toast(`${b.icon} ¡${b.name}! +${b.coins} 🪙`);
+        toast(`${b.icon} ¡${b.name}! +${b.coins} doblones`);
         renderMerits();
         renderAwardList();
         showTeacherPanel();
@@ -1314,7 +1370,7 @@ function aulaFeedback(res, restaurando, coins) {
     $('#aula-fb-icon').textContent = res.correct ? '🔧✨' : '🪨';
     $('#aula-fb-title').textContent = res.correct ? '¡Hallazgo restaurado!' : 'Esta vez tampoco salió';
     $('#aula-fb-explain').textContent = res.correct
-      ? (coins ? `Se corrigió solo. +${coins} 🪙 por restaurar el hallazgo.` : 'Se corrigió solo. (Ya usó las 5 restauraciones con premio de hoy.)')
+      ? (coins ? `Se corrigió solo. +${coins} doblones por restaurar el hallazgo.` : 'Se corrigió solo. (Ya usó las 5 restauraciones con premio de hoy.)')
       : res.explanation;
   } else if (res.correct) {
     $('#aula-fb-icon').textContent = '💎';
@@ -1355,7 +1411,7 @@ function aulaTerminar() {
   }
   const r = finishMission();
   const quien = aulaAlumno ? aulaAlumno.name : '';
-  toast(`${quien}: ${r.firstTryCorrect}/${r.total} a la primera · +${r.pe} ⭐ · +${r.coins} 🪙`);
+  toast(`${quien}: ${r.firstTryCorrect}/${r.total} a la primera · +${r.pe} PE · +${r.coins} doblones`);
   if (r.nowMastered) toast(`¡${quien} ha dominado un estrato! 🗺️`, 3200);
   volverATurnos();
 }
@@ -1381,11 +1437,11 @@ function renderAulaMeritos() {
     btn.disabled = lleno;
     btn.innerHTML = `<span class="award-icon">${b.icon}</span>
       <span class="award-name">${b.name}</span>
-      <span class="award-meta">+${b.coins} 🪙 · ${usados}/${b.perDay}</span>`;
+      <span class="award-meta">+${b.coins} ${ico('coin')} · ${usados}/${b.perDay}</span>`;
     btn.addEventListener('click', () => {
       const res = awardBehavior(b.id);
       if (res.ok) {
-        toast(`${b.icon} ${aulaAlumno.name}: ${b.name} · +${b.coins} 🪙`);
+        toast(`${b.icon} ${aulaAlumno.name}: ${b.name} · +${b.coins} doblones`);
         renderAulaMeritos();
       } else toast('Ya se alcanzó el tope de hoy para ese mérito.');
     });
@@ -1424,7 +1480,7 @@ function wireAula() {
     caja.classList.remove('hidden');
     caja.innerHTML = `<span class="dialog-avatar">🪲</span>
       <div class="dialog-text"><strong>Kira</strong><p>${r.text}</p>
-      ${r.cost ? `<small>(−${r.cost} 🪙)</small>` : ''}</div>`;
+      ${r.cost ? `<small>(−${r.cost} ${ico('coin')})</small>` : ''}</div>`;
   });
 }
 
@@ -1510,12 +1566,12 @@ function paintClassView() {
       se guardan en este equipo, que es donde se dirigen las sesiones. Si además quieres que el alumnado
       entre por su cuenta desde casa, hace falta configurar Appwrite en «Acceso y nube».</div>`;
   } else if (d.localOnly && d.students.length) {
-    nota = `<div class="class-note">📱 <strong>Esta tablet solo guarda un diario.</strong> Sin cuentas
+    nota = `<div class="class-note">${ico('phone')} <strong>Esta tablet solo guarda un diario.</strong> Sin cuentas
       en la nube, cada dispositivo tiene el suyo, así que aquí solo puede aparecer quien lo esté usando
       ahora. Para ver a la clase entera, dirige las sesiones desde <em>Dirigir la clase</em> o hay que
       configurar Appwrite en «Acceso y nube».</div>`;
   } else if (d.localOnly) {
-    nota = `<div class="class-note">📱 <strong>Todavía no hay ningún diario.</strong> Empieza una sesión
+    nota = `<div class="class-note">${ico('phone')} <strong>Todavía no hay ningún diario.</strong> Empieza una sesión
       desde <em>Dirigir la clase</em> y se irá creando el de cada alumno al que preguntes.</div>`;
   }
   classStatus(recuento + nota);
@@ -1560,13 +1616,13 @@ function paintClassView() {
         </div>
       </div>
       <div class="student-stats">
-        <span title="Estratos dominados de los disponibles">⛏️ ${s.mastered}/${s.totalStrata} estratos</span>
-        <span title="Minutos de excavación en 7 días">⏱️ ${s.minutes7} min/7d</span>
-        <span title="Días activos de los 3 que exige el sello">📅 ${s.activeDays}/3 días</span>
-        <span title="Precisión en las últimas 10 respuestas">🎯 ${s.accuracy === null ? '—' : Math.round(s.accuracy * 100) + '%'}</span>
-        <span title="Hallazgos restaurados (autocorrección)">🔧 ${s.selfCorrections}</span>
-        <span title="Méritos concedidos">🏅 ${s.merits}</span>
-        <span title="Cámaras del Guardián superadas">🧩 ${s.fragments} fragmentos</span>
+        <span title="Estratos dominados de los disponibles">${ico('pickaxe')} ${s.mastered}/${s.totalStrata} estratos</span>
+        <span title="Minutos de excavación en 7 días">${ico('clock')} ${s.minutes7} min/7d</span>
+        <span title="Días activos de los 3 que exige el sello">${ico('calendar')} ${s.activeDays}/3 días</span>
+        <span title="Precisión en las últimas 10 respuestas">${ico('target')} ${s.accuracy === null ? '—' : Math.round(s.accuracy * 100) + '%'}</span>
+        <span title="Hallazgos restaurados (autocorrección)">${ico('wrench')} ${s.selfCorrections}</span>
+        <span title="Méritos concedidos">${ico('medal')} ${s.merits}</span>
+        <span title="Cámaras del Guardián superadas">${ico('map')} ${s.fragments} fragmentos</span>
       </div>
       ${s.signals.length ? `<div class="student-signals">${s.signals.map(x => `<span class="signal-chip">${x}</span>`).join('')}</div>` : ''}
       ${s.stuck.length ? `<small class="student-stuck">Atascado en: ${s.stuck.join(' · ')}</small>` : ''}
@@ -1581,7 +1637,7 @@ function paintClassView() {
         const pct = Math.min(100, Math.round((t.contribution / meta) * 100));
         return `<div class="class-team">
           <div class="class-team-head"><span>${t.icon} <strong>${t.name}</strong></span>
-            <span class="student-num">${t.contribution} / ${meta} 🪙</span></div>
+            <span class="student-num">${t.contribution} / ${meta} ${ico('coin')}</span></div>
           <div class="mastery-bar"><div class="mastery-fill${pct >= 100 ? ' gold' : ''}" style="width:${pct}%"></div></div>
           <small>${t.members} con diario${t.listed !== t.members ? ` de ${t.listed} asignados` : ''} · ${t.mastered} estratos entre todos</small>
         </div>`;
@@ -1638,17 +1694,17 @@ function paintClassFund(d) {
   const { siguiente } = fundMilestoneFor(real);
   cont.innerHTML = `
     <h3>🌍 ${f.name || 'Fondo de la Sociedad'}</h3>
-    <p class="class-meta">Donado de verdad entre todos: <strong>${real} 🪙</strong> ·
-      anotado en la configuración: <strong>${anotado} 🪙</strong>
-      ${siguiente ? `· siguiente hito: ${siguiente.icon} ${siguiente.name} (${siguiente.at} 🪙)` : ''}</p>
+    <p class="class-meta">Donado de verdad entre todos: <strong>${real} ${ico('coin')}</strong> ·
+      anotado en la configuración: <strong>${anotado} ${ico('coin')}</strong>
+      ${siguiente ? `· siguiente hito: ${siguiente.icon} ${siguiente.name} (${siguiente.at} ${ico('coin')})` : ''}</p>
     ${real !== anotado
-      ? `<button class="btn btn-secondary btn-small" id="class-fund-sync">📌 Anotar ${real} 🪙 para que lo vea la clase</button>`
+      ? `<button class="btn btn-secondary btn-small" id="class-fund-sync">${ico('pin')} Anotar ${real} ${ico('coin')} para que lo vea la clase</button>`
       : '<p class="cfg-hint">La clase ya ve el total correcto.</p>'}`;
 
   const btn = $('#class-fund-sync');
   if (btn) btn.addEventListener('click', () => {
     setTeacherConfig('fund.classTotal', real);
-    toast('Anotado ✓ La clase ya ve ' + real + ' 🪙 en el Fondo.');
+    toast('Anotado. La clase ya ve ' + real + ' doblones en el Fondo.');
     paintClassFund(d);
   });
 }
@@ -2095,11 +2151,14 @@ function startApp() {
   show('map');
   if (events.firstLoginBonus) {
     const banner = $('#daily-banner');
-    banner.innerHTML = `⚓ <strong>Primer desembarco del día:</strong> +${events.firstLoginBonus} 🪙 ¡Bienvenido de vuelta, ${S.profile.explorer_name}!`;
+    /* El texto va dentro de un <span>: el aviso es un flex y, suelto, cada
+       trozo se convertía en una columna propia y se partía en un móvil. */
+    banner.innerHTML = `${ico('anchor')}<span><strong>Primer desembarco del día:</strong>
+      +${events.firstLoginBonus} ${ico('coin')} ¡Bienvenido de vuelta, ${esc(S.profile.explorer_name)}!</span>`;
     banner.classList.remove('hidden');
     setTimeout(() => banner.classList.add('hidden'), 6000);
   }
-  if (events.weekStamped) { earnDoubloons(50); saveState(); renderHud(); toast('📍 ¡Sello semanal estampado en tu bitácora! +50 🪙', 4000); }
+  if (events.weekStamped) { earnDoubloons(50); saveState(); renderHud(); toast('¡Sello semanal estampado en tu bitácora! +50 doblones', 4000); }
   if (events.weekProtected) toast('🪢 Una cuerda de rescate protegió tu racha esta semana.', 4000);
 }
 
