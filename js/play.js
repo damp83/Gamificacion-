@@ -285,9 +285,14 @@ function renderQuestion() {
   });
   $('#btn-hint').disabled = false;
   $('#btn-hint').innerHTML = ico('beetle') + ' Pista de Kira';
+  /* Cada reto empieza en silencio: si el anterior seguía sonando, se corta.
+     Se ofrece escuchar, no se impone: leerlo solo también es practicar. */
+  vozParar();
+  aplicarVoz();
 }
 
 function onAnswer(index, btn) {
+  vozParar();
   $$('.option').forEach(o => o.disabled = true);
   const wasRestoring = mission.restoring;
   const res = answerQuestion(index);

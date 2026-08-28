@@ -2993,6 +2993,10 @@ input[type="checkbox"]::after, input[type="radio"]::after {
           </div>
           <div class="mission-tools">
             <button id="btn-hint" class="btn btn-hint">🪲 Pista de Kira</button>
+            <!-- Escuchar el reto. Nace oculto: solo aparece para quien lo
+                 tenga activado y si el navegador tiene voces. -->
+            <button id="btn-voz" type="button" class="btn btn-secondary hidden" aria-label="Escuchar el reto">
+              <svg class="ico" viewBox="0 0 24 24" aria-hidden="true"><use href="#i-mic"/></svg> Escuchar</button>
             <button id="btn-quit" class="btn btn-quit">
               <svg class="ico" viewBox="0 0 24 24" aria-hidden="true"><use href="#i-flag"/></svg> Abandonar</button>
           </div>
@@ -3029,6 +3033,12 @@ input[type="checkbox"]::after, input[type="radio"]::after {
           <label class="cfg-field cfg-field-inline">
             <span class="cfg-label"><svg class="ico" viewBox="0 0 24 24" aria-hidden="true"><use href="#i-text"/></svg> Letra más grande</span>
             <input type="checkbox" id="pref-large-text">
+          </label>
+          <!-- Se esconde si el navegador no tiene voces: ofrecer un ajuste que
+               no hace nada es peor que no ofrecerlo. -->
+          <label class="cfg-field cfg-field-inline hidden" id="pref-read-aloud-fila">
+            <span class="cfg-label"><svg class="ico" viewBox="0 0 24 24" aria-hidden="true"><use href="#i-mic"/></svg> Escuchar los retos</span>
+            <input type="checkbox" id="pref-read-aloud">
           </label>
         </div>
 
@@ -4491,6 +4501,14 @@ const ATLAS_DEFAULTS = {
      (en vez de escribir nombres, que se prestaba a erratas) y para crear las
      cuentas de golpe. `account` marca las que ya existen en Appwrite. */
   roster: [],   /* [{ name, username, password, account, grade }] */
+
+  /* ── Lectura en voz alta (DUA) ──
+     'ciclo'  → se ofrece en 1.º y 2.º, donde la lectura aún se construye.
+     'todos'  → a toda la clase; útil si hay dislexia en el grupo.
+     'nunca'  → a nadie de fábrica.
+     Cada alumno puede activarla o quitarla desde su Campamento, y su elección
+     manda sobre esto. */
+  readAloud: 'ciclo',
 
   /* Curso por defecto de la clase (1 a 6). Se usa al crear diarios nuevos
      y como referencia cuando el docente mira el panel sin alumno. */
@@ -7535,6 +7553,112 @@ function avatarEmoji() {
   return '🧒';
 }
 
+/* ══════════ LECTURA EN VOZ ALTA (DUA) ══════════
+   Que en 1.º y 2.º los enunciados vayan al grano fue una buena decisión, pero
+   no resuelve lo de fondo: un niño de seis años que todavía descifra no puede
+   hacer las matemáticas solo. Si tiene que descodificar «¿Cuántas quedan?»
+   antes de restar, la prueba está midiendo su lectura, no su cálculo. Lo
+   mismo vale a cualquier edad para quien tenga dislexia.
+
+   Con el botón de escuchar, el reto se oye. No sustituye a leer —el texto
+   sigue delante— y no da ninguna ventaja: la respuesta hay que pensarla igual.
+
+   Usa la voz del propio navegador (Web Speech API), así que no manda nada a
+   ningún servidor ni necesita conexión. Donde no exista, el botón no aparece
+   en vez de aparecer y no hacer nada. */
+const VOZ = { disponible: false, voz: null, leyendo: false };
+
+function vozSoportada() {
+  return typeof speechSynthesis !== 'undefined' && typeof SpeechSynthesisUtterance !== 'undefined';
+}
+
+function vozInit() {
+  if (!vozSoportada()) return false;
+  VOZ.disponible = true;
+  /* Las voces se cargan tarde en algunos navegadores: se elige la mejor cada
+     vez que cambie la lista, no una sola vez al arrancar. */
+  const elegir = () => {
+    const todas = speechSynthesis.getVoices() || [];
+    VOZ.voz = todas.find(v => /^es[-_]ES/i.test(v.lang)) ||
+              todas.find(v => /^es/i.test(v.lang)) || null;
+  };
+  elegir();
+  speechSynthesis.addEventListener('voiceschanged', elegir);
+  return true;
+}
+
+/* Lo que se lee no es lo que se ve: los emoji tienen nombre y leerlos en alto
+   («emoji cuadrado amarillo, emoji cuadrado amarillo…») convierte el reto en
+   ruido. Se quitan, y las flechas y los puntos medios se vuelven pausas. */
+function textoParaVoz(t) {
+  return String(t || '')
+    /* Las pausas PRIMERO: las flechas están dentro del rango que se limpia
+       abajo, y al revés se quedaban en un espacio mudo. «2 → 4 → 6» leído sin
+       pausas suena a un número de seis cifras. */
+    .replace(/[·→]/g, ', ')
+    .replace(/[\u{1F000}-\u{1FAFF}\u{2600}-\u{27BF}\u{FE0F}\u{2190}-\u{21FF}]/gu, ' ')
+    .replace(/\s+([,.])/g, '$1')
+    .replace(/\s+/g, ' ')
+    .trim();
+}
+
+function vozParar() {
+  if (!VOZ.disponible) return;
+  try { speechSynthesis.cancel(); } catch (e) { /* algunos navegadores se quejan */ }
+  VOZ.leyendo = false;
+}
+
+/* Lee una lista de trozos con una pausa entre ellos: el enunciado primero y
+   luego las opciones, que es el orden en que hay que oírlas. */
+function vozLeer(trozos) {
+  if (!VOZ.disponible) return false;
+  vozParar();
+  const lista = (Array.isArray(trozos) ? trozos : [trozos])
+    .map(textoParaVoz).filter(Boolean);
+  if (!lista.length) return false;
+  VOZ.leyendo = true;
+  lista.forEach((t, i) => {
+    const u = new SpeechSynthesisUtterance(t);
+    u.lang = 'es-ES';
+    if (VOZ.voz) u.voice = VOZ.voz;
+    /* Más despacio de lo normal: es para quien aún no lee con soltura. */
+    u.rate = 0.85;
+    u.pitch = 1;
+    if (i === lista.length - 1) u.onend = () => { VOZ.leyendo = false; };
+    try { speechSynthesis.speak(u); } catch (e) { VOZ.leyendo = false; }
+  });
+  return true;
+}
+
+/* ¿Se le ofrece a este alumno? De fábrica, sí en 1.º y 2.º —donde la lectura
+   todavía se está construyendo— y a quien lo active. El docente puede
+   encenderlo para toda la clase desde el panel. */
+function vozActiva() {
+  if (!VOZ.disponible) return false;
+  const pref = S && S.profile.accessibility ? S.profile.accessibility.read_aloud : undefined;
+  if (pref !== undefined) return !!pref;
+  if (ATLAS_CONFIG.readAloud === 'todos') return true;
+  if (ATLAS_CONFIG.readAloud === 'nunca') return false;
+  return S ? bandOf(S.profile.grade) === 1 : false;
+}
+
+function aplicarVoz() {
+  const btn = $('#btn-voz');
+  if (btn) btn.classList.toggle('hidden', !vozActiva());
+  const cb = $('#pref-read-aloud');
+  if (cb) cb.checked = vozActiva();
+  const fila = $('#pref-read-aloud-fila');
+  if (fila) fila.classList.toggle('hidden', !VOZ.disponible);
+}
+
+/* Lee el reto que hay en pantalla: enunciado y después las cuatro opciones,
+   nombradas por su letra para poder decir «la C» en voz alta. */
+function leerRetoActual() {
+  if (!mission || !mission.current) return;
+  const q = mission.current;
+  vozLeer([q.question].concat(q.options.map((o, i) => `Opción ${'ABCD'[i]}. ${o}`)));
+}
+
 /* ── Guardar archivos según dónde se esté ejecutando ──
    En un servidor propio o abierta como archivo, descargar es un enlace y ya.
    Dentro del visor de un Artifact eso no hace nada: la descarga la media el
@@ -7863,9 +7987,14 @@ function renderQuestion() {
   });
   $('#btn-hint').disabled = false;
   $('#btn-hint').innerHTML = ico('beetle') + ' Pista de Kira';
+  /* Cada reto empieza en silencio: si el anterior seguía sonando, se corta.
+     Se ofrece escuchar, no se impone: leerlo solo también es practicar. */
+  vozParar();
+  aplicarVoz();
 }
 
 function onAnswer(index, btn) {
+  vozParar();
   $$('.option').forEach(o => o.disabled = true);
   const wasRestoring = mission.restoring;
   const res = answerQuestion(index);
@@ -9602,6 +9731,12 @@ function cfgAlumnado(body) {
     ${nube ? 'crear las cuentas de todos de una vez.' :
       'tenerla preparada. <strong>Para crear cuentas hace falta configurar Appwrite</strong> en «Acceso y nube».'}</p>
 
+    ${field('Escuchar los retos en voz alta', `<select id="cfg-read-aloud">
+      <option value="ciclo"${ATLAS_CONFIG.readAloud === 'ciclo' ? ' selected' : ''}>En 1.º y 2.º (recomendado)</option>
+      <option value="todos"${ATLAS_CONFIG.readAloud === 'todos' ? ' selected' : ''}>A toda la clase</option>
+      <option value="nunca"${ATLAS_CONFIG.readAloud === 'nunca' ? ' selected' : ''}>A nadie de partida</option>
+    </select>`, 'Un niño que aún descifra no puede hacer las matemáticas solo: el enunciado le mide la lectura. Cada alumno puede activarla o quitarla desde su Campamento.')}
+
     ${field('Cómo se usa en clase', `<select id="cfg-session-mode">
       <option value="docente"${ATLAS_CONFIG.sessionMode === 'docente' ? ' selected' : ''}>Dirigida por el docente: yo pregunto, ellos responden</option>
       <option value="alumno"${ATLAS_CONFIG.sessionMode === 'alumno' ? ' selected' : ''}>Cada alumno en su dispositivo, con su cuenta</option>
@@ -9666,6 +9801,7 @@ function cfgAlumnado(body) {
         `${esc(r.name)}  →  usuario: ${esc(r.username)}   contraseña: ${esc(r.password)}`).join('\n')}</textarea>
       <button class="btn btn-secondary btn-small" id="ros-copy">📋 Copiar</button>` : ''}`;
 
+  onInput('#cfg-read-aloud', e => cfgSave('readAloud', e.target.value, 'Lectura en voz alta guardada ✓'));
   onInput('#cfg-session-mode', e => cfgSave('sessionMode', e.target.value,
     e.target.value === 'docente' ? 'Clase dirigida por el docente ✓' : 'Modo de sesión guardado ✓'));
   onInput('#cfg-teacher-name', e => cfgSave('teacherName', e.target.value.trim()));
@@ -10863,6 +10999,7 @@ async function boot() {
   loadTeacherConfig();   /* ajustes del docente sobre los valores de fábrica */
   loadConfigMeta();
   loadAula();
+  vozInit();
   prepararDescargas();
   wireGlobalListeners();
 
@@ -10937,6 +11074,15 @@ function wireGlobalListeners() {
     S.profile.grade = readGrade();
     saveState();
     startApp();
+  });
+
+  $('#btn-voz').addEventListener('click', leerRetoActual);
+  $('#pref-read-aloud').addEventListener('change', e => {
+    S.profile.accessibility = S.profile.accessibility || {};
+    S.profile.accessibility.read_aloud = e.target.checked;
+    saveState();
+    aplicarVoz();
+    if (!e.target.checked) vozParar();
   });
 
   $('#pref-large-text').addEventListener('change', e => {
@@ -11078,6 +11224,7 @@ function startApp() {
   $('#app').classList.remove('hidden');
   const events = rolloverIfNeeded();
   applyTextSize();
+  aplicarVoz();
   renderHud();
   show('map');
   if (events.firstLoginBonus) {

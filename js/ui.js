@@ -209,6 +209,112 @@ function avatarEmoji() {
   return '🧒';
 }
 
+/* ══════════ LECTURA EN VOZ ALTA (DUA) ══════════
+   Que en 1.º y 2.º los enunciados vayan al grano fue una buena decisión, pero
+   no resuelve lo de fondo: un niño de seis años que todavía descifra no puede
+   hacer las matemáticas solo. Si tiene que descodificar «¿Cuántas quedan?»
+   antes de restar, la prueba está midiendo su lectura, no su cálculo. Lo
+   mismo vale a cualquier edad para quien tenga dislexia.
+
+   Con el botón de escuchar, el reto se oye. No sustituye a leer —el texto
+   sigue delante— y no da ninguna ventaja: la respuesta hay que pensarla igual.
+
+   Usa la voz del propio navegador (Web Speech API), así que no manda nada a
+   ningún servidor ni necesita conexión. Donde no exista, el botón no aparece
+   en vez de aparecer y no hacer nada. */
+const VOZ = { disponible: false, voz: null, leyendo: false };
+
+function vozSoportada() {
+  return typeof speechSynthesis !== 'undefined' && typeof SpeechSynthesisUtterance !== 'undefined';
+}
+
+function vozInit() {
+  if (!vozSoportada()) return false;
+  VOZ.disponible = true;
+  /* Las voces se cargan tarde en algunos navegadores: se elige la mejor cada
+     vez que cambie la lista, no una sola vez al arrancar. */
+  const elegir = () => {
+    const todas = speechSynthesis.getVoices() || [];
+    VOZ.voz = todas.find(v => /^es[-_]ES/i.test(v.lang)) ||
+              todas.find(v => /^es/i.test(v.lang)) || null;
+  };
+  elegir();
+  speechSynthesis.addEventListener('voiceschanged', elegir);
+  return true;
+}
+
+/* Lo que se lee no es lo que se ve: los emoji tienen nombre y leerlos en alto
+   («emoji cuadrado amarillo, emoji cuadrado amarillo…») convierte el reto en
+   ruido. Se quitan, y las flechas y los puntos medios se vuelven pausas. */
+function textoParaVoz(t) {
+  return String(t || '')
+    /* Las pausas PRIMERO: las flechas están dentro del rango que se limpia
+       abajo, y al revés se quedaban en un espacio mudo. «2 → 4 → 6» leído sin
+       pausas suena a un número de seis cifras. */
+    .replace(/[·→]/g, ', ')
+    .replace(/[\u{1F000}-\u{1FAFF}\u{2600}-\u{27BF}\u{FE0F}\u{2190}-\u{21FF}]/gu, ' ')
+    .replace(/\s+([,.])/g, '$1')
+    .replace(/\s+/g, ' ')
+    .trim();
+}
+
+function vozParar() {
+  if (!VOZ.disponible) return;
+  try { speechSynthesis.cancel(); } catch (e) { /* algunos navegadores se quejan */ }
+  VOZ.leyendo = false;
+}
+
+/* Lee una lista de trozos con una pausa entre ellos: el enunciado primero y
+   luego las opciones, que es el orden en que hay que oírlas. */
+function vozLeer(trozos) {
+  if (!VOZ.disponible) return false;
+  vozParar();
+  const lista = (Array.isArray(trozos) ? trozos : [trozos])
+    .map(textoParaVoz).filter(Boolean);
+  if (!lista.length) return false;
+  VOZ.leyendo = true;
+  lista.forEach((t, i) => {
+    const u = new SpeechSynthesisUtterance(t);
+    u.lang = 'es-ES';
+    if (VOZ.voz) u.voice = VOZ.voz;
+    /* Más despacio de lo normal: es para quien aún no lee con soltura. */
+    u.rate = 0.85;
+    u.pitch = 1;
+    if (i === lista.length - 1) u.onend = () => { VOZ.leyendo = false; };
+    try { speechSynthesis.speak(u); } catch (e) { VOZ.leyendo = false; }
+  });
+  return true;
+}
+
+/* ¿Se le ofrece a este alumno? De fábrica, sí en 1.º y 2.º —donde la lectura
+   todavía se está construyendo— y a quien lo active. El docente puede
+   encenderlo para toda la clase desde el panel. */
+function vozActiva() {
+  if (!VOZ.disponible) return false;
+  const pref = S && S.profile.accessibility ? S.profile.accessibility.read_aloud : undefined;
+  if (pref !== undefined) return !!pref;
+  if (ATLAS_CONFIG.readAloud === 'todos') return true;
+  if (ATLAS_CONFIG.readAloud === 'nunca') return false;
+  return S ? bandOf(S.profile.grade) === 1 : false;
+}
+
+function aplicarVoz() {
+  const btn = $('#btn-voz');
+  if (btn) btn.classList.toggle('hidden', !vozActiva());
+  const cb = $('#pref-read-aloud');
+  if (cb) cb.checked = vozActiva();
+  const fila = $('#pref-read-aloud-fila');
+  if (fila) fila.classList.toggle('hidden', !VOZ.disponible);
+}
+
+/* Lee el reto que hay en pantalla: enunciado y después las cuatro opciones,
+   nombradas por su letra para poder decir «la C» en voz alta. */
+function leerRetoActual() {
+  if (!mission || !mission.current) return;
+  const q = mission.current;
+  vozLeer([q.question].concat(q.options.map((o, i) => `Opción ${'ABCD'[i]}. ${o}`)));
+}
+
 /* ── Guardar archivos según dónde se esté ejecutando ──
    En un servidor propio o abierta como archivo, descargar es un enlace y ya.
    Dentro del visor de un Artifact eso no hace nada: la descarga la media el

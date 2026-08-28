@@ -721,6 +721,10 @@
           </div>
           <div class="mission-tools">
             <button id="btn-hint" class="btn btn-hint">🪲 Pista de Kira</button>
+            <!-- Escuchar el reto. Nace oculto: solo aparece para quien lo
+                 tenga activado y si el navegador tiene voces. -->
+            <button id="btn-voz" type="button" class="btn btn-secondary hidden" aria-label="Escuchar el reto">
+              <svg class="ico" viewBox="0 0 24 24" aria-hidden="true"><use href="#i-mic"/></svg> Escuchar</button>
             <button id="btn-quit" class="btn btn-quit">
               <svg class="ico" viewBox="0 0 24 24" aria-hidden="true"><use href="#i-flag"/></svg> Abandonar</button>
           </div>
@@ -757,6 +761,12 @@
           <label class="cfg-field cfg-field-inline">
             <span class="cfg-label"><svg class="ico" viewBox="0 0 24 24" aria-hidden="true"><use href="#i-text"/></svg> Letra más grande</span>
             <input type="checkbox" id="pref-large-text">
+          </label>
+          <!-- Se esconde si el navegador no tiene voces: ofrecer un ajuste que
+               no hace nada es peor que no ofrecerlo. -->
+          <label class="cfg-field cfg-field-inline hidden" id="pref-read-aloud-fila">
+            <span class="cfg-label"><svg class="ico" viewBox="0 0 24 24" aria-hidden="true"><use href="#i-mic"/></svg> Escuchar los retos</span>
+            <input type="checkbox" id="pref-read-aloud">
           </label>
         </div>
 

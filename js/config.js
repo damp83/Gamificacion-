@@ -62,6 +62,14 @@ const ATLAS_DEFAULTS = {
      cuentas de golpe. `account` marca las que ya existen en Appwrite. */
   roster: [],   /* [{ name, username, password, account, grade }] */
 
+  /* ── Lectura en voz alta (DUA) ──
+     'ciclo'  → se ofrece en 1.º y 2.º, donde la lectura aún se construye.
+     'todos'  → a toda la clase; útil si hay dislexia en el grupo.
+     'nunca'  → a nadie de fábrica.
+     Cada alumno puede activarla o quitarla desde su Campamento, y su elección
+     manda sobre esto. */
+  readAloud: 'ciclo',
+
   /* Curso por defecto de la clase (1 a 6). Se usa al crear diarios nuevos
      y como referencia cuando el docente mira el panel sin alumno. */
   defaultGrade: 4,

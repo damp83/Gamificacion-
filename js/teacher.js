@@ -219,6 +219,12 @@ function cfgAlumnado(body) {
     ${nube ? 'crear las cuentas de todos de una vez.' :
       'tenerla preparada. <strong>Para crear cuentas hace falta configurar Appwrite</strong> en «Acceso y nube».'}</p>
 
+    ${field('Escuchar los retos en voz alta', `<select id="cfg-read-aloud">
+      <option value="ciclo"${ATLAS_CONFIG.readAloud === 'ciclo' ? ' selected' : ''}>En 1.º y 2.º (recomendado)</option>
+      <option value="todos"${ATLAS_CONFIG.readAloud === 'todos' ? ' selected' : ''}>A toda la clase</option>
+      <option value="nunca"${ATLAS_CONFIG.readAloud === 'nunca' ? ' selected' : ''}>A nadie de partida</option>
+    </select>`, 'Un niño que aún descifra no puede hacer las matemáticas solo: el enunciado le mide la lectura. Cada alumno puede activarla o quitarla desde su Campamento.')}
+
     ${field('Cómo se usa en clase', `<select id="cfg-session-mode">
       <option value="docente"${ATLAS_CONFIG.sessionMode === 'docente' ? ' selected' : ''}>Dirigida por el docente: yo pregunto, ellos responden</option>
       <option value="alumno"${ATLAS_CONFIG.sessionMode === 'alumno' ? ' selected' : ''}>Cada alumno en su dispositivo, con su cuenta</option>
@@ -283,6 +289,7 @@ function cfgAlumnado(body) {
         `${esc(r.name)}  →  usuario: ${esc(r.username)}   contraseña: ${esc(r.password)}`).join('\n')}</textarea>
       <button class="btn btn-secondary btn-small" id="ros-copy">📋 Copiar</button>` : ''}`;
 
+  onInput('#cfg-read-aloud', e => cfgSave('readAloud', e.target.value, 'Lectura en voz alta guardada ✓'));
   onInput('#cfg-session-mode', e => cfgSave('sessionMode', e.target.value,
     e.target.value === 'docente' ? 'Clase dirigida por el docente ✓' : 'Modo de sesión guardado ✓'));
   onInput('#cfg-teacher-name', e => cfgSave('teacherName', e.target.value.trim()));

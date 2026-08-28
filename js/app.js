@@ -169,6 +169,7 @@ async function boot() {
   loadTeacherConfig();   /* ajustes del docente sobre los valores de fábrica */
   loadConfigMeta();
   loadAula();
+  vozInit();
   prepararDescargas();
   wireGlobalListeners();
 
@@ -243,6 +244,15 @@ function wireGlobalListeners() {
     S.profile.grade = readGrade();
     saveState();
     startApp();
+  });
+
+  $('#btn-voz').addEventListener('click', leerRetoActual);
+  $('#pref-read-aloud').addEventListener('change', e => {
+    S.profile.accessibility = S.profile.accessibility || {};
+    S.profile.accessibility.read_aloud = e.target.checked;
+    saveState();
+    aplicarVoz();
+    if (!e.target.checked) vozParar();
   });
 
   $('#pref-large-text').addEventListener('change', e => {
@@ -386,6 +396,7 @@ function startApp() {
   $('#app').classList.remove('hidden');
   const events = rolloverIfNeeded();
   applyTextSize();
+  aplicarVoz();
   renderHud();
   show('map');
   if (events.firstLoginBonus) {
