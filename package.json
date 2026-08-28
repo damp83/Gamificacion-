@@ -1,0 +1,9 @@
+{
+  "name": "expedicion-atlas",
+  "version": "1.0.0",
+  "private": true,
+  "description": "Plataforma educativa gamificada de aventura arqueológica para primaria. La app no tiene dependencias: este archivo solo sirve para lanzar las pruebas.",
+  "scripts": {
+    "test": "node --test test/*.test.js"
+  }
+}

@@ -1,0 +1,32 @@
+# Ejecuta las pruebas en cada empujón y en cada propuesta de cambio.
+#
+# No hay dependencias que instalar: son las pruebas de serie de Node contra los
+# mismos ficheros que se sirven en el navegador.
+name: Pruebas
+
+on:
+  push:
+    branches: ['**']
+  pull_request:
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  probar:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+      - run: node --test test/*.test.js
+
+      # La versión de un solo archivo se genera desde el repositorio; si se
+      # queda vieja, lo que se reparte por USB no es lo que hay en el código.
+      - name: Comprobar que dist/ está al día
+        run: |
+          python3 tools/build-standalone.py /tmp/recien-generado.html
+          diff -q /tmp/recien-generado.html dist/Expedicion-Atlas.html \
+            || { echo "::error::dist/Expedicion-Atlas.html no coincide con el código. Ejecuta python3 tools/build-standalone.py"; exit 1; }

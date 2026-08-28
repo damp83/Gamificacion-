@@ -49,6 +49,32 @@ Abre `http://localhost:8080`. Para instalarlo como app en tablet, usa «Añadir 
 
 > El service worker requiere servirse por HTTP(S); abrir `index.html` con `file://` funciona pero sin modo offline.
 
+## Pruebas
+
+```bash
+npm test          # o, sin npm:  node --test test/*.test.js
+```
+
+Sin dependencias que instalar: son las pruebas de serie de Node (`node:test`)
+contra **los mismos ficheros que se sirven en el navegador**. `test/cargar.js`
+los evalúa en un contexto de `vm` con un `localStorage` y un `document` de
+mentira, en el mismo orden que `index.html`, así que no hay una copia paralela
+que se quede vieja en cuanto alguien toque un fichero.
+
+Cubren lo que ya se ha roto alguna vez, que es de donde salieron:
+
+| Fichero | Qué protege |
+|---|---|
+| `escapado.test.js` | Que el nombre y el resumen que sube el alumno no puedan convertirse en marcado en el navegador del docente |
+| `diarios.test.js` | Que dos alumnos no compartan documento, y que restaurar una copia no deshaga lo hecho después |
+| `aulas.test.js` | Que cambiar de clase no borre diarios que todavía no han subido |
+| `bitacora.test.js` | Que el sello semanal cueste excavar y no solo abrir la app |
+| `contenido.test.js` | Que ningún reto salga malformado y que los de «encontrar el error» tengan de verdad un error |
+| `service-worker.test.js` | Que en la tablet no se quede guardado el diario del niño anterior |
+
+Lo que pide un navegador de verdad —que la página pinte, que un nombre hostil se
+vea como texto— no está aquí: eso se comprueba abriendo la app.
+
 ## Toda la primaria: 1.º a 6.º
 
 Cada alumno tiene su **curso** (se elige al crear el diario y el docente puede fijarlo en la lista de clase). El curso decide tres cosas:
@@ -440,6 +466,7 @@ js/app.js             Interfaz, navegación y arranque
 sw.js                 Caché offline (network-first)
 manifest.webmanifest  Instalación PWA
 tools/build-standalone.py  Genera la versión de un solo archivo (dist/)
+test/                 Pruebas (ver «Pruebas»)
 docs/PRD.md           Documento de diseño completo
 ```
 

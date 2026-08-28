@@ -3719,23 +3719,48 @@ const decimales = {
     };
   },
   analizar(tier) {
-    const a = (ri(10, 99) / 10).toFixed(1).replace('.', ',');
-    const b = (ri(100, 999) / 100).toFixed(2).replace('.', ',');
-    const na = parseFloat(a.replace(',', '.')), nb = parseFloat(b.replace(',', '.'));
-    const mayor = na > nb ? a : b;
-    /* el error típico: creer que más cifras es más grande */
-    const correctOpt = `${mayor} es mayor`;
+    /* Este reto existe para desmontar «más cifras = más grande», así que el
+       número con MÁS decimales tiene que ser siempre el menor. Antes se
+       sorteaban los dos por separado y la mitad de las veces Vera acertaba
+       —por el motivo equivocado, pero acertaba—, y el reto acababa dándole la
+       razón a la idea que venía a corregir.
+
+       Dos formas, a suertes, para que no se pueda resolver de carrerilla:
+       · la parte entera ya decide (2,45 frente a 7,3)
+       · la parte entera empata y hay que mirar las décimas (3,45 frente a 3,7),
+         que es el caso donde de verdad se tropieza. */
+    const porDecimas = ri(0, 1) === 0;
+    let ent1, dec1, ent2, dec2;
+    if (porDecimas) {
+      ent1 = ent2 = ri(1, 9);
+      dec1 = ri(0, 4);              /* el de dos decimales, con la décima menor */
+      dec2 = ri(dec1 + 1, 9);
+    } else {
+      ent1 = ri(1, 8);
+      ent2 = ri(ent1 + 1, 9);       /* el de un decimal se lleva la parte entera mayor */
+      dec1 = ri(0, 9); dec2 = ri(0, 9);
+    }
+    const masCifras = `${ent1},${dec1}${ri(1, 9)}`;   /* dos decimales */
+    const menosCifras = `${ent2},${dec2}`;            /* un decimal */
+
+    const correctOpt = `${menosCifras} es mayor`;
     const { options, answer } = buildOptions(correctOpt, [
-      `${mayor === a ? b : a} es mayor`,
+      `${masCifras} es mayor`,
       'Son iguales',
       'No se pueden comparar'
     ]);
     return {
-      question: `Vera dice que ${b} es mayor que ${a} «porque tiene más cifras». ¿Quién tiene razón?`,
+      question: `Vera dice que ${masCifras} es mayor que ${menosCifras} «porque tiene más cifras». ¿Quién tiene razón?`,
       options, answer,
-      hint1: 'Tener más cifras detrás de la coma no significa ser mayor.',
-      hint2: `Compara primero la parte entera: ${Math.floor(na)} y ${Math.floor(nb)}.`,
-      explanation: `${mayor} es mayor. En decimales manda la parte entera, y luego las décimas: el número de cifras no decide.`
+      hint1: 'Tener más cifras detrás de la coma no significa ser mayor: 0,5 es mayor que 0,25.',
+      hint2: porDecimas
+        ? `La parte entera es la misma en los dos (${ent1}). Compara entonces las décimas: ${dec1} y ${dec2}.`
+        : `Compara primero la parte entera: ${ent1} y ${ent2}.`,
+      explanation: `Vera se equivoca: ${menosCifras} es mayor que ${masCifras}. ` +
+        (porDecimas
+          ? `Con la misma parte entera manda la décima, y ${dec2} es mayor que ${dec1}.`
+          : `Manda la parte entera, y ${ent2} es mayor que ${ent1}.`) +
+        ' Contar cifras no sirve para comparar decimales.'
     };
   }
 };
@@ -5493,9 +5518,26 @@ function importBackup(paquete) {
   }
   saveDiaries(actuales);
 
+  /* Los ajustes siguen la MISMA regla que los diarios: gana el más reciente.
+     Antes se sustituían siempre, aunque el panel prometiera que restaurar
+     fusiona, así que recuperar la copia del viernes un lunes deshacía en
+     silencio todo lo del lunes: un pozo nuevo, la lista de clase, las
+     cuadrillas. La promesa valía solo para los diarios. */
+  let ajustes = 'sin-ajustes';
   if (paquete.ajustes && typeof paquete.ajustes === 'object') {
-    applyOverlay(migrateOverlay(deepClone(paquete.ajustes)));
-    saveTeacherConfig();
+    const fechaCopia = Date.parse(paquete.fecha || '') || 0;
+    const tocadoAqui = ATLAS_CONFIG_META.touchedAt || 0;
+    if (fechaCopia >= tocadoAqui) {
+      applyOverlay(migrateOverlay(deepClone(paquete.ajustes)));
+      saveTeacherConfig();
+      /* Los ajustes de aquí son ahora los de esa copia, no los de este
+         momento: si luego se restaura una copia más vieja, no debe entrar. */
+      ATLAS_CONFIG_META.touchedAt = fechaCopia;
+      saveConfigMeta();
+      ajustes = 'aplicados';
+    } else {
+      ajustes = 'conservados';
+    }
   }
   if (paquete.diarioPropio && paquete.diarioPropio.profile) {
     let propio = null;
@@ -5505,7 +5547,7 @@ function importBackup(paquete) {
     }
   }
   marcarCopiaHecha();
-  return { ok: true, nuevos, actualizados, conservados, total: Object.keys(actuales).length };
+  return { ok: true, nuevos, actualizados, conservados, ajustes, total: Object.keys(actuales).length };
 }
 
 /* ── Aviso de copia pendiente ──
@@ -5613,11 +5655,6 @@ function rolloverIfNeeded() {
     const bonus = ATLAS_CONFIG.economy.firstLoginBonus;
     earnDoubloons(bonus);
     events.firstLoginBonus = bonus;
-  }
-
-  /* marcar día activo en la bitácora */
-  if (!S.logbook.active_days_this_week.includes(today)) {
-    S.logbook.active_days_this_week.push(today);
   }
 
   saveState();
@@ -5933,8 +5970,22 @@ function isFatigued() {
   return S.daily.missions_today >= eco.fatigueThreshold;   /* respaldo */
 }
 
+/* Un día cuenta como activo cuando se ha excavado, no cuando se ha abierto la
+   app. Estaba en rolloverIfNeeded(), que corre en cada arranque: abrir la
+   plataforma tres días y cerrarla estampaba el sello semanal sin haber
+   respondido a nada. El PRD §6 pide justo lo contrario —«la constancia debe
+   comprar aprendizaje, no solo sellos»—, así que se marca aquí, que es donde
+   se cierra una misión o una Cámara del Guardián de verdad. */
+function marcarDiaActivo() {
+  const today = todayStr();
+  if (!S.logbook.active_days_this_week.includes(today)) {
+    S.logbook.active_days_this_week.push(today);
+  }
+}
+
 function logSessionMission(minutes) {
   const today = todayStr();
+  marcarDiaActivo();
   let entry = S.metrics.sessions_log.find(e => e.date === today);
   if (!entry) {
     entry = { date: today, missions: 0, minutes: 0 };
@@ -6558,6 +6609,11 @@ function numSeguro(v, porDefecto) {
 function textoSeguro(v, tope) {
   return (v == null ? '' : String(v)).slice(0, tope || 120);
 }
+function numONulo(v) {
+  if (v == null) return null;
+  const n = Number(v);
+  return Number.isFinite(n) ? n : null;
+}
 
 function baseDesdeResumen(sum) {
   return {
@@ -6573,8 +6629,11 @@ function baseDesdeResumen(sum) {
     hasLog: numSeguro(sum.sessions7) + numSeguro(sum.sessionsPrev) > 0 || !!sum.lastSeen,
     activeDays: numSeguro(sum.activeDays),
     stamps: numSeguro(sum.stamps),
-    accuracy: sum.accuracy == null ? null : numSeguro(sum.accuracy),
-    errorRate: sum.errorRate == null ? null : numSeguro(sum.errorRate),
+    /* Precisión y tasa de error son las dos únicas que distinguen «cero» de
+       «no se sabe»: un valor ilegible convertido a 0 pintaría 0 % y le
+       levantaría al alumno una alerta de rescate que no le corresponde. */
+    accuracy: numONulo(sum.accuracy),
+    errorRate: numONulo(sum.errorRate),
     lowQuality: !!sum.lowQuality,
     selfCorrections: numSeguro(sum.selfCorrections),
     merits: numSeguro(sum.merits),
@@ -7837,8 +7896,10 @@ function cfgCopia(body) {
       <input type="file" id="cfg-bk-file" accept=".json,application/json" class="hidden">
     </div>
     <p id="cfg-bk-msg" class="cfg-warn hidden"></p>
-    <p class="cfg-hint">Restaurar <strong>fusiona</strong>: de cada alumno se queda la versión más
-    reciente, así que recuperar una copia del viernes no borra lo que se hizo el lunes.</p>
+    <p class="cfg-hint">Restaurar <strong>fusiona los diarios</strong>: de cada alumno se queda la
+    versión más reciente, así que recuperar una copia del viernes no borra lo que se hizo el lunes.
+    Los <strong>ajustes</strong> de la copia solo se aplican si es más nueva que el último cambio
+    hecho aquí; si no, se quedan los de este equipo y se avisa.</p>
 
     <details class="cfg-detalle">
       <summary>Si la descarga no funciona (algunos visores la bloquean)</summary>
@@ -7989,15 +8050,19 @@ async function aplicarCopia(raw, destino) {
   const ok = await askConfirm(
     `Copia del ${r.fecha}${r.clase ? ' · ' + r.clase : ''}${r.docente ? ' · ' + r.docente : ''}.\n` +
     `Contiene ${r.diarios} diario(s)${r.ajustes ? ' y los ajustes' : ''}.\n\n` +
-    'Se fusiona con lo que ya hay: de cada alumno se queda la versión más reciente. No se borra a nadie.',
+    'Los diarios se fusionan: de cada alumno se queda la versión más reciente y no se borra a nadie. ' +
+    'Los ajustes solo entran si la copia es más nueva que el último cambio hecho en este equipo.',
     'Restaurar');
   if (!ok) return;
 
   const res = importBackup(paquete);
   if (!res.ok) { cfgBackupMsg('⚠️ No se ha podido restaurar esa copia.', destino); return; }
   renderTeacherConfig();
+  const queAjustes = { aplicados: ' · ajustes de la copia aplicados',
+                       conservados: ' · se conservan los ajustes de este equipo, más nuevos que la copia',
+                       'sin-ajustes': '' }[res.ajustes] || '';
   toast(`Restaurado ✓ ${res.nuevos} nuevo(s), ${res.actualizados} actualizado(s), ` +
-        `${res.conservados} ya estaban más al día`, 4000);
+        `${res.conservados} ya estaban más al día${queAjustes}`, 5000);
 }
 
 /* ═══════════════════════════════════════════════════════════
@@ -8533,8 +8598,6 @@ function showFeedback(res, extra) {
   }
   $('#btn-next').textContent = mission.index >= mission.questions.length - 1 ? 'Terminar excavación' : 'Continuar →';
 }
-
-$('#btn-restore') && null; /* listeners se registran en init */
 
 function onNext() {
   const next = advance();

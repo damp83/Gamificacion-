@@ -147,6 +147,11 @@ function numSeguro(v, porDefecto) {
 function textoSeguro(v, tope) {
   return (v == null ? '' : String(v)).slice(0, tope || 120);
 }
+function numONulo(v) {
+  if (v == null) return null;
+  const n = Number(v);
+  return Number.isFinite(n) ? n : null;
+}
 
 function baseDesdeResumen(sum) {
   return {
@@ -162,8 +167,11 @@ function baseDesdeResumen(sum) {
     hasLog: numSeguro(sum.sessions7) + numSeguro(sum.sessionsPrev) > 0 || !!sum.lastSeen,
     activeDays: numSeguro(sum.activeDays),
     stamps: numSeguro(sum.stamps),
-    accuracy: sum.accuracy == null ? null : numSeguro(sum.accuracy),
-    errorRate: sum.errorRate == null ? null : numSeguro(sum.errorRate),
+    /* Precisión y tasa de error son las dos únicas que distinguen «cero» de
+       «no se sabe»: un valor ilegible convertido a 0 pintaría 0 % y le
+       levantaría al alumno una alerta de rescate que no le corresponde. */
+    accuracy: numONulo(sum.accuracy),
+    errorRate: numONulo(sum.errorRate),
     lowQuality: !!sum.lowQuality,
     selfCorrections: numSeguro(sum.selfCorrections),
     merits: numSeguro(sum.merits),

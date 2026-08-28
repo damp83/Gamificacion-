@@ -532,8 +532,6 @@ function showFeedback(res, extra) {
   $('#btn-next').textContent = mission.index >= mission.questions.length - 1 ? 'Terminar excavación' : 'Continuar →';
 }
 
-$('#btn-restore') && null; /* listeners se registran en init */
-
 function onNext() {
   const next = advance();
   if (next) renderQuestion();
