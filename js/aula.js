@@ -594,15 +594,40 @@ function paintClassView() {
   } else if (d.localOnly) {
     nota = `<div class="class-note">${ico('phone')} <strong>Todavía no hay ningún diario.</strong> Empieza una sesión
       desde <em>Dirigir la clase</em> y se irá creando el de cada alumno al que preguntes.</div>`;
+  } else if (!d.students.length) {
+    /* Con la nube puesta y cero diarios no se decía absolutamente nada, y es
+       justo el momento en que el docente no sabe si ha hecho algo mal. */
+    nota = ATLAS_CONFIG.sessionMode === 'docente'
+      ? `<div class="class-note">${ico('mic')} <strong>Aún no ha empezado nadie.</strong> Esta clase está en
+         <em>dirigida por el docente</em>: el diario de cada alumno se crea la primera vez que le das un
+         turno desde <em>Dirigir la clase</em>. No hacen falta cuentas para eso.</div>`
+      : `<div class="class-note">${ico('explorer')} <strong>Aún no ha empezado nadie.</strong> Los diarios
+         aparecerán aquí en cuanto el alumnado entre con su cuenta. Las cuentas se crean en
+         Configuración → Alumnado.</div>`;
   }
   classStatus(recuento + nota);
 
-  if (!d.students.length) {
-    $('#class-students').innerHTML = '<p class="empty-note">Todavía no hay ningún diario de expedición.</p>';
-    $('#class-kpis').innerHTML = '';
-    $('#class-teams').innerHTML = '';
+  /* ── Sin diarios todavía ──
+     Antes esto borraba media pantalla y dejaba un «no hay ningún diario» a
+     secas. Era justo al revés de lo que hace falta: el docente que acaba de
+     dar de alta a su clase y no ve NADA no sabe si se ha equivocado, si tarda
+     o si le falta un paso. Y las tarjetas de «quién falta», que existen para
+     contestar precisamente eso, se tiraban a la basura.
+
+     Ahora se enseña quién falta y qué le falta a cada uno; los KPI sí se
+     esconden, porque promediar cero alumnos no dice nada. */
+  const sinDiarios = !d.students.length;
+  $('#class-kpis').classList.toggle('hidden', sinDiarios);
+  if (sinDiarios) {
     $('#class-alerts').innerHTML = '';
+    $('#class-students').innerHTML = d.missing.length
+      ? pendientesHtml(d)
+      : `<p class="empty-note">Todavía no hay ningún diario, y la lista de clase está vacía.
+         Añade a tu alumnado en Configuración → Alumnado.</p>`;
+    pintarRepaso(d);
+    pintarCuadrillas(d);
     $('#class-missing').innerHTML = '';
+    paintClassFund(d);
     return;
   }
 
@@ -663,19 +688,7 @@ function paintClassView() {
   $$('#class-students .student-ver').forEach(b =>
     b.addEventListener('click', () => entrarEnLectura(b.dataset.ver)));
 
-  const cmp = ATLAS_CONFIG.teams && ATLAS_CONFIG.teams.enabled;
-  $('#class-teams').innerHTML = !cmp
-    ? '<p class="empty-note">Las cuadrillas están desactivadas.</p>'
-    : d.teams.map(t => {
-        const meta = ATLAS_CONFIG.teams.goalTarget || 1;
-        const pct = Math.min(100, Math.round((t.contribution / meta) * 100));
-        return `<div class="class-team">
-          <div class="class-team-head"><span>${esc(t.icon)} <strong>${esc(t.name)}</strong></span>
-            <span class="student-num">${t.contribution} / ${meta} ${ico('coin')}</span></div>
-          <div class="mastery-bar"><div class="mastery-fill${pct >= 100 ? ' gold' : ''}" style="width:${pct}%"></div></div>
-          <small>${t.members} con diario${t.listed !== t.members ? ` de ${t.listed} asignados` : ''} · ${t.mastered} estratos entre todos</small>
-        </div>`;
-      }).join('');
+  pintarCuadrillas(d);
 
   /* Al pie solo queda el aviso que de verdad pide una corrección: alguien
      asignado a una cuadrilla cuyo nombre no está en la lista de clase suele
@@ -908,6 +921,34 @@ function pintarRepaso(d) {
       : '<p class="class-repasar-nota">Nada que afecte a tres o más alumnos: de momento son conversaciones sueltas, no una clase.</p>'}`;
 }
 
+/* ── Cuadrillas ──
+   Va en su propia función porque hay que pintarla también cuando todavía no
+   hay ningún diario: la cabecera «Cuadrillas» es marcado fijo de index.html, y
+   dejarla sin nada debajo era lo que se veía antes. Si no hay nada que decir,
+   se esconde la sección entera en vez de dejar el título flotando. */
+function pintarCuadrillas(d) {
+  const cmp = ATLAS_CONFIG.teams && ATLAS_CONFIG.teams.enabled;
+  const lista = cmp ? (d.teams || []) : [];
+  const seccion = $('#class-teams-seccion');
+  if (seccion) seccion.classList.toggle('hidden', !cmp);
+  if (!cmp) { $('#class-teams').innerHTML = ''; return; }
+  if (!lista.length) {
+    $('#class-teams').innerHTML = '<p class="empty-note">No hay ninguna cuadrilla creada. ' +
+      'Se montan en Configuración → Cuadrillas de excavación.</p>';
+    return;
+  }
+  $('#class-teams').innerHTML = lista.map(t => {
+        const meta = ATLAS_CONFIG.teams.goalTarget || 1;
+        const pct = Math.min(100, Math.round((t.contribution / meta) * 100));
+        return `<div class="class-team">
+          <div class="class-team-head"><span>${esc(t.icon)} <strong>${esc(t.name)}</strong></span>
+            <span class="student-num">${t.contribution} / ${meta} ${ico('coin')}</span></div>
+          <div class="mastery-bar"><div class="mastery-fill${pct >= 100 ? ' gold' : ''}" style="width:${pct}%"></div></div>
+          <small>${t.members} con diario${t.listed !== t.members ? ` de ${t.listed} asignados` : ''} · ${t.mastered} estratos entre todos</small>
+        </div>`;
+      }).join('');
+}
+
 /* ── Alumnos de la lista que todavía no han empezado ──
    Antes solo salían en una nota al pie que además hablaba de cuadrillas: el
    docente añadía a tres, veía una ficha y pensaba que se habían perdido.
@@ -915,12 +956,25 @@ function pintarRepaso(d) {
 function pendientesHtml(d) {
   if (!d.missing.length) return '';
   const hayNube = cloudEnabled() && cloudUser();
+  const dirigida = (ATLAS_CONFIG.sessionMode || 'ambos') === 'docente';
   return d.missing.map(m => {
     let falta;
-    if (!hayNube) falta = 'Necesita su propia cuenta: sin nube, cada tablet guarda un único diario.';
-    else if (m.account) falta = 'Ya tiene cuenta. Solo falta que entre y cree su diario.';
-    else if (m.enLista) falta = 'Todavía sin cuenta. Créala en «Alumnado» → Crear las cuentas.';
-    else falta = `Está en ${esc(m.team)}, pero no en la lista de clase. ¿Una errata en el nombre?`;
+    /* Lo que le falta a un alumno depende de CÓMO se usa la plataforma en esta
+       clase. En clase dirigida no necesita cuenta ninguna: su diario nace la
+       primera vez que le das un turno. Decirle al docente que cree cuentas
+       cuando no le hacen falta lo manda a un callejón sin salida, que es lo
+       que pasaba: el texto daba por hecho que el niño entra por su cuenta. */
+    if (!m.enLista && m.origen === 'equipo') {
+      falta = `Está en ${esc(m.team)}, pero no en la lista de clase. ¿Una errata en el nombre?`;
+    } else if (dirigida) {
+      falta = 'Su diario se creará en cuanto le des un turno en «Dirigir la clase».';
+    } else if (!hayNube) {
+      falta = 'Necesita su propia cuenta: sin nube, cada tablet guarda un único diario.';
+    } else if (m.account) {
+      falta = 'Ya tiene cuenta. Solo falta que entre y cree su diario.';
+    } else {
+      falta = 'Todavía sin cuenta. Créala en «Alumnado» → Crear las cuentas.';
+    }
     return `<div class="student-card student-pending">
       <div class="student-head">
         <strong>${esc(m.name)}</strong>

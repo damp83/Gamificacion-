@@ -78,6 +78,7 @@ Cubren lo que ya se ha roto alguna vez, que es de donde salieron:
 | `voz.test.js` | Que la lectura en voz alta no lea emoji y respete lo que decida cada alumno |
 | `taller.test.js` | Que ningún reto escrito por un niño llegue a la clase sin pasar por el docente |
 | `consulta.test.js` | Que ver el cuaderno de un alumno no le cambie ni una coma del diario |
+| `vista-vacia.test.js` | Que la vista de clase sin diarios diga quién falta y qué le falta, en vez de dejar huecos |
 
 Lo que pide un navegador de verdad —que la página pinte, que un nombre hostil se
 vea como texto— no está aquí: eso se comprueba abriendo la app.
