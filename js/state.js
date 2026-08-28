@@ -420,9 +420,26 @@ function importBackup(paquete) {
   }
   saveDiaries(actuales);
 
+  /* Los ajustes siguen la MISMA regla que los diarios: gana el más reciente.
+     Antes se sustituían siempre, aunque el panel prometiera que restaurar
+     fusiona, así que recuperar la copia del viernes un lunes deshacía en
+     silencio todo lo del lunes: un pozo nuevo, la lista de clase, las
+     cuadrillas. La promesa valía solo para los diarios. */
+  let ajustes = 'sin-ajustes';
   if (paquete.ajustes && typeof paquete.ajustes === 'object') {
-    applyOverlay(migrateOverlay(deepClone(paquete.ajustes)));
-    saveTeacherConfig();
+    const fechaCopia = Date.parse(paquete.fecha || '') || 0;
+    const tocadoAqui = ATLAS_CONFIG_META.touchedAt || 0;
+    if (fechaCopia >= tocadoAqui) {
+      applyOverlay(migrateOverlay(deepClone(paquete.ajustes)));
+      saveTeacherConfig();
+      /* Los ajustes de aquí son ahora los de esa copia, no los de este
+         momento: si luego se restaura una copia más vieja, no debe entrar. */
+      ATLAS_CONFIG_META.touchedAt = fechaCopia;
+      saveConfigMeta();
+      ajustes = 'aplicados';
+    } else {
+      ajustes = 'conservados';
+    }
   }
   if (paquete.diarioPropio && paquete.diarioPropio.profile) {
     let propio = null;
@@ -432,7 +449,7 @@ function importBackup(paquete) {
     }
   }
   marcarCopiaHecha();
-  return { ok: true, nuevos, actualizados, conservados, total: Object.keys(actuales).length };
+  return { ok: true, nuevos, actualizados, conservados, ajustes, total: Object.keys(actuales).length };
 }
 
 /* ── Aviso de copia pendiente ──
@@ -540,11 +557,6 @@ function rolloverIfNeeded() {
     const bonus = ATLAS_CONFIG.economy.firstLoginBonus;
     earnDoubloons(bonus);
     events.firstLoginBonus = bonus;
-  }
-
-  /* marcar día activo en la bitácora */
-  if (!S.logbook.active_days_this_week.includes(today)) {
-    S.logbook.active_days_this_week.push(today);
   }
 
   saveState();
@@ -860,8 +872,22 @@ function isFatigued() {
   return S.daily.missions_today >= eco.fatigueThreshold;   /* respaldo */
 }
 
+/* Un día cuenta como activo cuando se ha excavado, no cuando se ha abierto la
+   app. Estaba en rolloverIfNeeded(), que corre en cada arranque: abrir la
+   plataforma tres días y cerrarla estampaba el sello semanal sin haber
+   respondido a nada. El PRD §6 pide justo lo contrario —«la constancia debe
+   comprar aprendizaje, no solo sellos»—, así que se marca aquí, que es donde
+   se cierra una misión o una Cámara del Guardián de verdad. */
+function marcarDiaActivo() {
+  const today = todayStr();
+  if (!S.logbook.active_days_this_week.includes(today)) {
+    S.logbook.active_days_this_week.push(today);
+  }
+}
+
 function logSessionMission(minutes) {
   const today = todayStr();
+  marcarDiaActivo();
   let entry = S.metrics.sessions_log.find(e => e.date === today);
   if (!entry) {
     entry = { date: today, missions: 0, minutes: 0 };

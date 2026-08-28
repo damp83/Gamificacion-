@@ -1086,8 +1086,10 @@ function cfgCopia(body) {
       <input type="file" id="cfg-bk-file" accept=".json,application/json" class="hidden">
     </div>
     <p id="cfg-bk-msg" class="cfg-warn hidden"></p>
-    <p class="cfg-hint">Restaurar <strong>fusiona</strong>: de cada alumno se queda la versión más
-    reciente, así que recuperar una copia del viernes no borra lo que se hizo el lunes.</p>
+    <p class="cfg-hint">Restaurar <strong>fusiona los diarios</strong>: de cada alumno se queda la
+    versión más reciente, así que recuperar una copia del viernes no borra lo que se hizo el lunes.
+    Los <strong>ajustes</strong> de la copia solo se aplican si es más nueva que el último cambio
+    hecho aquí; si no, se quedan los de este equipo y se avisa.</p>
 
     <details class="cfg-detalle">
       <summary>Si la descarga no funciona (algunos visores la bloquean)</summary>
@@ -1238,13 +1240,17 @@ async function aplicarCopia(raw, destino) {
   const ok = await askConfirm(
     `Copia del ${r.fecha}${r.clase ? ' · ' + r.clase : ''}${r.docente ? ' · ' + r.docente : ''}.\n` +
     `Contiene ${r.diarios} diario(s)${r.ajustes ? ' y los ajustes' : ''}.\n\n` +
-    'Se fusiona con lo que ya hay: de cada alumno se queda la versión más reciente. No se borra a nadie.',
+    'Los diarios se fusionan: de cada alumno se queda la versión más reciente y no se borra a nadie. ' +
+    'Los ajustes solo entran si la copia es más nueva que el último cambio hecho en este equipo.',
     'Restaurar');
   if (!ok) return;
 
   const res = importBackup(paquete);
   if (!res.ok) { cfgBackupMsg('⚠️ No se ha podido restaurar esa copia.', destino); return; }
   renderTeacherConfig();
+  const queAjustes = { aplicados: ' · ajustes de la copia aplicados',
+                       conservados: ' · se conservan los ajustes de este equipo, más nuevos que la copia',
+                       'sin-ajustes': '' }[res.ajustes] || '';
   toast(`Restaurado ✓ ${res.nuevos} nuevo(s), ${res.actualizados} actualizado(s), ` +
-        `${res.conservados} ya estaban más al día`, 4000);
+        `${res.conservados} ya estaban más al día${queAjustes}`, 5000);
 }
