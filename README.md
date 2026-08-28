@@ -265,6 +265,29 @@ Ese último es el que muerde al publicar: hay que dar de alta como plataforma
 **Web** tanto `localhost` (para probar) como el dominio de GitHub Pages. Sin eso
 el navegador corta las peticiones por CORS y no hay cuentas ni sincronización.
 
+### El PIN del docente, y por qué no basta con cambiarlo en el panel
+
+`teacherPin` está en `js/config.js` y de fábrica es `1234`. Se puede cambiar
+desde *Configuración → Acceso y nube*, **pero eso vale solo para ese equipo**:
+queda en el `localStorage` de ese navegador y no viaja a ninguna parte.
+
+Y no viaja **a propósito**. Los ajustes que se publican para el equipo docente
+los leen todos los alumnos —los necesitan para jugar—, así que el PIN va en la
+lista de lo que nunca se comparte, junto con las contraseñas del alumnado y los
+datos de Appwrite. Si viajara, cualquier niño podría leerlo desde su tablet.
+
+O sea que hay dos formas, y conviene elegir a sabiendas:
+
+| | Cómo | Alcance | Pega |
+|---|---|---|---|
+| **En `js/config.js`** | Cambiar el valor y volver a publicar | **Todas** las tablets, incluidas las nuevas | Queda a la vista de quien mire el código fuente del sitio |
+| **En el panel** | *Acceso y nube → PIN* | Solo ese equipo | Hay que repetirlo en cada tablet |
+
+Para un juego de tablets de aula, lo práctico es lo primero: el PIN existe para
+que nadie se conceda méritos por accidente, no para resistir a quien se ponga a
+leer el código. Si en tu grupo hay alguien capaz de abrir el inspector, entonces
+lo segundo, tablet por tablet.
+
 Cambia también `teacherPin`. Y ojo: **el PIN es una barrera de aula, no seguridad real** — el código se ejecuta en el navegador y un alumno curioso puede leerlo. Sirve para que no se concedan méritos por accidente, no para resistir a quien quiera saltárselo.
 
 ### Cómo entran los alumnos

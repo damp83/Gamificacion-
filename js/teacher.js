@@ -1140,7 +1140,10 @@ function cfgAcceso(body) {
   body.innerHTML = `
     <p class="cfg-intro">Estado: <strong>${estado}</strong></p>
     ${field('PIN del panel', `<input type="text" id="cfg-pin" value="${ATLAS_CONFIG.teacherPin}" maxlength="8" inputmode="numeric">`,
-      'Barrera de aula, no seguridad real: el código se ejecuta en el navegador.')}
+      'Barrera de aula, no seguridad real: el código se ejecuta en el navegador. ' +
+      'OJO: cambiarlo aquí vale SOLO para este equipo. El PIN nunca viaja a las demás tablets ' +
+      '—no puede, porque los ajustes del equipo los leen los alumnos— así que las otras siguen ' +
+      'con el de js/config.js. Para cambiarlo en todas, cámbialo ahí y vuelve a publicar.')}
     <h4 class="cfg-h4">Appwrite</h4>
     ${field('Endpoint', `<input type="text" id="cfg-aw-ep" value="${a.endpoint}" placeholder="https://cloud.appwrite.io/v1">`)}
     ${field('Project ID', `<input type="text" id="cfg-aw-pid" value="${a.projectId}">`)}
