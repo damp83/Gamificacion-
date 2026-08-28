@@ -337,13 +337,47 @@ async function cloudPullAula(aulaId) {
   } catch (e) { return errorNube(e); }
 }
 
+/* Reparto estable de una cadena en 13 caracteres base36 (≈67 bits).
+   Dos pasadas FNV-1a con constantes distintas: no es criptográfico —no le
+   hace falta— y solo tiene que repartir bien y dar SIEMPRE lo mismo en
+   cualquier equipo, que es de lo que depende que un alumno escriba en su
+   documento y no en el de otro. */
+function hash36(texto) {
+  let h1 = 0x811c9dc5, h2 = 0x01000193;
+  const s = String(texto);
+  for (let i = 0; i < s.length; i++) {
+    const c = s.charCodeAt(i);
+    h1 = Math.imul(h1 ^ c, 0x01000193) >>> 0;
+    h2 = Math.imul(h2 ^ c, 0x85ebca6b) >>> 0;
+  }
+  return (h1.toString(36).padStart(7, '0') + h2.toString(36).padStart(7, '0')).slice(0, 13);
+}
+
 /* El id del documento se deriva de la clase y del alumno: así el mismo
    alumno desde dos equipos escribe en el MISMO documento en vez de crear
-   duplicados que luego nadie sabe cuál es el bueno. */
+   duplicados que luego nadie sabe cuál es el bueno.
+
+   Va con hash y no con el nombre recortado. Appwrite limita el id a 36
+   caracteres, y los 20 del id del aula más el guion bajo solo dejaban 15
+   para el nombre: «Ana María Rodríguez Pérez» y «Ana María Rodríguez Gómez»
+   se recortaban las dos a «ana-maria-rodri» y el segundo diario pisaba al
+   primero sin avisar. Con nombres compuestos, que en un aula española son
+   lo normal, eso pasaba de verdad. El hash se calcula sobre el nombre
+   ENTERO, así que dos nombres distintos dan documentos distintos por muy
+   parecido que empiecen. */
+const DOC_ID_MAX = 36;
+
 function docIdDiario(aulaId, clave) {
+  /* Sin tildes y en minúsculas: el mismo alumno escrito «José» en una tablet
+     y «jose» en otra tiene que caer en el mismo documento. */
   const limpio = String(clave).normalize('NFD').replace(/[̀-ͯ]/g, '')
     .replace(/[^a-z0-9]+/gi, '-').replace(/^-|-$/g, '').toLowerCase();
-  return (aulaId + '_' + limpio).slice(0, 36);
+  const h = hash36(limpio);
+  /* Si algún día el id del aula fuera más largo de lo que cabe, se recorta
+     el prefijo (que solo sirve para leerlo en la consola de Appwrite) y
+     nunca el hash, que es lo que evita las colisiones. */
+  const prefijo = String(aulaId || 'd').slice(0, DOC_ID_MAX - h.length - 1);
+  return prefijo + '_' + h;
 }
 
 async function cloudPushDiario(clave, estado) {

@@ -279,10 +279,16 @@ Con la colección de aulas configurada, la plataforma pasa a servir a un claustr
 - **Traer de la nube fusiona por lo más reciente**, así que trabajar sin red en
   el portátil y sincronizar después no pisa nada.
 - **Cambiar de clase vacía los diarios locales**, para no mezclar dos clases en
-  el mismo equipo. Están a salvo en su clase: vuelven al abrirla.
+  el mismo equipo. Antes de borrar nada se suben todos a su clase; si alguno no
+  sube —el aula sin red, la cola de guardado a medias—, **no se borra nada** y se
+  dice cuántos quedan pendientes, porque ese trabajo no está en ninguna otra parte.
 
 El id de cada diario se deriva de la clase y del alumno, así que el mismo niño
 escrito desde dos equipos va **al mismo documento** en vez de crear duplicados.
+Se deriva con un hash del nombre completo y no con el nombre recortado: Appwrite
+limita el id a 36 caracteres y, con los 20 del aula por delante, «Ana María
+Rodríguez Pérez» y «Ana María Rodríguez Gómez» caían las dos en el mismo
+documento y la segunda pisaba a la primera.
 
 
 ## El curso: tres trimestres
