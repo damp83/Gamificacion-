@@ -436,13 +436,34 @@ async function vaciarColaAula() {
 }
 
 /* ── Abrir una clase en este equipo ──
-   Trae sus ajustes y sus diarios, fusionando con lo que hubiera aquí. */
-async function abrirAula(aulaId, nombre) {
+   Trae sus ajustes y sus diarios, fusionando con lo que hubiera aquí.
+
+   Cambiar de clase VACÍA los diarios de este equipo, así que antes de
+   borrar nada hay que dejarlos a salvo arriba. Antes no se hacía: si el
+   docente cambiaba de clase sin red, o justo al acabar un turno —la cola de
+   subida espera 3 s—, la sesión entera se perdía mientras el diálogo le
+   aseguraba que estaba guardada. Ahora se sube todo primero y, si algo no
+   sale, no se borra nada y se dice cuántos quedan. */
+async function abrirAula(aulaId, nombre, opciones) {
+  const cambiaDeClase = !!(aulaActiva() && aulaActiva() !== aulaId);
+
+  if (cambiaDeClase) {
+    clearTimeout(aulaTimer);          /* la cola pendiente entra en esta subida */
+    const sync = await sincronizarAula();
+    if (!sync.ok && !(opciones && opciones.descartarSinSubir)) {
+      /* sincronizarAula() puede fallar sin llegar a intentarlo (sin nube):
+         lo que se le dice al docente es cuántos diarios hay aquí en juego,
+         no cuántas peticiones fallaron. */
+      const enJuego = sync.fallidos || diariosPorSubir(0).length;
+      return { ok: false, reason: 'sin-subir', pendientes: enJuego };
+    }
+  }
+
   const res = await cloudPullAula(aulaId);
   if (!res.ok) return res;
 
-  /* Si se cambia de clase, los diarios de la anterior no pueden quedarse */
-  if (aulaActiva() && aulaActiva() !== aulaId) cerrarAula();
+  /* Ya están arriba: ahora sí, los de la clase anterior no pueden quedarse */
+  if (cambiaDeClase) cerrarAula();
   setAulaActiva(aulaId, res.aula.name || nombre || '');
 
   if (res.ajustes && typeof res.ajustes === 'object') {

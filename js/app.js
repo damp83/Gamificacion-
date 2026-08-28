@@ -1073,7 +1073,7 @@ async function renderAulas() {
     const card = document.createElement('button');
     card.className = 'aula-alumno-card' + (abierta ? ' aula-ya' : '');
     card.innerHTML = `<span class="aula-card-avatar">${abierta ? '📂' : '🏫'}</span>
-      <span class="aula-card-nombre">${a.name}</span>
+      <span class="aula-card-nombre">${esc(a.name)}</span>
       <span class="aula-card-meta">${abierta ? 'abierta en este equipo' : 'pulsa para abrirla'}</span>`;
     card.addEventListener('click', () => abrirAulaUI(a));
     lista.appendChild(card);
@@ -1081,22 +1081,44 @@ async function renderAulas() {
 }
 
 async function abrirAulaUI(a) {
-  if (aulaActiva() && aulaActiva() !== a.id) {
+  const cambia = aulaActiva() && aulaActiva() !== a.id;
+  if (cambia) {
     const ok = await askConfirm(
       `Vas a cambiar de «${AULA.name || 'la clase abierta'}» a «${a.name}».\n\n` +
-      'Los diarios de la clase anterior se quitan de este equipo para no mezclarlos. ' +
-      'Están guardados en su propia clase: se recuperan al volver a abrirla.',
+      'Primero se suben a su clase los diarios que haya en este equipo, y después ' +
+      'se quitan de aquí para no mezclarlos. Al volver a abrirla se recuperan.',
       'Cambiar de clase');
     if (!ok) return;
   }
-  aulasMsg('Abriendo la clase…');
-  const r = await abrirAula(a.id, a.name);
+  aulasMsg(cambia ? 'Guardando los diarios de la clase anterior…' : 'Abriendo la clase…');
+  let r = await abrirAula(a.id, a.name);
+
+  /* No se ha podido subir todo. Cambiar ahora borraría de este equipo un
+     trabajo que no está en ninguna otra parte, así que se pregunta en vez de
+     hacerlo: lo normal es que sea la red del centro y baste con reintentar. */
+  if (!r.ok && r.reason === 'sin-subir') {
+    aulasMsg('');
+    const seguir = await askConfirm(
+      `No se han podido subir ${r.pendientes} diario(s) de «${AULA.name || 'la clase abierta'}».\n\n` +
+      'Si cambias de clase ahora, ese trabajo se pierde: solo está en este equipo. ' +
+      'Lo normal es que sea la red; vuelve a intentarlo en un momento, o guarda una ' +
+      'copia de seguridad antes desde Configuración → Copia de seguridad.',
+      'Cambiar igualmente y perderlos');
+    if (!seguir) {
+      aulasMsg('⚠️ No se ha cambiado de clase. Los diarios siguen aquí, intactos.');
+      return;
+    }
+    aulasMsg('Abriendo la clase…');
+    r = await abrirAula(a.id, a.name, { descartarSinSubir: true });
+  }
+
   if (!r.ok) {
     aulasMsg(r.reason === 'sin-permiso'
       ? '⚠️ Esa clase no es tuya o su permiso no te deja leerla.'
       : '⚠️ No se ha podido abrir' + (r.detail ? ': ' + r.detail : '.'));
     return;
   }
+  aulasMsg('');
   toast(`«${r.aula.name}» abierta ✓ ${r.nuevos + r.actualizados} diario(s) traído(s)`);
   renderAulas();
   showTeacherPortal();
