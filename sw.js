@@ -1,5 +1,5 @@
 /* Expedición Atlas — service worker: caché de la app shell para uso sin conexión */
-const CACHE = 'atlas-shell-v13';
+const CACHE = 'atlas-shell-v14';
 const ASSETS = [
   './',
   './index.html',
@@ -36,11 +36,27 @@ self.addEventListener('activate', e => {
 /* network-first con caída a caché: en el aula la red puede fallar a mitad de sesión */
 self.addEventListener('fetch', e => {
   if (e.request.method !== 'GET') return;
+
+  /* Solo se toca la app shell de este origen. Las peticiones a la API de
+     Appwrite se dejan pasar tal cual: guardar en caché la respuesta que trae
+     el diario de un alumno la dejaría en la tablet DESPUÉS de cerrar su
+     sesión —cerrar sesión solo borra la sesión, no la caché— y sin red se la
+     serviría al siguiente niño que la abriese. Lo mismo vale para el SDK del
+     CDN, que además no debe quedar congelado aquí. */
+  let mismoOrigen = false;
+  try { mismoOrigen = new URL(e.request.url).origin === self.location.origin; }
+  catch (err) { mismoOrigen = false; }
+  if (!mismoOrigen) return;
+
   e.respondWith(
     fetch(e.request)
       .then(res => {
-        const copy = res.clone();
-        caches.open(CACHE).then(c => c.put(e.request, copy));
+        /* Un 404 o un 500 guardado aquí rompe la app el día que no haya red:
+           solo se guarda lo que de verdad sirve para arrancar. */
+        if (res.ok && res.type === 'basic') {
+          const copy = res.clone();
+          caches.open(CACHE).then(c => c.put(e.request, copy)).catch(() => {});
+        }
         return res;
       })
       .catch(() => caches.match(e.request).then(m => {

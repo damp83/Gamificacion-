@@ -541,8 +541,13 @@ workflow*— deja el sitio en `https://<usuario>.github.io/<repositorio>/`.
 `index.html` está en la raíz y todas las rutas son relativas, así que funciona
 igual en una subcarpeta. Al ser una PWA, el navegador ofrece **«Instalar»**:
 queda un icono en el escritorio o en la pantalla de inicio que abre sin barra de
-navegador, y el service worker cachea todo para que siga funcionando sin
+navegador, y el service worker cachea la app para que siga funcionando sin
 internet. Actualizar es hacer push.
+
+> El service worker guarda **solo los archivos de la propia app**, y solo cuando
+> el servidor los devuelve bien. Las respuestas de Appwrite no se cachean nunca:
+> en una tablet compartida quedarían en el disco después de cerrar sesión y, sin
+> red, se le servirían al siguiente niño que la abriese.
 
 > El flujo lleva `enablement: true`, que intenta activar Pages solo. En la
 > práctica el token de Actions no tiene permiso para crear el sitio
