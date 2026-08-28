@@ -163,11 +163,39 @@ function cfgPremios(body) {
 /* ══════════ ALUMNADO ══════════ */
 
 /* Contraseñas legibles para un niño de 8-10 años: una palabra del mundo del
-   juego más cuatro cifras. Siempre pasa el mínimo de 8 que exige Appwrite. */
+   juego más cuatro cifras. Siempre pasa el mínimo de 8 que exige Appwrite.
+   Sin tildes ni eñes a propósito: hay que teclearlas en una tablet.
+
+   El repertorio es corto (24 × 9000) porque tiene que poder escribirlo un niño
+   de ocho años. Lo que impide adivinarla probando no es su tamaño, es el
+   límite de intentos de Appwrite; igual que el PIN, esto es una barrera de
+   aula y no seguridad de verdad. */
 const PASS_WORDS = ['brujula', 'mapa', 'tesoro', 'templo', 'jungla', 'momia',
-                    'cofre', 'antorcha', 'vasija', 'fosil', 'duna', 'sendero'];
+                    'cofre', 'antorcha', 'vasija', 'fosil', 'duna', 'sendero',
+                    'linterna', 'cuerda', 'ruina', 'oasis', 'camello', 'papiro',
+                    'estatua', 'columna', 'caverna', 'reliquia', 'arena', 'piedra'];
+
+/* Entero al azar del generador criptográfico del navegador.
+   Aquí `Math.random()` no vale, y no por el tamaño del repertorio: el docente
+   genera la clase ENTERA de una tacada, y de unas pocas salidas consecutivas
+   de ese generador se puede reconstruir su estado interno y predecir las
+   siguientes. La hoja de credenciales se reparte en clase, así que un alumno
+   con la suya y la de dos compañeros tendría justo eso: salidas consecutivas.
+   `ri()` se queda como está para los retos, donde no importa. */
+function azarSeguro(n) {
+  const fuente = (typeof crypto !== 'undefined' && crypto.getRandomValues) ? crypto : null;
+  if (!fuente) return Math.floor(Math.random() * n);   /* navegador viejo: peor esto que nada */
+  /* Se descarta el último tramo incompleto de 2^32 para que no salgan unos
+     números más veces que otros. */
+  const limite = Math.floor(0x100000000 / n) * n;
+  const buf = new Uint32Array(1);
+  let v;
+  do { fuente.getRandomValues(buf); v = buf[0]; } while (v >= limite);
+  return v % n;
+}
+
 function makePassword() {
-  return pick(PASS_WORDS) + String(ri(1000, 9999));
+  return PASS_WORDS[azarSeguro(PASS_WORDS.length)] + String(1000 + azarSeguro(9000));
 }
 /* Usuario a partir del nombre: sin tildes, sin espacios, en minúsculas */
 function makeUsername(name, taken) {
@@ -1078,8 +1106,10 @@ function cfgCopia(body) {
     tu unidad de siempre de vez en cuando.</p>
     ${avisoCopia()}
     <p class="cfg-hint">La copia contiene <strong>${nDiarios === 1 ? 'un diario' : nDiarios + ' diarios'}</strong>${
-      nDiarios ? ` de ${(ATLAS_CONFIG.className || 'tu clase')}` : ''}. Incluye los nombres del
-      alumnado y sus contraseñas: trátala como el cuaderno de notas.</p>
+      nDiarios ? ` de ${esc(ATLAS_CONFIG.className || 'tu clase')}` : ''}. A diferencia de lo que
+      se publica para el equipo, esta se lleva <strong>todo</strong>: los nombres del alumnado y
+      sus contraseñas, el PIN de este panel y los datos de conexión de Appwrite. Guárdala donde
+      guardarías el cuaderno de notas, y no la mandes por correo sin pensarlo.</p>
     <div class="cfg-equipo-botones">
       <button class="btn btn-primary btn-small" id="cfg-bk-save">💾 Descargar copia</button>
       <button class="btn btn-secondary btn-small" id="cfg-bk-load">📂 Restaurar desde un archivo</button>

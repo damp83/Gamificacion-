@@ -56,6 +56,8 @@ function cargarApp(ficheros) {
     document: documentoDeMentira(),
     setTimeout, clearTimeout, setInterval, clearInterval,
     navigator: { onLine: true },
+    crypto: require('node:crypto').webcrypto,
+    Uint32Array,
     fetch: async () => { throw new Error('sin red en las pruebas'); }
   };
   ctx.window = ctx;

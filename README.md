@@ -71,6 +71,7 @@ Cubren lo que ya se ha roto alguna vez, que es de donde salieron:
 | `bitacora.test.js` | Que el sello semanal cueste excavar y no solo abrir la app |
 | `contenido.test.js` | Que ningún reto salga malformado y que los de «encontrar el error» tengan de verdad un error |
 | `service-worker.test.js` | Que en la tablet no se quede guardado el diario del niño anterior |
+| `menores.test.js` | Contraseñas, claves peligrosas en la configuración compartida y el reparto del Fondo |
 
 Lo que pide un navegador de verdad —que la página pinte, que un nombre hostil se
 vea como texto— no está aquí: eso se comprueba abriendo la app.
@@ -225,7 +226,23 @@ Cambia también `teacherPin`. Y ojo: **el PIN es una barrera de aula, no segurid
 
 Los niños escriben **usuario**, no email (más fácil a los 8–10 años). Internamente se convierte en `usuario@` + `usernameDomain`. Appwrite exige contraseñas de 8 caracteres como mínimo.
 
+Las contraseñas que genera el panel son una palabra del mundo del juego más cuatro cifras (`brujula8845`), para que las pueda teclear un niño de ocho años en una tablet. Salen del generador criptográfico del navegador, no de `Math.random()`: el docente da de alta la clase entera de una tacada, y de unas pocas salidas seguidas de `Math.random()` se puede reconstruir su estado y predecir las demás — y la hoja de credenciales se reparte en clase. Lo que impide adivinarlas probando no es su tamaño, es el límite de intentos de Appwrite: igual que el PIN, esto es una barrera de aula.
+
 > **Si el SDK de Appwrite no carga** (centro sin acceso al CDN, red caída), la app muestra un aviso en pantalla y sigue funcionando en modo local. El aviso existe para que nadie crea que se está guardando en la nube cuando no es así.
+
+### Al subir de versión el SDK
+
+La etiqueta del SDK en `index.html` lleva su huella (`integrity`): si lo que llega del CDN no es exactamente ese archivo —CDN comprometido, proxy del centro que reescribe—, el navegador no lo ejecuta. Aquí dentro se manejan datos de menores y un script sustituido podría leerlos todos.
+
+Al cambiar de versión hay que recalcular la huella, o el SDK dejará de cargar:
+
+```bash
+npm pack appwrite@<version>
+tar xzf appwrite-<version>.tgz
+openssl dgst -sha384 -binary package/dist/iife/sdk.js | openssl base64 -A
+```
+
+jsDelivr sirve el archivo del paquete de npm tal cual, así que la huella que sale de ahí es la buena. Si no casara, no se pierde nada: el SDK no carga, la app avisa en pantalla y sigue en modo local.
 
 ## Clase dirigida por el docente
 

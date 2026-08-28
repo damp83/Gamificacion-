@@ -199,6 +199,15 @@ const TEACHER_CONFIG_KEY = 'atlas_teacher_config_v1';
 
 function deepClone(o) { return JSON.parse(JSON.stringify(o)); }
 
+/* Claves que nunca se copian de un objeto que viene de fuera. `JSON.parse`
+   sí crea `__proto__` como propiedad propia, y asignarla no guarda un valor:
+   cambia el prototipo del objeto. Un ajuste publicado por el equipo, o una
+   copia de seguridad que alguien pase por correo, podría colar así un
+   `teacherPin` que se lee desde ATLAS_CONFIG pero que `delete` no quita
+   —porque no es una propiedad propia— y que acabaría republicado por el
+   siguiente docente sin que nadie lo viera. */
+const CLAVES_PROHIBIDAS = ['__proto__', 'constructor', 'prototype'];
+
 /* Fusión profunda; los arrays se sustituyen enteros (una lista editada
    por el docente es la lista definitiva, no una mezcla con la de fábrica). */
 function deepMerge(base, over) {
@@ -206,6 +215,7 @@ function deepMerge(base, over) {
   if (over === null || typeof over !== 'object') return over === undefined ? base : over;
   const out = deepClone(base && typeof base === 'object' ? base : {});
   for (const k of Object.keys(over)) {
+    if (CLAVES_PROHIBIDAS.includes(k)) continue;
     out[k] = deepMerge(out[k], over[k]);
   }
   return out;
@@ -327,6 +337,7 @@ function adoptSharedConfig(paquete) {
 /* Guarda un cambio del panel: se anota en la capa y se recalcula la config */
 function setTeacherConfig(path, value) {
   const keys = path.split('.');
+  if (keys.some(k => CLAVES_PROHIBIDAS.includes(k))) return;
   let node = ATLAS_OVERLAY;
   for (let i = 0; i < keys.length - 1; i++) {
     if (typeof node[keys[i]] !== 'object' || node[keys[i]] === null) node[keys[i]] = {};

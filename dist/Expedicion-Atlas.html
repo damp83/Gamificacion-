@@ -3130,7 +3130,8 @@ input[type="checkbox"]::after, input[type="radio"]::after {
   <div id="modal" class="modal hidden" role="dialog" aria-modal="true" aria-labelledby="modal-text">
     <div class="modal-card">
       <p id="modal-text" class="modal-text"></p>
-      <input type="password" id="modal-input" class="modal-input hidden" inputmode="numeric" autocomplete="off">
+      <!-- El tipo lo fija openModal(): «password» + teclado numérico para el PIN, texto normal para lo demás. -->
+      <input type="text" id="modal-input" class="modal-input hidden" autocomplete="off">
       <p id="modal-error" class="auth-error hidden"></p>
       <div class="modal-actions">
         <button id="modal-cancel" class="btn btn-quit">Cancelar</button>
@@ -4444,6 +4445,15 @@ const TEACHER_CONFIG_KEY = 'atlas_teacher_config_v1';
 
 function deepClone(o) { return JSON.parse(JSON.stringify(o)); }
 
+/* Claves que nunca se copian de un objeto que viene de fuera. `JSON.parse`
+   sí crea `__proto__` como propiedad propia, y asignarla no guarda un valor:
+   cambia el prototipo del objeto. Un ajuste publicado por el equipo, o una
+   copia de seguridad que alguien pase por correo, podría colar así un
+   `teacherPin` que se lee desde ATLAS_CONFIG pero que `delete` no quita
+   —porque no es una propiedad propia— y que acabaría republicado por el
+   siguiente docente sin que nadie lo viera. */
+const CLAVES_PROHIBIDAS = ['__proto__', 'constructor', 'prototype'];
+
 /* Fusión profunda; los arrays se sustituyen enteros (una lista editada
    por el docente es la lista definitiva, no una mezcla con la de fábrica). */
 function deepMerge(base, over) {
@@ -4451,6 +4461,7 @@ function deepMerge(base, over) {
   if (over === null || typeof over !== 'object') return over === undefined ? base : over;
   const out = deepClone(base && typeof base === 'object' ? base : {});
   for (const k of Object.keys(over)) {
+    if (CLAVES_PROHIBIDAS.includes(k)) continue;
     out[k] = deepMerge(out[k], over[k]);
   }
   return out;
@@ -4572,6 +4583,7 @@ function adoptSharedConfig(paquete) {
 /* Guarda un cambio del panel: se anota en la capa y se recalcula la config */
 function setTeacherConfig(path, value) {
   const keys = path.split('.');
+  if (keys.some(k => CLAVES_PROHIBIDAS.includes(k))) return;
   let node = ATLAS_OVERLAY;
   for (let i = 0; i < keys.length - 1; i++) {
     if (typeof node[keys[i]] !== 'object' || node[keys[i]] === null) node[keys[i]] = {};
@@ -6973,11 +6985,39 @@ function cfgPremios(body) {
 /* ══════════ ALUMNADO ══════════ */
 
 /* Contraseñas legibles para un niño de 8-10 años: una palabra del mundo del
-   juego más cuatro cifras. Siempre pasa el mínimo de 8 que exige Appwrite. */
+   juego más cuatro cifras. Siempre pasa el mínimo de 8 que exige Appwrite.
+   Sin tildes ni eñes a propósito: hay que teclearlas en una tablet.
+
+   El repertorio es corto (24 × 9000) porque tiene que poder escribirlo un niño
+   de ocho años. Lo que impide adivinarla probando no es su tamaño, es el
+   límite de intentos de Appwrite; igual que el PIN, esto es una barrera de
+   aula y no seguridad de verdad. */
 const PASS_WORDS = ['brujula', 'mapa', 'tesoro', 'templo', 'jungla', 'momia',
-                    'cofre', 'antorcha', 'vasija', 'fosil', 'duna', 'sendero'];
+                    'cofre', 'antorcha', 'vasija', 'fosil', 'duna', 'sendero',
+                    'linterna', 'cuerda', 'ruina', 'oasis', 'camello', 'papiro',
+                    'estatua', 'columna', 'caverna', 'reliquia', 'arena', 'piedra'];
+
+/* Entero al azar del generador criptográfico del navegador.
+   Aquí `Math.random()` no vale, y no por el tamaño del repertorio: el docente
+   genera la clase ENTERA de una tacada, y de unas pocas salidas consecutivas
+   de ese generador se puede reconstruir su estado interno y predecir las
+   siguientes. La hoja de credenciales se reparte en clase, así que un alumno
+   con la suya y la de dos compañeros tendría justo eso: salidas consecutivas.
+   `ri()` se queda como está para los retos, donde no importa. */
+function azarSeguro(n) {
+  const fuente = (typeof crypto !== 'undefined' && crypto.getRandomValues) ? crypto : null;
+  if (!fuente) return Math.floor(Math.random() * n);   /* navegador viejo: peor esto que nada */
+  /* Se descarta el último tramo incompleto de 2^32 para que no salgan unos
+     números más veces que otros. */
+  const limite = Math.floor(0x100000000 / n) * n;
+  const buf = new Uint32Array(1);
+  let v;
+  do { fuente.getRandomValues(buf); v = buf[0]; } while (v >= limite);
+  return v % n;
+}
+
 function makePassword() {
-  return pick(PASS_WORDS) + String(ri(1000, 9999));
+  return PASS_WORDS[azarSeguro(PASS_WORDS.length)] + String(1000 + azarSeguro(9000));
 }
 /* Usuario a partir del nombre: sin tildes, sin espacios, en minúsculas */
 function makeUsername(name, taken) {
@@ -7888,8 +7928,10 @@ function cfgCopia(body) {
     tu unidad de siempre de vez en cuando.</p>
     ${avisoCopia()}
     <p class="cfg-hint">La copia contiene <strong>${nDiarios === 1 ? 'un diario' : nDiarios + ' diarios'}</strong>${
-      nDiarios ? ` de ${(ATLAS_CONFIG.className || 'tu clase')}` : ''}. Incluye los nombres del
-      alumnado y sus contraseñas: trátala como el cuaderno de notas.</p>
+      nDiarios ? ` de ${esc(ATLAS_CONFIG.className || 'tu clase')}` : ''}. A diferencia de lo que
+      se publica para el equipo, esta se lleva <strong>todo</strong>: los nombres del alumnado y
+      sus contraseñas, el PIN de este panel y los datos de conexión de Appwrite. Guárdala donde
+      guardarías el cuaderno de notas, y no la mandes por correo sin pensarlo.</p>
     <div class="cfg-equipo-botones">
       <button class="btn btn-primary btn-small" id="cfg-bk-save">💾 Descargar copia</button>
       <button class="btn btn-secondary btn-small" id="cfg-bk-load">📂 Restaurar desde un archivo</button>
@@ -8142,7 +8184,7 @@ function modalKeys(e) {
     $('#modal-ok').click();
   }
 }
-function openModal({ text, withInput, okLabel, cancelLabel }) {
+function openModal({ text, withInput, okLabel, cancelLabel, tipoInput }) {
   return new Promise(resolve => {
     closeModal(null);           /* nunca dos diálogos a la vez */
     modalResolve = resolve;
@@ -8150,6 +8192,13 @@ function openModal({ text, withInput, okLabel, cancelLabel }) {
     $('#modal-error').classList.add('hidden');
     const input = $('#modal-input');
     input.value = '';
+    /* El mismo campo sirve para el PIN y para preguntar un texto. Estaba fijo
+       en «password» con teclado numérico, que es lo que quiere el PIN pero
+       deja escribir el nombre de una clase a ciegas y con un teclado de
+       cifras en tablet. */
+    const esPin = tipoInput === 'pin';
+    input.type = esPin ? 'password' : 'text';
+    input.inputMode = esPin ? 'numeric' : 'text';
     input.classList.toggle('hidden', !withInput);
     $('#modal-ok').textContent = okLabel || 'Aceptar';
     $('#modal-cancel').textContent = cancelLabel || 'Cancelar';
@@ -8175,7 +8224,7 @@ function askPrompt(text, inicial, okLabel) {
 /* Sustituye a prompt() para el PIN; reintenta hasta acertar o cancelar */
 async function askPin(text) {
   while (true) {
-    const v = await openModal({ text: text || 'PIN del docente', withInput: true, okLabel: 'Entrar' });
+    const v = await openModal({ text: text || 'PIN del docente', withInput: true, okLabel: 'Entrar', tipoInput: 'pin' });
     if (v === null) return false;                    /* cancelado */
     if (v === String(ATLAS_CONFIG.teacherPin)) return true;
     /* PIN erróneo: se vuelve a pedir, diciéndolo */
@@ -8786,9 +8835,14 @@ function renderCamp() {
 function fundTotal() {
   const f = ATLAS_CONFIG.fund || {};
   const mio = (S.progression.fund_donated) || 0;
-  /* El total de clase lo anota el docente y puede ir por detrás de la
-     realidad; si lo mío ya lo supera, mando yo. Así el niño siempre ve
-     moverse la barra cuando dona, con o sin conexión. */
+  /* El total de clase lo anota el docente leyendo todos los diarios, así que
+     YA incluye lo de este niño: sumarle lo suyo lo contaría dos veces. Se coge
+     el mayor de los dos, que además evita que la barra retroceda cuando el
+     apunte del docente va por detrás de la realidad.
+     Consecuencia que conviene tener presente: si el total de clase va por
+     delante, una donación pequeña no mueve la barra. Lo que sí confirma
+     siempre que ha llegado es el aviso al donar y la línea de «tú has
+     aportado», que salen de la bolsa del propio niño. */
   return Math.max(Number(f.classTotal) || 0, mio);
 }
 
@@ -8846,8 +8900,10 @@ function renderFund() {
   }
 
   const mio = S.progression.fund_donated || 0;
-  $('#fund-mine').textContent = mio
-    ? `Tú has aportado ${mio} ${ico('coin')} al Fondo. Donar no da ninguna ventaja: es por las ruinas.`
+  /* Va por innerHTML porque lleva el icono del doblón dentro. Con textContent
+     el niño leía el `<svg viewBox=...>` entero en mitad de la frase. */
+  $('#fund-mine').innerHTML = mio
+    ? `Tú has aportado ${Number(mio) || 0} ${ico('coin')} al Fondo. Donar no da ninguna ventaja: es por las ruinas.`
     : 'Donar es voluntario y no da ninguna ventaja en las excavaciones.';
 }
 
