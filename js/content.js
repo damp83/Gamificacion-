@@ -572,23 +572,48 @@ const decimales = {
     };
   },
   analizar(tier) {
-    const a = (ri(10, 99) / 10).toFixed(1).replace('.', ',');
-    const b = (ri(100, 999) / 100).toFixed(2).replace('.', ',');
-    const na = parseFloat(a.replace(',', '.')), nb = parseFloat(b.replace(',', '.'));
-    const mayor = na > nb ? a : b;
-    /* el error típico: creer que más cifras es más grande */
-    const correctOpt = `${mayor} es mayor`;
+    /* Este reto existe para desmontar «más cifras = más grande», así que el
+       número con MÁS decimales tiene que ser siempre el menor. Antes se
+       sorteaban los dos por separado y la mitad de las veces Vera acertaba
+       —por el motivo equivocado, pero acertaba—, y el reto acababa dándole la
+       razón a la idea que venía a corregir.
+
+       Dos formas, a suertes, para que no se pueda resolver de carrerilla:
+       · la parte entera ya decide (2,45 frente a 7,3)
+       · la parte entera empata y hay que mirar las décimas (3,45 frente a 3,7),
+         que es el caso donde de verdad se tropieza. */
+    const porDecimas = ri(0, 1) === 0;
+    let ent1, dec1, ent2, dec2;
+    if (porDecimas) {
+      ent1 = ent2 = ri(1, 9);
+      dec1 = ri(0, 4);              /* el de dos decimales, con la décima menor */
+      dec2 = ri(dec1 + 1, 9);
+    } else {
+      ent1 = ri(1, 8);
+      ent2 = ri(ent1 + 1, 9);       /* el de un decimal se lleva la parte entera mayor */
+      dec1 = ri(0, 9); dec2 = ri(0, 9);
+    }
+    const masCifras = `${ent1},${dec1}${ri(1, 9)}`;   /* dos decimales */
+    const menosCifras = `${ent2},${dec2}`;            /* un decimal */
+
+    const correctOpt = `${menosCifras} es mayor`;
     const { options, answer } = buildOptions(correctOpt, [
-      `${mayor === a ? b : a} es mayor`,
+      `${masCifras} es mayor`,
       'Son iguales',
       'No se pueden comparar'
     ]);
     return {
-      question: `Vera dice que ${b} es mayor que ${a} «porque tiene más cifras». ¿Quién tiene razón?`,
+      question: `Vera dice que ${masCifras} es mayor que ${menosCifras} «porque tiene más cifras». ¿Quién tiene razón?`,
       options, answer,
-      hint1: 'Tener más cifras detrás de la coma no significa ser mayor.',
-      hint2: `Compara primero la parte entera: ${Math.floor(na)} y ${Math.floor(nb)}.`,
-      explanation: `${mayor} es mayor. En decimales manda la parte entera, y luego las décimas: el número de cifras no decide.`
+      hint1: 'Tener más cifras detrás de la coma no significa ser mayor: 0,5 es mayor que 0,25.',
+      hint2: porDecimas
+        ? `La parte entera es la misma en los dos (${ent1}). Compara entonces las décimas: ${dec1} y ${dec2}.`
+        : `Compara primero la parte entera: ${ent1} y ${ent2}.`,
+      explanation: `Vera se equivoca: ${menosCifras} es mayor que ${masCifras}. ` +
+        (porDecimas
+          ? `Con la misma parte entera manda la décima, y ${dec2} es mayor que ${dec1}.`
+          : `Manda la parte entera, y ${ent2} es mayor que ${ent1}.`) +
+        ' Contar cifras no sirve para comparar decimales.'
     };
   }
 };
