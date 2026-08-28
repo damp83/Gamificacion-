@@ -13,14 +13,28 @@ import re, sys, pathlib
 RAIZ = pathlib.Path(__file__).resolve().parent.parent
 SALIDA = pathlib.Path(sys.argv[1]) if len(sys.argv) > 1 else RAIZ / 'dist' / 'Expedicion-Atlas.html'
 
+# Orden de carga idéntico al de index.html (menos el SDK remoto)
+ORDEN = ['content', 'config', 'cloud', 'state', 'game', 'classview', 'teacher', 'app']
+
 html = (RAIZ / 'index.html').read_text(encoding='utf-8')
 
 # Cuerpo: de <body> a </body>, sin las etiquetas <script src=...>
+# El patrón admite atributos y saltos de línea porque la del SDK lleva su
+# `integrity` y su `crossorigin` repartidos en varias líneas; con el patrón
+# anterior se quedaba dentro y el archivo suelto pedía el SDK a un CDN que en
+# un Artifact no puede contestar. Se traga también el comentario que la
+# precede, que aquí no explica nada.
 cuerpo = html[html.index('<body>') + len('<body>'):html.index('</body>')]
-cuerpo = re.sub(r'\s*<script src="[^"]+"></script>', '', cuerpo)
+PATRON_SCRIPT = re.compile(
+    r'\s*(?:<!--(?:(?!-->).)*-->\s*)?<script\s+src="[^"]*"[^>]*></script>', re.S)
+cuerpo, n_scripts = PATRON_SCRIPT.subn('', cuerpo)
+if n_scripts != len(ORDEN) + 1:      # los ocho de js/ más el SDK del CDN
+    sys.exit(f'ERROR: se esperaban {len(ORDEN) + 1} etiquetas <script src=...> y se han '
+             f'quitado {n_scripts}. La versión de un solo archivo no se ha generado.')
+if re.search(r'<script\s+src', cuerpo):
+    sys.exit('ERROR: queda alguna etiqueta <script src=...> en el cuerpo. Un archivo suelto '
+             'no puede pedir nada a otro servidor.')
 
-# Orden de carga idéntico al de index.html (menos el SDK remoto)
-ORDEN = ['content', 'config', 'cloud', 'state', 'game', 'classview', 'teacher', 'app']
 js = '\n'.join((RAIZ / 'js' / f'{n}.js').read_text(encoding='utf-8') for n in ORDEN)
 
 # El service worker no existe en un archivo suelto: registrarlo daría un error.

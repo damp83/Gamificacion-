@@ -917,7 +917,18 @@
 
   <!-- SDK de Appwrite. Si no carga (sin red o sin configurar), la app
        funciona igual en modo local: el progreso se guarda en el navegador. -->
-  <script src="https://cdn.jsdelivr.net/npm/appwrite@17.0.0/dist/iife/sdk.js"></script>
+  <!-- El SDK viene de un CDN, así que se ancla con su huella: si lo que
+       llega no es exactamente ese archivo —CDN comprometido, proxy del centro
+       que reescribe— el navegador no lo ejecuta. Aquí dentro se manejan datos
+       de menores, y un script sustituido los leería todos.
+       Al subir de versión hay que recalcular la huella:
+         npm pack appwrite@<version> && tar xzf appwrite-<version>.tgz
+         openssl dgst -sha384 -binary package/dist/iife/sdk.js | openssl base64 -A
+       Si la huella no casa, el SDK no carga y la app avisa en pantalla y sigue
+       en modo local: nunca se queda callada creyendo que guarda en la nube. -->
+  <script src="https://cdn.jsdelivr.net/npm/appwrite@17.0.0/dist/iife/sdk.js"
+          integrity="sha384-phNZum4lHcy1EBX3U1LcBErZWMZklS/yJ2NzJIk5VOJWDDYwavQurpyRdrH2uHZj"
+          crossorigin="anonymous"></script>
   <script src="js/content.js"></script>
   <script src="js/config.js"></script>
   <script src="js/cloud.js"></script>
