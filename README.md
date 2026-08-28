@@ -192,11 +192,18 @@ funciona con una sola clase guardada en el equipo, como hasta ahora.
 > cliente filtre por `owner` es una comodidad para no descargar de más; la
 > barrera es que el documento de otro docente sencillamente no se puede leer.
 
-#### Verifícalo tú antes de meter datos reales
+#### Comprobado contra Appwrite, no solo contra un simulador
 
-Esto no lo he podido probar contra Appwrite de verdad, solo contra un doble que
-reproduce sus permisos. Antes de que entren clases reales, haz esta comprobación
-una vez — son cinco minutos y cubre lo único que de verdad importa:
+El aislamiento se construyó verificándolo contra un doble que reproduce los
+permisos por documento de Appwrite, y durante un tiempo eso fue todo lo que
+había. **Ya no**: en el despliegue de este repositorio (proyecto Expedición
+Atlas, base de datos `atlas`) se ha comprobado contra Appwrite de verdad, con
+dos cuentas de docente, y se comporta como debe.
+
+Si montas **tu propia instancia**, repite la comprobación una vez antes de que
+entren clases reales. Son cinco minutos y cubren lo único que de verdad importa,
+porque es lo que separa «cada docente ve lo suyo» de «cualquier docente ve los
+diarios de todos los niños del centro»:
 
 1. Crea **dos cuentas de docente** (A y B) desde *Mis clases → Crear cuenta*.
 2. Con A, crea una clase y dirige un turno a un alumno cualquiera.
@@ -206,6 +213,11 @@ una vez — son cinco minutos y cubre lo único que de verdad importa:
    **Debe responder `reason: 'sin-permiso'`.** Si devuelve los datos, los
    permisos de la colección no están como deben y hay que revisarlos antes de
    seguir.
+
+El paso 4 es el que cuenta. Que la lista de B salga vacía solo demuestra que el
+cliente filtra por `owner`, que es una comodidad para no descargar de más; la
+barrera de verdad es que el documento de otro docente no se pueda leer aunque se
+pida por su id.
 
 ### 5. Rellenar `js/config.js`
 
