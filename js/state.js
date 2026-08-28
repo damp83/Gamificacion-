@@ -1135,18 +1135,30 @@ function recordConcepto(skill, acierto) {
   if (!acierto) m[skill].errors++;
 }
 
-/* Conceptos que este alumno lleva flojos. Se exige un mínimo de intentos
-   porque con dos respuestas no se sabe nada: un solo fallo daría 100 % de
-   error y mandaría al docente a repasar algo que quizá no toca. */
+/* ── Cuándo un concepto se declara flojo ──
+   Dos condiciones, y las dos hacen falta:
+
+   · Al menos DOS fallos. Un error suelto no es un patrón, y con el mínimo de
+     tres intentos un único fallo daría 33 % y mandaría al docente a repasar
+     algo que a lo mejor fue un despiste.
+   · Y más de uno de cada tres intentos fallado.
+
+   El umbral estaba en 0,34 y era un error de bulto: «falla una de cada tres»
+   da 0,333 exacto y se quedaba JUSTO por debajo. Es el patrón más común de un
+   concepto que se atraganta, así que el diagnóstico casi no disparaba: medido
+   sobre ocho turnos seguidos fallando un tercio de las respuestas, no marcaba
+   ni un concepto. Con 0,30 entra, y el mínimo de dos fallos evita el ruido
+   que la bajada podría traer. */
 const CONCEPTO_MIN_INTENTOS = 3;
-const CONCEPTO_UMBRAL = 0.34;
+const CONCEPTO_MIN_FALLOS = 2;
+const CONCEPTO_UMBRAL = 0.30;
 
 function conceptosFlojosDe(estado, tope) {
   const m = (estado && estado.metrics && estado.metrics.errors_by_concept) || {};
   const out = [];
   for (const id in m) {
     const { errors = 0, attempts = 0 } = m[id] || {};
-    if (attempts < CONCEPTO_MIN_INTENTOS) continue;
+    if (attempts < CONCEPTO_MIN_INTENTOS || errors < CONCEPTO_MIN_FALLOS) continue;
     const tasa = errors / attempts;
     if (tasa <= CONCEPTO_UMBRAL) continue;
     out.push({ id, errors, attempts, tasa });

@@ -552,9 +552,10 @@ Tres decisiones que conviene no deshacer:
   decide si algo va a la pizarra es a cuánta gente le sirve. Un concepto con
   89 % de fallo en un solo niño es una conversación con ese niño, no una
   lección, y por eso aparece el último aunque su tasa sea la más alta.
-- **Hacen falta al menos 3 intentos** para que un concepto cuente. Con dos
-  respuestas no se sabe nada: un solo fallo daría 100 % y mandaría a repasar
-  algo que quizá no toca.
+- **Hacen falta al menos 3 intentos y 2 fallos**, y más de uno de cada tres
+  fallado. Un error suelto no es un patrón. El umbral está en 0,30 y no más
+  arriba a propósito: «falla una de cada tres» da 0,333, que es el caso más
+  común de un concepto que se atraganta, y con 0,34 se quedaba fuera.
 - **Solo cuenta el primer intento** de cada reto. El segundo llega con la
   explicación de Kira delante y mediría otra cosa.
 

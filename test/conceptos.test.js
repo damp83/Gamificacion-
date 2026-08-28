@@ -73,6 +73,28 @@ test('un concepto con pocos intentos no se declara flojo', () => {
   assert.equal(ctx.ev('conceptosFlojos')().length, 1);
 });
 
+test('«falla una de cada tres» SÍ se marca', () => {
+  /* Es el patrón más común de un concepto que se atraganta, y el umbral
+     estaba en 0,34: una de cada tres da 0,333 exacto y se quedaba justo por
+     debajo. Medido en su día sobre ocho turnos seguidos fallando un tercio de
+     las respuestas, el diagnóstico no marcaba ni un concepto. */
+  const ctx = cargarApp();
+  ctx.ev('createState')('Vega');
+  for (let i = 0; i < 6; i++) ctx.ev('recordConcepto')('suma_llevada', i >= 2);  // 2 de 6
+  const flojos = ctx.ev('conceptosFlojos')();
+  assert.equal(flojos.length, 1);
+  assert.ok(Math.abs(flojos[0].tasa - 1 / 3) < 0.001);
+});
+
+test('un fallo suelto nunca marca un concepto, por muy alta que salga la tasa', () => {
+  /* Con el mínimo de tres intentos, un único error da 33 % y mandaría al
+     docente a repasar lo que a lo mejor fue un despiste. */
+  const ctx = cargarApp();
+  ctx.ev('createState')('Vega');
+  for (let i = 0; i < 3; i++) ctx.ev('recordConcepto')('sinonimos', i >= 1);   // 1 de 3
+  assert.deepEqual(ctx.ev('conceptosFlojos')(), []);
+});
+
 test('un concepto que se acierta casi siempre no sale como flojo', () => {
   const ctx = cargarApp();
   ctx.ev('createState')('Vega');
