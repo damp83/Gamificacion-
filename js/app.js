@@ -75,7 +75,7 @@ function modalKeys(e) {
     $('#modal-ok').click();
   }
 }
-function openModal({ text, withInput, okLabel, cancelLabel }) {
+function openModal({ text, withInput, okLabel, cancelLabel, tipoInput }) {
   return new Promise(resolve => {
     closeModal(null);           /* nunca dos diálogos a la vez */
     modalResolve = resolve;
@@ -83,6 +83,13 @@ function openModal({ text, withInput, okLabel, cancelLabel }) {
     $('#modal-error').classList.add('hidden');
     const input = $('#modal-input');
     input.value = '';
+    /* El mismo campo sirve para el PIN y para preguntar un texto. Estaba fijo
+       en «password» con teclado numérico, que es lo que quiere el PIN pero
+       deja escribir el nombre de una clase a ciegas y con un teclado de
+       cifras en tablet. */
+    const esPin = tipoInput === 'pin';
+    input.type = esPin ? 'password' : 'text';
+    input.inputMode = esPin ? 'numeric' : 'text';
     input.classList.toggle('hidden', !withInput);
     $('#modal-ok').textContent = okLabel || 'Aceptar';
     $('#modal-cancel').textContent = cancelLabel || 'Cancelar';
@@ -108,7 +115,7 @@ function askPrompt(text, inicial, okLabel) {
 /* Sustituye a prompt() para el PIN; reintenta hasta acertar o cancelar */
 async function askPin(text) {
   while (true) {
-    const v = await openModal({ text: text || 'PIN del docente', withInput: true, okLabel: 'Entrar' });
+    const v = await openModal({ text: text || 'PIN del docente', withInput: true, okLabel: 'Entrar', tipoInput: 'pin' });
     if (v === null) return false;                    /* cancelado */
     if (v === String(ATLAS_CONFIG.teacherPin)) return true;
     /* PIN erróneo: se vuelve a pedir, diciéndolo */
@@ -719,9 +726,14 @@ function renderCamp() {
 function fundTotal() {
   const f = ATLAS_CONFIG.fund || {};
   const mio = (S.progression.fund_donated) || 0;
-  /* El total de clase lo anota el docente y puede ir por detrás de la
-     realidad; si lo mío ya lo supera, mando yo. Así el niño siempre ve
-     moverse la barra cuando dona, con o sin conexión. */
+  /* El total de clase lo anota el docente leyendo todos los diarios, así que
+     YA incluye lo de este niño: sumarle lo suyo lo contaría dos veces. Se coge
+     el mayor de los dos, que además evita que la barra retroceda cuando el
+     apunte del docente va por detrás de la realidad.
+     Consecuencia que conviene tener presente: si el total de clase va por
+     delante, una donación pequeña no mueve la barra. Lo que sí confirma
+     siempre que ha llegado es el aviso al donar y la línea de «tú has
+     aportado», que salen de la bolsa del propio niño. */
   return Math.max(Number(f.classTotal) || 0, mio);
 }
 
@@ -779,8 +791,10 @@ function renderFund() {
   }
 
   const mio = S.progression.fund_donated || 0;
-  $('#fund-mine').textContent = mio
-    ? `Tú has aportado ${mio} ${ico('coin')} al Fondo. Donar no da ninguna ventaja: es por las ruinas.`
+  /* Va por innerHTML porque lleva el icono del doblón dentro. Con textContent
+     el niño leía el `<svg viewBox=...>` entero en mitad de la frase. */
+  $('#fund-mine').innerHTML = mio
+    ? `Tú has aportado ${Number(mio) || 0} ${ico('coin')} al Fondo. Donar no da ninguna ventaja: es por las ruinas.`
     : 'Donar es voluntario y no da ninguna ventaja en las excavaciones.';
 }
 
