@@ -74,6 +74,9 @@ Cubren lo que ya se ha roto alguna vez, que es de donde salieron:
 | `menores.test.js` | Contraseñas, claves peligrosas en la configuración compartida y el reparto del Fondo |
 | `nube.test.js` | Que la configuración de Appwrite esté completa y que el diagnóstico no confunda «no existe» con «no deja listar» |
 | `conceptos.test.js` | Que todo reto declare su concepto y que el agregado de clase ordene por a cuántos alumnos les pasa |
+| `evaluacion.test.js` | Que cada intento de la Cámara deje rastro y que el informe a familias no lleve notas ni comparaciones |
+| `voz.test.js` | Que la lectura en voz alta no lea emoji y respete lo que decida cada alumno |
+| `taller.test.js` | Que ningún reto escrito por un niño llegue a la clase sin pasar por el docente |
 
 Lo que pide un navegador de verdad —que la página pinte, que un nombre hostil se
 vea como texto— no está aquí: eso se comprueba abriendo la app.
@@ -375,6 +378,47 @@ limita el id a 36 caracteres y, con los 20 del aula por delante, «Ana María
 Rodríguez Pérez» y «Ana María Rodríguez Gómez» caían las dos en el mismo
 documento y la segunda pisaba a la primera.
 
+
+## Taller de Cartografía: los niños crean
+
+El árbol de excavación llega hasta **Analizar**. Crear es el escalón siguiente,
+y el PRD lo señala como «el predictor más fuerte de retención a largo plazo»:
+quien tiene que inventar un reto **y sus tres respuestas falsas** se obliga a
+entender por qué una respuesta equivocada resulta tentadora, que es otro nivel
+de comprensión.
+
+Desde el Campamento, cada niño puede inventar retos para sus compañeros. Al
+enviarlo gana Doblones; los **PE solo llegan si el docente lo aprueba**, porque
+los PE siguen midiendo únicamente aprendizaje demostrado y que el reto esté bien
+pensado no consta hasta que alguien lo lee.
+
+**Nada llega a los demás sin pasar por el docente.** No es burocracia: es la
+única barrera entre el texto libre de un crío y las pantallas de los otros
+veinticinco. En *Configuración → Taller de Cartografía* se leen los pendientes,
+se aprueban («al mapa») o se devuelven con una nota. Devolver no quita nada:
+volver a intentarlo es parte del taller.
+
+Los aprobados entran en el pozo **Los acertijos de la clase**, que viaja con la
+configuración del aula y llega a todos los equipos. Mientras esté vacío no
+aparece en el mapa: un pozo vacío prometería algo que no está.
+
+Tope de 3 al día por alumno, para que no se convierta en una fábrica de
+acertijos malos. Todo configurable desde el panel.
+
+## Lectura en voz alta
+
+Un niño de seis años que todavía descifra no puede hacer las matemáticas solo:
+si tiene que descodificar «¿Cuántas quedan?» antes de restar, el reto le está
+midiendo la lectura y no el cálculo. Lo mismo a cualquier edad para quien tenga
+dislexia.
+
+El botón **Escuchar** lee el enunciado y las cuatro opciones, nombradas por su
+letra («Opción A…»), que es lo que permite responder en voz alta en clase. Usa
+la voz del propio navegador: no manda nada a ningún servidor ni necesita
+conexión, y donde no exista el botón no aparece.
+
+De fábrica se ofrece en 1.º y 2.º. El docente puede darlo a toda la clase desde
+el panel y cada alumno decide lo suyo desde el Campamento.
 
 ## El curso: tres trimestres
 

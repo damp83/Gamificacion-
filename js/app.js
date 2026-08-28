@@ -225,6 +225,7 @@ function wireGlobalListeners() {
   }));
   wireAula();
   wireAulas();
+  wireTaller();
   $('#guardian-back').addEventListener('click', () => {
     if (guardianBranch) openBranch(guardianBranch); else show('map');
   });

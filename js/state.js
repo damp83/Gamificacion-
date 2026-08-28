@@ -76,6 +76,7 @@ function migrateState(s) {
      tenía la plataforma entonces, para no cambiarles el contenido de golpe */
   if (!s.profile.grade) s.profile.grade = DEFAULT_GRADE;
   if (!s.profile.accessibility) s.profile.accessibility = {};
+  if (!Array.isArray(s.creations)) s.creations = [];
   if (!s.updated_at) s.updated_at = Date.now();
   for (const siteId in s.dig_sites) {
     for (const bId in s.dig_sites[siteId]) {
@@ -109,6 +110,13 @@ function defaultState(name) {
          esa regla y los pequeños veían la letra normal. */
       accessibility: { reduced_motion: false }
     },
+    /* ── Taller de Cartografía (Bloom 5-6) ──
+       Los retos que el niño escribe para sus compañeros. Viven en su diario
+       hasta que el docente los aprueba; solo entonces entran en el banco que
+       juega la clase. Esa revisión no es burocracia: es lo que impide que un
+       texto escrito por un niño llegue a los demás sin que nadie lo haya
+       leído. */
+    creations: [],
     progression: {
       xp_total: 0,
       doubloons_balance: ATLAS_CONFIG.economy.startingCoins,
@@ -583,6 +591,119 @@ function rolloverIfNeeded() {
 
   saveState();
   return events;
+}
+
+/* ══════════ TALLER DE CARTOGRAFÍA (Bloom 5-6) ══════════
+   El árbol de excavación llega hasta Analizar. Crear es el escalón que
+   faltaba, y el PRD lo señala como «el predictor más fuerte de retención a
+   largo plazo»: quien tiene que inventar un reto y sus tres distractores se
+   obliga a entender por qué las respuestas malas son tentadoras, que es un
+   nivel de comprensión distinto al de responder.
+
+   Reglas, y ninguna es adorno:
+   · Tope diario, porque si no se convierte en una fábrica de acertijos malos.
+   · Los Doblones se ganan al ENVIAR (el esfuerzo es real aunque se devuelva)
+     y los PE solo si el docente lo aprueba, que es cuando consta que el reto
+     está bien pensado. Los PE siguen midiendo solo aprendizaje demostrado.
+   · Devolver un reto no quita nada. Nunca se pierde lo ya ganado (PRD §0.2). */
+const TALLER_MAX_DIA = 3;
+const TALLER_OPCIONES = 4;
+
+function tallerConfig() { return ATLAS_CONFIG.taller || {}; }
+function tallerActivo() { return tallerConfig().enabled !== false; }
+
+function creacionesHoy() {
+  const hoy = todayStr();
+  return (S.creations || []).filter(c => String(c.createdAt || '').slice(0, 10) === hoy).length;
+}
+
+/* Valida lo que ha escrito el niño y lo guarda como pendiente. Devuelve el
+   motivo cuando no vale, para poder decírselo con palabras suyas. */
+function crearReto(datos) {
+  if (!tallerActivo()) return { ok: false, reason: 'cerrado' };
+  if (creacionesHoy() >= (tallerConfig().perDay || TALLER_MAX_DIA)) {
+    return { ok: false, reason: 'tope' };
+  }
+  const pregunta = String((datos && datos.question) || '').trim();
+  const opciones = ((datos && datos.options) || []).map(o => String(o || '').trim());
+  const answer = Number(datos && datos.answer);
+
+  if (pregunta.length < 8) return { ok: false, reason: 'pregunta-corta' };
+  if (opciones.length !== TALLER_OPCIONES || opciones.some(o => !o)) {
+    return { ok: false, reason: 'faltan-opciones' };
+  }
+  if (new Set(opciones.map(o => o.toLowerCase())).size !== TALLER_OPCIONES) {
+    return { ok: false, reason: 'opciones-repetidas' };
+  }
+  if (!(answer >= 0 && answer < TALLER_OPCIONES)) return { ok: false, reason: 'sin-correcta' };
+
+  const reto = {
+    id: 'c' + Date.now().toString(36) + Math.floor(Math.random() * 1000).toString(36),
+    question: pregunta.slice(0, 300),
+    options: opciones.map(o => o.slice(0, 80)),
+    answer,
+    explanation: String((datos && datos.explanation) || '').trim().slice(0, 300),
+    autor: S.profile.explorer_name,
+    createdAt: new Date().toISOString(),
+    status: 'pendiente',
+    nota: ''
+  };
+  S.creations.push(reto);
+  const monedas = tallerConfig().coinsSend === undefined ? 15 : tallerConfig().coinsSend;
+  earnDoubloons(monedas);
+  saveState();
+  return { ok: true, reto, coins: monedas };
+}
+
+/* Lo que el docente tiene por revisar, de todos los diarios de este equipo. */
+function creacionesPendientes() {
+  const out = [];
+  const mete = (estado, clave) => {
+    for (const c of (estado.creations || [])) {
+      if (c.status === 'pendiente') out.push({ ...c, clave });
+    }
+  };
+  const map = loadDiaries();
+  for (const k in map) {
+    try { mete(migrateState(map[k]), k); } catch (e) { /* diario ilegible */ }
+  }
+  if (S && !diarioActivo) mete(S, null);
+  return out.sort((a, b) => String(a.createdAt).localeCompare(String(b.createdAt)));
+}
+
+/* Resuelve una revisión. `aprobado` false devuelve el reto con una nota; no
+   se borra ni se penaliza, porque volver a intentarlo es parte del taller. */
+function resolverCreacion(clave, id, aprobado, nota) {
+  const aplicar = estado => {
+    const c = (estado.creations || []).find(x => x.id === id);
+    if (!c || c.status !== 'pendiente') return null;
+    c.status = aprobado ? 'aprobado' : 'devuelto';
+    c.nota = String(nota || '').slice(0, 200);
+    if (aprobado) {
+      const pe = tallerConfig().peApproved === undefined ? 30 : tallerConfig().peApproved;
+      const monedas = tallerConfig().coinsApproved === undefined ? 25 : tallerConfig().coinsApproved;
+      estado.progression.xp_total += pe;
+      estado.progression.doubloons_balance += monedas;
+    }
+    estado.updated_at = Date.now();
+    return c;
+  };
+
+  if (clave) {
+    const map = loadDiaries();
+    if (!map[clave]) return { ok: false, reason: 'sin-diario' };
+    const estado = migrateState(map[clave]);
+    const c = aplicar(estado);
+    if (!c) return { ok: false, reason: 'no-encontrado' };
+    map[clave] = estado;
+    saveDiaries(map);
+    if (typeof aulaScheduleSave === 'function') aulaScheduleSave(clave);
+    return { ok: true, reto: c };
+  }
+  const c = S && aplicar(S);
+  if (!c) return { ok: false, reason: 'no-encontrado' };
+  saveState();
+  return { ok: true, reto: c };
 }
 
 /* ── Economía ── */

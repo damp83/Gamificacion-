@@ -146,6 +146,19 @@ const ATLAS_DEFAULTS = {
     steps: [5, 10, 25, 50]
   },
 
+  /* ── Taller de Cartografía (PRD §7, fase v2) ──
+     El escalón de Bloom que faltaba: crear. Los niños escriben retos para sus
+     compañeros y el docente los aprueba antes de que entren en el banco de la
+     clase. Esa revisión no es burocracia: es lo único que impide que un texto
+     escrito por un niño llegue a los demás sin que nadie lo haya leído. */
+  taller: {
+    enabled: true,
+    perDay: 3,          /* retos que puede enviar un alumno al día */
+    coinsSend: 15,      /* al enviarlo: el esfuerzo es real aunque se devuelva */
+    coinsApproved: 25,  /* y al aprobarlo */
+    peApproved: 30      /* los PE solo al aprobar: siguen midiendo aprendizaje */
+  },
+
   /* ── Cámara del Guardián (PRD §2.3, evaluación sumativa) ──
      Se abre cuando los cuatro estratos de un pozo están dominados. Mezcla
      retos de todos ellos: es la prueba de que lo aprendido aguanta junto y

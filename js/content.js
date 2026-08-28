@@ -1134,7 +1134,24 @@ function defaultSites() {
         grades: [1, 2, 3, 4, 5, 6],
         desc: 'Textos del diario perdido: qué dicen, qué insinúan y qué callan.' }
     ]
-  }];
+  }, {
+    /* ── Taller de Cartografía (Bloom 5-6) ──
+       Aquí no hay generador: el contenido lo escriben los propios niños y lo
+       aprueba el docente. Nace vacío, así que no aparece en el mapa hasta que
+       haya algún reto aprobado —branchPlayable() exige contenido— y eso es lo
+       correcto: un pozo vacío prometería algo que no está. */
+    id: 'taller',
+    name: 'Taller de Cartografía',
+    subject: 'De la clase',
+    icon: '🗺️',
+    desc: 'Los acertijos que ha escrito la clase para la clase.',
+    enabled: true,
+    branches: [
+      { id: 'acertijos', name: 'Los acertijos de la clase', icon: '✍️', source: 'bank', enabled: true,
+        desc: 'Retos escritos por vosotros. El que los inventa aprende el doble.',
+        bank: { recordar: [], comprender: [], aplicar: [], analizar: [] } }
+    ]
+  }]
 }
 
 /* ── Consultas sobre la estructura configurada ── */

@@ -14,6 +14,7 @@ const CFG_SECTIONS = [
   { id: 'almacen',    icon: '🏪', name: 'Almacén' },
   { id: 'economia',   icon: '⚖️', name: 'Economía' },
   { id: 'guardian',   icon: '🗿', name: 'Cámara del Guardián' },
+  { id: 'taller',     icon: '✍️', name: 'Taller de Cartografía' },
   { id: 'fondo',      icon: '🌍', name: 'Fondo de la Sociedad' },
   { id: 'acceso',     icon: '🔐', name: 'Acceso y nube' },
   { id: 'copia',      icon: '💾', name: 'Copia de seguridad' }
@@ -47,7 +48,7 @@ function renderTeacherConfig() {
   const renderers = {
     curso: cfgCurso, premios: cfgPremios, alumnado: cfgAlumnado, equipos: cfgEquipos,
     yacimient: cfgYacimientos, almacen: cfgAlmacen, economia: cfgEconomia,
-    guardian: cfgGuardian, fondo: cfgFondo, acceso: cfgAcceso, copia: cfgCopia
+    guardian: cfgGuardian, taller: cfgTaller, fondo: cfgFondo, acceso: cfgAcceso, copia: cfgCopia
   };
   body.innerHTML = '';
   renderers[cfgSection](body);
@@ -792,6 +793,117 @@ function cfgBancoRetos(body) {
     writeBank(b => nuevos.forEach(q => b.push(q)),
       `${nuevos.length} reto(s) añadidos${malas.length ? `. Líneas ignoradas por formato: ${malas.join(', ')}` : ''} ✓`);
   });
+}
+
+/* ══════════ TALLER: LA REVISIÓN DEL DOCENTE ══════════
+   Ningún reto escrito por un niño llega a sus compañeros sin que una persona
+   lo haya leído. No es burocracia: es la única barrera entre el texto libre de
+   un crío y las pantallas de los otros veinticinco.
+
+   Aprobar mete el reto en el banco del pozo del Taller, que viaja con la
+   configuración de la clase, así que llega a todos los equipos. Devolver no
+   quita nada de lo ya ganado: se acompaña de una nota y el niño puede volver
+   a intentarlo. */
+function cfgTaller(body) {
+  const t = ATLAS_CONFIG.taller || {};
+  const pendientes = typeof creacionesPendientes === 'function' ? creacionesPendientes() : [];
+  const enElMapa = ((((ATLAS_CONFIG.sites || []).find(s => s.id === 'taller') || {})
+    .branches || [{}])[0].bank || {}).recordar || [];
+
+  body.innerHTML = `
+    <p class="cfg-intro">Los niños escriben retos para sus compañeros. Aquí se leen antes de que
+    entren en el mapa. Crear es el escalón que el árbol de excavación no tiene —llega hasta
+    Analizar— y el que mejor predice que lo aprendido se quede.</p>
+
+    ${field('Taller abierto', `<input type="checkbox" id="cfg-taller-on"${t.enabled !== false ? ' checked' : ''}>`)}
+    ${field('Acertijos al día por alumno', `<input type="number" id="cfg-taller-dia" min="1" max="10" value="${t.perDay || 3}">`,
+      'Un tope bajo evita que se convierta en una fábrica de acertijos malos.')}
+    ${field('Doblones al enviarlo', `<input type="number" id="cfg-taller-cs" min="0" max="200" value="${t.coinsSend === undefined ? 15 : t.coinsSend}">`,
+      'Se ganan aunque luego se devuelva: el esfuerzo de escribirlo es real.')}
+    ${field('Doblones al aprobarlo', `<input type="number" id="cfg-taller-ca" min="0" max="200" value="${t.coinsApproved === undefined ? 25 : t.coinsApproved}">`)}
+    ${field('PE al aprobarlo', `<input type="number" id="cfg-taller-pe" min="0" max="200" value="${t.peApproved === undefined ? 30 : t.peApproved}">`,
+      'Los PE solo al aprobar: siguen midiendo únicamente aprendizaje demostrado.')}
+
+    <h4 class="cfg-h4">Por revisar <span class="cfg-tag">${pendientes.length}</span></h4>
+    ${pendientes.length ? `<div class="cfg-list" id="taller-cola">
+      ${pendientes.map(c => `
+        <div class="cfg-card taller-revision" data-rid="${esc(c.id)}" data-rclave="${esc(c.clave || '')}">
+          <div class="taller-rev-autor">${esc(c.autor || 'Alguien')} · ${esc(String(c.createdAt).slice(0, 10))}</div>
+          <p class="taller-rev-q">${esc(c.question)}</p>
+          <ol class="taller-rev-ops">
+            ${c.options.map((o, i) => `<li class="${i === c.answer ? 'taller-rev-ok' : ''}">${esc(o)}${
+              i === c.answer ? ' ✓' : ''}</li>`).join('')}
+          </ol>
+          ${c.explanation ? `<p class="taller-rev-exp">«${esc(c.explanation)}»</p>`
+            : '<p class="taller-rev-exp taller-rev-falta">Sin explicación para quien falle.</p>'}
+          <div class="cfg-row cfg-row-actions">
+            <button class="btn btn-primary btn-small" data-aprobar="${esc(c.id)}">✓ Al mapa</button>
+            <button class="btn btn-secondary btn-small" data-devolver="${esc(c.id)}">↩ Devolver con una nota</button>
+          </div>
+        </div>`).join('')}
+    </div>` : '<p class="cfg-hint">Nada pendiente. Los que envíen aparecerán aquí.</p>'}
+
+    <h4 class="cfg-h4">Ya en el mapa <span class="cfg-tag">${enElMapa.length}</span></h4>
+    ${enElMapa.length ? `<div class="cfg-list">${enElMapa.map((q, i) => `
+      <div class="cfg-card taller-aprobado">
+        <span>${esc(q.question)}</span>
+        <button class="cfg-del" data-quitar="${i}" title="Quitar del mapa">🗑️</button>
+      </div>`).join('')}</div>`
+      : '<p class="cfg-hint">Todavía no hay ninguno aprobado, así que el pozo del Taller no aparece en el mapa.</p>'}`;
+
+  onInput('#cfg-taller-on', e => cfgSave('taller.enabled', e.target.checked), 'change');
+  onInput('#cfg-taller-dia', e => cfgSave('taller.perDay', Math.max(1, +e.target.value || 3)));
+  onInput('#cfg-taller-cs', e => cfgSave('taller.coinsSend', Math.max(0, +e.target.value || 0)));
+  onInput('#cfg-taller-ca', e => cfgSave('taller.coinsApproved', Math.max(0, +e.target.value || 0)));
+  onInput('#cfg-taller-pe', e => cfgSave('taller.peApproved', Math.max(0, +e.target.value || 0)));
+
+  const buscar = id => pendientes.find(x => x.id === id);
+
+  $$('[data-aprobar]').forEach(b => b.addEventListener('click', () => {
+    const c = buscar(b.dataset.aprobar);
+    if (!c) return;
+    const r = resolverCreacion(c.clave || null, c.id, true, '');
+    if (!r.ok) { cfgNotice = '⚠️ No se ha podido aprobar.'; renderTeacherConfig(); return; }
+    /* Al banco del pozo del Taller, que viaja con la configuración de la clase */
+    const l = sitesCopy();
+    const site = l.find(s => s.id === 'taller');
+    if (site) {
+      const br = site.branches[0];
+      br.bank = br.bank || {};
+      br.bank.recordar = (br.bank.recordar || []).concat([{
+        question: c.question, options: c.options, answer: c.answer,
+        explanation: c.explanation || `La respuesta correcta es «${c.options[c.answer]}».`,
+        hint1: 'Léelo con calma: lo escribió un compañero tuyo.',
+        hint2: 'Descarta primero las que seguro que no son.',
+        skill: 'pozo:acertijos', autor: c.autor
+      }]);
+      writeSites(l, false);
+    }
+    cfgNotice = `✓ «${c.question.slice(0, 40)}…» ya está en el mapa.`;
+    renderTeacherConfig();
+  }));
+
+  $$('[data-devolver]').forEach(b => b.addEventListener('click', async () => {
+    const c = buscar(b.dataset.devolver);
+    if (!c) return;
+    const nota = await askPrompt(`¿Qué le dices a ${c.autor || 'quien lo escribió'}?`,
+      'Casi: piensa por qué las otras respuestas podrían engañar.', 'Devolver');
+    if (nota === null) return;
+    resolverCreacion(c.clave || null, c.id, false, nota);
+    cfgNotice = 'Devuelto con tu nota. Puede volver a intentarlo.';
+    renderTeacherConfig();
+  }));
+
+  $$('[data-quitar]').forEach(b => b.addEventListener('click', async () => {
+    if (!(await askConfirm('¿Quitar ese acertijo del mapa? Lo ya ganado por quien lo escribió se conserva.', 'Quitar'))) return;
+    const l = sitesCopy();
+    const site = l.find(s => s.id === 'taller');
+    if (site) {
+      site.branches[0].bank.recordar.splice(+b.dataset.quitar, 1);
+      writeSites(l, 'Acertijo quitado del mapa ✓');
+    }
+    renderTeacherConfig();
+  }));
 }
 
 /* ══════════ ALMACÉN ══════════ */

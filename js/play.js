@@ -476,6 +476,7 @@ function renderGuardianResult(r) {
 
 /* ── Campamento y almacén ── */
 function renderCamp() {
+  renderTaller();
   renderHud();
   applyTextSize();
   $('#camp-avatar').textContent = avatarEmoji();
@@ -607,6 +608,88 @@ function renderFund() {
   $('#fund-mine').innerHTML = mio
     ? `Tú has aportado ${Number(mio) || 0} ${ico('coin')} al Fondo. Donar no da ninguna ventaja: es por las ruinas.`
     : 'Donar es voluntario y no da ninguna ventaja en las excavaciones.';
+}
+
+/* ══════════ TALLER DE CARTOGRAFÍA ══════════
+   Lo que ve el niño: un formulario para inventar un reto y la lista de los
+   suyos con en qué estado están. La parte deliberada es la marca de la
+   respuesta correcta: se elige con un radio junto a cada opción, igual que en
+   el banco del docente, para que sea imposible enviar un reto sin decir cuál
+   es la buena. */
+function renderTaller() {
+  const caja = $('#taller-block');
+  if (!caja) return;
+  caja.classList.toggle('hidden', !tallerActivo());
+  if (!tallerActivo()) return;
+
+  const hechos = creacionesHoy();
+  const tope = tallerConfig().perDay || 3;
+  const quedan = Math.max(0, tope - hechos);
+
+  $('#taller-estado').innerHTML = quedan
+    ? `<span class="taller-quedan">Te ${quedan === 1 ? 'queda' : 'quedan'} <strong>${quedan}</strong>
+       ${quedan === 1 ? 'acertijo' : 'acertijos'} por inventar hoy · ${tallerConfig().coinsSend || 15} ${ico('coin')} al enviarlo</span>`
+    : `<span class="taller-quedan">Ya has inventado ${tope} hoy. ¡Mañana más!</span>`;
+  $('#taller-form').classList.toggle('hidden', quedan === 0);
+
+  /* Las cuatro opciones se pintan aquí para no repetirlas en el HTML */
+  $('#taller-opciones').innerHTML = [0, 1, 2, 3].map(i => `
+    <label class="taller-opcion">
+      <input type="radio" name="taller-ok" value="${i}"${i === 0 ? ' checked' : ''}
+             title="Marcar como la correcta">
+      <input type="text" class="taller-op" data-i="${i}" maxlength="80"
+             placeholder="Respuesta ${i + 1}${i === 0 ? ' (marcada como correcta)' : ''}">
+    </label>`).join('');
+
+  const mios = (S.creations || []).slice().reverse();
+  $('#taller-mios').innerHTML = !mios.length ? '' : `
+    <h4 class="taller-h4">Tus acertijos</h4>
+    ${mios.map(c => {
+      const tono = { aprobado: 'ok', devuelto: 'aviso', pendiente: 'nota' }[c.status] || 'nota';
+      const etiqueta = { aprobado: '✓ En el mapa', devuelto: '↩ Para repasarlo',
+                         pendiente: '⏳ Esperando al Prof. Ocaña' }[c.status] || c.status;
+      return `<div class="taller-mio taller-${tono}">
+        <div class="taller-mio-cabeza"><strong>${esc(c.question)}</strong>
+          <span class="taller-tag">${etiqueta}</span></div>
+        ${c.nota ? `<small class="taller-nota">Prof. Ocaña: «${esc(c.nota)}»</small>` : ''}
+      </div>`;
+    }).join('')}`;
+}
+
+const TALLER_MOTIVOS = {
+  'cerrado': 'El taller está cerrado ahora mismo.',
+  'tope': 'Ya has inventado todos los de hoy. ¡Mañana más!',
+  'pregunta-corta': 'La pregunta es muy cortita. Escríbela entera, como si se la contaras a un compañero.',
+  'faltan-opciones': 'Faltan respuestas: hacen falta las cuatro.',
+  'opciones-repetidas': 'Hay dos respuestas iguales. Las cuatro tienen que ser distintas.',
+  'sin-correcta': 'Marca cuál es la respuesta correcta.'
+};
+
+function wireTaller() {
+  const form = $('#taller-form');
+  if (!form) return;
+  form.addEventListener('submit', e => {
+    e.preventDefault();
+    const opciones = [0, 1, 2, 3].map(i => ($(`.taller-op[data-i="${i}"]`) || {}).value || '');
+    const marcada = document.querySelector('input[name="taller-ok"]:checked');
+    const res = crearReto({
+      question: $('#taller-q').value,
+      options: opciones,
+      answer: marcada ? Number(marcada.value) : -1,
+      explanation: $('#taller-exp').value
+    });
+    const err = $('#taller-error');
+    if (!res.ok) {
+      err.textContent = TALLER_MOTIVOS[res.reason] || 'Algo no cuadra: revísalo.';
+      err.classList.remove('hidden');
+      return;
+    }
+    err.classList.add('hidden');
+    $('#taller-q').value = ''; $('#taller-exp').value = '';
+    toast(`¡Acertijo enviado! +${res.coins} doblones. El Prof. Ocaña lo leerá.`, 3600);
+    renderCamp();
+    renderHud();
+  });
 }
 
 /* ── Bitácora ── */

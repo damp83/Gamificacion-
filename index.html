@@ -757,6 +757,26 @@
           <div id="camp-gear-equipped" class="camp-gear-equipped"></div>
         </div>
         <div id="camp-scene" class="camp-scene"></div>
+
+        <!-- Taller de Cartografía: el escalón de crear. Va en el Campamento
+             porque es la pantalla «de uno mismo», y crear no es excavar. -->
+        <div id="taller-block" class="taller-block hidden">
+          <h3><svg class="ico" viewBox="0 0 24 24" aria-hidden="true"><use href="#i-feather"/></svg> Taller de Cartografía</h3>
+          <p class="taller-intro">Inventa un reto para tus compañeros. El Prof. Ocaña lo lee antes de
+          ponerlo en el mapa. <strong>Quien inventa un acertijo aprende el doble</strong>: hay que
+          pensar también por qué las respuestas falsas engañan.</p>
+          <div id="taller-estado" class="taller-estado"></div>
+          <form id="taller-form" class="taller-form">
+            <label class="cfg-field"><span class="cfg-label">La pregunta</span>
+              <textarea id="taller-q" rows="2" maxlength="300" placeholder="¿Cuántas patas tienen 3 arañas?"></textarea></label>
+            <div id="taller-opciones" class="taller-opciones"></div>
+            <label class="cfg-field"><span class="cfg-label">¿Por qué es esa? (para quien falle)</span>
+              <input type="text" id="taller-exp" maxlength="300" placeholder="Cada araña tiene 8 patas, y 8 × 3 = 24."></label>
+            <p id="taller-error" class="cfg-warn hidden"></p>
+            <button type="submit" class="btn btn-primary" id="taller-enviar">Enviar al Prof. Ocaña</button>
+          </form>
+          <div id="taller-mios" class="taller-mios"></div>
+        </div>
         <div class="camp-prefs">
           <label class="cfg-field cfg-field-inline">
             <span class="cfg-label"><svg class="ico" viewBox="0 0 24 24" aria-hidden="true"><use href="#i-text"/></svg> Letra más grande</span>
