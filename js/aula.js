@@ -650,12 +650,18 @@ function paintClassView() {
       ${s.signals.length ? `<div class="student-signals">${s.signals.map(x => `<span class="signal-chip">${x}</span>`).join('')}</div>` : ''}
       ${s.stuck.length ? `<small class="student-stuck">Atascado en: ${esc(s.stuck.join(' · '))}</small>` : ''}
       <small class="student-seen">Última expedición: ${esc(s.lastSeen || '—')}</small>
-      ${s.tieneDiario ? `<button class="btn btn-secondary btn-small student-informe"
-        data-informe="${esc(s.clave || s.id)}">${ico('logbook')} Informe para la familia</button>` : ''}
+      ${s.tieneDiario ? `<div class="student-acciones">
+        <button class="btn btn-secondary btn-small student-ver"
+          data-ver="${esc(s.clave || s.id)}">${ico('lens')} Ver su cuaderno</button>
+        <button class="btn btn-secondary btn-small student-informe"
+          data-informe="${esc(s.clave || s.id)}">${ico('logbook')} Informe para la familia</button>
+      </div>` : ''}
     </div>`).join('') + pendientesHtml(d);
 
   $$('#class-students .student-informe').forEach(b =>
     b.addEventListener('click', () => descargarInforme(b.dataset.informe)));
+  $$('#class-students .student-ver').forEach(b =>
+    b.addEventListener('click', () => entrarEnLectura(b.dataset.ver)));
 
   const cmp = ATLAS_CONFIG.teams && ATLAS_CONFIG.teams.enabled;
   $('#class-teams').innerHTML = !cmp
@@ -806,6 +812,36 @@ function informeFileName(estado) {
   const limpio = t => String(t || '').normalize('NFD').replace(/[̀-ͯ]/g, '')
     .replace(/[^A-Za-z0-9]+/g, '-').replace(/^-|-$/g, '').toLowerCase();
   return `informe-${limpio((estado || S).profile.explorer_name) || 'alumno'}-${todayStr()}.html`;
+}
+
+/* ── Entrar y salir de la consulta ──
+   Se ve exactamente lo que ve el niño: sus pestañas, su HUD, su mapa. Por eso
+   se quita `teacher-mode`, que las esconde. Lo que NO se puede es jugar,
+   comprar ni donar: eso está bloqueado en el motor, no solo escondido. */
+function entrarEnLectura(clave) {
+  const nombre = (loadDiaries()[clave] || {}).profile;
+  if (!nombre) { toast('No encuentro ese diario en este equipo.'); return; }
+  if (!abrirDiarioLectura(nombre.explorer_name)) { toast('No se ha podido abrir.'); return; }
+
+  document.body.classList.remove('teacher-mode');
+  document.body.classList.add('en-consulta');
+  $('#lectura-quien').textContent = S.profile.explorer_name;
+  $('#lectura-bar').classList.remove('hidden');
+  $('#screen-teacher').classList.add('hidden');
+  $('#app').classList.remove('hidden');
+  applyTextSize();
+  renderHud();
+  show('map');
+  window.scrollTo(0, 0);
+}
+
+function salirDeLectura() {
+  cerrarLectura();
+  $('#lectura-bar').classList.add('hidden');
+  document.body.classList.remove('en-consulta');
+  if (teacherOnly) document.body.classList.add('teacher-mode');
+  classData = null;            /* al volver, la vista se recalcula */
+  showTeacherPortal();
 }
 
 /* Genera y descarga el informe de un alumno a partir de su diario completo. */

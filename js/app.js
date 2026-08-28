@@ -247,6 +247,7 @@ function wireGlobalListeners() {
     startApp();
   });
 
+  $('#lectura-salir').addEventListener('click', salirDeLectura);
   $('#btn-voz').addEventListener('click', leerRetoActual);
   $('#pref-read-aloud').addEventListener('change', e => {
     S.profile.accessibility = S.profile.accessibility || {};

@@ -312,6 +312,47 @@ function openDiary(nombre, grade) {
   saveState();
   return S;
 }
+/* ══════════ CONSULTA: VER EL DIARIO DE UN ALUMNO SIN TOCARLO ══════════
+   El docente necesita ver lo que ve el niño —para sentarse cinco minutos con
+   él, o para preparar una reunión con su familia—. La maquinaria ya estaba:
+   openDiary() carga su diario y todas las pantallas pintan desde ahí.
+
+   Lo que había que resolver es que MIRAR no cambie nada, y ahí hay dos
+   trampas que no se ven a simple vista:
+
+   · openDiary() termina en saveState(), así que abrir el cuaderno de un niño
+     marcaba su diario como modificado y disparaba una subida a la nube que no
+     corresponde a nada.
+   · Si además se llamara a rolloverIfNeeded(), como hace el turno de clase
+     dirigida, le regalaría los 15 doblones del «primer desembarco del día» a
+     alguien que ni ha tocado la tablet.
+
+   La garantía de fondo es esta bandera: mientras esté puesta, saveState() no
+   escribe. Aunque algo intente guardar por un camino que no se previó, no
+   llega al disco. Las acciones que gastan del bolsillo del niño se bloquean
+   además una a una, para que la pantalla no finja que funciona. */
+let LECTURA = false;
+function enModoLectura() { return LECTURA; }
+
+function abrirDiarioLectura(nombre) {
+  const k = diaryKey(nombre);
+  if (!k) return null;
+  /* loadDiaries() devuelve un JSON.parse recién hecho, así que lo que se toca
+     aquí no es el objeto guardado. Aun así, no se guarda. */
+  const map = loadDiaries();
+  if (!map[k]) return null;
+  S = migrateState(map[k]);
+  S.profile.explorer_name = nombre;
+  diarioActivo = k;
+  LECTURA = true;
+  return S;
+}
+
+function cerrarLectura() {
+  LECTURA = false;
+  return closeDiary();
+}
+
 /* Vuelve al diario propio del dispositivo (modo alumno) */
 function closeDiary() {
   diarioActivo = null;
@@ -506,6 +547,10 @@ function copiaPendiente(diasAviso) {
 
 function saveState() {
   if (!S) return;
+  /* En consulta no se escribe NADA: ni en este equipo ni en la nube. Es la
+     última barrera, la que aguanta aunque alguien añada mañana una pantalla
+     que guarde sin acordarse de comprobar el modo. */
+  if (LECTURA) return;
   S.updated_at = Date.now(); /* para resolver «¿qué copia es más nueva?» entre dispositivos */
   if (diarioActivo) {
     const map = loadDiaries();
@@ -620,6 +665,7 @@ function creacionesHoy() {
 /* Valida lo que ha escrito el niño y lo guarda como pendiente. Devuelve el
    motivo cuando no vale, para poder decírselo con palabras suyas. */
 function crearReto(datos) {
+  if (LECTURA) return { ok: false, reason: 'lectura' };
   if (!tallerActivo()) return { ok: false, reason: 'cerrado' };
   if (creacionesHoy() >= (tallerConfig().perDay || TALLER_MAX_DIA)) {
     return { ok: false, reason: 'tope' };
@@ -723,6 +769,7 @@ function earnDoubloons(n) {
    Donar sale de la bolsa del niño (es un sumidero de verdad), pero jamás toca
    los PE ni el progreso: no se puede «comprar» aprendizaje ni perderlo. */
 function donateToFund(amount) {
+  if (LECTURA) return { ok: false, reason: 'lectura' };
   const n = Math.floor(Number(amount) || 0);
   if (n <= 0) return { ok: false, reason: 'cantidad' };
   if (!spendDoubloons(n)) return { ok: false, reason: 'sin-fondos' };

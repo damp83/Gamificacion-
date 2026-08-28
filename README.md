@@ -77,6 +77,7 @@ Cubren lo que ya se ha roto alguna vez, que es de donde salieron:
 | `evaluacion.test.js` | Que cada intento de la Cámara deje rastro y que el informe a familias no lleve notas ni comparaciones |
 | `voz.test.js` | Que la lectura en voz alta no lea emoji y respete lo que decida cada alumno |
 | `taller.test.js` | Que ningún reto escrito por un niño llegue a la clase sin pasar por el docente |
+| `consulta.test.js` | Que ver el cuaderno de un alumno no le cambie ni una coma del diario |
 
 Lo que pide un navegador de verdad —que la página pinte, que un nombre hostil se
 vea como texto— no está aquí: eso se comprueba abriendo la app.
@@ -503,6 +504,35 @@ Dos detalles:
 Cuando hay lista de clase, los miembros de cada cuadrilla se marcan con **casillas** en lugar de escribirse a mano. Así el nombre siempre coincide exactamente con el del alumno, y desaparece el problema de asignar a alguien que no existe por una errata. A quien ya está en una cuadrilla se le deshabilita la casilla en las demás.
 
 ## Vista general de la clase
+
+### Ver el cuaderno de un alumno
+
+En cada ficha, **👁 Ver su cuaderno** abre lo que ve ese niño: su HUD, su mapa,
+su campamento, su bitácora y su cuaderno. Sirve para sentarse cinco minutos con
+él, o para preparar una reunión con su familia sin tener que imaginárselo.
+
+Es **solo lectura**, y eso no es una promesa de la interfaz: es una barrera en
+el motor. Mientras dura la consulta, `saveState()` no escribe nada —ni en el
+equipo ni en la nube— así que aguanta aunque alguien añada mañana una pantalla
+que guarde sin acordarse de comprobar el modo. Y las acciones que gastan del
+bolsillo del niño (jugar, comprar, donar, conceder méritos, enviar al Taller)
+se bloquean además una a una, para que la pantalla no finja que funciona.
+
+Dos cosas que había que evitar y que no se ven a simple vista:
+
+- `openDiary()` termina en `saveState()`, así que abrir un cuaderno marcaba ese
+  diario como modificado y disparaba una subida a la nube que no correspondía a
+  nada.
+- El turno de clase dirigida llama a `rolloverIfNeeded()`, que da los 15
+  doblones del «primer desembarco del día». Consultar no pasa por ahí: sería
+  regalárselos a quien ni ha tocado la tablet.
+
+Una barra fija arriba dice de quién es el cuaderno, porque el riesgo real no es
+técnico: es que el docente se olvide de en qué pantalla está.
+
+Necesita el diario completo, así que funciona en clase dirigida —donde los
+diarios están en el equipo—. Leyendo de la nube llega solo el resumen, la misma
+limitación que tiene el informe a familias.
 
 ### Lo que conviene repasar
 

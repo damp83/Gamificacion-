@@ -1,0 +1,108 @@
+/* Consulta: el docente ve el cuaderno de un alumno sin tocarlo.
+   Lo que se prueba aquí no es que se vea —eso se ve— sino que MIRAR no deje
+   rastro. En una plataforma que promete que nada se pierde ni se falsea, que
+   abrir el cuaderno de un niño le cambie el diario es justo lo que no puede
+   pasar. */
+const { test } = require('node:test');
+const assert = require('node:assert');
+const { cargarApp } = require('./cargar.js');
+
+/* Deja en el equipo el diario de una alumna que ya ha jugado. */
+function conDiarioDeVega() {
+  const ctx = cargarApp();
+  ctx.ev('openDiary')('Vega Serrano', 4);
+  ctx.ev('rolloverIfNeeded()');
+  ctx.ev('startMission')('numeracion', 'recordar');
+  ctx.ev('while (mission) { answerQuestion(mission.current.answer); if (!advance()) break; }');
+  ctx.ev('finishMission()');
+  ctx.ev('closeDiary()');
+  return ctx;
+}
+
+/* Retrato del diario tal y como está GUARDADO, para comparar antes y después. */
+const foto = (ctx, clave) => JSON.stringify(ctx.ev(`loadDiaries()[${JSON.stringify(clave || 'vega serrano')}]`));
+
+test('abrir el cuaderno de un alumno no le cambia el diario', () => {
+  const ctx = conDiarioDeVega();
+  const antes = foto(ctx);
+
+  assert.ok(ctx.ev('abrirDiarioLectura')('Vega Serrano'));
+  assert.equal(ctx.ev('enModoLectura()'), true);
+  assert.equal(ctx.ev('S.profile.explorer_name'), 'Vega Serrano');
+
+  assert.equal(foto(ctx), antes, 'ni una coma, ni siquiera updated_at');
+});
+
+test('en consulta, saveState() no escribe aunque se le llame', () => {
+  /* Es la barrera de fondo: aguanta aunque alguien añada mañana una pantalla
+     que guarde sin acordarse de comprobar el modo. */
+  const ctx = conDiarioDeVega();
+  const antes = foto(ctx);
+  ctx.ev('abrirDiarioLectura')('Vega Serrano');
+
+  ctx.ev('S.progression.doubloons_balance = 99999;');
+  ctx.ev('S.progression.xp_total = 99999;');
+  ctx.ev('saveState()');
+
+  assert.equal(foto(ctx), antes, 'lo guardado sigue intacto');
+});
+
+test('no se puede jugar por el alumno', () => {
+  const ctx = conDiarioDeVega();
+  ctx.ev('abrirDiarioLectura')('Vega Serrano');
+  assert.equal(ctx.ev('startMission')('numeracion', 'recordar'), null);
+  assert.equal(ctx.ev('startGuardian')('numeracion'), null);
+});
+
+test('no se puede gastar del bolsillo del niño', () => {
+  const ctx = conDiarioDeVega();
+  ctx.ev('abrirDiarioLectura')('Vega Serrano');
+  ctx.ev('S.progression.doubloons_balance = 500;');
+
+  assert.equal(ctx.ev('buyItem')('sombrero_ala_ancha').ok, false);
+  assert.equal(ctx.ev('donateToFund')(50).ok, false);
+  assert.equal(ctx.ev('awardBehavior')('ayudar').ok, false);
+  assert.equal(ctx.ev('crearReto')({
+    question: 'Una pregunta larga de prueba', options: ['a', 'b', 'c', 'd'], answer: 0
+  }).ok, false);
+  assert.equal(ctx.ev('toggleEquip')('sombrero_ala_ancha'), false);
+});
+
+test('mirar no le regala el desembarco del día', () => {
+  /* El turno de clase dirigida llama a rolloverIfNeeded() a propósito, que da
+     15 doblones. Consultar NO puede pasar por ahí: sería regalárselos a quien
+     ni ha tocado la tablet. */
+  const ctx = cargarApp();
+  ctx.ev('openDiary')('Nilo', 4);
+  ctx.ev('closeDiary()');
+  const antes = foto(ctx, 'nilo');
+  const doblonesAntes = ctx.ev("loadDiaries()['nilo'].progression.doubloons_balance");
+
+  ctx.ev('abrirDiarioLectura')('Nilo');
+  assert.equal(ctx.ev('S.daily.first_login_bonus_given'), false, 'no se ha disparado el desembarco');
+  ctx.ev('cerrarLectura()');
+
+  assert.equal(ctx.ev("loadDiaries()['nilo'].progression.doubloons_balance"), doblonesAntes,
+    'ni un doblón de más por haber mirado');
+  assert.equal(foto(ctx, 'nilo'), antes, 'el diario entero, igual que estaba');
+});
+
+test('salir de la consulta devuelve el equipo a como estaba', () => {
+  const ctx = conDiarioDeVega();
+  ctx.ev('abrirDiarioLectura')('Vega Serrano');
+  ctx.ev('cerrarLectura()');
+
+  assert.equal(ctx.ev('enModoLectura()'), false);
+  assert.equal(ctx.ev('diarioActivo'), null);
+  /* Y a partir de aquí se vuelve a poder escribir con normalidad */
+  ctx.ev('openDiary')('Vega Serrano', 4);
+  ctx.ev('S.progression.doubloons_balance = 777;');
+  ctx.ev('saveState()');
+  assert.equal(ctx.ev("loadDiaries()['vega serrano'].progression.doubloons_balance"), 777);
+});
+
+test('consultar a un alumno que no está en el equipo no rompe nada', () => {
+  const ctx = cargarApp();
+  assert.equal(ctx.ev('abrirDiarioLectura')('Nadie'), null);
+  assert.equal(ctx.ev('enModoLectura()'), false, 'no se queda a medias en modo consulta');
+});

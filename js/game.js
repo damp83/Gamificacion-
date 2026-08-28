@@ -23,6 +23,8 @@ function entryTier(branchId, stratumId) {
 }
 
 function startMission(branchId, stratumId, kind) {
+  /* En consulta no se juega: sería jugar por el niño, en su diario. */
+  if (enModoLectura()) return null;
   mission = {
     kind: kind || 'expedition',   /* 'expedition' | 'bazar' */
     branchId,
@@ -318,6 +320,7 @@ function aQuienLeToca(lista) {
 function GUARD() { return ATLAS_CONFIG.guardian || {}; }
 
 function startGuardian(branchId) {
+  if (enModoLectura()) return null;
   const g = GUARD();
   if (!g.enabled) return null;
   const est = guardianStatus(branchId);
@@ -448,6 +451,7 @@ function behaviorCountToday(behaviorId) {
   return S.behavior_log.filter(e => e.id === behaviorId && e.date === today).length;
 }
 function awardBehavior(behaviorId) {
+  if (enModoLectura()) return { ok: false, reason: 'lectura' };
   const b = ATLAS_CONFIG.behaviors.find(x => x.id === behaviorId);
   if (!b) return { ok: false, reason: 'no-behavior' };
   if (behaviorCountToday(behaviorId) >= b.perDay) return { ok: false, reason: 'cap', b };
@@ -461,6 +465,7 @@ function awardBehavior(behaviorId) {
 
 /* ── Almacén ── */
 function buyItem(itemId) {
+  if (enModoLectura()) return { ok: false, reason: 'lectura' };
   const item = shopCatalog().find(i => i.id === itemId);
   if (!item) return { ok: false, reason: 'no-item' };
   if (item.type !== 'treat' && (S.inventory.gear_owned.includes(itemId) || S.inventory.camp_items.includes(itemId))) {
@@ -479,6 +484,7 @@ function buyItem(itemId) {
   return { ok: true, item };
 }
 function toggleEquip(itemId) {
+  if (enModoLectura()) return false;
   const idx = S.inventory.gear_equipped.indexOf(itemId);
   if (idx >= 0) S.inventory.gear_equipped.splice(idx, 1);
   else if (S.inventory.gear_owned.includes(itemId)) S.inventory.gear_equipped.push(itemId);

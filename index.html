@@ -949,7 +949,15 @@
     </div>
   </div>
 
-  <div id="toast" class="toast hidden"></div>
+  <!-- Consulta: el docente está viendo el cuaderno de un alumno. La barra va
+     fija y siempre visible porque el riesgo real no es técnico, es que se
+     olvide de en qué pantalla está y toque algo creyendo que es la suya. -->
+<div id="lectura-bar" class="lectura-bar hidden">
+  <svg class="ico" viewBox="0 0 24 24" aria-hidden="true"><use href="#i-lens"/></svg>
+  <span>Estás viendo el cuaderno de <strong id="lectura-quien"></strong> · <em>solo lectura</em></span>
+  <button class="btn btn-secondary btn-small" id="lectura-salir">Salir</button>
+</div>
+<div id="toast" class="toast hidden"></div>
 
   <!-- SDK de Appwrite. Si no carga (sin red o sin configurar), la app
        funciona igual en modo local: el progreso se guarda en el navegador. -->

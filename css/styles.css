@@ -2281,8 +2281,6 @@ input[type="checkbox"]::after, input[type="radio"]::after {
 
 /* Botón del informe dentro de la ficha del alumno: discreto, que la ficha ya
    tiene mucha información y esto es una acción puntual. */
-.student-informe { margin-top: 9px; width: 100%; justify-content: center; opacity: .85; }
-.student-informe:hover { opacity: 1; }
 
 /* ═══════════ TALLER DE CARTOGRAFÍA ═══════════ */
 .taller-block { margin: 22px 0; padding: 15px 17px; border-radius: 12px;
@@ -2316,3 +2314,30 @@ input[type="checkbox"]::after, input[type="radio"]::after {
 .taller-rev-exp { margin: 0 0 9px; font-size: .87rem; font-style: italic; opacity: .82; }
 .taller-rev-falta { color: #a8452f; font-style: normal; }
 .taller-aprobado { display: flex; justify-content: space-between; align-items: center; gap: 10px; }
+
+/* ═══════════ CONSULTA DEL CUADERNO DE UN ALUMNO ═══════════
+   Barra fija: el docente tiene que saber en todo momento que lo que ve no es
+   suyo. Va arriba y ocupa el ancho entero a propósito. */
+.lectura-bar {
+  position: fixed; inset: 0 0 auto 0; z-index: 60;
+  display: flex; align-items: center; gap: 11px;
+  padding: 9px 15px;
+  background: var(--laton, #b8862b); color: #2b1d0e;
+  box-shadow: 0 2px 10px rgba(0, 0, 0, .28);
+  font-size: .92rem;
+}
+.lectura-bar em { font-style: normal; opacity: .8; }
+.lectura-bar #lectura-salir { margin-left: auto; }
+/* Sitio para la barra, o taparía la cabecera del alumno */
+body.en-consulta #main { padding-top: 46px; }
+body.en-consulta #hud { top: 44px; }
+/* Lo que en consulta no se puede hacer se esconde además de estar bloqueado:
+   una pantalla que ofrece un botón que no hace nada engaña dos veces. */
+body.en-consulta #bazar-card,
+body.en-consulta .camp-prefs,
+body.en-consulta #fund-buttons,
+body.en-consulta #taller-block,
+body.en-consulta #shop-list button { display: none !important; }
+.student-acciones { display: grid; gap: 6px; margin-top: 9px; }
+.student-acciones .btn { width: 100%; justify-content: center; opacity: .85; }
+.student-acciones .btn:hover { opacity: 1; }
