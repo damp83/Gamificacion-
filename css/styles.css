@@ -2278,3 +2278,8 @@ input[type="checkbox"]::after, input[type="radio"]::after {
 .repaso-tasa { opacity: .72; }
 .repaso-quien { display: block; margin-top: 3px; font-size: .78rem; opacity: .62; }
 .dash-conceptos .dash-row-label em { font-style: normal; opacity: .55; font-size: .8em; }
+
+/* Botón del informe dentro de la ficha del alumno: discreto, que la ficha ya
+   tiene mucha información y esto es una acción puntual. */
+.student-informe { margin-top: 9px; width: 100%; justify-content: center; opacity: .85; }
+.student-informe:hover { opacity: 1; }

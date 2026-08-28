@@ -126,7 +126,9 @@ function fichaAlumno(entry, base) {
     teamContribution: base.teamContribution,
     fundDonated: base.fundDonated,
     fragments: base.fragments,
-    stuck: base.stuck, conceptos: base.conceptos || [], signals,
+    stuck: base.stuck, conceptos: base.conceptos || [],
+    evalu: base.evalu || { camaras: 0, superadas: 0, intentos: 0, passRate: null, divergencia: null },
+    signals,
     needsHelp: signals.length >= 3,   /* el umbral del PRD: tres señales a la vez */
     lastSeen: base.lastSeen
   };
@@ -147,6 +149,14 @@ function numSeguro(v, porDefecto) {
 function textoSeguro(v, tope) {
   return (v == null ? '' : String(v)).slice(0, tope || 120);
 }
+/* [camaras, superadas, intentos, passRate, divergencia] tal y como lo escribe
+   el cliente del alumno: se sanea igual que el resto del resumen. */
+function leerEvalu(v) {
+  const a = Array.isArray(v) ? v : [];
+  return { camaras: numSeguro(a[0]), superadas: numSeguro(a[1]), intentos: numSeguro(a[2]),
+           passRate: numONulo(a[3]), divergencia: numONulo(a[4]) };
+}
+
 function numONulo(v) {
   if (v == null) return null;
   const n = Number(v);
@@ -189,6 +199,7 @@ function baseDesdeResumen(sum) {
         ? { id: textoSeguro(c[0], 40), errors: numSeguro(c[1]), attempts: numSeguro(c[2]) }
         : null)
       .filter(c => c && c.id && c.attempts > 0 && c.errors <= c.attempts),
+    evalu: leerEvalu(sum.evalu),
     lastSeen: sum.lastSeen ? textoSeguro(sum.lastSeen, 10) : null
   };
 }
@@ -251,6 +262,9 @@ function baseDesdeDiario(s, today) {
     conceptos: typeof conceptosFlojosDe === 'function'
       ? conceptosFlojosDe(s, 6).map(c => ({ id: c.id, errors: c.errors, attempts: c.attempts }))
       : [],
+    evalu: typeof metricasEvaluacion === 'function'
+      ? metricasEvaluacion(s)
+      : { camaras: 0, superadas: 0, intentos: 0, passRate: null, divergencia: null },
     lastSeen: s.session_meta && s.session_meta.last_login
       ? s.session_meta.last_login.slice(0, 10)
       : (log.length ? log[log.length - 1].date : (s.daily && s.daily.date) || null)
@@ -261,7 +275,14 @@ function summarizeStudent(entry, today) {
   const base = entry.summary
     ? baseDesdeResumen(entry.summary)
     : baseDesdeDiario(entry.state, today);
-  return fichaAlumno(entry, base);
+  const ficha = fichaAlumno(entry, base);
+  /* El informe para la familia necesita el diario ENTERO, no el resumen: sin
+     él no se puede decir qué domina y qué está trabajando, solo cifras. En
+     clase dirigida los diarios están en este equipo y sí se puede; leyendo de
+     la nube llega solo el resumen y el botón no debe ofrecerse. */
+  ficha.tieneDiario = !!entry.state;
+  ficha.clave = entry.key || null;
+  return ficha;
 }
 
 function buildClassOverview(entries, today) {
@@ -290,7 +311,24 @@ function buildClassOverview(entries, today) {
     merits: students.reduce((a, s) => a + s.merits, 0),
     /* Fondo de la Sociedad: el total real de la clase. El docente lo anota
        en la configuración para que los alumnos lo vean también sin conexión. */
-    fundTotal: students.reduce((a, s) => a + (s.fundDonated || 0), 0)
+    fundTotal: students.reduce((a, s) => a + (s.fundDonated || 0), 0),
+
+    /* ── Evaluación (PRD §6) ──
+       El Guardian Pass Rate es cuánto se supera la prueba sumativa. La
+       divergencia es la que avisa de verdad: mide cuánto prometía la barra de
+       dominio por encima de lo que luego confirmó la prueba. Si es alta, el
+       árbol está inflado y el dominio formativo está mintiendo. */
+    guardianIntentos: students.reduce((a, s) => a + s.evalu.intentos, 0),
+    guardianPassRate: (() => {
+      const i = students.reduce((a, s) => a + s.evalu.intentos, 0);
+      if (!i) return null;
+      return students.reduce((a, s) => a + s.evalu.superadas, 0) /
+             Math.max(1, students.reduce((a, x) => a + x.evalu.camaras, 0));
+    })(),
+    divergencia: (() => {
+      const con = students.filter(s => s.evalu.divergencia !== null);
+      return con.length ? con.reduce((a, s) => a + s.evalu.divergencia, 0) / con.length : null;
+    })()
   };
 
   /* ── Lo que conviene repasar mañana ──

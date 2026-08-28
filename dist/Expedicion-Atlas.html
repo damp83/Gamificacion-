@@ -2282,6 +2282,11 @@ input[type="checkbox"]::after, input[type="radio"]::after {
 .repaso-quien { display: block; margin-top: 3px; font-size: .78rem; opacity: .62; }
 .dash-conceptos .dash-row-label em { font-style: normal; opacity: .55; font-size: .8em; }
 
+/* Botón del informe dentro de la ficha del alumno: discreto, que la ficha ya
+   tiene mucha información y esto es una acción puntual. */
+.student-informe { margin-top: 9px; width: 100%; justify-content: center; opacity: .85; }
+.student-informe:hover { opacity: 1; }
+
 </style>
 
 <!-- ══════════ ICONOGRAFÍA ══════════
@@ -5581,6 +5586,12 @@ function buildSummaryOf(S) {
        clase lo lee para TODOS los alumnos del centro de una vez. Seis
        conceptos son de sobra para decidir qué se repasa mañana. */
     conceptos: conceptosFlojosDe(S, 6).map(c => [c.id, c.errors, c.attempts]),
+    /* Evaluación: cinco números que permiten calcular por clase el Guardian
+       Pass Rate y la divergencia formativo/sumativo del PRD §6. */
+    evalu: (() => { const m = metricasEvaluacion(S);
+      return [m.camaras, m.superadas, m.intentos,
+              m.passRate === null ? null : +m.passRate.toFixed(3),
+              m.divergencia === null ? null : +m.divergencia.toFixed(3)]; })(),
     selfCorrections: (S.metrics && S.metrics.self_corrections) || 0,
     merits: (S.behavior_log || []).length,
     teamContribution: Math.round(S.progression.team_contribution || 0),
@@ -6092,12 +6103,92 @@ function guardianState(branchId) {
   const bs = ensureBranchState(branchId);
   if (!bs) return null;
   if (!bs.guardian) {
-    bs.guardian = { cleared: false, attempts: 0, needsBazar: false, weakStratum: null, clearedAt: null };
+    bs.guardian = { cleared: false, attempts: 0, needsBazar: false, weakStratum: null,
+                    clearedAt: null, history: [] };
   }
+  /* Las cámaras de diarios anteriores al registro no traen histórico */
+  if (!Array.isArray(bs.guardian.history)) bs.guardian.history = [];
   return bs.guardian;
 }
 
 /* Estratos que entran en la prueba: los que existen de verdad en el pozo */
+/* ── El registro de la evaluación ──
+   La Cámara del Guardián es la prueba sumativa, y hasta ahora no dejaba
+   rastro: se sabía si estaba superada y poco más. Eso no se puede llevar a un
+   boletín ni a una reunión con una familia, y hacía imposibles dos de las
+   métricas que pide el PRD §6 —el Guardian Pass Rate y comparar el dominio
+   formativo con el sumativo—, que son las que avisan de un árbol inflado.
+
+   Se guardan los últimos intentos con fecha, resultado y el dominio que el
+   alumno TENÍA en ese momento: sin eso, la comparación entre lo formativo y
+   lo sumativo se hace contra el dominio de hoy, que ya no es el que había. */
+const GUARDIAN_HISTORIAL = 10;
+
+function registrarIntentoGuardian(branchId, datos) {
+  const est = guardianState(branchId);
+  est.history.push({
+    date: todayStr(),
+    accuracy: +(datos.accuracy || 0).toFixed(3),
+    passed: !!datos.passed,
+    /* dominio medio de los estratos que entraban en la prueba, en ese momento */
+    masteryThen: +(datos.masteryThen || 0).toFixed(3),
+    weakStratum: datos.weakStratum || null,
+    conceptos: (datos.conceptos || []).slice(0, 5)
+  });
+  if (est.history.length > GUARDIAN_HISTORIAL) est.history.shift();
+  return est.history[est.history.length - 1];
+}
+
+/* Todo lo que un docente necesita para hablar de la evaluación de un alumno:
+   qué cámaras ha intentado, cuántas veces, cuándo y con qué resultado. */
+function historialEvaluacion(estado) {
+  const S0 = estado || S;
+  const out = [];
+  for (const siteId in (S0.dig_sites || {})) {
+    for (const bId in S0.dig_sites[siteId]) {
+      const g = S0.dig_sites[siteId][bId].guardian;
+      if (!g || !Array.isArray(g.history) || !g.history.length) continue;
+      const def = typeof branchDef === 'function' ? branchDef(bId) : null;
+      out.push({
+        branchId: bId,
+        name: def ? def.name : bId,
+        cleared: !!g.cleared,
+        clearedAt: g.clearedAt || null,
+        attempts: g.history.length,
+        intentos: g.history.slice()
+      });
+    }
+  }
+  return out.sort((a, b) => String(a.name).localeCompare(String(b.name), 'es'));
+}
+
+/* Guardian Pass Rate y divergencia formativo/sumativo (PRD §6).
+   La divergencia es lo interesante: si el dominio formativo iba muy por
+   delante de lo que luego rinde la prueba, el árbol está inflado y la barra
+   de dominio está mintiendo. */
+function metricasEvaluacion(estado) {
+  const hist = historialEvaluacion(estado);
+  let intentos = 0, superados = 0, sumaDiv = 0, conDiv = 0;
+  for (const c of hist) {
+    for (const i of c.intentos) {
+      intentos++;
+      if (i.passed) superados++;
+      if (typeof i.masteryThen === 'number' && i.masteryThen > 0) {
+        sumaDiv += i.masteryThen - i.accuracy; conDiv++;
+      }
+    }
+  }
+  return {
+    camaras: hist.length,
+    superadas: hist.filter(c => c.cleared).length,
+    intentos,
+    passRate: intentos ? superados / intentos : null,
+    /* > 0 significa que la barra de dominio prometía más de lo que la prueba
+       confirmó. Por debajo de 0.15 es ruido normal. */
+    divergencia: conDiv ? sumaDiv / conDiv : null
+  };
+}
+
 function guardianStrata(branchId) {
   const def = branchDef(branchId);
   if (!def) return [];
@@ -6259,6 +6350,24 @@ function conceptosFlojosDe(estado, tope) {
 }
 function conceptosFlojos(tope) { return conceptosFlojosDe(S, tope); }
 
+/* Y los que ya le salen. Hace falta para el informe a la familia: decir solo
+   lo que falla da una foto injusta, y «domina Numeración · Analizar» no
+   significa nada fuera del aula. «Ya le sale comparar números» sí. */
+const CONCEPTO_DOMINADO = 0.15;
+
+function conceptosDominadosDe(estado, tope) {
+  const m = (estado && estado.metrics && estado.metrics.errors_by_concept) || {};
+  const out = [];
+  for (const id in m) {
+    const { errors = 0, attempts = 0 } = m[id] || {};
+    if (attempts < CONCEPTO_MIN_INTENTOS) continue;
+    if (errors / attempts > CONCEPTO_DOMINADO) continue;
+    out.push({ id, errors, attempts, tasa: errors / attempts });
+  }
+  out.sort((a, b) => a.tasa - b.tasa || b.attempts - a.attempts);
+  return tope ? out.slice(0, tope) : out;
+}
+
 function recordAttempt(branchId, stratumId) {
   const key = `${branchId}.${stratumId}`;
   if (!S.metrics.errors_by_skill[key]) S.metrics.errors_by_skill[key] = { errors: 0, attempts: 0 };
@@ -6391,6 +6500,11 @@ function answerQuestion(optionIndex) {
       if (mission.errorsByStratum) {
         const sId = q.stratumId || mission.stratumId;
         mission.errorsByStratum[sId] = (mission.errorsByStratum[sId] || 0) + 1;
+      }
+      /* En la Cámara interesa además QUÉ concepto se falló: es lo que se
+         guarda en el registro de evaluación y lo que apunta el repaso. */
+      if (mission.errorsByConcept && q.skill) {
+        mission.errorsByConcept[q.skill] = (mission.errorsByConcept[q.skill] || 0) + 1;
       }
     }
   }
@@ -6635,7 +6749,7 @@ function startGuardian(branchId) {
     index: 0, firstTryCorrect: 0, restoredCount: 0,
     questions: [], current: null, firstAttemptDone: false, hintsShown: 0,
     questionStart: 0, missionStart: Date.now(), tier, usedIdx: [], resolved: [],
-    strata, errorsByStratum: {}
+    strata, errorsByStratum: {}, errorsByConcept: {}
   };
 
   /* Reparto por turnos: cada estrato aporta lo mismo y en orden de Bloom, así
@@ -6674,6 +6788,20 @@ function finishGuardian() {
 
   est.attempts++;
   const superada = accuracy >= (g.passAccuracy || 0.8);
+
+  /* El dominio que el alumno tenía JUSTO ANTES de la prueba. Se mide aquí y
+     no después porque es lo que hay que comparar con el resultado: si la barra
+     prometía 0.9 y la prueba da 0.5, el árbol está inflado. Medido más tarde
+     ya no sería el mismo número. */
+  const masteryThen = strata.reduce((a, sId) => a + (getStratum(branchId, sId).mastery || 0), 0) /
+    Math.max(1, strata.length);
+  const conceptosFallados = Object.entries(mission.errorsByConcept || {})
+    .sort((a, b) => b[1] - a[1])
+    .map(([id, n]) => [id, n]);
+  registrarIntentoGuardian(branchId, {
+    accuracy, passed: superada, masteryThen,
+    weakStratum: weak || null, conceptos: conceptosFallados
+  });
 
   let pe = 0, coins = 0, fragment = false;
   if (superada) {
@@ -6899,7 +7027,9 @@ function fichaAlumno(entry, base) {
     teamContribution: base.teamContribution,
     fundDonated: base.fundDonated,
     fragments: base.fragments,
-    stuck: base.stuck, conceptos: base.conceptos || [], signals,
+    stuck: base.stuck, conceptos: base.conceptos || [],
+    evalu: base.evalu || { camaras: 0, superadas: 0, intentos: 0, passRate: null, divergencia: null },
+    signals,
     needsHelp: signals.length >= 3,   /* el umbral del PRD: tres señales a la vez */
     lastSeen: base.lastSeen
   };
@@ -6920,6 +7050,14 @@ function numSeguro(v, porDefecto) {
 function textoSeguro(v, tope) {
   return (v == null ? '' : String(v)).slice(0, tope || 120);
 }
+/* [camaras, superadas, intentos, passRate, divergencia] tal y como lo escribe
+   el cliente del alumno: se sanea igual que el resto del resumen. */
+function leerEvalu(v) {
+  const a = Array.isArray(v) ? v : [];
+  return { camaras: numSeguro(a[0]), superadas: numSeguro(a[1]), intentos: numSeguro(a[2]),
+           passRate: numONulo(a[3]), divergencia: numONulo(a[4]) };
+}
+
 function numONulo(v) {
   if (v == null) return null;
   const n = Number(v);
@@ -6962,6 +7100,7 @@ function baseDesdeResumen(sum) {
         ? { id: textoSeguro(c[0], 40), errors: numSeguro(c[1]), attempts: numSeguro(c[2]) }
         : null)
       .filter(c => c && c.id && c.attempts > 0 && c.errors <= c.attempts),
+    evalu: leerEvalu(sum.evalu),
     lastSeen: sum.lastSeen ? textoSeguro(sum.lastSeen, 10) : null
   };
 }
@@ -7024,6 +7163,9 @@ function baseDesdeDiario(s, today) {
     conceptos: typeof conceptosFlojosDe === 'function'
       ? conceptosFlojosDe(s, 6).map(c => ({ id: c.id, errors: c.errors, attempts: c.attempts }))
       : [],
+    evalu: typeof metricasEvaluacion === 'function'
+      ? metricasEvaluacion(s)
+      : { camaras: 0, superadas: 0, intentos: 0, passRate: null, divergencia: null },
     lastSeen: s.session_meta && s.session_meta.last_login
       ? s.session_meta.last_login.slice(0, 10)
       : (log.length ? log[log.length - 1].date : (s.daily && s.daily.date) || null)
@@ -7034,7 +7176,14 @@ function summarizeStudent(entry, today) {
   const base = entry.summary
     ? baseDesdeResumen(entry.summary)
     : baseDesdeDiario(entry.state, today);
-  return fichaAlumno(entry, base);
+  const ficha = fichaAlumno(entry, base);
+  /* El informe para la familia necesita el diario ENTERO, no el resumen: sin
+     él no se puede decir qué domina y qué está trabajando, solo cifras. En
+     clase dirigida los diarios están en este equipo y sí se puede; leyendo de
+     la nube llega solo el resumen y el botón no debe ofrecerse. */
+  ficha.tieneDiario = !!entry.state;
+  ficha.clave = entry.key || null;
+  return ficha;
 }
 
 function buildClassOverview(entries, today) {
@@ -7063,7 +7212,24 @@ function buildClassOverview(entries, today) {
     merits: students.reduce((a, s) => a + s.merits, 0),
     /* Fondo de la Sociedad: el total real de la clase. El docente lo anota
        en la configuración para que los alumnos lo vean también sin conexión. */
-    fundTotal: students.reduce((a, s) => a + (s.fundDonated || 0), 0)
+    fundTotal: students.reduce((a, s) => a + (s.fundDonated || 0), 0),
+
+    /* ── Evaluación (PRD §6) ──
+       El Guardian Pass Rate es cuánto se supera la prueba sumativa. La
+       divergencia es la que avisa de verdad: mide cuánto prometía la barra de
+       dominio por encima de lo que luego confirmó la prueba. Si es alta, el
+       árbol está inflado y el dominio formativo está mintiendo. */
+    guardianIntentos: students.reduce((a, s) => a + s.evalu.intentos, 0),
+    guardianPassRate: (() => {
+      const i = students.reduce((a, s) => a + s.evalu.intentos, 0);
+      if (!i) return null;
+      return students.reduce((a, s) => a + s.evalu.superadas, 0) /
+             Math.max(1, students.reduce((a, x) => a + x.evalu.camaras, 0));
+    })(),
+    divergencia: (() => {
+      const con = students.filter(s => s.evalu.divergencia !== null);
+      return con.length ? con.reduce((a, s) => a + s.evalu.divergencia, 0) / con.length : null;
+    })()
   };
 
   /* ── Lo que conviene repasar mañana ──
@@ -8941,7 +9107,12 @@ function paintClassView() {
       ${s.signals.length ? `<div class="student-signals">${s.signals.map(x => `<span class="signal-chip">${x}</span>`).join('')}</div>` : ''}
       ${s.stuck.length ? `<small class="student-stuck">Atascado en: ${esc(s.stuck.join(' · '))}</small>` : ''}
       <small class="student-seen">Última expedición: ${esc(s.lastSeen || '—')}</small>
+      ${s.tieneDiario ? `<button class="btn btn-secondary btn-small student-informe"
+        data-informe="${esc(s.clave || s.id)}">${ico('logbook')} Informe para la familia</button>` : ''}
     </div>`).join('') + pendientesHtml(d);
+
+  $$('#class-students .student-informe').forEach(b =>
+    b.addEventListener('click', () => descargarInforme(b.dataset.informe)));
 
   const cmp = ATLAS_CONFIG.teams && ATLAS_CONFIG.teams.enabled;
   $('#class-teams').innerHTML = !cmp
@@ -8969,6 +9140,143 @@ function paintClassView() {
     : '';
 
   paintClassFund(d);
+}
+
+/* ══════════ INFORME PARA LA FAMILIA ══════════
+   Lo único que salía de la plataforma era la copia de seguridad en JSON, que
+   sirve para restaurar, no para leer. Esto es lo que se imprime y se manda a
+   casa, y por eso cambia todo el registro:
+
+   · Sin porcentajes ni notas. Una familia no necesita «62 % de dominio»,
+     necesita «ya sabe el valor posicional; le está costando la resta
+     llevando». Los números que sí van son los que se entienden solos:
+     días que ha trabajado, minutos, cámaras superadas.
+   · Sin comparación con nadie. El PRD §0.2 prohíbe rankings entre niños y eso
+     vale también —sobre todo— para lo que llega a una casa.
+   · Sin nada que suene a castigo. Lo que falla se llama «en lo que está
+     trabajando ahora», porque es literalmente lo que es.
+
+   Sale como HTML autocontenido para poder abrirlo e imprimirlo sin la
+   plataforma delante. */
+function informeFamilia(estado, opciones) {
+  const s = estado || S;
+  if (!s || !s.profile) return null;
+  const o = opciones || {};
+  const hoy = new Date().toLocaleDateString('es-ES', { day: 'numeric', month: 'long', year: 'numeric' });
+
+  /* ── Qué sabe hacer, en palabras que se entiendan fuera del aula ──
+     Los estratos se llaman «Recordar · Comprender · Aplicar · Analizar»: son
+     los niveles de Bloom y le dicen algo a un maestro, no a una familia. Aquí
+     se cuenta por CONCEPTO —«ya le sale comparar números»— y los pozos se
+     resumen por cuánto llevan hechos. */
+  const dominados = conceptosDominadosDe(s, 8).map(c => conceptoInfo(c.id).label);
+  const flojos = conceptosFlojosDe(s, 4).map(c => conceptoInfo(c.id).label);
+
+  const pozos = [];
+  for (const siteId in (s.dig_sites || {})) {
+    for (const bId in s.dig_sites[siteId]) {
+      const def = branchDef(bId);
+      const strata = s.dig_sites[siteId][bId].strata || {};
+      let hechos = 0, hay = 0, tocado = false;
+      for (const sId of STRATA_ORDER) {
+        const st = strata[sId];
+        if (!st || (def && !stratumHasContent(def, sId))) continue;
+        hay++;
+        if ((st.mastery || 0) >= 0.8) hechos++;
+        if (st.attempts > 0) tocado = true;
+      }
+      if (!hay || !tocado) continue;
+      pozos.push(`${def ? def.name : bId} — ${hechos === hay
+        ? 'terminado'
+        : `${hechos} de ${hay} bloques`}`);
+    }
+  }
+  const evalu = metricasEvaluacion(s);
+  const camaras = historialEvaluacion(s);
+  const log = (s.metrics && s.metrics.sessions_log) || [];
+  const dias30 = log.filter(e => Math.floor((new Date(todayStr()) - new Date(e.date)) / 86400000) < 30);
+  const minutos = dias30.reduce((a, x) => a + (x.minutes || 0), 0);
+
+  const lista = (arr, vacio) => arr.length
+    ? `<ul>${arr.map(x => `<li>${esc(x)}</li>`).join('')}</ul>`
+    : `<p class="vacio">${esc(vacio)}</p>`;
+
+  return `<!doctype html>
+<meta charset="utf-8">
+<title>Informe de ${esc(s.profile.explorer_name)} — Expedición Atlas</title>
+<style>
+  body { font: 16px/1.55 system-ui, -apple-system, "Segoe UI", sans-serif; color: #2b2118;
+         max-width: 720px; margin: 32px auto; padding: 0 20px; }
+  h1 { font-size: 1.5rem; margin: 0 0 2px; }
+  h2 { font-size: 1.05rem; margin: 26px 0 8px; padding-bottom: 4px; border-bottom: 2px solid #e0d3ba; }
+  .sub { color: #6b5d4a; margin: 0 0 22px; }
+  ul { margin: 6px 0; padding-left: 22px; } li { margin: 3px 0; }
+  .vacio { color: #6b5d4a; font-style: italic; margin: 6px 0; }
+  .cifras { display: flex; gap: 26px; flex-wrap: wrap; margin: 10px 0; }
+  .cifra strong { display: block; font-size: 1.5rem; line-height: 1.1; }
+  .cifra span { color: #6b5d4a; font-size: .85rem; }
+  .nota { background: #f6efe2; border-left: 4px solid #b8862b; padding: 11px 14px;
+          margin: 24px 0 0; font-size: .9rem; }
+  @media print { body { margin: 0; max-width: none; } .nota { break-inside: avoid; } }
+</style>
+<h1>${esc(s.profile.explorer_name)}</h1>
+<p class="sub">Expedición Atlas${o.clase ? ' · ' + esc(o.clase) : ''} · ${esc(hoy)}</p>
+
+<h2>Lo que ya le sale</h2>
+${lista(dominados, 'Está empezando: todavía no ha practicado lo suficiente como para decirlo.')}
+
+<h2>En lo que está trabajando ahora</h2>
+${flojos.length
+  ? `<ul>${flojos.map(x => `<li>${esc(x)}</li>`).join('')}</ul>
+     <p>Es normal y es justo donde toca practicar; en clase se está trabajando.</p>`
+  : '<p class="vacio">Ahora mismo no hay nada que se le esté atragantando.</p>'}
+
+<h2>Por dónde va la expedición</h2>
+${lista(pozos, 'Todavía no ha empezado ningún bloque.')}
+
+<h2>Constancia</h2>
+<div class="cifras">
+  <div class="cifra"><strong>${dias30.length}</strong><span>días trabajados (30 días)</span></div>
+  <div class="cifra"><strong>${minutos}</strong><span>minutos en total</span></div>
+  <div class="cifra"><strong>${(s.logbook && s.logbook.stamps_lifetime) || 0}</strong><span>semanas completas</span></div>
+  <div class="cifra"><strong>${evalu.superadas}</strong><span>pruebas superadas</span></div>
+</div>
+
+${camaras.length ? `<h2>Pruebas realizadas</h2>
+<ul>${camaras.map(c => {
+  const ult = c.intentos[c.intentos.length - 1];
+  return `<li><strong>${esc(c.name)}</strong> — ${c.cleared
+    ? `superada${c.clearedAt ? ' el ' + esc(c.clearedAt.split('-').reverse().join('/')) : ''}`
+    : 'todavía no superada'}${c.attempts > 1 ? ` · ${c.attempts} intentos` : ''}${
+    !c.cleared && ult ? '. Volverá a intentarlo tras repasar.' : ''}</li>`;
+}).join('')}</ul>` : ''}
+
+<p class="nota"><strong>Cómo leer esto.</strong> Aquí no hay notas ni comparaciones con nadie:
+la plataforma no puntúa ni ordena a los niños. Lo que aparece como «en lo que está trabajando»
+no es un suspenso, es lo que toca ahora. Equivocarse forma parte de excavar, y de hecho corregir
+el propio error da premio dentro del juego.</p>
+`;
+}
+
+/* Nombre de archivo que se entiende dentro de seis meses en una carpeta */
+function informeFileName(estado) {
+  const limpio = t => String(t || '').normalize('NFD').replace(/[̀-ͯ]/g, '')
+    .replace(/[^A-Za-z0-9]+/g, '-').replace(/^-|-$/g, '').toLowerCase();
+  return `informe-${limpio((estado || S).profile.explorer_name) || 'alumno'}-${todayStr()}.html`;
+}
+
+/* Genera y descarga el informe de un alumno a partir de su diario completo. */
+async function descargarInforme(clave) {
+  const diarios = loadDiaries();
+  const estado = diarios[clave] || (S && diaryKey(S.profile.explorer_name) === clave ? S : null);
+  if (!estado) { toast('No encuentro el diario de ese alumno en este equipo.'); return; }
+  const st = migrateState(estado);
+  const html = informeFamilia(st, { clase: ATLAS_CONFIG.className });
+  if (!html) { toast('No se ha podido generar el informe.'); return; }
+  const r = await guardarArchivo(informeFileName(st), html, 'text/html');
+  toast(r && r.ok === false
+    ? 'No se ha podido descargar. Prueba desde Configuración → Copia de seguridad.'
+    : `Informe de ${st.profile.explorer_name} descargado ✓`);
 }
 
 /* ── Lo que conviene repasar mañana ──

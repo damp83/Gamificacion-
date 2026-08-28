@@ -650,7 +650,12 @@ function paintClassView() {
       ${s.signals.length ? `<div class="student-signals">${s.signals.map(x => `<span class="signal-chip">${x}</span>`).join('')}</div>` : ''}
       ${s.stuck.length ? `<small class="student-stuck">Atascado en: ${esc(s.stuck.join(' · '))}</small>` : ''}
       <small class="student-seen">Última expedición: ${esc(s.lastSeen || '—')}</small>
+      ${s.tieneDiario ? `<button class="btn btn-secondary btn-small student-informe"
+        data-informe="${esc(s.clave || s.id)}">${ico('logbook')} Informe para la familia</button>` : ''}
     </div>`).join('') + pendientesHtml(d);
+
+  $$('#class-students .student-informe').forEach(b =>
+    b.addEventListener('click', () => descargarInforme(b.dataset.informe)));
 
   const cmp = ATLAS_CONFIG.teams && ATLAS_CONFIG.teams.enabled;
   $('#class-teams').innerHTML = !cmp
@@ -678,6 +683,143 @@ function paintClassView() {
     : '';
 
   paintClassFund(d);
+}
+
+/* ══════════ INFORME PARA LA FAMILIA ══════════
+   Lo único que salía de la plataforma era la copia de seguridad en JSON, que
+   sirve para restaurar, no para leer. Esto es lo que se imprime y se manda a
+   casa, y por eso cambia todo el registro:
+
+   · Sin porcentajes ni notas. Una familia no necesita «62 % de dominio»,
+     necesita «ya sabe el valor posicional; le está costando la resta
+     llevando». Los números que sí van son los que se entienden solos:
+     días que ha trabajado, minutos, cámaras superadas.
+   · Sin comparación con nadie. El PRD §0.2 prohíbe rankings entre niños y eso
+     vale también —sobre todo— para lo que llega a una casa.
+   · Sin nada que suene a castigo. Lo que falla se llama «en lo que está
+     trabajando ahora», porque es literalmente lo que es.
+
+   Sale como HTML autocontenido para poder abrirlo e imprimirlo sin la
+   plataforma delante. */
+function informeFamilia(estado, opciones) {
+  const s = estado || S;
+  if (!s || !s.profile) return null;
+  const o = opciones || {};
+  const hoy = new Date().toLocaleDateString('es-ES', { day: 'numeric', month: 'long', year: 'numeric' });
+
+  /* ── Qué sabe hacer, en palabras que se entiendan fuera del aula ──
+     Los estratos se llaman «Recordar · Comprender · Aplicar · Analizar»: son
+     los niveles de Bloom y le dicen algo a un maestro, no a una familia. Aquí
+     se cuenta por CONCEPTO —«ya le sale comparar números»— y los pozos se
+     resumen por cuánto llevan hechos. */
+  const dominados = conceptosDominadosDe(s, 8).map(c => conceptoInfo(c.id).label);
+  const flojos = conceptosFlojosDe(s, 4).map(c => conceptoInfo(c.id).label);
+
+  const pozos = [];
+  for (const siteId in (s.dig_sites || {})) {
+    for (const bId in s.dig_sites[siteId]) {
+      const def = branchDef(bId);
+      const strata = s.dig_sites[siteId][bId].strata || {};
+      let hechos = 0, hay = 0, tocado = false;
+      for (const sId of STRATA_ORDER) {
+        const st = strata[sId];
+        if (!st || (def && !stratumHasContent(def, sId))) continue;
+        hay++;
+        if ((st.mastery || 0) >= 0.8) hechos++;
+        if (st.attempts > 0) tocado = true;
+      }
+      if (!hay || !tocado) continue;
+      pozos.push(`${def ? def.name : bId} — ${hechos === hay
+        ? 'terminado'
+        : `${hechos} de ${hay} bloques`}`);
+    }
+  }
+  const evalu = metricasEvaluacion(s);
+  const camaras = historialEvaluacion(s);
+  const log = (s.metrics && s.metrics.sessions_log) || [];
+  const dias30 = log.filter(e => Math.floor((new Date(todayStr()) - new Date(e.date)) / 86400000) < 30);
+  const minutos = dias30.reduce((a, x) => a + (x.minutes || 0), 0);
+
+  const lista = (arr, vacio) => arr.length
+    ? `<ul>${arr.map(x => `<li>${esc(x)}</li>`).join('')}</ul>`
+    : `<p class="vacio">${esc(vacio)}</p>`;
+
+  return `<!doctype html>
+<meta charset="utf-8">
+<title>Informe de ${esc(s.profile.explorer_name)} — Expedición Atlas</title>
+<style>
+  body { font: 16px/1.55 system-ui, -apple-system, "Segoe UI", sans-serif; color: #2b2118;
+         max-width: 720px; margin: 32px auto; padding: 0 20px; }
+  h1 { font-size: 1.5rem; margin: 0 0 2px; }
+  h2 { font-size: 1.05rem; margin: 26px 0 8px; padding-bottom: 4px; border-bottom: 2px solid #e0d3ba; }
+  .sub { color: #6b5d4a; margin: 0 0 22px; }
+  ul { margin: 6px 0; padding-left: 22px; } li { margin: 3px 0; }
+  .vacio { color: #6b5d4a; font-style: italic; margin: 6px 0; }
+  .cifras { display: flex; gap: 26px; flex-wrap: wrap; margin: 10px 0; }
+  .cifra strong { display: block; font-size: 1.5rem; line-height: 1.1; }
+  .cifra span { color: #6b5d4a; font-size: .85rem; }
+  .nota { background: #f6efe2; border-left: 4px solid #b8862b; padding: 11px 14px;
+          margin: 24px 0 0; font-size: .9rem; }
+  @media print { body { margin: 0; max-width: none; } .nota { break-inside: avoid; } }
+</style>
+<h1>${esc(s.profile.explorer_name)}</h1>
+<p class="sub">Expedición Atlas${o.clase ? ' · ' + esc(o.clase) : ''} · ${esc(hoy)}</p>
+
+<h2>Lo que ya le sale</h2>
+${lista(dominados, 'Está empezando: todavía no ha practicado lo suficiente como para decirlo.')}
+
+<h2>En lo que está trabajando ahora</h2>
+${flojos.length
+  ? `<ul>${flojos.map(x => `<li>${esc(x)}</li>`).join('')}</ul>
+     <p>Es normal y es justo donde toca practicar; en clase se está trabajando.</p>`
+  : '<p class="vacio">Ahora mismo no hay nada que se le esté atragantando.</p>'}
+
+<h2>Por dónde va la expedición</h2>
+${lista(pozos, 'Todavía no ha empezado ningún bloque.')}
+
+<h2>Constancia</h2>
+<div class="cifras">
+  <div class="cifra"><strong>${dias30.length}</strong><span>días trabajados (30 días)</span></div>
+  <div class="cifra"><strong>${minutos}</strong><span>minutos en total</span></div>
+  <div class="cifra"><strong>${(s.logbook && s.logbook.stamps_lifetime) || 0}</strong><span>semanas completas</span></div>
+  <div class="cifra"><strong>${evalu.superadas}</strong><span>pruebas superadas</span></div>
+</div>
+
+${camaras.length ? `<h2>Pruebas realizadas</h2>
+<ul>${camaras.map(c => {
+  const ult = c.intentos[c.intentos.length - 1];
+  return `<li><strong>${esc(c.name)}</strong> — ${c.cleared
+    ? `superada${c.clearedAt ? ' el ' + esc(c.clearedAt.split('-').reverse().join('/')) : ''}`
+    : 'todavía no superada'}${c.attempts > 1 ? ` · ${c.attempts} intentos` : ''}${
+    !c.cleared && ult ? '. Volverá a intentarlo tras repasar.' : ''}</li>`;
+}).join('')}</ul>` : ''}
+
+<p class="nota"><strong>Cómo leer esto.</strong> Aquí no hay notas ni comparaciones con nadie:
+la plataforma no puntúa ni ordena a los niños. Lo que aparece como «en lo que está trabajando»
+no es un suspenso, es lo que toca ahora. Equivocarse forma parte de excavar, y de hecho corregir
+el propio error da premio dentro del juego.</p>
+`;
+}
+
+/* Nombre de archivo que se entiende dentro de seis meses en una carpeta */
+function informeFileName(estado) {
+  const limpio = t => String(t || '').normalize('NFD').replace(/[̀-ͯ]/g, '')
+    .replace(/[^A-Za-z0-9]+/g, '-').replace(/^-|-$/g, '').toLowerCase();
+  return `informe-${limpio((estado || S).profile.explorer_name) || 'alumno'}-${todayStr()}.html`;
+}
+
+/* Genera y descarga el informe de un alumno a partir de su diario completo. */
+async function descargarInforme(clave) {
+  const diarios = loadDiaries();
+  const estado = diarios[clave] || (S && diaryKey(S.profile.explorer_name) === clave ? S : null);
+  if (!estado) { toast('No encuentro el diario de ese alumno en este equipo.'); return; }
+  const st = migrateState(estado);
+  const html = informeFamilia(st, { clase: ATLAS_CONFIG.className });
+  if (!html) { toast('No se ha podido generar el informe.'); return; }
+  const r = await guardarArchivo(informeFileName(st), html, 'text/html');
+  toast(r && r.ok === false
+    ? 'No se ha podido descargar. Prueba desde Configuración → Copia de seguridad.'
+    : `Informe de ${st.profile.explorer_name} descargado ✓`);
 }
 
 /* ── Lo que conviene repasar mañana ──

@@ -87,6 +87,11 @@ function answerQuestion(optionIndex) {
         const sId = q.stratumId || mission.stratumId;
         mission.errorsByStratum[sId] = (mission.errorsByStratum[sId] || 0) + 1;
       }
+      /* En la Cámara interesa además QUÉ concepto se falló: es lo que se
+         guarda en el registro de evaluación y lo que apunta el repaso. */
+      if (mission.errorsByConcept && q.skill) {
+        mission.errorsByConcept[q.skill] = (mission.errorsByConcept[q.skill] || 0) + 1;
+      }
     }
   }
 
@@ -330,7 +335,7 @@ function startGuardian(branchId) {
     index: 0, firstTryCorrect: 0, restoredCount: 0,
     questions: [], current: null, firstAttemptDone: false, hintsShown: 0,
     questionStart: 0, missionStart: Date.now(), tier, usedIdx: [], resolved: [],
-    strata, errorsByStratum: {}
+    strata, errorsByStratum: {}, errorsByConcept: {}
   };
 
   /* Reparto por turnos: cada estrato aporta lo mismo y en orden de Bloom, así
@@ -369,6 +374,20 @@ function finishGuardian() {
 
   est.attempts++;
   const superada = accuracy >= (g.passAccuracy || 0.8);
+
+  /* El dominio que el alumno tenía JUSTO ANTES de la prueba. Se mide aquí y
+     no después porque es lo que hay que comparar con el resultado: si la barra
+     prometía 0.9 y la prueba da 0.5, el árbol está inflado. Medido más tarde
+     ya no sería el mismo número. */
+  const masteryThen = strata.reduce((a, sId) => a + (getStratum(branchId, sId).mastery || 0), 0) /
+    Math.max(1, strata.length);
+  const conceptosFallados = Object.entries(mission.errorsByConcept || {})
+    .sort((a, b) => b[1] - a[1])
+    .map(([id, n]) => [id, n]);
+  registrarIntentoGuardian(branchId, {
+    accuracy, passed: superada, masteryThen,
+    weakStratum: weak || null, conceptos: conceptosFallados
+  });
 
   let pe = 0, coins = 0, fragment = false;
   if (superada) {

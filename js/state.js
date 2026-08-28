@@ -224,6 +224,12 @@ function buildSummaryOf(S) {
        clase lo lee para TODOS los alumnos del centro de una vez. Seis
        conceptos son de sobra para decidir qué se repasa mañana. */
     conceptos: conceptosFlojosDe(S, 6).map(c => [c.id, c.errors, c.attempts]),
+    /* Evaluación: cinco números que permiten calcular por clase el Guardian
+       Pass Rate y la divergencia formativo/sumativo del PRD §6. */
+    evalu: (() => { const m = metricasEvaluacion(S);
+      return [m.camaras, m.superadas, m.intentos,
+              m.passRate === null ? null : +m.passRate.toFixed(3),
+              m.divergencia === null ? null : +m.divergencia.toFixed(3)]; })(),
     selfCorrections: (S.metrics && S.metrics.self_corrections) || 0,
     merits: (S.behavior_log || []).length,
     teamContribution: Math.round(S.progression.team_contribution || 0),
@@ -735,12 +741,92 @@ function guardianState(branchId) {
   const bs = ensureBranchState(branchId);
   if (!bs) return null;
   if (!bs.guardian) {
-    bs.guardian = { cleared: false, attempts: 0, needsBazar: false, weakStratum: null, clearedAt: null };
+    bs.guardian = { cleared: false, attempts: 0, needsBazar: false, weakStratum: null,
+                    clearedAt: null, history: [] };
   }
+  /* Las cámaras de diarios anteriores al registro no traen histórico */
+  if (!Array.isArray(bs.guardian.history)) bs.guardian.history = [];
   return bs.guardian;
 }
 
 /* Estratos que entran en la prueba: los que existen de verdad en el pozo */
+/* ── El registro de la evaluación ──
+   La Cámara del Guardián es la prueba sumativa, y hasta ahora no dejaba
+   rastro: se sabía si estaba superada y poco más. Eso no se puede llevar a un
+   boletín ni a una reunión con una familia, y hacía imposibles dos de las
+   métricas que pide el PRD §6 —el Guardian Pass Rate y comparar el dominio
+   formativo con el sumativo—, que son las que avisan de un árbol inflado.
+
+   Se guardan los últimos intentos con fecha, resultado y el dominio que el
+   alumno TENÍA en ese momento: sin eso, la comparación entre lo formativo y
+   lo sumativo se hace contra el dominio de hoy, que ya no es el que había. */
+const GUARDIAN_HISTORIAL = 10;
+
+function registrarIntentoGuardian(branchId, datos) {
+  const est = guardianState(branchId);
+  est.history.push({
+    date: todayStr(),
+    accuracy: +(datos.accuracy || 0).toFixed(3),
+    passed: !!datos.passed,
+    /* dominio medio de los estratos que entraban en la prueba, en ese momento */
+    masteryThen: +(datos.masteryThen || 0).toFixed(3),
+    weakStratum: datos.weakStratum || null,
+    conceptos: (datos.conceptos || []).slice(0, 5)
+  });
+  if (est.history.length > GUARDIAN_HISTORIAL) est.history.shift();
+  return est.history[est.history.length - 1];
+}
+
+/* Todo lo que un docente necesita para hablar de la evaluación de un alumno:
+   qué cámaras ha intentado, cuántas veces, cuándo y con qué resultado. */
+function historialEvaluacion(estado) {
+  const S0 = estado || S;
+  const out = [];
+  for (const siteId in (S0.dig_sites || {})) {
+    for (const bId in S0.dig_sites[siteId]) {
+      const g = S0.dig_sites[siteId][bId].guardian;
+      if (!g || !Array.isArray(g.history) || !g.history.length) continue;
+      const def = typeof branchDef === 'function' ? branchDef(bId) : null;
+      out.push({
+        branchId: bId,
+        name: def ? def.name : bId,
+        cleared: !!g.cleared,
+        clearedAt: g.clearedAt || null,
+        attempts: g.history.length,
+        intentos: g.history.slice()
+      });
+    }
+  }
+  return out.sort((a, b) => String(a.name).localeCompare(String(b.name), 'es'));
+}
+
+/* Guardian Pass Rate y divergencia formativo/sumativo (PRD §6).
+   La divergencia es lo interesante: si el dominio formativo iba muy por
+   delante de lo que luego rinde la prueba, el árbol está inflado y la barra
+   de dominio está mintiendo. */
+function metricasEvaluacion(estado) {
+  const hist = historialEvaluacion(estado);
+  let intentos = 0, superados = 0, sumaDiv = 0, conDiv = 0;
+  for (const c of hist) {
+    for (const i of c.intentos) {
+      intentos++;
+      if (i.passed) superados++;
+      if (typeof i.masteryThen === 'number' && i.masteryThen > 0) {
+        sumaDiv += i.masteryThen - i.accuracy; conDiv++;
+      }
+    }
+  }
+  return {
+    camaras: hist.length,
+    superadas: hist.filter(c => c.cleared).length,
+    intentos,
+    passRate: intentos ? superados / intentos : null,
+    /* > 0 significa que la barra de dominio prometía más de lo que la prueba
+       confirmó. Por debajo de 0.15 es ruido normal. */
+    divergencia: conDiv ? sumaDiv / conDiv : null
+  };
+}
+
 function guardianStrata(branchId) {
   const def = branchDef(branchId);
   if (!def) return [];
@@ -901,6 +987,24 @@ function conceptosFlojosDe(estado, tope) {
   return tope ? out.slice(0, tope) : out;
 }
 function conceptosFlojos(tope) { return conceptosFlojosDe(S, tope); }
+
+/* Y los que ya le salen. Hace falta para el informe a la familia: decir solo
+   lo que falla da una foto injusta, y «domina Numeración · Analizar» no
+   significa nada fuera del aula. «Ya le sale comparar números» sí. */
+const CONCEPTO_DOMINADO = 0.15;
+
+function conceptosDominadosDe(estado, tope) {
+  const m = (estado && estado.metrics && estado.metrics.errors_by_concept) || {};
+  const out = [];
+  for (const id in m) {
+    const { errors = 0, attempts = 0 } = m[id] || {};
+    if (attempts < CONCEPTO_MIN_INTENTOS) continue;
+    if (errors / attempts > CONCEPTO_DOMINADO) continue;
+    out.push({ id, errors, attempts, tasa: errors / attempts });
+  }
+  out.sort((a, b) => a.tasa - b.tasa || b.attempts - a.attempts);
+  return tope ? out.slice(0, tope) : out;
+}
 
 function recordAttempt(branchId, stratumId) {
   const key = `${branchId}.${stratumId}`;
