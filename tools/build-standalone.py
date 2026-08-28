@@ -14,7 +14,8 @@ RAIZ = pathlib.Path(__file__).resolve().parent.parent
 SALIDA = pathlib.Path(sys.argv[1]) if len(sys.argv) > 1 else RAIZ / 'dist' / 'Expedicion-Atlas.html'
 
 # Orden de carga idéntico al de index.html (menos el SDK remoto)
-ORDEN = ['content', 'config', 'cloud', 'state', 'game', 'classview', 'teacher', 'app']
+ORDEN = ['content', 'config', 'cloud', 'state', 'game', 'classview',
+         'ui', 'play', 'aula', 'teacher', 'app']
 
 html = (RAIZ / 'index.html').read_text(encoding='utf-8')
 

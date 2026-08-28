@@ -15,7 +15,8 @@ const vm = require('node:vm');
 
 const RAIZ = path.join(__dirname, '..');
 /* El mismo orden que index.html y que tools/build-standalone.py */
-const ORDEN = ['content', 'config', 'cloud', 'state', 'game', 'classview', 'teacher', 'app'];
+const ORDEN = ['content', 'config', 'cloud', 'state', 'game', 'classview',
+               'ui', 'play', 'aula', 'teacher', 'app'];
 
 function almacenDeMentira() {
   const datos = new Map();

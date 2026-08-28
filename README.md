@@ -475,17 +475,41 @@ fonts/                Bree Serif y Nunito, servidas desde aquí (SIL OFL)
 js/config.js          Valores de partida y capa de ajustes editable del docente
 js/cloud.js           Cuentas y sincronización con Appwrite (degrada a local)
 js/classview.js       Resumen de la clase (cálculo puro + lectura remota)
-js/teacher.js         Panel de Configuración del docente
 js/content.js         Generadores procedurales de retos por estrato y tier
 js/state.js           Estado user_state (PRD §5), economía y persistencia (localStorage)
 js/game.js            Motor de misiones, recompensas y anti-grinding
-js/app.js             Interfaz, navegación y arranque
+js/ui.js              Chasis: escapado, iconos, cambio de pantalla, diálogo, cabecera
+js/play.js            Las pantallas del alumno (mapa, pozo, misión, campamento…)
+js/aula.js            Las del docente en el aula (mis clases, clase dirigida, vista de clase)
+js/teacher.js         Panel de Configuración del docente
+js/app.js             Portada, acceso, navegación y arranque
 sw.js                 Caché offline (network-first)
 manifest.webmanifest  Instalación PWA
 tools/build-standalone.py  Genera la versión de un solo archivo (dist/)
 test/                 Pruebas (ver «Pruebas»)
 docs/PRD.md           Documento de diseño completo
 ```
+
+### Por qué la interfaz está en cuatro ficheros
+
+`app.js` llegó a 2 200 líneas y 87 funciones, con la pantalla de un niño de
+ocho años y la vista general de la clase del docente a cincuenta líneas de
+distancia. Se repartió por **quién mira la pantalla**, que es lo que de verdad
+las separa:
+
+| | Quién la mira |
+|---|---|
+| `ui.js` | Nadie en concreto: es el chasis del que tiran todas |
+| `play.js` | El alumno |
+| `aula.js` | El docente, con la clase delante |
+| `teacher.js` | El docente, preparando la expedición |
+| `app.js` | Todavía nadie: decide quién entra y por qué puerta |
+
+Los once scripts comparten un único ámbito global, así que el orden de carga
+solo importa para que se lea bien; nada se ejecuta hasta que `app.js` engancha
+`DOMContentLoaded`. Ese mismo orden está escrito en cuatro sitios que tienen que
+ir juntos: `index.html`, la lista `ASSETS` de `sw.js`, el `ORDEN` de
+`tools/build-standalone.py` y el de `test/cargar.js`.
 
 ## El sistema visual
 

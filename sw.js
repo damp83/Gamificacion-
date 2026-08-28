@@ -1,17 +1,20 @@
 /* Expedición Atlas — service worker: caché de la app shell para uso sin conexión */
-const CACHE = 'atlas-shell-v14';
+const CACHE = 'atlas-shell-v15';
 const ASSETS = [
   './',
   './index.html',
   './manifest.webmanifest',
   './css/styles.css',
+  './js/content.js',
   './js/config.js',
   './js/cloud.js',
-  './js/classview.js',
-  './js/teacher.js',
-  './js/content.js',
   './js/state.js',
   './js/game.js',
+  './js/classview.js',
+  './js/ui.js',
+  './js/play.js',
+  './js/aula.js',
+  './js/teacher.js',
   './js/app.js',
   './icons/icon.svg',
   /* Las tipografías forman parte de la app shell: sin ellas, en un aula sin
