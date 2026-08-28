@@ -76,6 +76,10 @@ function answerQuestion(optionIndex) {
     mission.firstAttemptDone = true;
     mission.resolved.push(correct);
     recordFirstTry(correct, responseMs);
+    /* El concepto se anota acierte o falle: sin los aciertos no hay tasa, y
+       sin tasa un concepto muy practicado parecería peor que uno que apenas
+       se ha tocado. */
+    recordConcepto(q.skill, correct);
     if (correct) mission.firstTryCorrect++;
     else {
       recordError(mission.branchId, q.stratumId || mission.stratumId);

@@ -73,6 +73,7 @@ Cubren lo que ya se ha roto alguna vez, que es de donde salieron:
 | `service-worker.test.js` | Que en la tablet no se quede guardado el diario del niño anterior |
 | `menores.test.js` | Contraseñas, claves peligrosas en la configuración compartida y el reparto del Fondo |
 | `nube.test.js` | Que la configuración de Appwrite esté completa y que el diagnóstico no confunda «no existe» con «no deja listar» |
+| `conceptos.test.js` | Que todo reto declare su concepto y que el agregado de clase ordene por a cuántos alumnos les pasa |
 
 Lo que pide un navegador de verdad —que la página pinte, que un nombre hostil se
 vea como texto— no está aquí: eso se comprueba abriendo la app.
@@ -435,6 +436,42 @@ Dos detalles:
 Cuando hay lista de clase, los miembros de cada cuadrilla se marcan con **casillas** en lugar de escribirse a mano. Así el nombre siempre coincide exactamente con el del alumno, y desaparece el problema de asignar a alguien que no existe por una errata. A quien ya está en una cuadrilla se le deshabilita la casilla en las demás.
 
 ## Vista general de la clase
+
+### Lo que conviene repasar
+
+Es lo primero de la pantalla, y a propósito: el docente entra aquí con la
+pregunta «¿qué doy mañana?», y hasta ahora la vista contestaba a otra distinta
+—«¿cómo va cada uno?»— que había que traducir leyendo veinticinco tarjetas.
+
+Cada reto declara **qué concepto** trabaja: no «Numeración · Aplicar», sino
+«Resta llevando», «B y V», «Comparar fracciones». Con eso, la vista de clase
+puede decir **«7 alumnos fallan la resta llevando, y son estos»**, que sí es una
+frase con la que se prepara una clase.
+
+Tres decisiones que conviene no deshacer:
+
+- **Se ordena por cuántos alumnos lo fallan, no por la tasa de error.** Lo que
+  decide si algo va a la pizarra es a cuánta gente le sirve. Un concepto con
+  89 % de fallo en un solo niño es una conversación con ese niño, no una
+  lección, y por eso aparece el último aunque su tasa sea la más alta.
+- **Hacen falta al menos 3 intentos** para que un concepto cuente. Con dos
+  respuestas no se sabe nada: un solo fallo daría 100 % y mandaría a repasar
+  algo que quizá no toca.
+- **Solo cuenta el primer intento** de cada reto. El segundo llega con la
+  explicación de Kira delante y mediría otra cosa.
+
+El cálculo y el enunciado son conceptos **distintos** («Suma con llevada» frente
+a «Problema de sumar»). Un niño que resuelve 4856 + 30 y falla el mismo cálculo
+dentro de un problema no tiene un problema de matemáticas: lo tiene de lectura.
+Mezclarlos escondía justo eso. Por lo mismo, la ortografía se clasifica por
+regla y no por estrato: «falla ortografía» no se puede enseñar, «falla B/V» sí.
+
+En el cuaderno de cada alumno aparece lo mismo en pequeño, bajo «Le está
+costando»: es lo que se mira antes de sentarse cinco minutos con un niño.
+
+> Los pozos que crea el docente no declaran concepto y se agrupan por el nombre
+> de su pozo. Se puede afinar poniendo un campo `skill` en los retos del banco.
+
 
 **Cuaderno del Docente → 👥 Vista general de la clase** (pide el PIN). Reúne los diarios de todos y muestra:
 

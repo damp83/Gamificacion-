@@ -16,6 +16,94 @@ const STRATA_META = {
   analizar:   { label: 'Analizar',   icon: '🔍', name: 'El plano falsificado',   peBase: 25 }
 };
 
+/* ═══════════════ CONCEPTOS ═══════════════
+   Cada reto declara QUÉ concepto trabaja. Sin esto, lo más fino que el docente
+   podía saber de un alumno era «Numeración · Aplicar: 62 %», y con eso no se
+   prepara una clase. Con esto, la vista de clase puede decir «17 de 24 fallan
+   la resta llevando», que sí es una frase con la que se hace algo.
+
+   Dos decisiones que conviene entender:
+
+   · El id es ESTABLE porque queda guardado dentro de los diarios; la etiqueta
+     se puede reescribir cuando se quiera sin romper nada.
+   · Se separa el cálculo del enunciado —«Suma con llevada» y «Problema de
+     sumar» son conceptos distintos— porque un niño que resuelve 4856 + 30 y
+     falla el mismo cálculo dentro de un problema no tiene un problema de
+     matemáticas, lo tiene de lectura. Mezclarlos escondía justo eso. */
+const CONCEPTOS = {
+  /* ── Numeración ── */
+  serie_numerica:      { area: 'Numeración', label: 'Anterior y posterior' },
+  valor_posicional:    { area: 'Numeración', label: 'Valor posicional' },
+  comparar_numeros:    { area: 'Numeración', label: 'Comparar números' },
+  redondeo:            { area: 'Numeración', label: 'Redondeo' },
+  ordenar_numeros:     { area: 'Numeración', label: 'Ordenar de menor a mayor' },
+  contar_agrupando:    { area: 'Numeración', label: 'Contar agrupando de diez' },
+  series:              { area: 'Numeración', label: 'Continuar una serie' },
+  par_impar:           { area: 'Numeración', label: 'Pares e impares' },
+
+  /* ── Cálculo ── */
+  suma_basica:         { area: 'Cálculo', label: 'Sumar sin llevada' },
+  suma_llevada:        { area: 'Cálculo', label: 'Suma con llevada' },
+  resta_llevada:       { area: 'Cálculo', label: 'Resta llevando' },
+  detectar_llevada:    { area: 'Cálculo', label: 'Reconocer cuándo hay llevada' },
+  error_suma:          { area: 'Cálculo', label: 'Encontrar el error en una suma' },
+  problema_suma:       { area: 'Cálculo', label: 'Problema de sumar (enunciado)' },
+
+  /* ── Fracciones ── */
+  fraccion_leer:       { area: 'Fracciones', label: 'Leer una fracción' },
+  fraccion_terminos:   { area: 'Fracciones', label: 'Numerador y denominador' },
+  comparar_fracciones: { area: 'Fracciones', label: 'Comparar fracciones' },
+  fraccion_significado:{ area: 'Fracciones', label: 'Qué representa una fracción' },
+  fraccion_de_cantidad:{ area: 'Fracciones', label: 'Fracción de una cantidad' },
+  error_fraccion:      { area: 'Fracciones', label: 'Encontrar el error en un reparto' },
+
+  /* ── Decimales y porcentajes ── */
+  decimal_posicion:    { area: 'Decimales', label: 'Décimas y centésimas' },
+  decimal_fraccion:    { area: 'Decimales', label: 'Decimal y fracción equivalentes' },
+  porcentaje:          { area: 'Decimales', label: 'Porcentaje de una cantidad' },
+  comparar_decimales:  { area: 'Decimales', label: 'Comparar decimales' },
+
+  /* ── Vocabulario ── */
+  sinonimos:           { area: 'Vocabulario', label: 'Sinónimos' },
+  antonimos:           { area: 'Vocabulario', label: 'Antónimos' },
+  categorias:          { area: 'Vocabulario', label: 'Sustantivo, adjetivo y verbo' },
+  familias_palabras:   { area: 'Vocabulario', label: 'Familias de palabras' },
+
+  /* ── Ortografía ──
+     Por regla y no por estrato: «falla ortografía» no se puede enseñar,
+     «falla B/V» sí. El tipo lo declara cada palabra del banco. */
+  orto_bv:             { area: 'Ortografía', label: 'B y V' },
+  orto_h:              { area: 'Ortografía', label: 'La H' },
+  orto_lly:            { area: 'Ortografía', label: 'LL e Y' },
+  orto_gj:             { area: 'Ortografía', label: 'G y J' },
+  orto_tilde:          { area: 'Ortografía', label: 'Tildes' },
+  orto_zsc:            { area: 'Ortografía', label: 'Z, S y C' },
+  orto_x:              { area: 'Ortografía', label: 'La X' },
+  orto_homofonos:      { area: 'Ortografía', label: 'Palabras homófonas' },
+  orto_mn:             { area: 'Ortografía', label: 'M antes de B y P' },
+  orto_junto:          { area: 'Ortografía', label: 'Junto o separado' },
+  orto_otras:          { area: 'Ortografía', label: 'Otras reglas' },
+
+  /* ── Comprensión lectora ── */
+  lectura_literal:     { area: 'Comprensión', label: 'Localizar un dato en el texto' },
+  lectura_inferencia:  { area: 'Comprensión', label: 'Inferir lo que no está escrito' },
+  lectura_idea:        { area: 'Comprensión', label: 'Idea principal' },
+  lectura_critica:     { area: 'Comprensión', label: 'Valorar lo que dice el texto' }
+};
+
+/* Etiqueta legible de un concepto. Los pozos que crea el docente no tienen
+   concepto declarado y se agrupan por su propio nombre, que es lo más útil
+   que se puede decir de ellos sin pedirle que etiquete sus retos. */
+function conceptoInfo(id) {
+  if (CONCEPTOS[id]) return CONCEPTOS[id];
+  if (String(id || '').startsWith('pozo:')) {
+    const b = branchDef(String(id).slice(5));
+    return { area: 'Del docente', label: b ? b.name : 'Pozo propio' };
+  }
+  return { area: '—', label: String(id || 'sin clasificar') };
+}
+function conceptoLabel(id) { return conceptoInfo(id).label; }
+
 /* ── utilidades ── */
 function ri(min, max) { return Math.floor(Math.random() * (max - min + 1)) + min; }
 function pick(arr) { return arr[ri(0, arr.length - 1)]; }
@@ -112,6 +200,7 @@ const numeracion = {
       const correct = antes ? n - 1 : n + 1;
       const { options, answer } = buildOptions(correct, nearMisses(correct), fmtNum);
       return {
+        skill: 'serie_numerica',
         question: `¿Qué número va ${antes ? 'ANTES' : 'DESPUÉS'} del ${n}?`,
         options, answer,
         hint1: antes ? 'Cuenta hacia atrás desde ese número.' : 'Cuenta uno más.',
@@ -131,6 +220,7 @@ const numeracion = {
     const correct = Number(digits[p.i]);
     const { options, answer } = buildOptions(correct, digits.map(Number).concat([ri(0, 9), ri(0, 9)]));
     return {
+      skill: 'valor_posicional',
       question: `En la bóveda hay grabado el número ${fmtNum(n)}. ¿Qué cifra ocupa el lugar de las ${p.label}?`,
       options, answer,
       hint1: 'Empieza a contar los lugares desde la derecha: unidades, decenas, centenas…',
@@ -148,6 +238,7 @@ const numeracion = {
       const correct = Math.max(...nums);
       const { options, answer } = buildOptions(correct, nums.filter(x => x !== correct), fmtNum);
       return {
+        skill: 'comparar_numeros',
         question: terse(g)
           ? `¿Cuál es el número MAYOR?  ${nums.map(fmtNum).join(' · ')}`
           : `Cuatro cofres están marcados con los números ${nums.map(fmtNum).join(', ')}. El tesoro está en el cofre con el número MAYOR. ¿Cuál es?`,
@@ -164,6 +255,7 @@ const numeracion = {
     const correct = (n - base) * 2 >= paso ? base + paso : base;
     const { options, answer } = buildOptions(correct, [base, base + paso, base - paso, n], fmtNum);
     return {
+      skill: 'redondeo',
       question: `Kira necesita redondear ${fmtNum(n)} ${paso === 1000 ? 'al millar' : 'a la centena'} más cercano para su mapa. ¿Qué número anota?`,
       options, answer,
       hint1: `Mira la cifra de las ${paso === 1000 ? 'centenas' : 'decenas'}: si es 5 o más, sube.`,
@@ -180,6 +272,7 @@ const numeracion = {
       const correct = a + b;
       const { options, answer } = buildOptions(correct, nearMisses(correct).concat([Math.abs(a - b)]), fmtNum);
       return {
+        skill: 'problema_suma',
         question: `Tobías encuentra ${a} monedas y luego ${b} más.\n¿Cuántas tiene en total?`,
         options, answer,
         hint1: 'Junta las dos cantidades: hay que sumar.',
@@ -193,6 +286,7 @@ const numeracion = {
     const correct = a + b;
     const { options, answer } = buildOptions(correct, nearMisses(correct).concat([Math.abs(a - b)]), fmtNum);
     return {
+      skill: 'problema_suma',
       question: `La expedición ya tenía ${fmtNum(a)} ${t} y en la nueva cámara encuentra ${fmtNum(b)} más. ¿Cuántas ${t} hay ahora en total?`,
       options, answer,
       hint1: '«En total» y «más» son señales de que hay que sumar.',
@@ -213,6 +307,7 @@ const numeracion = {
     const correct = bad[wrongIdx];
     const { options, answer } = buildOptions(correct, bad.filter(x => x !== correct), fmtNum);
     return {
+      skill: 'ordenar_numeros',
       question: terse(g)
         ? `Estos números van de menor a mayor, pero uno está mal:\n${bad.map(fmtNum).join(' → ')}\n¿Cuál está mal?`
         : `Vera Kovak ordenó estos números de menor a mayor para abrir la cerradura: ${bad.map(fmtNum).join(' → ')}. ¡Pero hay un número mal colocado y la puerta no abre! ¿Cuál está fuera de su sitio?`,
@@ -239,6 +334,7 @@ const sumas_llevando = {
     const correct = a + b;
     const { options, answer } = buildOptions(correct, nearMisses(correct), fmtNum);
     return {
+      skill: 'suma_llevada',
       question: terse(g) ? `${a} + ${b} = ?`
         : `El reloj de engranajes pide el resultado de ${fmtNum(a)} + ${fmtNum(b)} para girar. ¿Cuánto es?`,
       options, answer,
@@ -258,6 +354,7 @@ const sumas_llevando = {
       const correct = a - b;
       const { options, answer } = buildOptions(correct, nearMisses(correct).concat([a + b]), fmtNum);
       return {
+        skill: 'resta_llevada',
         question: `Había ${a} monedas y Vera se llevó ${b}.\n¿Cuántas quedan?`,
         options, answer,
         hint1: '«Se llevó» significa que hay que quitar: se resta.',
@@ -283,6 +380,7 @@ const sumas_llevando = {
       pairs.filter(p => p !== correctPair).map(p => p.txt).concat([`${ri(11, 44)} + ${ri(11, 44)}`, `${ri(11, 44)} + ${ri(11, 44)}`])
     );
     return {
+      skill: 'detectar_llevada',
       question: `Para engrasar el engranaje correcto, Kira busca una suma que ${target ? 'SÍ necesita llevada' : 'NO necesita llevada'}. ¿Cuál elige?`,
       options, answer,
       hint1: 'Hay llevada cuando las unidades suman 10 o más.',
@@ -302,6 +400,7 @@ const sumas_llevando = {
     const { options, answer } = buildOptions(correct, nearMisses(correct), fmtNum);
     const who = pick(NAMES);
     return {
+      skill: 'problema_suma',
       question: terse(g)
         ? `Bruno lleva ${a} monedas y Tobías ${b}.\n¿Cuántas hay entre los dos?`
         : `Bruno guarda ${fmtNum(a)} ${t} en la mochila y Tobías desentierra ${fmtNum(b)}${c ? ` y ${who} aporta ${c} más` : ''}. ¿Cuántas ${t} llevan al campamento?`,
@@ -326,6 +425,7 @@ const sumas_llevando = {
       'Restó en vez de sumar'
     ]);
     return {
+      skill: 'error_suma',
       question: `En el plano robado, Vera Kovak escribió: ${fmtNum(a)} + ${fmtNum(b)} = ${fmtNum(wrong)}. Kira dice que es falso. ¿Qué error cometió Vera?`,
       options, answer,
       hint1: `Haz tú la suma: ¿cuánto da de verdad ${fmtNum(a)} + ${fmtNum(b)}?`,
@@ -358,6 +458,7 @@ const fracciones = {
     if (Math.random() < 0.5) {
       const { options, answer } = buildOptions(f.uni, FRACT.filter(x => x !== f).map(x => x.uni));
       return {
+        skill: 'fraccion_leer',
         question: `Una vasija está dividida en ${f.d} partes iguales y ${f.n} ${f.n === 1 ? 'está pintada' : 'están pintadas'}:\n${fractPicture(f.n, f.d)}\n¿Qué fracción representa la parte pintada?`,
         options, answer,
         hint1: 'El número de abajo (denominador) dice en cuántas partes se divide.',
@@ -369,6 +470,7 @@ const fracciones = {
     const correct = part === 'numerador' ? f.n : f.d;
     const { options, answer } = buildOptions(correct, [f.n, f.d, f.n + f.d, ri(2, 9)]);
     return {
+      skill: 'fraccion_terminos',
       question: `En el jeroglífico aparece la fracción ${f.n}/${f.d}. ¿Cuál es su ${part}?`,
       options, answer,
       hint1: 'El numerador es el número de ARRIBA; el denominador, el de ABAJO.',
@@ -388,6 +490,7 @@ const fracciones = {
       const correct = `${Math.max(n1, n2)}/${d}`;
       const { options, answer } = buildOptions(correct, [`${Math.min(n1, n2)}/${d}`, `${d}/${Math.max(n1, n2)}`, `${n1 + n2}/${d}`]);
       return {
+        skill: 'comparar_fracciones',
         question: `¿Qué fracción es MAYOR: ${n1}/${d} o ${n2}/${d}?`,
         options, answer,
         hint1: 'Si el denominador es el mismo, las partes son del mismo tamaño.',
@@ -409,6 +512,7 @@ const fracciones = {
     const correct = situations[key];
     const { options, answer } = buildOptions(correct, shuffle(Object.entries(situations).filter(([k]) => k !== key).map(([, v]) => v)));
     return {
+      skill: 'fraccion_significado',
       question: `Kira traduce el jeroglífico ${f.uni}. ¿Qué situación de la expedición representa?`,
       options, answer,
       hint1: `El denominador ${f.d} dice en cuántas partes iguales se divide el total.`,
@@ -426,6 +530,7 @@ const fracciones = {
     const t = pick(['galletas', 'cuerdas', 'antorchas', 'mapas', 'cantimploras']);
     const { options, answer } = buildOptions(correct, [total - correct, Math.floor(total / 2), correct + f.d, total]);
     return {
+      skill: 'fraccion_de_cantidad',
       question: `La expedición lleva ${total} ${t} y debe dejar ${f.uni} (${f.txt}) en el campamento. ¿Cuántas ${t} deja?`,
       options, answer,
       hint1: `Primero divide ${total} entre ${f.d} para saber cuánto vale cada parte.`,
@@ -448,6 +553,7 @@ const fracciones = {
       `No: ${f.uni} de ${total} son ${total}`
     ]);
     return {
+      skill: 'error_fraccion',
       question: `Vera Kovak reparte el botín y anuncia: «${f.uni} de ${total} monedas son ${veraSays} monedas, ¡me las quedo!». ¿Es correcto su reparto?`,
       options, answer,
       hint1: `Comprueba tú el reparto: divide ${total} entre ${f.d}.`,
@@ -470,6 +576,7 @@ const sendero = {
     const { options, answer } = buildOptions(correct, nearMisses(correct), fmtNum);
     const grupos = Math.floor(n / 10), sueltos = n % 10;
     return {
+      skill: 'contar_agrupando',
       question: `Cuenta el tesoro:\n${'🟨'.repeat(grupos)}${grupos ? ' (bolsas de 10)  ' : ''}${'🪙'.repeat(sueltos)}\n¿Cuántas monedas hay?`,
       options, answer,
       hint1: 'Cada bolsa 🟨 vale 10 monedas.',
@@ -485,6 +592,7 @@ const sendero = {
     const correct = inicio + paso * 4;
     const { options, answer } = buildOptions(correct, nearMisses(correct), fmtNum);
     return {
+      skill: 'series',
       question: `Sigue las huellas:\n${serie.join(' → ')} → ?`,
       options, answer,
       hint1: 'Mira cuánto sube de un número al siguiente.',
@@ -499,6 +607,7 @@ const sendero = {
     const correct = a + b;
     const { options, answer } = buildOptions(correct, nearMisses(correct).concat([Math.abs(a - b)]), fmtNum);
     return {
+      skill: 'suma_basica',
       question: `Kira tiene ${a} gemas 💎 y encuentra ${b} más.\n¿Cuántas gemas tiene ahora?`,
       options, answer,
       hint1: 'Encontrar más significa sumar.',
@@ -517,6 +626,7 @@ const sendero = {
     const correct = buscados[0];
     const { options, answer } = buildOptions(correct, nums.filter(n => n !== correct), fmtNum);
     return {
+      skill: 'par_impar',
       question: `¿Cuál de estos números es ${par ? 'PAR' : 'IMPAR'}?\n${nums.join(' · ')}`,
       options, answer,
       hint1: par ? 'Los pares se pueden repartir en dos montones iguales.' : 'Los impares siempre dejan uno suelto.',
@@ -536,6 +646,7 @@ const decimales = {
     const correct = parte === 'décimas' ? Math.floor(dec / 10) : dec % 10;
     const { options, answer } = buildOptions(correct, [Math.floor(dec / 10), dec % 10, ent % 10, ri(0, 9)]);
     return {
+      skill: 'decimal_posicion',
       question: `El manómetro del templo marca ${txt}. ¿Qué cifra ocupa el lugar de las ${parte}?`,
       options, answer,
       hint1: 'Tras la coma va primero el lugar de las décimas y luego el de las centésimas.',
@@ -551,6 +662,7 @@ const decimales = {
     const p = pick(pares);
     const { options, answer } = buildOptions(p.f, pares.filter(x => x !== p).map(x => x.f));
     return {
+      skill: 'decimal_fraccion',
       question: `Kira anota ${p.d} en la bitácora. ¿A qué fracción equivale?`,
       options, answer,
       hint1: 'Piensa en cuántas partes iguales hacen un entero.',
@@ -564,6 +676,7 @@ const decimales = {
     const correct = Math.round(total * pct / 100);
     const { options, answer } = buildOptions(correct, [Math.round(total * (pct + 10) / 100), Math.round(total / 2), total - correct].concat(nearMisses(correct)), fmtNum);
     return {
+      skill: 'porcentaje',
       question: `El botín es de ${fmtNum(total)} doblones y la Sociedad se queda el ${pct} %. ¿Cuántos doblones son?`,
       options, answer,
       hint1: `El ${pct} % significa ${pct} de cada 100.`,
@@ -603,6 +716,7 @@ const decimales = {
       'No se pueden comparar'
     ]);
     return {
+      skill: 'comparar_decimales',
       question: `Vera dice que ${masCifras} es mayor que ${menosCifras} «porque tiene más cifras». ¿Quién tiene razón?`,
       options, answer,
       hint1: 'Tener más cifras detrás de la coma no significa ser mayor: 0,5 es mayor que 0,25.',
@@ -702,38 +816,38 @@ const LEX = {
    en la misma pregunta. */
 const ORTO = {
   1: [
-    { bien: 'bueno',   mal: 'gueno',   frase: 'Tobías es un perro muy ___.',            regla: 'Se escribe con B.', pista: 'Suena /b/ al principio.' },
-    { bien: 'huevo',   mal: 'uevo',    frase: 'En el nido había un ___ de pájaro.',     regla: 'Las palabras que empiezan por «ue» llevan H.', pista: 'Falta una letra muda al principio.' },
-    { bien: 'llave',   mal: 'yave',    frase: 'Bruno perdió la ___ del cofre.',         regla: 'Se escribe con LL.', pista: 'Suena igual que «lluvia».' },
-    { bien: 'cabeza',  mal: 'caveza',  frase: 'Kira se posó en la ___ de Bruno.',       regla: 'Se escribe con B.', pista: 'Piensa en «cabezón».' },
-    { bien: 'árbol',   mal: 'arbol',   frase: 'Acampamos debajo de un ___ enorme.',     regla: 'Es llana acabada en L, y por eso lleva tilde.', pista: 'Se dice ÁR-bol, con la fuerza al principio.' },
-    { bien: 'jirafa',  mal: 'girafa',  frase: 'En el mapa hay dibujada una ___.',       regla: 'Se escribe con J.', pista: 'Aunque suene igual que la G, aquí va J.' },
-    { bien: 'hola', homofono: true,    mal: 'ola',     frase: 'Bruno saludó: «¡___, exploradores!».',   regla: 'El saludo lleva H; «ola» sin H es la del mar.', pista: 'Depende de lo que quieras decir.' },
-    { bien: 'zapato',  mal: 'sapato',  frase: 'Se le llenó de arena un ___.',           regla: 'Se escribe con Z.', pista: 'Za, ze, zi, zo, zu.' }
+    { tipo: 'bv', bien: 'bueno',   mal: 'gueno',   frase: 'Tobías es un perro muy ___.',            regla: 'Se escribe con B.', pista: 'Suena /b/ al principio.' },
+    { tipo: 'h', bien: 'huevo',   mal: 'uevo',    frase: 'En el nido había un ___ de pájaro.',     regla: 'Las palabras que empiezan por «ue» llevan H.', pista: 'Falta una letra muda al principio.' },
+    { tipo: 'lly', bien: 'llave',   mal: 'yave',    frase: 'Bruno perdió la ___ del cofre.',         regla: 'Se escribe con LL.', pista: 'Suena igual que «lluvia».' },
+    { tipo: 'bv', bien: 'cabeza',  mal: 'caveza',  frase: 'Kira se posó en la ___ de Bruno.',       regla: 'Se escribe con B.', pista: 'Piensa en «cabezón».' },
+    { tipo: 'tilde', bien: 'árbol',   mal: 'arbol',   frase: 'Acampamos debajo de un ___ enorme.',     regla: 'Es llana acabada en L, y por eso lleva tilde.', pista: 'Se dice ÁR-bol, con la fuerza al principio.' },
+    { tipo: 'gj', bien: 'jirafa',  mal: 'girafa',  frase: 'En el mapa hay dibujada una ___.',       regla: 'Se escribe con J.', pista: 'Aunque suene igual que la G, aquí va J.' },
+    { tipo: 'homofonos', bien: 'hola', homofono: true,    mal: 'ola',     frase: 'Bruno saludó: «¡___, exploradores!».',   regla: 'El saludo lleva H; «ola» sin H es la del mar.', pista: 'Depende de lo que quieras decir.' },
+    { tipo: 'zsc', bien: 'zapato',  mal: 'sapato',  frase: 'Se le llenó de arena un ___.',           regla: 'Se escribe con Z.', pista: 'Za, ze, zi, zo, zu.' }
   ],
   2: [
-    { bien: 'hierba',    mal: 'ierba',    frase: 'Junto al río crecía ___ muy alta.',                regla: 'Las palabras que empiezan por «ie» llevan H.', pista: 'Igual que «hielo».' },
-    { bien: 'volver',    mal: 'bolver',   frase: 'Tendremos que ___ mañana al yacimiento.',          regla: 'Los verbos acabados en -olver se escriben con V.', pista: 'Como «resolver» y «devolver».' },
-    { bien: 'burbuja',   mal: 'vurvuja',  frase: 'Del barro salió una ___ de aire.',                 regla: 'Se escribe con B las dos veces.', pista: 'Bur-bu-ja.' },
-    { bien: 'gigante',   mal: 'jigante',  frase: 'La estatua era ___: medía diez metros.',           regla: 'Se escribe con G ante E e I en esta palabra.', pista: 'Como «gimnasia» o «girar».' },
-    { bien: 'cayó', homofono: true,      mal: 'calló',    frase: 'Bruno tropezó y se ___ en la zanja.',              regla: '«Cayó» es de caerse; «calló» es de callarse.', pista: '¿Se cayó al suelo o se quedó en silencio?' },
-    { bien: 'después',   mal: 'despues',  frase: 'Excavaremos ___ de comer.',                        regla: 'Es aguda acabada en S, así que lleva tilde.', pista: 'La fuerza va en «pués».' },
-    { bien: 'excavar',   mal: 'escavar',  frase: 'Hay que ___ con mucho cuidado.',                   regla: 'Se escribe con X.', pista: 'Como «excursión» o «excelente».' },
-    { bien: 'también',   mal: 'tanbién',  frase: 'Kira ___ quiere bajar a la cámara.',               regla: 'Antes de B y P se escribe M, no N.', pista: 'M antes de B y P, siempre.' },
-    { bien: 'ejercicio', mal: 'ejerzicio',frase: 'Descifrar la tablilla fue un buen ___.',           regla: 'Se escribe con C.', pista: 'Ce, ci suenan como la Z.' },
-    { bien: 'hacia', homofono: true,     mal: 'asia',     frase: 'La expedición avanzó ___ el norte.',               regla: '«Hacia» indica dirección y lleva H.', pista: 'No confundir con el continente.' }
+    { tipo: 'h', bien: 'hierba',    mal: 'ierba',    frase: 'Junto al río crecía ___ muy alta.',                regla: 'Las palabras que empiezan por «ie» llevan H.', pista: 'Igual que «hielo».' },
+    { tipo: 'bv', bien: 'volver',    mal: 'bolver',   frase: 'Tendremos que ___ mañana al yacimiento.',          regla: 'Los verbos acabados en -olver se escriben con V.', pista: 'Como «resolver» y «devolver».' },
+    { tipo: 'bv', bien: 'burbuja',   mal: 'vurvuja',  frase: 'Del barro salió una ___ de aire.',                 regla: 'Se escribe con B las dos veces.', pista: 'Bur-bu-ja.' },
+    { tipo: 'gj', bien: 'gigante',   mal: 'jigante',  frase: 'La estatua era ___: medía diez metros.',           regla: 'Se escribe con G ante E e I en esta palabra.', pista: 'Como «gimnasia» o «girar».' },
+    { tipo: 'homofonos', bien: 'cayó', homofono: true,      mal: 'calló',    frase: 'Bruno tropezó y se ___ en la zanja.',              regla: '«Cayó» es de caerse; «calló» es de callarse.', pista: '¿Se cayó al suelo o se quedó en silencio?' },
+    { tipo: 'tilde', bien: 'después',   mal: 'despues',  frase: 'Excavaremos ___ de comer.',                        regla: 'Es aguda acabada en S, así que lleva tilde.', pista: 'La fuerza va en «pués».' },
+    { tipo: 'x', bien: 'excavar',   mal: 'escavar',  frase: 'Hay que ___ con mucho cuidado.',                   regla: 'Se escribe con X.', pista: 'Como «excursión» o «excelente».' },
+    { tipo: 'mn', bien: 'también',   mal: 'tanbién',  frase: 'Kira ___ quiere bajar a la cámara.',               regla: 'Antes de B y P se escribe M, no N.', pista: 'M antes de B y P, siempre.' },
+    { tipo: 'zsc', bien: 'ejercicio', mal: 'ejerzicio',frase: 'Descifrar la tablilla fue un buen ___.',           regla: 'Se escribe con C.', pista: 'Ce, ci suenan como la Z.' },
+    { tipo: 'h', bien: 'hacia', homofono: true,     mal: 'asia',     frase: 'La expedición avanzó ___ el norte.',               regla: '«Hacia» indica dirección y lleva H.', pista: 'No confundir con el continente.' }
   ],
   3: [
-    { bien: 'exhaustivo',  mal: 'exaustivo',   frase: 'El informe debe ser ___ para que sirva de algo.',       regla: 'Lleva H intercalada.', pista: 'Igual que «exhibir» o «exhalar».' },
-    { bien: 'absorber',    mal: 'absorver',    frase: 'La arena puede ___ toda el agua de la lluvia.',         regla: 'Se escribe con B.', pista: 'Piensa en «absorbente».' },
-    { bien: 'vaya', homofono: true,        mal: 'valla',       frase: 'Es mejor que ___ Kira: lee los signos.',                regla: '«Vaya» es del verbo ir; «valla» es una cerca.', pista: '¿Quién se va o qué cerca es?' },
-    { bien: 'sinfín', homofono: true,      mal: 'sin fín',     frase: 'Encontramos un ___ de fragmentos.',                     regla: 'Se escribe junto y con tilde: es un sustantivo.', pista: 'Puedes poner «un» delante.' },
-    { bien: 'porqué', homofono: true,      mal: 'por que',     frase: 'Nadie entiende el ___ de esas marcas.',                 regla: 'Con tilde y junto es un sustantivo: «el porqué».', pista: 'Se puede poner «el» delante.' },
-    { bien: 'arqueología', mal: 'arquiología', frase: 'La ___ estudia lo que dejaron los antiguos.',           regla: 'Se escribe con E: arque-o-lo-gía.', pista: 'Viene de «arqueo-», lo antiguo.' },
-    { bien: 'sino', homofono: true,        mal: 'si no',       frase: 'No lo halló Bruno, ___ Vega.',                          regla: 'Junto cuando corrige lo dicho antes.', pista: '¿Corrige lo anterior o es una condición?' },
-    { bien: 'hubo',        mal: 'ubo',         frase: 'Aquel año ___ tres expediciones.',                      regla: 'Del verbo haber, siempre con H.', pista: 'Haber lleva H en todas sus formas.' },
-    { bien: 'geografía',   mal: 'jeografía',   frase: 'La ___ del valle cambió con el río.',                   regla: 'Se escribe con G: «geo-» es tierra.', pista: 'Como «geología» o «geometría».' },
-    { bien: 'asimismo', homofono: true,    mal: 'asi mismo',   frase: 'Se anotó la fecha y, ___, la profundidad.',             regla: 'Junto y sin tilde cuando significa «también».', pista: '¿Puedes cambiarlo por «también»?' }
+    { tipo: 'h', bien: 'exhaustivo',  mal: 'exaustivo',   frase: 'El informe debe ser ___ para que sirva de algo.',       regla: 'Lleva H intercalada.', pista: 'Igual que «exhibir» o «exhalar».' },
+    { tipo: 'bv', bien: 'absorber',    mal: 'absorver',    frase: 'La arena puede ___ toda el agua de la lluvia.',         regla: 'Se escribe con B.', pista: 'Piensa en «absorbente».' },
+    { tipo: 'homofonos', bien: 'vaya', homofono: true,        mal: 'valla',       frase: 'Es mejor que ___ Kira: lee los signos.',                regla: '«Vaya» es del verbo ir; «valla» es una cerca.', pista: '¿Quién se va o qué cerca es?' },
+    { tipo: 'junto', bien: 'sinfín', homofono: true,      mal: 'sin fín',     frase: 'Encontramos un ___ de fragmentos.',                     regla: 'Se escribe junto y con tilde: es un sustantivo.', pista: 'Puedes poner «un» delante.' },
+    { tipo: 'junto', bien: 'porqué', homofono: true,      mal: 'por que',     frase: 'Nadie entiende el ___ de esas marcas.',                 regla: 'Con tilde y junto es un sustantivo: «el porqué».', pista: 'Se puede poner «el» delante.' },
+    { tipo: 'otras', bien: 'arqueología', mal: 'arquiología', frase: 'La ___ estudia lo que dejaron los antiguos.',           regla: 'Se escribe con E: arque-o-lo-gía.', pista: 'Viene de «arqueo-», lo antiguo.' },
+    { tipo: 'junto', bien: 'sino', homofono: true,        mal: 'si no',       frase: 'No lo halló Bruno, ___ Vega.',                          regla: 'Junto cuando corrige lo dicho antes.', pista: '¿Corrige lo anterior o es una condición?' },
+    { tipo: 'h', bien: 'hubo',        mal: 'ubo',         frase: 'Aquel año ___ tres expediciones.',                      regla: 'Del verbo haber, siempre con H.', pista: 'Haber lleva H en todas sus formas.' },
+    { tipo: 'gj', bien: 'geografía',   mal: 'jeografía',   frase: 'La ___ del valle cambió con el río.',                   regla: 'Se escribe con G: «geo-» es tierra.', pista: 'Como «geología» o «geometría».' },
+    { tipo: 'junto', bien: 'asimismo', homofono: true,    mal: 'asi mismo',   frase: 'Se anotó la fecha y, ___, la profundidad.',             regla: 'Junto y sin tilde cuando significa «también».', pista: '¿Puedes cambiarlo por «también»?' }
   ]
 };
 
@@ -797,6 +911,7 @@ const vocabulario = {
     const otros = LEX.sinonimos[banda].filter(p => p[1] !== b).map(p => p[1]);
     const { options, answer } = buildOptions(b, distractores(otros));
     return {
+      skill: 'sinonimos',
       question: terse(grade) ? `¿Qué palabra significa lo mismo que «${a}»?`
                             : `El escriba busca una palabra que signifique lo mismo que «${a}». ¿Cuál es?`,
       options, answer,
@@ -811,6 +926,7 @@ const vocabulario = {
     const otros = LEX.antonimos[banda].filter(p => p[1] !== b).map(p => p[1]);
     const { options, answer } = buildOptions(b, distractores(otros));
     return {
+      skill: 'antonimos',
       question: terse(grade) ? `¿Cuál es lo contrario de «${a}»?`
                             : `En la tablilla falta la palabra contraria a «${a}». ¿Cuál es?`,
       options, answer,
@@ -835,6 +951,7 @@ const vocabulario = {
       preposición: 'une palabras y no cambia nunca'
     }[cat];
     return {
+      skill: 'categorias',
       question: terse(grade) ? `¿Cuál de estas palabras es un ${cat}?`
                             : `Kira clasifica el vocabulario del diario. ¿Cuál de estas palabras es un ${cat}?`,
       options, answer,
@@ -848,6 +965,7 @@ const vocabulario = {
     const f = porTier(LEX.familias[banda], tier);
     const { options, answer } = buildOptions(f.fuera, distractores(f.fam));
     return {
+      skill: 'familias_palabras',
       question: terse(grade)
         ? `Estas palabras son de la familia de «${f.raiz}»… menos una. ¿Cuál?`
         : `El escriba ha colado un intruso entre las palabras de la familia de «${f.raiz}». ¿Cuál no pertenece?`,
@@ -869,6 +987,7 @@ const ortografia = {
     const otros = banco.filter(x => x.bien !== p.bien).map(x => x.mal);
     const { options, answer } = buildOptions(p.bien, [p.mal].concat(distractores(otros)));
     return {
+      skill: 'orto_' + p.tipo,
       question: terse(grade) ? '¿Cuál está bien escrita?'
                             : 'Una tablilla se ha roto y hay cuatro copias. ¿Cuál está bien escrita?',
       options, answer,
@@ -884,6 +1003,7 @@ const ortografia = {
     const p = porTier(banco, tier);
     const { options, answer } = buildOptions(p.mal, distractores(ORTO[banda].filter(x => x.bien !== p.bien).map(x => x.bien)));
     return {
+      skill: 'orto_' + p.tipo,
       question: terse(grade) ? '¿Cuál está MAL escrita?'
                             : 'Kira revisa el diario de Bruno. ¿Cuál de estas palabras está MAL escrita?',
       options, answer,
@@ -899,6 +1019,7 @@ const ortografia = {
     const otros = ORTO[banda].filter(x => x.bien !== p.bien && !x.homofono).map(x => x.mal);
     const { options, answer } = buildOptions(p.bien, [p.mal].concat(distractores(otros)));
     return {
+      skill: 'orto_' + p.tipo,
       question: `Completa la frase del diario:\n«${p.frase}»`,
       options, answer,
       hint1: p.pista,
@@ -914,6 +1035,7 @@ const ortografia = {
     const otras = ORTO[banda].filter(x => x.regla !== p.regla).map(x => x.regla);
     const { options, answer } = buildOptions(p.regla, distractores(otras));
     return {
+      skill: 'orto_' + p.tipo,
       question: terse(grade)
         ? `«${p.mal}» está mal. ¿Por qué?`
         : `Bruno ha escrito «${p.mal}» y Kira lo ha tachado. ¿Cuál es la razón?`,
@@ -926,12 +1048,19 @@ const ortografia = {
 };
 
 /* ═══════════════ POZO · EL PAPIRO DE OSSIAN (comprensión) ═══════════════ */
+/* La clave del reto ES el concepto: localizar un dato, inferir, sacar la idea
+   principal o valorar lo que dice el texto son cuatro cosas distintas, y a un
+   docente le importa cuál de las cuatro falla. */
+const CONCEPTO_LECTURA = { literal: 'lectura_literal', inferencia: 'lectura_inferencia',
+                           idea: 'lectura_idea', critica: 'lectura_critica' };
+
 function retoTexto(grade, tier, clave, pistas) {
   const banda = bandOf(grade);
   const t = porTier(TEXTOS[banda], tier);
   const q = t[clave];
   const { options, answer } = buildOptions(q.r, q.d);
   return {
+    skill: CONCEPTO_LECTURA[clave] || null,
     question: `${t.texto}\n\n${q.p}`,
     options, answer,
     hint1: pistas[0],
@@ -1073,6 +1202,10 @@ function makeQuestion(branch, stratumId, tier, usedIdx, grade) {
   const correct = q.options[q.answer];
   const shuffled = shuffle(q.options.slice());
   return {
+    /* Los retos que escribe el docente no declaran concepto, así que se
+       agrupan por su pozo: es lo más útil que se puede decir de ellos sin
+       obligarle a etiquetar uno a uno lo que ya ha escrito. */
+    skill: q.skill || ('pozo:' + branch.id),
     question: q.question,
     options: shuffled,
     answer: shuffled.indexOf(correct),

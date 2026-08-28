@@ -126,7 +126,7 @@ function fichaAlumno(entry, base) {
     teamContribution: base.teamContribution,
     fundDonated: base.fundDonated,
     fragments: base.fragments,
-    stuck: base.stuck, signals,
+    stuck: base.stuck, conceptos: base.conceptos || [], signals,
     needsHelp: signals.length >= 3,   /* el umbral del PRD: tres señales a la vez */
     lastSeen: base.lastSeen
   };
@@ -181,6 +181,14 @@ function baseDesdeResumen(sum) {
     /* Una lista de estratos atascados larguísima llenaría la pantalla del
        docente con la ficha de un solo alumno. */
     stuck: (Array.isArray(sum.stuck) ? sum.stuck : []).slice(0, 12).map(x => textoSeguro(x, 80)),
+    /* Ternas [id, fallos, intentos] escritas por el cliente del alumno: se
+       sanean como todo lo que viene de ahí, y se descarta lo que no cuadre
+       en vez de dejar que envenene el agregado de la clase. */
+    conceptos: (Array.isArray(sum.conceptos) ? sum.conceptos : []).slice(0, 12)
+      .map(c => Array.isArray(c)
+        ? { id: textoSeguro(c[0], 40), errors: numSeguro(c[1]), attempts: numSeguro(c[2]) }
+        : null)
+      .filter(c => c && c.id && c.attempts > 0 && c.errors <= c.attempts),
     lastSeen: sum.lastSeen ? textoSeguro(sum.lastSeen, 10) : null
   };
 }
@@ -240,6 +248,9 @@ function baseDesdeDiario(s, today) {
     fundDonated: s.progression.fund_donated || 0,
     fragments: s.progression.atlas_fragments_recovered || 0,
     stuck,
+    conceptos: typeof conceptosFlojosDe === 'function'
+      ? conceptosFlojosDe(s, 6).map(c => ({ id: c.id, errors: c.errors, attempts: c.attempts }))
+      : [],
     lastSeen: s.session_meta && s.session_meta.last_login
       ? s.session_meta.last_login.slice(0, 10)
       : (log.length ? log[log.length - 1].date : (s.daily && s.daily.date) || null)
@@ -281,6 +292,34 @@ function buildClassOverview(entries, today) {
        en la configuración para que los alumnos lo vean también sin conexión. */
     fundTotal: students.reduce((a, s) => a + (s.fundDonated || 0), 0)
   };
+
+  /* ── Lo que conviene repasar mañana ──
+     Este es el agregado que convierte el panel en una herramienta de enseñar.
+     No «Vega va floja en Numeración · Aplicar», que no se puede llevar a
+     ninguna parte, sino «nueve niños fallan la resta llevando», que es una
+     frase con la que se prepara una clase.
+
+     Se ordena por CUÁNTOS alumnos lo fallan y no por la tasa de error, porque
+     lo que decide si algo merece ir a la pizarra es a cuánta gente le sirve.
+     Un concepto con 100 % de error en un solo niño es una conversación con
+     ese niño, no una clase. */
+  const porConcepto = new Map();
+  for (const s of students) {
+    for (const c of (s.conceptos || [])) {
+      if (!porConcepto.has(c.id)) porConcepto.set(c.id, { id: c.id, alumnos: [], errors: 0, attempts: 0 });
+      const e = porConcepto.get(c.id);
+      e.alumnos.push(s.name);
+      e.errors += c.errors;
+      e.attempts += c.attempts;
+    }
+  }
+  const info = typeof conceptoInfo === 'function' ? conceptoInfo : (id => ({ area: '—', label: id }));
+  const repasar = [...porConcepto.values()].map(e => ({
+    ...e,
+    label: info(e.id).label,
+    area: info(e.id).area,
+    tasa: e.attempts ? e.errors / e.attempts : 0
+  })).sort((a, b) => b.alumnos.length - a.alumnos.length || b.tasa - a.tasa);
 
   /* ── Cuadrillas: aquí SÍ se puede sumar el total real ── */
   const teams = ((ATLAS_CONFIG.teams && ATLAS_CONFIG.teams.list) || []).map(t => {
@@ -327,7 +366,7 @@ function buildClassOverview(entries, today) {
      (el docente probando, o un nombre escrito de otra forma). */
   const deLaLista = students.filter(s => enRoster.has(s.name.trim().toLowerCase())).length;
   return {
-    students, kpis, teams, missing, generatedAt: day,
+    students, kpis, teams, repasar, missing, generatedAt: day,
     enLista: roster.length,
     deLaLista,
     fueraDeLista: students.length - deLaLista

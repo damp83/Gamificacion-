@@ -623,6 +623,8 @@ function paintClassView() {
         tres o más señales. Míralo en persona antes de tocar nada del juego.</div>`
     : '';
 
+  pintarRepaso(d);
+
   $('#class-students').innerHTML = sortStudents(d.students, classSort).map(s => `
     <div class="student-card${s.needsHelp ? ' student-alert' : ''}">
       <div class="student-head">
@@ -676,6 +678,56 @@ function paintClassView() {
     : '';
 
   paintClassFund(d);
+}
+
+/* ── Lo que conviene repasar mañana ──
+   El docente entra aquí con una pregunta: «¿qué doy mañana?». Hasta ahora la
+   pantalla contestaba a otra —«¿cómo va cada uno?»— y la primera había que
+   deducirla leyendo veinticinco tarjetas.
+
+   Se muestran los conceptos que falla más de un tercio de los intentos, con
+   cuántos niños los fallan y quiénes. A partir de tres alumnos se marca como
+   cosa de clase; por debajo es una conversación con quien sea, no una
+   lección. */
+const REPASO_TOPE = 6;
+const REPASO_ES_DE_CLASE = 3;
+
+function pintarRepaso(d) {
+  const caja = $('#class-repasar');
+  if (!caja) return;
+  const lista = (d.repasar || []).slice(0, REPASO_TOPE);
+  if (!lista.length) {
+    caja.classList.add('hidden');
+    caja.innerHTML = '';
+    return;
+  }
+  caja.classList.remove('hidden');
+  caja.innerHTML = `
+    <h3>${ico('target')} Lo que conviene repasar</h3>
+    <p class="class-repasar-intro">Conceptos que se fallan más de un tercio de las veces, ordenados
+    por a cuántos alumnos les pasa. Sale del primer intento de cada reto, que es el que mide.</p>
+    <div class="repaso-lista">
+      ${lista.map(c => {
+        const n = c.alumnos.length;
+        const deClase = n >= REPASO_ES_DE_CLASE;
+        return `<div class="repaso-fila${deClase ? ' repaso-clase' : ''}">
+          <div class="repaso-cabeza">
+            <strong>${esc(c.label)}</strong>
+            <span class="repaso-area">${esc(c.area)}</span>
+          </div>
+          <div class="repaso-barra"><div class="repaso-relleno" style="width:${Math.round(c.tasa * 100)}%"></div></div>
+          <div class="repaso-pie">
+            <span class="repaso-num">${n} ${n === 1 ? 'alumno' : 'alumnos'}</span>
+            <span class="repaso-tasa">${Math.round(c.tasa * 100)} % de fallo en ${c.attempts} intentos</span>
+          </div>
+          <small class="repaso-quien">${esc(c.alumnos.slice(0, 8).join(', '))}${
+            c.alumnos.length > 8 ? ` y ${c.alumnos.length - 8} más` : ''}</small>
+        </div>`;
+      }).join('')}
+    </div>
+    ${lista.some(c => c.alumnos.length >= REPASO_ES_DE_CLASE)
+      ? '<p class="class-repasar-nota">Lo resaltado lo falla media clase o más: eso se lleva a la pizarra. El resto se resuelve mejor de uno en uno.</p>'
+      : '<p class="class-repasar-nota">Nada que afecte a tres o más alumnos: de momento son conversaciones sueltas, no una clase.</p>'}`;
 }
 
 /* ── Alumnos de la lista que todavía no han empezado ──

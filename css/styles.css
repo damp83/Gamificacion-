@@ -2238,3 +2238,43 @@ input[type="checkbox"]::after, input[type="radio"]::after {
   color: var(--jungle); margin-top: .18rem; flex-shrink: 0;
 }
 .fatigue-banner > .ico { color: var(--brass); }
+
+/* ═══════════ LO QUE CONVIENE REPASAR (vista de clase) ═══════════
+   Va arriba del todo y con peso visual propio: es la respuesta a la pregunta
+   con la que el docente entra en esta pantalla. */
+.class-repasar {
+  background: var(--pergamino, #f6ecd8);
+  border: 1px solid var(--borde, #c9b391);
+  border-left: 4px solid var(--laton, #b8862b);
+  border-radius: 10px;
+  padding: 14px 16px;
+  margin: 16px 0;
+}
+.class-repasar h3 { margin: 0 0 4px; display: flex; align-items: center; gap: 8px; }
+.class-repasar-intro { margin: 0 0 12px; font-size: .86rem; opacity: .78; }
+.class-repasar-nota { margin: 12px 0 0; font-size: .84rem; opacity: .8; font-style: italic; }
+.repaso-lista { display: grid; gap: 10px; }
+.repaso-fila {
+  padding: 9px 11px;
+  border-radius: 8px;
+  background: rgba(0, 0, 0, .035);
+  border-left: 3px solid transparent;
+}
+/* Lo que falla media clase se distingue de lo que falla un niño: son dos
+   decisiones distintas (pizarra o conversación) y deben verse distintas. */
+.repaso-fila.repaso-clase {
+  background: rgba(184, 134, 43, .13);
+  border-left-color: var(--laton, #b8862b);
+}
+.repaso-cabeza { display: flex; align-items: baseline; gap: 8px; flex-wrap: wrap; }
+.repaso-area { font-size: .76rem; opacity: .65; text-transform: uppercase; letter-spacing: .04em; }
+.repaso-barra {
+  height: 6px; margin: 6px 0 5px; border-radius: 3px;
+  background: rgba(0, 0, 0, .12); overflow: hidden;
+}
+.repaso-relleno { height: 100%; background: var(--peligro, #a8452f); border-radius: 3px; }
+.repaso-pie { display: flex; justify-content: space-between; gap: 10px; font-size: .82rem; flex-wrap: wrap; }
+.repaso-num { font-weight: 700; }
+.repaso-tasa { opacity: .72; }
+.repaso-quien { display: block; margin-top: 3px; font-size: .78rem; opacity: .62; }
+.dash-conceptos .dash-row-label em { font-style: normal; opacity: .55; font-size: .8em; }

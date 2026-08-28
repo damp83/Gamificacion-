@@ -668,6 +668,24 @@ function renderDashboard() {
     }
     html += '</div></div>';
   }
+  /* ── Conceptos flojos de ESTE alumno ──
+     El dominio por estrato dice cuánto; esto dice qué. Es lo que se mira
+     antes de sentarse cinco minutos con un niño. */
+  const flojos = typeof conceptosFlojos === 'function' ? conceptosFlojos(5) : [];
+  if (flojos.length) {
+    html += `<div class="dash-branch dash-conceptos">
+      <h4>${ico('target')} Le está costando</h4>
+      ${flojos.map(c => {
+        const info = conceptoInfo(c.id);
+        return `<div class="dash-row">
+          <span class="dash-row-label">${esc(info.label)} <em>${esc(info.area)}</em></span>
+          <div class="mastery-bar"><div class="mastery-fill" style="width:${Math.round(c.tasa * 100)}%"></div></div>
+          <span class="dash-row-num">${c.errors}/${c.attempts} fallos</span>
+        </div>`;
+      }).join('')}
+    </div>`;
+  }
+
   $('#dashboard-mastery').innerHTML = html;
 
   /* señales */

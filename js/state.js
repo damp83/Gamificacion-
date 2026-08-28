@@ -60,6 +60,11 @@ function trimesterBucket() { return S.course.trimesters[currentTrimesterIndex()]
 
 /* Estados guardados por versiones anteriores: completar lo que les falte */
 function migrateState(s) {
+  /* Los diarios anteriores al diagnóstico por concepto no traen el mapa; se
+     crea vacío y se va llenando desde la siguiente respuesta. No se intenta
+     reconstruirlo del histórico: no hay de dónde, porque antes no se guardaba
+     qué concepto trabajaba cada reto. */
+  if (s && s.metrics && !s.metrics.errors_by_concept) s.metrics.errors_by_concept = {};
   if (!s || typeof s !== 'object') return s;
   if (!s.course || !Array.isArray(s.course.trimesters) || s.course.trimesters.length !== 3) {
     s.course = defaultCourse();
@@ -138,6 +143,12 @@ function defaultState(name) {
       first_try_total: 0,
       first_try_correct: 0,
       errors_by_skill: {},     /* "branch.stratum" → {errors, attempts} */
+      /* Y el mismo dato por CONCEPTO —«resta llevando», «B y V»—, que es lo
+         único con lo que un docente puede preparar la clase de mañana.
+         errors_by_skill se queda porque alimenta la tasa global de error y
+         porque los diarios que ya existen la tienen; este es el que se mira
+         para enseñar. */
+      errors_by_concept: {},   /* concepto → {errors, attempts} */
       self_corrections: 0,     /* hallazgos restaurados */
       hints_used: 0,
       questions_answered: 0,
@@ -208,6 +219,11 @@ function buildSummaryOf(S) {
     accuracy: arr.length ? +(arr.reduce((a, b) => a + b, 0) / arr.length).toFixed(3) : null,
     errorRate: at ? +(e / at).toFixed(3) : null,
     lowQuality: rt.length >= 8 && rt.filter(t => t < 2000).length / rt.length > 0.6,
+    /* Los conceptos flojos viajan como ternas [id, fallos, intentos]: el
+       resumen entero tiene que seguir por debajo de 1 KB, porque la vista de
+       clase lo lee para TODOS los alumnos del centro de una vez. Seis
+       conceptos son de sobra para decidir qué se repasa mañana. */
+    conceptos: conceptosFlojosDe(S, 6).map(c => [c.id, c.errors, c.attempts]),
     selfCorrections: (S.metrics && S.metrics.self_corrections) || 0,
     merits: (S.behavior_log || []).length,
     teamContribution: Math.round(S.progression.team_contribution || 0),
@@ -854,6 +870,38 @@ function recordError(branchId, stratumId) {
   if (!S.metrics.errors_by_skill[key]) S.metrics.errors_by_skill[key] = { errors: 0, attempts: 0 };
   S.metrics.errors_by_skill[key].errors++;
 }
+/* Un intento por concepto. Solo se llama en el PRIMER intento de cada reto:
+   el segundo llega con la explicación de Kira delante y mediría otra cosa. */
+function recordConcepto(skill, acierto) {
+  if (!skill) return;
+  if (!S.metrics.errors_by_concept) S.metrics.errors_by_concept = {};
+  const m = S.metrics.errors_by_concept;
+  if (!m[skill]) m[skill] = { errors: 0, attempts: 0 };
+  m[skill].attempts++;
+  if (!acierto) m[skill].errors++;
+}
+
+/* Conceptos que este alumno lleva flojos. Se exige un mínimo de intentos
+   porque con dos respuestas no se sabe nada: un solo fallo daría 100 % de
+   error y mandaría al docente a repasar algo que quizá no toca. */
+const CONCEPTO_MIN_INTENTOS = 3;
+const CONCEPTO_UMBRAL = 0.34;
+
+function conceptosFlojosDe(estado, tope) {
+  const m = (estado && estado.metrics && estado.metrics.errors_by_concept) || {};
+  const out = [];
+  for (const id in m) {
+    const { errors = 0, attempts = 0 } = m[id] || {};
+    if (attempts < CONCEPTO_MIN_INTENTOS) continue;
+    const tasa = errors / attempts;
+    if (tasa <= CONCEPTO_UMBRAL) continue;
+    out.push({ id, errors, attempts, tasa });
+  }
+  out.sort((a, b) => b.tasa - a.tasa || b.attempts - a.attempts);
+  return tope ? out.slice(0, tope) : out;
+}
+function conceptosFlojos(tope) { return conceptosFlojosDe(S, tope); }
+
 function recordAttempt(branchId, stratumId) {
   const key = `${branchId}.${stratumId}`;
   if (!S.metrics.errors_by_skill[key]) S.metrics.errors_by_skill[key] = { errors: 0, attempts: 0 };
