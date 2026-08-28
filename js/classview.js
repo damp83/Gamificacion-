@@ -77,7 +77,7 @@ function parseClassDocs(docs) {
       let sum = null;
       try { sum = JSON.parse(d.summary); } catch (e) { sum = null; }
       if (sum && sum.v) {
-        out.push({ id: d.$id, name: d.name || sum.name || 'Explorador', summary: sum });
+        out.push({ id: d.$id, name: textoSeguro(d.name || sum.name, 64) || 'Explorador', summary: sum });
         continue;
       }
     }
@@ -85,7 +85,7 @@ function parseClassDocs(docs) {
     let st = null;
     try { st = JSON.parse(d.state); } catch (e) { continue; } /* diario ilegible */
     if (!st || !st.profile) continue;
-    out.push({ id: d.$id, name: d.name || st.profile.explorer_name || 'Explorador', state: st });
+    out.push({ id: d.$id, name: textoSeguro(d.name || st.profile.explorer_name, 64) || 'Explorador', state: st });
   }
   return out;
 }
@@ -132,31 +132,48 @@ function fichaAlumno(entry, base) {
   };
 }
 
-/* Camino rápido: el resumen ya viene calculado por el propio alumno */
+/* Camino rápido: el resumen ya viene calculado por el propio alumno.
+
+   Y ahí está lo importante: lo escribe SU cliente, no el docente ni el
+   servidor, así que por aquí entra lo que quiera quien sepa abrir la consola.
+   Todo se convierte a su tipo antes de usarlo —los números a número y los
+   textos recortados— para que la vista de clase no dependa de que el diario
+   de nadie venga bien formado. El escapado al pintar es la segunda barrera,
+   no la única. */
+function numSeguro(v, porDefecto) {
+  const n = Number(v);
+  return Number.isFinite(n) ? n : (porDefecto || 0);
+}
+function textoSeguro(v, tope) {
+  return (v == null ? '' : String(v)).slice(0, tope || 120);
+}
+
 function baseDesdeResumen(sum) {
   return {
-    level: sum.level !== undefined ? sum.level : levelFromXp(sum.xp || 0),
-    xp: sum.xp || 0,
-    doubloons: sum.doubloons || 0,
-    mastered: sum.mastered || 0,
-    totalStrata: sum.totalStrata || 0,
-    avgMastery: sum.avgMastery || 0,
-    minutes7: sum.minutes7 || 0,
-    sessions7: sum.sessions7 || 0,
-    sessionsPrev: sum.sessionsPrev || 0,
-    hasLog: (sum.sessions7 || 0) + (sum.sessionsPrev || 0) > 0 || !!sum.lastSeen,
-    activeDays: sum.activeDays || 0,
-    stamps: sum.stamps || 0,
-    accuracy: sum.accuracy === undefined ? null : sum.accuracy,
-    errorRate: sum.errorRate === undefined ? null : sum.errorRate,
+    level: sum.level !== undefined ? numSeguro(sum.level, 1) : levelFromXp(numSeguro(sum.xp)),
+    xp: numSeguro(sum.xp),
+    doubloons: numSeguro(sum.doubloons),
+    mastered: numSeguro(sum.mastered),
+    totalStrata: numSeguro(sum.totalStrata),
+    avgMastery: numSeguro(sum.avgMastery),
+    minutes7: numSeguro(sum.minutes7),
+    sessions7: numSeguro(sum.sessions7),
+    sessionsPrev: numSeguro(sum.sessionsPrev),
+    hasLog: numSeguro(sum.sessions7) + numSeguro(sum.sessionsPrev) > 0 || !!sum.lastSeen,
+    activeDays: numSeguro(sum.activeDays),
+    stamps: numSeguro(sum.stamps),
+    accuracy: sum.accuracy == null ? null : numSeguro(sum.accuracy),
+    errorRate: sum.errorRate == null ? null : numSeguro(sum.errorRate),
     lowQuality: !!sum.lowQuality,
-    selfCorrections: sum.selfCorrections || 0,
-    merits: sum.merits || 0,
-    teamContribution: sum.teamContribution || 0,
-    fundDonated: sum.fundDonated || 0,
-    fragments: sum.fragments || 0,
-    stuck: sum.stuck || [],
-    lastSeen: sum.lastSeen || null
+    selfCorrections: numSeguro(sum.selfCorrections),
+    merits: numSeguro(sum.merits),
+    teamContribution: numSeguro(sum.teamContribution),
+    fundDonated: numSeguro(sum.fundDonated),
+    fragments: numSeguro(sum.fragments),
+    /* Una lista de estratos atascados larguísima llenaría la pantalla del
+       docente con la ficha de un solo alumno. */
+    stuck: (Array.isArray(sum.stuck) ? sum.stuck : []).slice(0, 12).map(x => textoSeguro(x, 80)),
+    lastSeen: sum.lastSeen ? textoSeguro(sum.lastSeen, 10) : null
   };
 }
 

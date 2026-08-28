@@ -4905,13 +4905,47 @@ async function cloudPullAula(aulaId) {
   } catch (e) { return errorNube(e); }
 }
 
+/* Reparto estable de una cadena en 13 caracteres base36 (≈67 bits).
+   Dos pasadas FNV-1a con constantes distintas: no es criptográfico —no le
+   hace falta— y solo tiene que repartir bien y dar SIEMPRE lo mismo en
+   cualquier equipo, que es de lo que depende que un alumno escriba en su
+   documento y no en el de otro. */
+function hash36(texto) {
+  let h1 = 0x811c9dc5, h2 = 0x01000193;
+  const s = String(texto);
+  for (let i = 0; i < s.length; i++) {
+    const c = s.charCodeAt(i);
+    h1 = Math.imul(h1 ^ c, 0x01000193) >>> 0;
+    h2 = Math.imul(h2 ^ c, 0x85ebca6b) >>> 0;
+  }
+  return (h1.toString(36).padStart(7, '0') + h2.toString(36).padStart(7, '0')).slice(0, 13);
+}
+
 /* El id del documento se deriva de la clase y del alumno: así el mismo
    alumno desde dos equipos escribe en el MISMO documento en vez de crear
-   duplicados que luego nadie sabe cuál es el bueno. */
+   duplicados que luego nadie sabe cuál es el bueno.
+
+   Va con hash y no con el nombre recortado. Appwrite limita el id a 36
+   caracteres, y los 20 del id del aula más el guion bajo solo dejaban 15
+   para el nombre: «Ana María Rodríguez Pérez» y «Ana María Rodríguez Gómez»
+   se recortaban las dos a «ana-maria-rodri» y el segundo diario pisaba al
+   primero sin avisar. Con nombres compuestos, que en un aula española son
+   lo normal, eso pasaba de verdad. El hash se calcula sobre el nombre
+   ENTERO, así que dos nombres distintos dan documentos distintos por muy
+   parecido que empiecen. */
+const DOC_ID_MAX = 36;
+
 function docIdDiario(aulaId, clave) {
+  /* Sin tildes y en minúsculas: el mismo alumno escrito «José» en una tablet
+     y «jose» en otra tiene que caer en el mismo documento. */
   const limpio = String(clave).normalize('NFD').replace(/[̀-ͯ]/g, '')
     .replace(/[^a-z0-9]+/gi, '-').replace(/^-|-$/g, '').toLowerCase();
-  return (aulaId + '_' + limpio).slice(0, 36);
+  const h = hash36(limpio);
+  /* Si algún día el id del aula fuera más largo de lo que cabe, se recorta
+     el prefijo (que solo sirve para leerlo en la consola de Appwrite) y
+     nunca el hash, que es lo que evita las colisiones. */
+  const prefijo = String(aulaId || 'd').slice(0, DOC_ID_MAX - h.length - 1);
+  return prefijo + '_' + h;
 }
 
 async function cloudPushDiario(clave, estado) {
@@ -4970,13 +5004,34 @@ async function vaciarColaAula() {
 }
 
 /* ── Abrir una clase en este equipo ──
-   Trae sus ajustes y sus diarios, fusionando con lo que hubiera aquí. */
-async function abrirAula(aulaId, nombre) {
+   Trae sus ajustes y sus diarios, fusionando con lo que hubiera aquí.
+
+   Cambiar de clase VACÍA los diarios de este equipo, así que antes de
+   borrar nada hay que dejarlos a salvo arriba. Antes no se hacía: si el
+   docente cambiaba de clase sin red, o justo al acabar un turno —la cola de
+   subida espera 3 s—, la sesión entera se perdía mientras el diálogo le
+   aseguraba que estaba guardada. Ahora se sube todo primero y, si algo no
+   sale, no se borra nada y se dice cuántos quedan. */
+async function abrirAula(aulaId, nombre, opciones) {
+  const cambiaDeClase = !!(aulaActiva() && aulaActiva() !== aulaId);
+
+  if (cambiaDeClase) {
+    clearTimeout(aulaTimer);          /* la cola pendiente entra en esta subida */
+    const sync = await sincronizarAula();
+    if (!sync.ok && !(opciones && opciones.descartarSinSubir)) {
+      /* sincronizarAula() puede fallar sin llegar a intentarlo (sin nube):
+         lo que se le dice al docente es cuántos diarios hay aquí en juego,
+         no cuántas peticiones fallaron. */
+      const enJuego = sync.fallidos || diariosPorSubir(0).length;
+      return { ok: false, reason: 'sin-subir', pendientes: enJuego };
+    }
+  }
+
   const res = await cloudPullAula(aulaId);
   if (!res.ok) return res;
 
-  /* Si se cambia de clase, los diarios de la anterior no pueden quedarse */
-  if (aulaActiva() && aulaActiva() !== aulaId) cerrarAula();
+  /* Ya están arriba: ahora sí, los de la clase anterior no pueden quedarse */
+  if (cambiaDeClase) cerrarAula();
   setAulaActiva(aulaId, res.aula.name || nombre || '');
 
   if (res.ajustes && typeof res.ajustes === 'object') {
@@ -6433,7 +6488,7 @@ function parseClassDocs(docs) {
       let sum = null;
       try { sum = JSON.parse(d.summary); } catch (e) { sum = null; }
       if (sum && sum.v) {
-        out.push({ id: d.$id, name: d.name || sum.name || 'Explorador', summary: sum });
+        out.push({ id: d.$id, name: textoSeguro(d.name || sum.name, 64) || 'Explorador', summary: sum });
         continue;
       }
     }
@@ -6441,7 +6496,7 @@ function parseClassDocs(docs) {
     let st = null;
     try { st = JSON.parse(d.state); } catch (e) { continue; } /* diario ilegible */
     if (!st || !st.profile) continue;
-    out.push({ id: d.$id, name: d.name || st.profile.explorer_name || 'Explorador', state: st });
+    out.push({ id: d.$id, name: textoSeguro(d.name || st.profile.explorer_name, 64) || 'Explorador', state: st });
   }
   return out;
 }
@@ -6488,31 +6543,48 @@ function fichaAlumno(entry, base) {
   };
 }
 
-/* Camino rápido: el resumen ya viene calculado por el propio alumno */
+/* Camino rápido: el resumen ya viene calculado por el propio alumno.
+
+   Y ahí está lo importante: lo escribe SU cliente, no el docente ni el
+   servidor, así que por aquí entra lo que quiera quien sepa abrir la consola.
+   Todo se convierte a su tipo antes de usarlo —los números a número y los
+   textos recortados— para que la vista de clase no dependa de que el diario
+   de nadie venga bien formado. El escapado al pintar es la segunda barrera,
+   no la única. */
+function numSeguro(v, porDefecto) {
+  const n = Number(v);
+  return Number.isFinite(n) ? n : (porDefecto || 0);
+}
+function textoSeguro(v, tope) {
+  return (v == null ? '' : String(v)).slice(0, tope || 120);
+}
+
 function baseDesdeResumen(sum) {
   return {
-    level: sum.level !== undefined ? sum.level : levelFromXp(sum.xp || 0),
-    xp: sum.xp || 0,
-    doubloons: sum.doubloons || 0,
-    mastered: sum.mastered || 0,
-    totalStrata: sum.totalStrata || 0,
-    avgMastery: sum.avgMastery || 0,
-    minutes7: sum.minutes7 || 0,
-    sessions7: sum.sessions7 || 0,
-    sessionsPrev: sum.sessionsPrev || 0,
-    hasLog: (sum.sessions7 || 0) + (sum.sessionsPrev || 0) > 0 || !!sum.lastSeen,
-    activeDays: sum.activeDays || 0,
-    stamps: sum.stamps || 0,
-    accuracy: sum.accuracy === undefined ? null : sum.accuracy,
-    errorRate: sum.errorRate === undefined ? null : sum.errorRate,
+    level: sum.level !== undefined ? numSeguro(sum.level, 1) : levelFromXp(numSeguro(sum.xp)),
+    xp: numSeguro(sum.xp),
+    doubloons: numSeguro(sum.doubloons),
+    mastered: numSeguro(sum.mastered),
+    totalStrata: numSeguro(sum.totalStrata),
+    avgMastery: numSeguro(sum.avgMastery),
+    minutes7: numSeguro(sum.minutes7),
+    sessions7: numSeguro(sum.sessions7),
+    sessionsPrev: numSeguro(sum.sessionsPrev),
+    hasLog: numSeguro(sum.sessions7) + numSeguro(sum.sessionsPrev) > 0 || !!sum.lastSeen,
+    activeDays: numSeguro(sum.activeDays),
+    stamps: numSeguro(sum.stamps),
+    accuracy: sum.accuracy == null ? null : numSeguro(sum.accuracy),
+    errorRate: sum.errorRate == null ? null : numSeguro(sum.errorRate),
     lowQuality: !!sum.lowQuality,
-    selfCorrections: sum.selfCorrections || 0,
-    merits: sum.merits || 0,
-    teamContribution: sum.teamContribution || 0,
-    fundDonated: sum.fundDonated || 0,
-    fragments: sum.fragments || 0,
-    stuck: sum.stuck || [],
-    lastSeen: sum.lastSeen || null
+    selfCorrections: numSeguro(sum.selfCorrections),
+    merits: numSeguro(sum.merits),
+    teamContribution: numSeguro(sum.teamContribution),
+    fundDonated: numSeguro(sum.fundDonated),
+    fragments: numSeguro(sum.fragments),
+    /* Una lista de estratos atascados larguísima llenaría la pantalla del
+       docente con la ficha de un solo alumno. */
+    stuck: (Array.isArray(sum.stuck) ? sum.stuck : []).slice(0, 12).map(x => textoSeguro(x, 80)),
+    lastSeen: sum.lastSeen ? textoSeguro(sum.lastSeen, 10) : null
   };
 }
 
@@ -6758,11 +6830,11 @@ function cfgCurso(body) {
   body.innerHTML = `
     <p class="cfg-intro">Las fechas deciden a qué trimestre se asigna cada progreso.
     Nada se reinicia al cambiar de trimestre: mapa, rango y museo son del curso entero.</p>
-    ${field('Nombre del curso', `<input type="text" id="cfg-course-label" value="${c.label}">`)}
+    ${field('Nombre del curso', `<input type="text" id="cfg-course-label" value="${esc(c.label)}">`)}
     <div class="cfg-list">
       ${c.trimesters.map((t, i) => `
         <div class="cfg-card">
-          <input type="text" class="cfg-tri-name" data-i="${i}" value="${t.name}">
+          <input type="text" class="cfg-tri-name" data-i="${i}" value="${esc(t.name)}">
           <div class="cfg-row">
             <label>Del <input type="date" class="cfg-tri-start" data-i="${i}" value="${t.start}"></label>
             <label>al <input type="date" class="cfg-tri-end" data-i="${i}" value="${t.end}"></label>
@@ -6798,14 +6870,14 @@ function cfgPremios(body) {
       ${list.map((b, i) => `
         <div class="cfg-card cfg-premio">
           <div class="cfg-row">
-            <input type="text" class="cfg-b-icon" data-i="${i}" value="${b.icon}" maxlength="4" title="Icono">
-            <input type="text" class="cfg-b-name" data-i="${i}" value="${b.name}" placeholder="Nombre">
+            <input type="text" class="cfg-b-icon" data-i="${i}" value="${esc(b.icon)}" maxlength="4" title="Icono">
+            <input type="text" class="cfg-b-name" data-i="${i}" value="${esc(b.name)}" placeholder="Nombre">
           </div>
           <div class="cfg-row">
             <label>Doblones <input type="number" class="cfg-b-coins" data-i="${i}" value="${b.coins}" min="1" max="200"></label>
             <label>Tope/día <input type="number" class="cfg-b-cap" data-i="${i}" value="${b.perDay}" min="1" max="20"></label>
             <select class="cfg-b-cat" data-i="${i}">
-              ${CATEGORIES.map(c => `<option value="${c.id}"${(b.category || 'comportamiento') === c.id ? ' selected' : ''}>${c.label}</option>`).join('')}
+              ${CATEGORIES.map(c => `<option value="${c.id}"${(b.category || 'comportamiento') === c.id ? ' selected' : ''}>${esc(c.label)}</option>`).join('')}
             </select>
             <button class="cfg-del" data-del="${i}" title="Eliminar">🗑️</button>
           </div>
@@ -6876,9 +6948,9 @@ function cfgAlumnado(body) {
       <option value="ambos"${ATLAS_CONFIG.sessionMode === 'ambos' ? ' selected' : ''}>Las dos cosas (en clase dirigida, en casa por su cuenta)</option>
     </select>`, 'En clase dirigida, la portada no ofrece la puerta del alumnado y los diarios se guardan en este equipo.')}
 
-    ${field('Nombre del docente', `<input type="text" id="cfg-teacher-name" value="${(ATLAS_CONFIG.teacherName || '').replace(/"/g, '&quot;')}" placeholder="Diego Moya">`,
+    ${field('Nombre del docente', `<input type="text" id="cfg-teacher-name" value="${esc(ATLAS_CONFIG.teacherName || '')}" placeholder="Diego Moya">`,
       'Aparece en la portada y en la sala de mapas.')}
-    ${field('Nombre de la clase', `<input type="text" id="cfg-class-name" value="${(ATLAS_CONFIG.className || '').replace(/"/g, '&quot;')}" placeholder="4.º B">`)}
+    ${field('Nombre de la clase', `<input type="text" id="cfg-class-name" value="${esc(ATLAS_CONFIG.className || '')}" placeholder="4.º B">`)}
     ${field('Curso de la clase', `<select id="cfg-default-grade">
       ${GRADES.map(g => `<option value="${g.n}"${ATLAS_CONFIG.defaultGrade === g.n ? ' selected' : ''}>${g.label} · ${g.age}</option>`).join('')}
     </select>`, 'Es el que se propone a quien crea su diario. Cada alumno puede tener el suyo.')}
@@ -6889,12 +6961,12 @@ function cfgAlumnado(body) {
       ${roster.length ? roster.map((r, i) => `
         <div class="cfg-card cfg-student">
           <div class="cfg-row">
-            <input type="text" class="ros-name" data-i="${i}" value="${(r.name || '').replace(/"/g, '&quot;')}" placeholder="Nombre">
+            <input type="text" class="ros-name" data-i="${i}" value="${esc(r.name || '')}" placeholder="Nombre">
             <button class="cfg-del" data-delros="${i}" title="Quitar de la lista">🗑️</button>
           </div>
           <div class="cfg-row">
-            <label>Usuario <input type="text" class="ros-user" data-i="${i}" value="${(r.username || '').replace(/"/g, '&quot;')}"></label>
-            <label>Contraseña <input type="text" class="ros-pass" data-i="${i}" value="${(r.password || '').replace(/"/g, '&quot;')}"></label>
+            <label>Usuario <input type="text" class="ros-user" data-i="${i}" value="${esc(r.username || '')}"></label>
+            <label>Contraseña <input type="text" class="ros-pass" data-i="${i}" value="${esc(r.password || '')}"></label>
           </div>
           <div class="cfg-row">
             <label>Curso <select class="ros-grade" data-i="${i}">
@@ -6931,7 +7003,7 @@ function cfgAlumnado(body) {
       <h4 class="cfg-h4">Hoja de credenciales</h4>
       <p class="cfg-hint">Para repartir en clase. Cada alumno solo necesita su línea.</p>
       <textarea id="ros-sheet" rows="6" readonly>${roster.map(r =>
-        `${r.name}  →  usuario: ${r.username}   contraseña: ${r.password}`).join('\n')}</textarea>
+        `${esc(r.name)}  →  usuario: ${esc(r.username)}   contraseña: ${esc(r.password)}`).join('\n')}</textarea>
       <button class="btn btn-secondary btn-small" id="ros-copy">📋 Copiar</button>` : ''}`;
 
   onInput('#cfg-session-mode', e => cfgSave('sessionMode', e.target.value,
@@ -7009,19 +7081,19 @@ function cfgAlumnado(body) {
       const r = l[i];
       if (r.account) continue;
       if (!r.name || !r.username || !r.password) {
-        lineas.push(`⚠️ ${r.name || '(sin nombre)'} — le falta nombre, usuario o contraseña`);
+        lineas.push(`⚠️ ${esc(r.name || '(sin nombre)')} — le falta nombre, usuario o contraseña`);
         fallos++; continue;
       }
-      log.innerHTML = lineas.concat([`⏳ Creando ${r.name}…`]).map(x => `<div>${x}</div>`).join('');
+      log.innerHTML = lineas.concat([`⏳ Creando ${esc(r.name)}…`]).map(x => `<div>${x}</div>`).join('');
       const res = await cloudCreateStudent(r.name, r.username, r.password);
-      if (res.ok) { l[i].account = true; lineas.push(`✓ ${r.name} — cuenta creada`); ok++; }
-      else if (res.reason === 'existe') { l[i].account = true; lineas.push(`✓ ${r.name} — ya existía, se marca como creada`); ok++; }
+      if (res.ok) { l[i].account = true; lineas.push(`✓ ${esc(r.name)} — cuenta creada`); ok++; }
+      else if (res.reason === 'existe') { l[i].account = true; lineas.push(`✓ ${esc(r.name)} — ya existía, se marca como creada`); ok++; }
       else {
         const motivo = { ritmo: 'Appwrite pide esperar un poco: vuelve a intentarlo en un minuto',
                          contrasena: 'la contraseña necesita 8 caracteres o más',
                          usuario: 'el usuario tiene caracteres no válidos',
                          'sin-nube': 'no hay conexión con Appwrite' }[res.reason] || res.detail || 'error desconocido';
-        lineas.push(`✘ ${r.name} — ${motivo}`);
+        lineas.push(`✘ ${esc(r.name)} — ${esc(motivo)}`);
         fallos++;
         if (res.reason === 'ritmo') break;   /* no seguir martilleando */
       }
@@ -7048,7 +7120,7 @@ function cfgEquipos(body) {
     común de clase. El PRD desaconseja rankings entre niños, por eso la comparación
     entre cuadrillas viene desactivada.</p>
     ${field('Cuadrillas activas', `<input type="checkbox" id="cfg-team-on"${t.enabled ? ' checked' : ''}>`)}
-    ${field('Nombre de la meta común', `<input type="text" id="cfg-team-goal" value="${t.goalLabel}">`)}
+    ${field('Nombre de la meta común', `<input type="text" id="cfg-team-goal" value="${esc(t.goalLabel)}">`)}
     ${field('Meta en Doblones', `<input type="number" id="cfg-team-target" value="${t.goalTarget}" min="100" step="100">`)}
     ${field('Aportación por Doblón ganado', `<input type="number" id="cfg-team-rate" value="${Math.round((t.contributionRate || 0) * 100)}" min="0" max="100">`,
       'En %. No se descuenta de la bolsa del niño: cooperar no cuesta nada.')}
@@ -7059,8 +7131,8 @@ function cfgEquipos(body) {
       ${t.list.map((team, i) => `
         <div class="cfg-card">
           <div class="cfg-row">
-            <input type="text" class="cfg-t-icon" data-i="${i}" value="${team.icon}" maxlength="4">
-            <input type="text" class="cfg-t-name" data-i="${i}" value="${team.name}">
+            <input type="text" class="cfg-t-icon" data-i="${i}" value="${esc(team.icon)}" maxlength="4">
+            <input type="text" class="cfg-t-name" data-i="${i}" value="${esc(team.name)}">
             <button class="cfg-del" data-delteam="${i}" title="Eliminar">🗑️</button>
           </div>
           <label class="cfg-label">Miembros</label>
@@ -7071,14 +7143,14 @@ function cfgEquipos(body) {
                 const otra = !yo && t.list.some(x => x.id !== team.id &&
                   (x.members || []).some(m => String(m).trim().toLowerCase() === (r.name || '').trim().toLowerCase()));
                 return `<label class="team-pick${otra ? ' team-pick-taken' : ''}">
-                  <input type="checkbox" class="cfg-t-pick" data-i="${i}" data-name="${(r.name || '').replace(/"/g, '&quot;')}"
+                  <input type="checkbox" class="cfg-t-pick" data-i="${i}" data-name="${esc(r.name || '')}"
                     ${yo ? 'checked' : ''}${otra ? ' disabled' : ''}>
-                  ${r.name || '(sin nombre)'}${otra ? ' · ya en otra' : ''}</label>`;
+                  ${esc(r.name || '(sin nombre)')}${otra ? ' · ya en otra' : ''}</label>`;
               }).join('')}
             </div>
             <small class="cfg-hint">${(team.members || []).length} miembro(s). Marcados desde la lista de clase, así el nombre siempre coincide.</small>`
           : `<textarea class="cfg-t-members" data-i="${i}" rows="4"
-              placeholder="Escribe aquí un nombre por línea…">${(team.members || []).join('\n')}</textarea>
+              placeholder="Escribe aquí un nombre por línea…">${esc((team.members || []).join('\n'))}</textarea>
             <small class="cfg-hint">${(team.members || []).length
               ? (team.members || []).length + ' miembro(s) asignado(s).'
               : 'Sin miembros todavía.'} El nombre debe coincidir con el que escribió el niño.
@@ -7160,16 +7232,16 @@ function cfgYacimientos(body) {
         const open = cfgOpenSite === site.id;
         return `<div class="cfg-card cfg-site${site.enabled === false ? ' cfg-off' : ''}">
           <div class="cfg-row">
-            <input type="text" class="cfg-si-icon" data-si="${si}" value="${site.icon}" maxlength="4">
-            <input type="text" class="cfg-si-name" data-si="${si}" value="${site.name}">
+            <input type="text" class="cfg-si-icon" data-si="${si}" value="${esc(site.icon)}" maxlength="4">
+            <input type="text" class="cfg-si-name" data-si="${si}" value="${esc(site.name)}">
             <button class="cfg-del" data-delsite="${si}" title="Eliminar yacimiento">🗑️</button>
           </div>
           <div class="cfg-row">
-            <label>Materia <input type="text" class="cfg-si-subject" data-si="${si}" value="${site.subject || ''}"></label>
+            <label>Materia <input type="text" class="cfg-si-subject" data-si="${si}" value="${esc(site.subject || '')}"></label>
             <label class="cfg-switch">Activo
               <input type="checkbox" class="cfg-si-on" data-si="${si}"${site.enabled !== false ? ' checked' : ''}></label>
           </div>
-          <textarea class="cfg-si-desc" data-si="${si}" rows="2" placeholder="Ambientación del yacimiento">${site.desc || ''}</textarea>
+          <textarea class="cfg-si-desc" data-si="${si}" rows="2" placeholder="Ambientación del yacimiento">${esc(site.desc || '')}</textarea>
           <button class="cfg-toggle" data-open="${site.id}">${open ? '▾' : '▸'} ${branchesOf(site).length} pozo(s)</button>
           ${open ? `<div class="cfg-sublist">
             ${branchesOf(site).map((b, bi) => {
@@ -7177,11 +7249,11 @@ function cfgYacimientos(body) {
               const listos = STRATA_ORDER.filter(sId => stratumHasContent(b, sId)).length;
               return `<div class="cfg-branch">
                 <div class="cfg-row">
-                  <input type="text" class="cfg-b2-icon" data-si="${si}" data-bi="${bi}" value="${b.icon}" maxlength="4">
-                  <input type="text" class="cfg-b2-name" data-si="${si}" data-bi="${bi}" value="${b.name}">
+                  <input type="text" class="cfg-b2-icon" data-si="${si}" data-bi="${bi}" value="${esc(b.icon)}" maxlength="4">
+                  <input type="text" class="cfg-b2-name" data-si="${si}" data-bi="${bi}" value="${esc(b.name)}">
                   <button class="cfg-del" data-delbranch="${si}:${bi}" title="Eliminar pozo">🗑️</button>
                 </div>
-                <textarea class="cfg-b2-desc" data-si="${si}" data-bi="${bi}" rows="2">${b.desc || ''}</textarea>
+                <textarea class="cfg-b2-desc" data-si="${si}" data-bi="${bi}" rows="2">${esc(b.desc || '')}</textarea>
                 <div class="cfg-row cfg-grades-row">
                   <span class="cfg-label">Cursos:</span>
                   ${GRADES.map(g => `<label class="grade-chip${(!b.grades || b.grades.includes(g.n)) ? ' on' : ''}">
@@ -7321,7 +7393,7 @@ function cfgBancoRetos(body) {
 
   body.innerHTML = `
     <button class="btn btn-back" id="cfg-bank-back">← Volver a los yacimientos</button>
-    <h3 class="cfg-bank-title">${branch.icon} ${branch.name}</h3>
+    <h3 class="cfg-bank-title">${esc(branch.icon)} ${esc(branch.name)}</h3>
     <p class="cfg-intro">Escribe los retos de cada estrato. Los estratos van de menos a más
     profundos: <strong>Recordar</strong> es reconocer, <strong>Analizar</strong> es encontrar el
     error. Un estrato sin retos aparece al alumno como «todavía no preparado», nunca como
@@ -7345,17 +7417,17 @@ function cfgBancoRetos(body) {
             <span class="cfg-q-num">${qi + 1}</span>
             <button class="cfg-del" data-delq="${qi}" title="Eliminar reto">🗑️</button>
           </div>
-          <textarea class="cfg-q-text" data-qi="${qi}" rows="2" placeholder="Pregunta">${q.question || ''}</textarea>
+          <textarea class="cfg-q-text" data-qi="${qi}" rows="2" placeholder="Pregunta">${esc(q.question || '')}</textarea>
           ${[0, 1, 2, 3].map(oi => `
             <div class="cfg-row cfg-opt-row">
               <input type="radio" name="ans-${qi}" class="cfg-q-ans" data-qi="${qi}" data-oi="${oi}"
                 ${q.answer === oi ? 'checked' : ''} title="Marcar como correcta">
               <input type="text" class="cfg-q-opt" data-qi="${qi}" data-oi="${oi}"
-                value="${(q.options && q.options[oi] || '').replace(/"/g, '&quot;')}" placeholder="Respuesta ${oi + 1}">
+                value="${esc(q.options && q.options[oi] || '')}" placeholder="Respuesta ${oi + 1}">
             </div>`).join('')}
-          <textarea class="cfg-q-exp" data-qi="${qi}" rows="2" placeholder="Explicación tras responder (la lee quien falla)">${q.explanation || ''}</textarea>
-          <input type="text" class="cfg-q-h1" data-qi="${qi}" value="${(q.hint1 || '').replace(/"/g, '&quot;')}" placeholder="1ª pista de Kira (gratis)">
-          <input type="text" class="cfg-q-h2" data-qi="${qi}" value="${(q.hint2 || '').replace(/"/g, '&quot;')}" placeholder="2ª pista de Kira (cuesta Doblones)">
+          <textarea class="cfg-q-exp" data-qi="${qi}" rows="2" placeholder="Explicación tras responder (la lee quien falla)">${esc(q.explanation || '')}</textarea>
+          <input type="text" class="cfg-q-h1" data-qi="${qi}" value="${esc(q.hint1 || '')}" placeholder="1ª pista de Kira (gratis)">
+          <input type="text" class="cfg-q-h2" data-qi="${qi}" value="${esc(q.hint2 || '')}" placeholder="2ª pista de Kira (cuesta Doblones)">
         </div>`).join('')}
     </div>
 
@@ -7453,8 +7525,8 @@ function cfgAlmacen(body) {
       ${list.map((it, i) => `
         <div class="cfg-card">
           <div class="cfg-row">
-            <input type="text" class="cfg-s-icon" data-i="${i}" value="${it.icon}" maxlength="4">
-            <input type="text" class="cfg-s-name" data-i="${i}" value="${it.name}">
+            <input type="text" class="cfg-s-icon" data-i="${i}" value="${esc(it.icon)}" maxlength="4">
+            <input type="text" class="cfg-s-name" data-i="${i}" value="${esc(it.name)}">
             <button class="cfg-del" data-delshop="${i}" title="Eliminar">🗑️</button>
           </div>
           <div class="cfg-row">
@@ -7588,8 +7660,8 @@ function cfgFondo(body) {
     cooperativo</strong>: lo donado no vuelve, no da ninguna ventaja y los hitos son de
     <em>toda</em> la clase. Nunca se muestra quién ha donado más.</p>
     ${field('Fondo activo', `<input type="checkbox" id="cfg-fund-on"${f.enabled ? ' checked' : ''}>`)}
-    ${field('Nombre', `<input type="text" id="cfg-fund-name" value="${f.name || ''}">`)}
-    ${field('Frase de presentación', `<textarea id="cfg-fund-blurb" rows="2">${f.blurb || ''}</textarea>`)}
+    ${field('Nombre', `<input type="text" id="cfg-fund-name" value="${esc(f.name || '')}">`)}
+    ${field('Frase de presentación', `<textarea id="cfg-fund-blurb" rows="2">${esc(f.blurb || '')}</textarea>`)}
     ${field('Doblones reunidos por la clase',
       `<input type="number" id="cfg-fund-total" value="${Number(f.classTotal) || 0}" min="0" max="999999">`,
       'La suma real aparece en la vista general de la clase. Anótala aquí y todos la verán, incluso sin conexión.')}
@@ -7601,14 +7673,14 @@ function cfgFondo(body) {
       ${ms.map((m, i) => `
         <div class="cfg-card">
           <div class="cfg-row">
-            <input type="text" class="cfg-f-icon" data-i="${i}" value="${m.icon}" maxlength="4">
-            <input type="text" class="cfg-f-name" data-i="${i}" value="${m.name}">
+            <input type="text" class="cfg-f-icon" data-i="${i}" value="${esc(m.icon)}" maxlength="4">
+            <input type="text" class="cfg-f-name" data-i="${i}" value="${esc(m.name)}">
             <button class="cfg-del" data-delfund="${i}" title="Eliminar">🗑️</button>
           </div>
           <div class="cfg-row">
             <label>Se abre con <input type="number" class="cfg-f-at" data-i="${i}" value="${m.at}" min="1" max="999999"> 🪙</label>
           </div>
-          <textarea class="cfg-f-desc" data-i="${i}" rows="2" placeholder="Qué consigue la Sociedad">${m.desc || ''}</textarea>
+          <textarea class="cfg-f-desc" data-i="${i}" rows="2" placeholder="Qué consigue la Sociedad">${esc(m.desc || '')}</textarea>
         </div>`).join('')}
     </div>
     <button class="btn btn-secondary btn-small" id="cfg-add-fund">➕ Añadir hito</button>
@@ -7618,7 +7690,7 @@ function cfgFondo(body) {
     uno nuevo cada tantos Doblones.</p>
     ${field('Cada cuántos Doblones', `<input type="number" id="cfg-fund-step" value="${f.endlessStep || 0}" min="0" max="99999">`,
       'A 0 el Fondo termina en el último hito.')}
-    ${field('Nombre de esos hitos', `<input type="text" id="cfg-fund-endless" value="${f.endlessLabel || ''}">`)}`;
+    ${field('Nombre de esos hitos', `<input type="text" id="cfg-fund-endless" value="${esc(f.endlessLabel || '')}">`)}`;
 
   const guarda = (k, v, msg) => cfgSave('fund.' + k, v, msg === undefined ? false : msg);
   onInput('#cfg-fund-on',    e => cfgSave('fund.enabled', e.target.checked, e.target.checked ? 'Fondo activado ✓' : 'Fondo desactivado ✓'));
@@ -7741,7 +7813,7 @@ function cfgCopia(body) {
     <p class="cfg-hint">No se publican nunca: las <strong>contraseñas del alumnado</strong>,
     el <strong>PIN del panel</strong> ni los <strong>datos de Appwrite</strong>. Como el
     documento lo pueden leer todos los alumnos, esas tres cosas se quedan en cada tablet.</p>
-    <p class="cfg-equipo cfg-equipo-${est.tono}">${est.texto}</p>
+    <p class="cfg-equipo cfg-equipo-${est.tono}">${esc(est.texto)}</p>
     ${hayEquipo ? `<div class="cfg-equipo-botones">
       <button class="btn btn-secondary btn-small" id="cfg-pub">📤 Publicar mis ajustes para la clase</button>
       <button class="btn btn-secondary btn-small" id="cfg-pull">📥 Traer los del equipo</button>
@@ -7936,8 +8008,14 @@ async function aplicarCopia(raw, destino) {
 const $ = sel => document.querySelector(sel);
 const $$ = sel => document.querySelectorAll(sel);
 
-/* Escapa texto que escribe el docente antes de meterlo en innerHTML: los
-   nombres de yacimiento los teclea una persona y pueden traer < o &. */
+/* Escapa texto escrito por una persona antes de meterlo en innerHTML.
+   Lo usan también teacher.js y las plantillas de la vista de clase, y no es
+   cosmético: el nombre de explorador y el resumen de cada diario los sube el
+   cliente DEL ALUMNO, y la vista de clase los pinta en el navegador del
+   docente, con su sesión abierta. Sin escapar, un nombre con una etiqueta
+   dentro se ejecutaba ahí. Regla: todo hueco de una plantilla que venga de
+   una persona pasa por aquí; los de textContent y toast() no, que ahí el
+   navegador ya no interpreta marcado y se vería «&amp;» en pantalla. */
 function esc(t) {
   return String(t == null ? '' : t)
     .replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;')
@@ -8147,8 +8225,8 @@ function renderMap() {
   for (const site of sites) {
     const header = document.createElement('div');
     header.className = 'site-header';
-    header.innerHTML = `<span class="site-icon">${site.icon}</span>
-      <div><h3>${site.name}</h3><p>${site.subject}${site.desc ? ' · ' + site.desc : ''}</p></div>`;
+    header.innerHTML = `<span class="site-icon">${esc(site.icon)}</span>
+      <div><h3>${esc(site.name)}</h3><p>${esc(site.subject)}${esc(site.desc ? ' · ' + site.desc : '')}</p></div>`;
     siteList.appendChild(header);
 
     /* Los pozos van en su propia rejilla, no sueltos en la columna: así en
@@ -8164,9 +8242,9 @@ function renderMap() {
       const mastered = withContent.filter(sId => strata[sId].mastery >= 0.8).length;
       const card = document.createElement('button');
       card.className = 'branch-card';
-      card.innerHTML = `<span class="branch-icon">${b.icon}</span>
+      card.innerHTML = `<span class="branch-icon">${esc(b.icon)}</span>
         <div class="branch-info">
-          <strong>${b.name}</strong>
+          <strong>${esc(b.name)}</strong>
           <div class="branch-strata-dots">${withContent.map(sId => {
             const st = strata[sId];
             const cls = st.mastery >= 0.8 ? 'dot-mastered' : st.status === 'locked' ? 'dot-locked' : 'dot-open';
@@ -8191,8 +8269,8 @@ function renderMap() {
       <span class="bazar-icon">${ico(target.paraGuardian ? 'idol' : 'basket')}</span>
       <div><strong>${target.paraGuardian ? 'Repaso para el Guardián' : 'Encargo del Bazar'}</strong>
       <p>${target.paraGuardian
-        ? `El Guardián de ${b.name} pide que repases «${meta.name}» antes de dejarte volver a entrar.`
-        : `«${meta.name}» de ${b.name} se está cubriendo de arena… Un repaso rápido lo redescubrirá. (+10–15 ${ico('coin')})`}</p></div>
+        ? `El Guardián de ${esc(b.name)} pide que repases «${meta.name}» antes de dejarte volver a entrar.`
+        : `«${meta.name}» de ${esc(b.name)} se está cubriendo de arena… Un repaso rápido lo redescubrirá. (+10–15 ${ico('coin')})`}</p></div>
       <button class="btn btn-secondary" id="btn-bazar">Repasar</button></div>`;
     $('#btn-bazar').addEventListener('click', () => {
       if (!startMission(target.branchId, target.stratumId, 'bazar')) { toast('Ese encargo ya no está disponible.'); return; }
@@ -8573,7 +8651,7 @@ function renderGuardianResult(r) {
       en un Encargo del Bazar y vuelvas.</div>` : ''}`;
 
   const bruno = r.superada
-    ? `«¡LO HAS HECHO! Mil años esperando y llega ${S.profile.explorer_name} y lo resuelve antes de merendar.
+    ? `«¡LO HAS HECHO! Mil años esperando y llega ${esc(S.profile.explorer_name)} y lo resuelve antes de merendar.
        Yo tardé tres expediciones… y en la primera me quedé encerrado dentro.»`
     : `«¡Uf! El Guardián ha dicho que no. A mí me dijo que no tantas veces que me aprendí su cara de memoria.
        Mira dónde has fallado, hazte un Encargo del Bazar y vuelve. Sigue estando todo tuyo: no has perdido ni un Doblón.»`;
@@ -8591,7 +8669,7 @@ function renderCamp() {
   equipped.innerHTML = S.inventory.gear_equipped.length
     ? S.inventory.gear_equipped.map(id => {
         const item = shopCatalog().find(i => i.id === id);
-        return `<span class="gear-chip" title="${item.name}">${item.icon}</span>`;
+        return `<span class="gear-chip" title="${esc(item.name)}">${esc(item.icon)}</span>`;
       }).join('')
     : '<small>Aún sin equipo. ¡Visita el almacén!</small>';
 
@@ -8609,8 +8687,8 @@ function renderCamp() {
     const equippedNow = S.inventory.gear_equipped.includes(item.id);
     const row = document.createElement('div');
     row.className = 'shop-item';
-    row.innerHTML = `<span class="shop-icon">${item.icon}</span>
-      <div class="shop-info"><strong>${item.name}</strong><small>${item.cost} ${ico('coin')}</small></div>`;
+    row.innerHTML = `<span class="shop-icon">${esc(item.icon)}</span>
+      <div class="shop-info"><strong>${esc(item.name)}</strong><small>${item.cost} ${ico('coin')}</small></div>`;
     const btn = document.createElement('button');
     btn.className = 'btn btn-secondary btn-small';
     if (owned && item.type === 'gear') {
@@ -8671,7 +8749,7 @@ function renderFund() {
     <div class="fund-bar"><div class="fund-bar-fill" style="width:${pct}%"></div></div>
     <div class="fund-bar-legend">
       <strong>${total} ${ico('coin')}</strong> reunidos entre toda la clase
-      ${siguiente ? `<span>· faltan <strong>${Math.max(0, hasta - total)}</strong> para ${siguiente.icon} ${siguiente.name}</span>` : ''}
+      ${siguiente ? `<span>· faltan <strong>${Math.max(0, hasta - total)}</strong> para ${esc(siguiente.icon)} ${esc(siguiente.name)}</span>` : ''}
     </div>`;
 
   const hitos = (f.milestones || []).concat(
@@ -8679,8 +8757,8 @@ function renderFund() {
   $('#fund-milestones').innerHTML = hitos.map(m => {
     const hecho = total >= m.at;
     return `<div class="fund-milestone ${hecho ? 'fund-done' : ''}">
-      <span class="fund-icon">${hecho ? m.icon : ico('lock')}</span>
-      <div><strong>${m.name}</strong><small>${hecho ? m.desc : `Se abre con ${m.at} ${ico('coin')} de la clase`}</small></div>
+      <span class="fund-icon">${hecho ? esc(m.icon) : ico('lock')}</span>
+      <div><strong>${esc(m.name)}</strong><small>${hecho ? esc(m.desc) : `Se abre con ${m.at} ${ico('coin')} de la clase`}</small></div>
     </div>`;
   }).join('');
 
@@ -8757,7 +8835,7 @@ function renderDashboard() {
   let html = '';
   for (const branchId of playableBranchIds()) {
     const b = branchDef(branchId);
-    html += `<div class="dash-branch"><h4>${b.icon} ${b.name}</h4><div class="dash-strata">`;
+    html += `<div class="dash-branch"><h4>${esc(b.icon)} ${esc(b.name)}</h4><div class="dash-strata">`;
     for (const sId of STRATA_ORDER) {
       if (!stratumHasContent(b, sId)) continue;
       const st = getStratum(branchId, sId);
@@ -8786,7 +8864,7 @@ function renderDashboard() {
     for (const sId of STRATA_ORDER) {
       if (!stratumHasContent(branchDef(branchId), sId)) continue;
       const st = getStratum(branchId, sId);
-      if (st.status === 'mastered' && sandCover(st) > 0.3) decayed.push(`${branchDef(branchId).name} · ${STRATA_META[sId].label}`);
+      if (st.status === 'mastered' && sandCover(st) > 0.3) decayed.push(`${esc(branchDef(branchId).name)} · ${STRATA_META[sId].label}`);
     }
   }
   if (decayed.length) signals.push(`🏜️ Estratos cubriéndose de arena (repaso recomendado): ${decayed.join(', ')}.`);
@@ -8808,7 +8886,7 @@ function renderTeam() {
   if (!team) {
     body.innerHTML = `<div class="dialog bruno"><span class="dialog-avatar">🧔🏻‍♂️</span>
       <div class="dialog-text"><strong>Prof. Bruno Ocaña</strong>
-      <p>«Todavía no te he asignado cuadrilla, ${S.profile.explorer_name}. ¡Paciencia!
+      <p>«Todavía no te he asignado cuadrilla, ${esc(S.profile.explorer_name)}. ¡Paciencia!
       En cuanto lo haga, aparecerá aquí tu equipo.»</p></div></div>`;
     return;
   }
@@ -8819,8 +8897,8 @@ function renderTeam() {
 
   body.innerHTML = `
     <div class="team-banner">
-      <span class="team-icon">${team.icon}</span>
-      <div><h3>${team.name}</h3>
+      <span class="team-icon">${esc(team.icon)}</span>
+      <div><h3>${esc(team.name)}</h3>
         <p>${(team.members || []).length} exploradores</p></div>
     </div>
 
@@ -8843,7 +8921,7 @@ function renderTeam() {
 
     ${t.showComparison ? `<h3>Las demás cuadrillas</h3>
       <div class="team-others">${t.list.filter(x => x.id !== team.id).map(x =>
-        `<div class="team-other"><span>${x.icon}</span> ${x.name}
+        `<div class="team-other"><span>${esc(x.icon)}</span> ${esc(x.name)}
          <small>${(x.members || []).length} exploradores</small></div>`).join('')}</div>` : ''}`;
 }
 
@@ -8874,8 +8952,8 @@ function renderMerits() {
   $('#merits-today').innerHTML = ATLAS_CONFIG.behaviors.map(b => {
     const n = S.behavior_log.filter(e => e.id === b.id && e.date === today).length;
     return `<div class="merit-row${n ? ' merit-earned' : ''}">
-      <span class="merit-icon">${b.icon}</span>
-      <div class="merit-info"><strong>${b.name}</strong><small>${b.coins} ${ico('coin')} · hasta ${b.perDay} al día</small></div>
+      <span class="merit-icon">${esc(b.icon)}</span>
+      <div class="merit-info"><strong>${esc(b.name)}</strong><small>${b.coins} ${ico('coin')} · hasta ${b.perDay} al día</small></div>
       <span class="merit-count">${n ? '⭐'.repeat(Math.min(n, 5)) : '—'}</span>
     </div>`;
   }).join('');
@@ -8888,7 +8966,7 @@ function renderMerits() {
     ? orderedDays.map(d => {
         const icons = days[d].map(e => {
           const b = ATLAS_CONFIG.behaviors.find(x => x.id === e.id);
-          return b ? `<span title="${b.name}">${b.icon}</span>` : '';
+          return b ? `<span title="${esc(b.name)}">${esc(b.icon)}</span>` : '';
         }).join('');
         return `<div class="history-day"><span class="history-date">${formatDay(d)}</span>
           <span class="history-icons">${icons}</span></div>`;
@@ -8915,8 +8993,8 @@ function renderAwardList() {
     const btn = document.createElement('button');
     btn.className = 'award-btn' + (full ? ' award-full' : '');
     btn.disabled = full;
-    btn.innerHTML = `<span class="award-icon">${b.icon}</span>
-      <span class="award-name">${b.name}</span>
+    btn.innerHTML = `<span class="award-icon">${esc(b.icon)}</span>
+      <span class="award-name">${esc(b.name)}</span>
       <span class="award-meta">+${b.coins} ${ico('coin')} · ${used}/${b.perDay}</span>`;
     btn.addEventListener('click', () => {
       const res = awardBehavior(b.id);
@@ -9003,7 +9081,7 @@ async function renderAulas() {
     const card = document.createElement('button');
     card.className = 'aula-alumno-card' + (abierta ? ' aula-ya' : '');
     card.innerHTML = `<span class="aula-card-avatar">${abierta ? '📂' : '🏫'}</span>
-      <span class="aula-card-nombre">${a.name}</span>
+      <span class="aula-card-nombre">${esc(a.name)}</span>
       <span class="aula-card-meta">${abierta ? 'abierta en este equipo' : 'pulsa para abrirla'}</span>`;
     card.addEventListener('click', () => abrirAulaUI(a));
     lista.appendChild(card);
@@ -9011,22 +9089,44 @@ async function renderAulas() {
 }
 
 async function abrirAulaUI(a) {
-  if (aulaActiva() && aulaActiva() !== a.id) {
+  const cambia = aulaActiva() && aulaActiva() !== a.id;
+  if (cambia) {
     const ok = await askConfirm(
       `Vas a cambiar de «${AULA.name || 'la clase abierta'}» a «${a.name}».\n\n` +
-      'Los diarios de la clase anterior se quitan de este equipo para no mezclarlos. ' +
-      'Están guardados en su propia clase: se recuperan al volver a abrirla.',
+      'Primero se suben a su clase los diarios que haya en este equipo, y después ' +
+      'se quitan de aquí para no mezclarlos. Al volver a abrirla se recuperan.',
       'Cambiar de clase');
     if (!ok) return;
   }
-  aulasMsg('Abriendo la clase…');
-  const r = await abrirAula(a.id, a.name);
+  aulasMsg(cambia ? 'Guardando los diarios de la clase anterior…' : 'Abriendo la clase…');
+  let r = await abrirAula(a.id, a.name);
+
+  /* No se ha podido subir todo. Cambiar ahora borraría de este equipo un
+     trabajo que no está en ninguna otra parte, así que se pregunta en vez de
+     hacerlo: lo normal es que sea la red del centro y baste con reintentar. */
+  if (!r.ok && r.reason === 'sin-subir') {
+    aulasMsg('');
+    const seguir = await askConfirm(
+      `No se han podido subir ${r.pendientes} diario(s) de «${AULA.name || 'la clase abierta'}».\n\n` +
+      'Si cambias de clase ahora, ese trabajo se pierde: solo está en este equipo. ' +
+      'Lo normal es que sea la red; vuelve a intentarlo en un momento, o guarda una ' +
+      'copia de seguridad antes desde Configuración → Copia de seguridad.',
+      'Cambiar igualmente y perderlos');
+    if (!seguir) {
+      aulasMsg('⚠️ No se ha cambiado de clase. Los diarios siguen aquí, intactos.');
+      return;
+    }
+    aulasMsg('Abriendo la clase…');
+    r = await abrirAula(a.id, a.name, { descartarSinSubir: true });
+  }
+
   if (!r.ok) {
     aulasMsg(r.reason === 'sin-permiso'
       ? '⚠️ Esa clase no es tuya o su permiso no te deja leerla.'
       : '⚠️ No se ha podido abrir' + (r.detail ? ': ' + r.detail : '.'));
     return;
   }
+  aulasMsg('');
   toast(`«${r.aula.name}» abierta ✓ ${r.nuevos + r.actualizados} diario(s) traído(s)`);
   renderAulas();
   showTeacherPortal();
@@ -9118,7 +9218,7 @@ function renderAulaBar() {
   const abierta = aulaActiva();
   bar.innerHTML = `<span class="teacher-warn-icon">🏫</span>
     <div>${abierta
-      ? `Clase abierta: <strong>${AULA.name || 'sin nombre'}</strong>. Lo que trabajes aquí se guarda en ella.`
+      ? `Clase abierta: <strong>${esc(AULA.name || 'sin nombre')}</strong>. Lo que trabajes aquí se guarda en ella.`
       : cloudUser()
         ? 'No tienes ninguna clase abierta. Ábrela para que lo que trabajes se guarde en tu cuenta.'
         : 'Entra con tu cuenta de docente para trabajar con tus clases.'}</div>
@@ -9167,7 +9267,7 @@ function renderAula() {
     for (const b of branchesEnabledOf(site, null)) pozos.push({ id: b.id, name: `${site.subject} · ${b.name}` });
   }
   sel.innerHTML = `<option value="auto">Lo que más le convenga a cada uno</option>` +
-    pozos.map(p => `<option value="${p.id}"${aulaTema === p.id ? ' selected' : ''}>${p.name}</option>`).join('');
+    pozos.map(p => `<option value="${p.id}"${aulaTema === p.id ? ' selected' : ''}>${esc(p.name)}</option>`).join('');
   sel.value = aulaTema;
 
   const alumnos = aulaAlumnos();
@@ -9199,7 +9299,7 @@ function renderAula() {
     card.className = 'aula-alumno-card' + (t.rondas ? ' aula-ya' : '');
     card.innerHTML = `
       <span class="aula-card-avatar">${t.rondas ? '✅' : '🧒'}</span>
-      <span class="aula-card-nombre">${a.name}</span>
+      <span class="aula-card-nombre">${esc(a.name)}</span>
       <span class="aula-card-meta">${gradeInfo(a.grade).label}${
         tiene ? ` · ${t.rondas} ronda(s) hoy` : ' · primera vez'}</span>`;
     card.addEventListener('click', () => empezarTurno(a));
@@ -9365,8 +9465,8 @@ function renderAulaMeritos() {
     const btn = document.createElement('button');
     btn.className = 'award-btn' + (lleno ? ' award-full' : '');
     btn.disabled = lleno;
-    btn.innerHTML = `<span class="award-icon">${b.icon}</span>
-      <span class="award-name">${b.name}</span>
+    btn.innerHTML = `<span class="award-icon">${esc(b.icon)}</span>
+      <span class="award-name">${esc(b.name)}</span>
       <span class="award-meta">+${b.coins} ${ico('coin')} · ${usados}/${b.perDay}</span>`;
     btn.addEventListener('click', () => {
       const res = awardBehavior(b.id);
@@ -9470,7 +9570,7 @@ function classErrorHtml(res) {
   return `<div class="class-error">
     <h3>No se han podido reunir los diarios</h3>
     <p>${res.reason === 'sin-nube' ? 'No hay sesión en la nube ahora mismo.' : 'Ha fallado la consulta.'}</p>
-    ${res.detail ? `<p class="cfg-hint">${res.detail}</p>` : ''}
+    ${res.detail ? `<p class="cfg-hint">${esc(res.detail)}</p>` : ''}
     <button class="btn btn-secondary btn-small" onclick="classData=null;renderClassView()">Reintentar</button>
   </div>`;
 }
@@ -9528,14 +9628,14 @@ function paintClassView() {
   const urgentes = d.students.filter(s => s.needsHelp);
   $('#class-alerts').innerHTML = urgentes.length
     ? `<div class="class-alert"><strong>🛟 Alerta de rescate:</strong>
-        ${urgentes.map(s => s.name).join(', ')} — ${urgentes.length === 1 ? 'acumula' : 'acumulan'}
+        ${urgentes.map(s => esc(s.name)).join(', ')} — ${urgentes.length === 1 ? 'acumula' : 'acumulan'}
         tres o más señales. Míralo en persona antes de tocar nada del juego.</div>`
     : '';
 
   $('#class-students').innerHTML = sortStudents(d.students, classSort).map(s => `
     <div class="student-card${s.needsHelp ? ' student-alert' : ''}">
       <div class="student-head">
-        <strong>${s.name}</strong>
+        <strong>${esc(s.name)}</strong>
         <span class="student-rank">Nv. ${s.level} · ${s.rank}</span>
       </div>
       <div class="student-bars">
@@ -9555,8 +9655,8 @@ function paintClassView() {
         <span title="Cámaras del Guardián superadas">${ico('map')} ${s.fragments} fragmentos</span>
       </div>
       ${s.signals.length ? `<div class="student-signals">${s.signals.map(x => `<span class="signal-chip">${x}</span>`).join('')}</div>` : ''}
-      ${s.stuck.length ? `<small class="student-stuck">Atascado en: ${s.stuck.join(' · ')}</small>` : ''}
-      <small class="student-seen">Última expedición: ${s.lastSeen || '—'}</small>
+      ${s.stuck.length ? `<small class="student-stuck">Atascado en: ${esc(s.stuck.join(' · '))}</small>` : ''}
+      <small class="student-seen">Última expedición: ${esc(s.lastSeen || '—')}</small>
     </div>`).join('') + pendientesHtml(d);
 
   const cmp = ATLAS_CONFIG.teams && ATLAS_CONFIG.teams.enabled;
@@ -9566,7 +9666,7 @@ function paintClassView() {
         const meta = ATLAS_CONFIG.teams.goalTarget || 1;
         const pct = Math.min(100, Math.round((t.contribution / meta) * 100));
         return `<div class="class-team">
-          <div class="class-team-head"><span>${t.icon} <strong>${t.name}</strong></span>
+          <div class="class-team-head"><span>${esc(t.icon)} <strong>${esc(t.name)}</strong></span>
             <span class="student-num">${t.contribution} / ${meta} ${ico('coin')}</span></div>
           <div class="mastery-bar"><div class="mastery-fill${pct >= 100 ? ' gold' : ''}" style="width:${pct}%"></div></div>
           <small>${t.members} con diario${t.listed !== t.members ? ` de ${t.listed} asignados` : ''} · ${t.mastered} estratos entre todos</small>
@@ -9579,7 +9679,7 @@ function paintClassView() {
   const erratas = d.missing.filter(m => m.origen === 'equipo' && !m.enLista);
   $('#class-missing').innerHTML = erratas.length
     ? `<div class="class-warn">⚠️ En una cuadrilla hay nombres que no están en la lista de clase:
-        ${erratas.map(m => `<strong>${m.name}</strong> (${m.team})`).join(', ')}.
+        ${erratas.map(m => `<strong>${esc(m.name)}</strong> (${esc(m.team)})`).join(', ')}.
         Si es una errata, su diario no se juntará nunca con su cuadrilla: corrígelo en
         «Cuadrillas de excavación».</div>`
     : '';
@@ -9599,13 +9699,13 @@ function pendientesHtml(d) {
     if (!hayNube) falta = 'Necesita su propia cuenta: sin nube, cada tablet guarda un único diario.';
     else if (m.account) falta = 'Ya tiene cuenta. Solo falta que entre y cree su diario.';
     else if (m.enLista) falta = 'Todavía sin cuenta. Créala en «Alumnado» → Crear las cuentas.';
-    else falta = `Está en ${m.team}, pero no en la lista de clase. ¿Una errata en el nombre?`;
+    else falta = `Está en ${esc(m.team)}, pero no en la lista de clase. ¿Una errata en el nombre?`;
     return `<div class="student-card student-pending">
       <div class="student-head">
-        <strong>${m.name}</strong>
+        <strong>${esc(m.name)}</strong>
         <span class="student-pending-tag">Aún no ha entrado</span>
       </div>
-      <small class="student-seen">${m.origen === 'equipo' ? m.team : 'En la lista de clase'} · ${falta}</small>
+      <small class="student-seen">${esc(m.origen === 'equipo' ? m.team : 'En la lista de clase')} · ${falta}</small>
     </div>`;
   }).join('');
 }
@@ -9623,10 +9723,10 @@ function paintClassFund(d) {
   const anotado = Number(f.classTotal) || 0;
   const { siguiente } = fundMilestoneFor(real);
   cont.innerHTML = `
-    <h3>🌍 ${f.name || 'Fondo de la Sociedad'}</h3>
+    <h3>🌍 ${esc(f.name || 'Fondo de la Sociedad')}</h3>
     <p class="class-meta">Donado de verdad entre todos: <strong>${real} ${ico('coin')}</strong> ·
       anotado en la configuración: <strong>${anotado} ${ico('coin')}</strong>
-      ${siguiente ? `· siguiente hito: ${siguiente.icon} ${siguiente.name} (${siguiente.at} ${ico('coin')})` : ''}</p>
+      ${siguiente ? `· siguiente hito: ${esc(siguiente.icon)} ${esc(siguiente.name)} (${siguiente.at} ${ico('coin')})` : ''}</p>
     ${real !== anotado
       ? `<button class="btn btn-secondary btn-small" id="class-fund-sync">${ico('pin')} Anotar ${real} ${ico('coin')} para que lo vea la clase</button>`
       : '<p class="cfg-hint">La clase ya ve el total correcto.</p>'}`;
@@ -9646,7 +9746,7 @@ function renderCourse() {
     const c = S.course.trimesters[i];
     const state = i === now ? 'en curso' : (i < now ? 'cerrado' : 'por venir');
     return `<div class="tri-card${i === now ? ' tri-current' : ''}">
-      <div class="tri-head"><strong>${t.name}</strong><span class="tri-state">${state}</span></div>
+      <div class="tri-head"><strong>${esc(t.name)}</strong><span class="tri-state">${state}</span></div>
       <div class="tri-dates">${t.start.split('-').reverse().slice(0,2).join('/')} – ${t.end.split('-').reverse().slice(0,2).join('/')}</div>
       <div class="tri-stats">
         <span><strong>${c.strata}</strong> estratos</span>
@@ -9657,7 +9757,7 @@ function renderCourse() {
     </div>`;
   }).join('');
   $('#dashboard-course').innerHTML =
-    `<p class="course-label">${ATLAS_CONFIG.course.label}</p><div class="tri-grid">${rows}</div>`;
+    `<p class="course-label">${esc(ATLAS_CONFIG.course.label)}</p><div class="tri-grid">${rows}</div>`;
 }
 
 /* ── Acceso con Appwrite ── */
@@ -9742,11 +9842,11 @@ function renderHomeSites() {
   const sites = sitesEnabled().filter(site => branchesEnabledOf(site).length);
   $('#home-sites').innerHTML = sites.length
     ? sites.map(site => `<div class="home-site">
-        <span class="home-site-icon">${site.icon}</span>
-        <div><strong>${site.name}</strong>
-          <small>${site.subject}${site.desc ? ' · ' + site.desc : ''}</small>
+        <span class="home-site-icon">${esc(site.icon)}</span>
+        <div><strong>${esc(site.name)}</strong>
+          <small>${esc(site.subject)}${esc(site.desc ? ' · ' + site.desc : '')}</small>
           <div class="home-site-wells">${branchesEnabledOf(site)
-            .map(b => `<span class="home-well">${b.icon} ${b.name}</span>`).join('')}</div>
+            .map(b => `<span class="home-well">${esc(b.icon)} ${esc(b.name)}</span>`).join('')}</div>
         </div>
       </div>`).join('')
     : '<p class="empty-note">El profesor aún está preparando los yacimientos.</p>';

@@ -79,11 +79,11 @@ function cfgCurso(body) {
   body.innerHTML = `
     <p class="cfg-intro">Las fechas deciden a qué trimestre se asigna cada progreso.
     Nada se reinicia al cambiar de trimestre: mapa, rango y museo son del curso entero.</p>
-    ${field('Nombre del curso', `<input type="text" id="cfg-course-label" value="${c.label}">`)}
+    ${field('Nombre del curso', `<input type="text" id="cfg-course-label" value="${esc(c.label)}">`)}
     <div class="cfg-list">
       ${c.trimesters.map((t, i) => `
         <div class="cfg-card">
-          <input type="text" class="cfg-tri-name" data-i="${i}" value="${t.name}">
+          <input type="text" class="cfg-tri-name" data-i="${i}" value="${esc(t.name)}">
           <div class="cfg-row">
             <label>Del <input type="date" class="cfg-tri-start" data-i="${i}" value="${t.start}"></label>
             <label>al <input type="date" class="cfg-tri-end" data-i="${i}" value="${t.end}"></label>
@@ -119,14 +119,14 @@ function cfgPremios(body) {
       ${list.map((b, i) => `
         <div class="cfg-card cfg-premio">
           <div class="cfg-row">
-            <input type="text" class="cfg-b-icon" data-i="${i}" value="${b.icon}" maxlength="4" title="Icono">
-            <input type="text" class="cfg-b-name" data-i="${i}" value="${b.name}" placeholder="Nombre">
+            <input type="text" class="cfg-b-icon" data-i="${i}" value="${esc(b.icon)}" maxlength="4" title="Icono">
+            <input type="text" class="cfg-b-name" data-i="${i}" value="${esc(b.name)}" placeholder="Nombre">
           </div>
           <div class="cfg-row">
             <label>Doblones <input type="number" class="cfg-b-coins" data-i="${i}" value="${b.coins}" min="1" max="200"></label>
             <label>Tope/día <input type="number" class="cfg-b-cap" data-i="${i}" value="${b.perDay}" min="1" max="20"></label>
             <select class="cfg-b-cat" data-i="${i}">
-              ${CATEGORIES.map(c => `<option value="${c.id}"${(b.category || 'comportamiento') === c.id ? ' selected' : ''}>${c.label}</option>`).join('')}
+              ${CATEGORIES.map(c => `<option value="${c.id}"${(b.category || 'comportamiento') === c.id ? ' selected' : ''}>${esc(c.label)}</option>`).join('')}
             </select>
             <button class="cfg-del" data-del="${i}" title="Eliminar">🗑️</button>
           </div>
@@ -197,9 +197,9 @@ function cfgAlumnado(body) {
       <option value="ambos"${ATLAS_CONFIG.sessionMode === 'ambos' ? ' selected' : ''}>Las dos cosas (en clase dirigida, en casa por su cuenta)</option>
     </select>`, 'En clase dirigida, la portada no ofrece la puerta del alumnado y los diarios se guardan en este equipo.')}
 
-    ${field('Nombre del docente', `<input type="text" id="cfg-teacher-name" value="${(ATLAS_CONFIG.teacherName || '').replace(/"/g, '&quot;')}" placeholder="Diego Moya">`,
+    ${field('Nombre del docente', `<input type="text" id="cfg-teacher-name" value="${esc(ATLAS_CONFIG.teacherName || '')}" placeholder="Diego Moya">`,
       'Aparece en la portada y en la sala de mapas.')}
-    ${field('Nombre de la clase', `<input type="text" id="cfg-class-name" value="${(ATLAS_CONFIG.className || '').replace(/"/g, '&quot;')}" placeholder="4.º B">`)}
+    ${field('Nombre de la clase', `<input type="text" id="cfg-class-name" value="${esc(ATLAS_CONFIG.className || '')}" placeholder="4.º B">`)}
     ${field('Curso de la clase', `<select id="cfg-default-grade">
       ${GRADES.map(g => `<option value="${g.n}"${ATLAS_CONFIG.defaultGrade === g.n ? ' selected' : ''}>${g.label} · ${g.age}</option>`).join('')}
     </select>`, 'Es el que se propone a quien crea su diario. Cada alumno puede tener el suyo.')}
@@ -210,12 +210,12 @@ function cfgAlumnado(body) {
       ${roster.length ? roster.map((r, i) => `
         <div class="cfg-card cfg-student">
           <div class="cfg-row">
-            <input type="text" class="ros-name" data-i="${i}" value="${(r.name || '').replace(/"/g, '&quot;')}" placeholder="Nombre">
+            <input type="text" class="ros-name" data-i="${i}" value="${esc(r.name || '')}" placeholder="Nombre">
             <button class="cfg-del" data-delros="${i}" title="Quitar de la lista">🗑️</button>
           </div>
           <div class="cfg-row">
-            <label>Usuario <input type="text" class="ros-user" data-i="${i}" value="${(r.username || '').replace(/"/g, '&quot;')}"></label>
-            <label>Contraseña <input type="text" class="ros-pass" data-i="${i}" value="${(r.password || '').replace(/"/g, '&quot;')}"></label>
+            <label>Usuario <input type="text" class="ros-user" data-i="${i}" value="${esc(r.username || '')}"></label>
+            <label>Contraseña <input type="text" class="ros-pass" data-i="${i}" value="${esc(r.password || '')}"></label>
           </div>
           <div class="cfg-row">
             <label>Curso <select class="ros-grade" data-i="${i}">
@@ -252,7 +252,7 @@ function cfgAlumnado(body) {
       <h4 class="cfg-h4">Hoja de credenciales</h4>
       <p class="cfg-hint">Para repartir en clase. Cada alumno solo necesita su línea.</p>
       <textarea id="ros-sheet" rows="6" readonly>${roster.map(r =>
-        `${r.name}  →  usuario: ${r.username}   contraseña: ${r.password}`).join('\n')}</textarea>
+        `${esc(r.name)}  →  usuario: ${esc(r.username)}   contraseña: ${esc(r.password)}`).join('\n')}</textarea>
       <button class="btn btn-secondary btn-small" id="ros-copy">📋 Copiar</button>` : ''}`;
 
   onInput('#cfg-session-mode', e => cfgSave('sessionMode', e.target.value,
@@ -330,19 +330,19 @@ function cfgAlumnado(body) {
       const r = l[i];
       if (r.account) continue;
       if (!r.name || !r.username || !r.password) {
-        lineas.push(`⚠️ ${r.name || '(sin nombre)'} — le falta nombre, usuario o contraseña`);
+        lineas.push(`⚠️ ${esc(r.name || '(sin nombre)')} — le falta nombre, usuario o contraseña`);
         fallos++; continue;
       }
-      log.innerHTML = lineas.concat([`⏳ Creando ${r.name}…`]).map(x => `<div>${x}</div>`).join('');
+      log.innerHTML = lineas.concat([`⏳ Creando ${esc(r.name)}…`]).map(x => `<div>${x}</div>`).join('');
       const res = await cloudCreateStudent(r.name, r.username, r.password);
-      if (res.ok) { l[i].account = true; lineas.push(`✓ ${r.name} — cuenta creada`); ok++; }
-      else if (res.reason === 'existe') { l[i].account = true; lineas.push(`✓ ${r.name} — ya existía, se marca como creada`); ok++; }
+      if (res.ok) { l[i].account = true; lineas.push(`✓ ${esc(r.name)} — cuenta creada`); ok++; }
+      else if (res.reason === 'existe') { l[i].account = true; lineas.push(`✓ ${esc(r.name)} — ya existía, se marca como creada`); ok++; }
       else {
         const motivo = { ritmo: 'Appwrite pide esperar un poco: vuelve a intentarlo en un minuto',
                          contrasena: 'la contraseña necesita 8 caracteres o más',
                          usuario: 'el usuario tiene caracteres no válidos',
                          'sin-nube': 'no hay conexión con Appwrite' }[res.reason] || res.detail || 'error desconocido';
-        lineas.push(`✘ ${r.name} — ${motivo}`);
+        lineas.push(`✘ ${esc(r.name)} — ${esc(motivo)}`);
         fallos++;
         if (res.reason === 'ritmo') break;   /* no seguir martilleando */
       }
@@ -369,7 +369,7 @@ function cfgEquipos(body) {
     común de clase. El PRD desaconseja rankings entre niños, por eso la comparación
     entre cuadrillas viene desactivada.</p>
     ${field('Cuadrillas activas', `<input type="checkbox" id="cfg-team-on"${t.enabled ? ' checked' : ''}>`)}
-    ${field('Nombre de la meta común', `<input type="text" id="cfg-team-goal" value="${t.goalLabel}">`)}
+    ${field('Nombre de la meta común', `<input type="text" id="cfg-team-goal" value="${esc(t.goalLabel)}">`)}
     ${field('Meta en Doblones', `<input type="number" id="cfg-team-target" value="${t.goalTarget}" min="100" step="100">`)}
     ${field('Aportación por Doblón ganado', `<input type="number" id="cfg-team-rate" value="${Math.round((t.contributionRate || 0) * 100)}" min="0" max="100">`,
       'En %. No se descuenta de la bolsa del niño: cooperar no cuesta nada.')}
@@ -380,8 +380,8 @@ function cfgEquipos(body) {
       ${t.list.map((team, i) => `
         <div class="cfg-card">
           <div class="cfg-row">
-            <input type="text" class="cfg-t-icon" data-i="${i}" value="${team.icon}" maxlength="4">
-            <input type="text" class="cfg-t-name" data-i="${i}" value="${team.name}">
+            <input type="text" class="cfg-t-icon" data-i="${i}" value="${esc(team.icon)}" maxlength="4">
+            <input type="text" class="cfg-t-name" data-i="${i}" value="${esc(team.name)}">
             <button class="cfg-del" data-delteam="${i}" title="Eliminar">🗑️</button>
           </div>
           <label class="cfg-label">Miembros</label>
@@ -392,14 +392,14 @@ function cfgEquipos(body) {
                 const otra = !yo && t.list.some(x => x.id !== team.id &&
                   (x.members || []).some(m => String(m).trim().toLowerCase() === (r.name || '').trim().toLowerCase()));
                 return `<label class="team-pick${otra ? ' team-pick-taken' : ''}">
-                  <input type="checkbox" class="cfg-t-pick" data-i="${i}" data-name="${(r.name || '').replace(/"/g, '&quot;')}"
+                  <input type="checkbox" class="cfg-t-pick" data-i="${i}" data-name="${esc(r.name || '')}"
                     ${yo ? 'checked' : ''}${otra ? ' disabled' : ''}>
-                  ${r.name || '(sin nombre)'}${otra ? ' · ya en otra' : ''}</label>`;
+                  ${esc(r.name || '(sin nombre)')}${otra ? ' · ya en otra' : ''}</label>`;
               }).join('')}
             </div>
             <small class="cfg-hint">${(team.members || []).length} miembro(s). Marcados desde la lista de clase, así el nombre siempre coincide.</small>`
           : `<textarea class="cfg-t-members" data-i="${i}" rows="4"
-              placeholder="Escribe aquí un nombre por línea…">${(team.members || []).join('\n')}</textarea>
+              placeholder="Escribe aquí un nombre por línea…">${esc((team.members || []).join('\n'))}</textarea>
             <small class="cfg-hint">${(team.members || []).length
               ? (team.members || []).length + ' miembro(s) asignado(s).'
               : 'Sin miembros todavía.'} El nombre debe coincidir con el que escribió el niño.
@@ -481,16 +481,16 @@ function cfgYacimientos(body) {
         const open = cfgOpenSite === site.id;
         return `<div class="cfg-card cfg-site${site.enabled === false ? ' cfg-off' : ''}">
           <div class="cfg-row">
-            <input type="text" class="cfg-si-icon" data-si="${si}" value="${site.icon}" maxlength="4">
-            <input type="text" class="cfg-si-name" data-si="${si}" value="${site.name}">
+            <input type="text" class="cfg-si-icon" data-si="${si}" value="${esc(site.icon)}" maxlength="4">
+            <input type="text" class="cfg-si-name" data-si="${si}" value="${esc(site.name)}">
             <button class="cfg-del" data-delsite="${si}" title="Eliminar yacimiento">🗑️</button>
           </div>
           <div class="cfg-row">
-            <label>Materia <input type="text" class="cfg-si-subject" data-si="${si}" value="${site.subject || ''}"></label>
+            <label>Materia <input type="text" class="cfg-si-subject" data-si="${si}" value="${esc(site.subject || '')}"></label>
             <label class="cfg-switch">Activo
               <input type="checkbox" class="cfg-si-on" data-si="${si}"${site.enabled !== false ? ' checked' : ''}></label>
           </div>
-          <textarea class="cfg-si-desc" data-si="${si}" rows="2" placeholder="Ambientación del yacimiento">${site.desc || ''}</textarea>
+          <textarea class="cfg-si-desc" data-si="${si}" rows="2" placeholder="Ambientación del yacimiento">${esc(site.desc || '')}</textarea>
           <button class="cfg-toggle" data-open="${site.id}">${open ? '▾' : '▸'} ${branchesOf(site).length} pozo(s)</button>
           ${open ? `<div class="cfg-sublist">
             ${branchesOf(site).map((b, bi) => {
@@ -498,11 +498,11 @@ function cfgYacimientos(body) {
               const listos = STRATA_ORDER.filter(sId => stratumHasContent(b, sId)).length;
               return `<div class="cfg-branch">
                 <div class="cfg-row">
-                  <input type="text" class="cfg-b2-icon" data-si="${si}" data-bi="${bi}" value="${b.icon}" maxlength="4">
-                  <input type="text" class="cfg-b2-name" data-si="${si}" data-bi="${bi}" value="${b.name}">
+                  <input type="text" class="cfg-b2-icon" data-si="${si}" data-bi="${bi}" value="${esc(b.icon)}" maxlength="4">
+                  <input type="text" class="cfg-b2-name" data-si="${si}" data-bi="${bi}" value="${esc(b.name)}">
                   <button class="cfg-del" data-delbranch="${si}:${bi}" title="Eliminar pozo">🗑️</button>
                 </div>
-                <textarea class="cfg-b2-desc" data-si="${si}" data-bi="${bi}" rows="2">${b.desc || ''}</textarea>
+                <textarea class="cfg-b2-desc" data-si="${si}" data-bi="${bi}" rows="2">${esc(b.desc || '')}</textarea>
                 <div class="cfg-row cfg-grades-row">
                   <span class="cfg-label">Cursos:</span>
                   ${GRADES.map(g => `<label class="grade-chip${(!b.grades || b.grades.includes(g.n)) ? ' on' : ''}">
@@ -642,7 +642,7 @@ function cfgBancoRetos(body) {
 
   body.innerHTML = `
     <button class="btn btn-back" id="cfg-bank-back">← Volver a los yacimientos</button>
-    <h3 class="cfg-bank-title">${branch.icon} ${branch.name}</h3>
+    <h3 class="cfg-bank-title">${esc(branch.icon)} ${esc(branch.name)}</h3>
     <p class="cfg-intro">Escribe los retos de cada estrato. Los estratos van de menos a más
     profundos: <strong>Recordar</strong> es reconocer, <strong>Analizar</strong> es encontrar el
     error. Un estrato sin retos aparece al alumno como «todavía no preparado», nunca como
@@ -666,17 +666,17 @@ function cfgBancoRetos(body) {
             <span class="cfg-q-num">${qi + 1}</span>
             <button class="cfg-del" data-delq="${qi}" title="Eliminar reto">🗑️</button>
           </div>
-          <textarea class="cfg-q-text" data-qi="${qi}" rows="2" placeholder="Pregunta">${q.question || ''}</textarea>
+          <textarea class="cfg-q-text" data-qi="${qi}" rows="2" placeholder="Pregunta">${esc(q.question || '')}</textarea>
           ${[0, 1, 2, 3].map(oi => `
             <div class="cfg-row cfg-opt-row">
               <input type="radio" name="ans-${qi}" class="cfg-q-ans" data-qi="${qi}" data-oi="${oi}"
                 ${q.answer === oi ? 'checked' : ''} title="Marcar como correcta">
               <input type="text" class="cfg-q-opt" data-qi="${qi}" data-oi="${oi}"
-                value="${(q.options && q.options[oi] || '').replace(/"/g, '&quot;')}" placeholder="Respuesta ${oi + 1}">
+                value="${esc(q.options && q.options[oi] || '')}" placeholder="Respuesta ${oi + 1}">
             </div>`).join('')}
-          <textarea class="cfg-q-exp" data-qi="${qi}" rows="2" placeholder="Explicación tras responder (la lee quien falla)">${q.explanation || ''}</textarea>
-          <input type="text" class="cfg-q-h1" data-qi="${qi}" value="${(q.hint1 || '').replace(/"/g, '&quot;')}" placeholder="1ª pista de Kira (gratis)">
-          <input type="text" class="cfg-q-h2" data-qi="${qi}" value="${(q.hint2 || '').replace(/"/g, '&quot;')}" placeholder="2ª pista de Kira (cuesta Doblones)">
+          <textarea class="cfg-q-exp" data-qi="${qi}" rows="2" placeholder="Explicación tras responder (la lee quien falla)">${esc(q.explanation || '')}</textarea>
+          <input type="text" class="cfg-q-h1" data-qi="${qi}" value="${esc(q.hint1 || '')}" placeholder="1ª pista de Kira (gratis)">
+          <input type="text" class="cfg-q-h2" data-qi="${qi}" value="${esc(q.hint2 || '')}" placeholder="2ª pista de Kira (cuesta Doblones)">
         </div>`).join('')}
     </div>
 
@@ -774,8 +774,8 @@ function cfgAlmacen(body) {
       ${list.map((it, i) => `
         <div class="cfg-card">
           <div class="cfg-row">
-            <input type="text" class="cfg-s-icon" data-i="${i}" value="${it.icon}" maxlength="4">
-            <input type="text" class="cfg-s-name" data-i="${i}" value="${it.name}">
+            <input type="text" class="cfg-s-icon" data-i="${i}" value="${esc(it.icon)}" maxlength="4">
+            <input type="text" class="cfg-s-name" data-i="${i}" value="${esc(it.name)}">
             <button class="cfg-del" data-delshop="${i}" title="Eliminar">🗑️</button>
           </div>
           <div class="cfg-row">
@@ -909,8 +909,8 @@ function cfgFondo(body) {
     cooperativo</strong>: lo donado no vuelve, no da ninguna ventaja y los hitos son de
     <em>toda</em> la clase. Nunca se muestra quién ha donado más.</p>
     ${field('Fondo activo', `<input type="checkbox" id="cfg-fund-on"${f.enabled ? ' checked' : ''}>`)}
-    ${field('Nombre', `<input type="text" id="cfg-fund-name" value="${f.name || ''}">`)}
-    ${field('Frase de presentación', `<textarea id="cfg-fund-blurb" rows="2">${f.blurb || ''}</textarea>`)}
+    ${field('Nombre', `<input type="text" id="cfg-fund-name" value="${esc(f.name || '')}">`)}
+    ${field('Frase de presentación', `<textarea id="cfg-fund-blurb" rows="2">${esc(f.blurb || '')}</textarea>`)}
     ${field('Doblones reunidos por la clase',
       `<input type="number" id="cfg-fund-total" value="${Number(f.classTotal) || 0}" min="0" max="999999">`,
       'La suma real aparece en la vista general de la clase. Anótala aquí y todos la verán, incluso sin conexión.')}
@@ -922,14 +922,14 @@ function cfgFondo(body) {
       ${ms.map((m, i) => `
         <div class="cfg-card">
           <div class="cfg-row">
-            <input type="text" class="cfg-f-icon" data-i="${i}" value="${m.icon}" maxlength="4">
-            <input type="text" class="cfg-f-name" data-i="${i}" value="${m.name}">
+            <input type="text" class="cfg-f-icon" data-i="${i}" value="${esc(m.icon)}" maxlength="4">
+            <input type="text" class="cfg-f-name" data-i="${i}" value="${esc(m.name)}">
             <button class="cfg-del" data-delfund="${i}" title="Eliminar">🗑️</button>
           </div>
           <div class="cfg-row">
             <label>Se abre con <input type="number" class="cfg-f-at" data-i="${i}" value="${m.at}" min="1" max="999999"> 🪙</label>
           </div>
-          <textarea class="cfg-f-desc" data-i="${i}" rows="2" placeholder="Qué consigue la Sociedad">${m.desc || ''}</textarea>
+          <textarea class="cfg-f-desc" data-i="${i}" rows="2" placeholder="Qué consigue la Sociedad">${esc(m.desc || '')}</textarea>
         </div>`).join('')}
     </div>
     <button class="btn btn-secondary btn-small" id="cfg-add-fund">➕ Añadir hito</button>
@@ -939,7 +939,7 @@ function cfgFondo(body) {
     uno nuevo cada tantos Doblones.</p>
     ${field('Cada cuántos Doblones', `<input type="number" id="cfg-fund-step" value="${f.endlessStep || 0}" min="0" max="99999">`,
       'A 0 el Fondo termina en el último hito.')}
-    ${field('Nombre de esos hitos', `<input type="text" id="cfg-fund-endless" value="${f.endlessLabel || ''}">`)}`;
+    ${field('Nombre de esos hitos', `<input type="text" id="cfg-fund-endless" value="${esc(f.endlessLabel || '')}">`)}`;
 
   const guarda = (k, v, msg) => cfgSave('fund.' + k, v, msg === undefined ? false : msg);
   onInput('#cfg-fund-on',    e => cfgSave('fund.enabled', e.target.checked, e.target.checked ? 'Fondo activado ✓' : 'Fondo desactivado ✓'));
@@ -1062,7 +1062,7 @@ function cfgCopia(body) {
     <p class="cfg-hint">No se publican nunca: las <strong>contraseñas del alumnado</strong>,
     el <strong>PIN del panel</strong> ni los <strong>datos de Appwrite</strong>. Como el
     documento lo pueden leer todos los alumnos, esas tres cosas se quedan en cada tablet.</p>
-    <p class="cfg-equipo cfg-equipo-${est.tono}">${est.texto}</p>
+    <p class="cfg-equipo cfg-equipo-${est.tono}">${esc(est.texto)}</p>
     ${hayEquipo ? `<div class="cfg-equipo-botones">
       <button class="btn btn-secondary btn-small" id="cfg-pub">📤 Publicar mis ajustes para la clase</button>
       <button class="btn btn-secondary btn-small" id="cfg-pull">📥 Traer los del equipo</button>

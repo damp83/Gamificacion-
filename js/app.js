@@ -6,8 +6,14 @@
 const $ = sel => document.querySelector(sel);
 const $$ = sel => document.querySelectorAll(sel);
 
-/* Escapa texto que escribe el docente antes de meterlo en innerHTML: los
-   nombres de yacimiento los teclea una persona y pueden traer < o &. */
+/* Escapa texto escrito por una persona antes de meterlo en innerHTML.
+   Lo usan también teacher.js y las plantillas de la vista de clase, y no es
+   cosmético: el nombre de explorador y el resumen de cada diario los sube el
+   cliente DEL ALUMNO, y la vista de clase los pinta en el navegador del
+   docente, con su sesión abierta. Sin escapar, un nombre con una etiqueta
+   dentro se ejecutaba ahí. Regla: todo hueco de una plantilla que venga de
+   una persona pasa por aquí; los de textContent y toast() no, que ahí el
+   navegador ya no interpreta marcado y se vería «&amp;» en pantalla. */
 function esc(t) {
   return String(t == null ? '' : t)
     .replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;')
@@ -217,8 +223,8 @@ function renderMap() {
   for (const site of sites) {
     const header = document.createElement('div');
     header.className = 'site-header';
-    header.innerHTML = `<span class="site-icon">${site.icon}</span>
-      <div><h3>${site.name}</h3><p>${site.subject}${site.desc ? ' · ' + site.desc : ''}</p></div>`;
+    header.innerHTML = `<span class="site-icon">${esc(site.icon)}</span>
+      <div><h3>${esc(site.name)}</h3><p>${esc(site.subject)}${esc(site.desc ? ' · ' + site.desc : '')}</p></div>`;
     siteList.appendChild(header);
 
     /* Los pozos van en su propia rejilla, no sueltos en la columna: así en
@@ -234,9 +240,9 @@ function renderMap() {
       const mastered = withContent.filter(sId => strata[sId].mastery >= 0.8).length;
       const card = document.createElement('button');
       card.className = 'branch-card';
-      card.innerHTML = `<span class="branch-icon">${b.icon}</span>
+      card.innerHTML = `<span class="branch-icon">${esc(b.icon)}</span>
         <div class="branch-info">
-          <strong>${b.name}</strong>
+          <strong>${esc(b.name)}</strong>
           <div class="branch-strata-dots">${withContent.map(sId => {
             const st = strata[sId];
             const cls = st.mastery >= 0.8 ? 'dot-mastered' : st.status === 'locked' ? 'dot-locked' : 'dot-open';
@@ -261,8 +267,8 @@ function renderMap() {
       <span class="bazar-icon">${ico(target.paraGuardian ? 'idol' : 'basket')}</span>
       <div><strong>${target.paraGuardian ? 'Repaso para el Guardián' : 'Encargo del Bazar'}</strong>
       <p>${target.paraGuardian
-        ? `El Guardián de ${b.name} pide que repases «${meta.name}» antes de dejarte volver a entrar.`
-        : `«${meta.name}» de ${b.name} se está cubriendo de arena… Un repaso rápido lo redescubrirá. (+10–15 ${ico('coin')})`}</p></div>
+        ? `El Guardián de ${esc(b.name)} pide que repases «${meta.name}» antes de dejarte volver a entrar.`
+        : `«${meta.name}» de ${esc(b.name)} se está cubriendo de arena… Un repaso rápido lo redescubrirá. (+10–15 ${ico('coin')})`}</p></div>
       <button class="btn btn-secondary" id="btn-bazar">Repasar</button></div>`;
     $('#btn-bazar').addEventListener('click', () => {
       if (!startMission(target.branchId, target.stratumId, 'bazar')) { toast('Ese encargo ya no está disponible.'); return; }
@@ -643,7 +649,7 @@ function renderGuardianResult(r) {
       en un Encargo del Bazar y vuelvas.</div>` : ''}`;
 
   const bruno = r.superada
-    ? `«¡LO HAS HECHO! Mil años esperando y llega ${S.profile.explorer_name} y lo resuelve antes de merendar.
+    ? `«¡LO HAS HECHO! Mil años esperando y llega ${esc(S.profile.explorer_name)} y lo resuelve antes de merendar.
        Yo tardé tres expediciones… y en la primera me quedé encerrado dentro.»`
     : `«¡Uf! El Guardián ha dicho que no. A mí me dijo que no tantas veces que me aprendí su cara de memoria.
        Mira dónde has fallado, hazte un Encargo del Bazar y vuelve. Sigue estando todo tuyo: no has perdido ni un Doblón.»`;
@@ -661,7 +667,7 @@ function renderCamp() {
   equipped.innerHTML = S.inventory.gear_equipped.length
     ? S.inventory.gear_equipped.map(id => {
         const item = shopCatalog().find(i => i.id === id);
-        return `<span class="gear-chip" title="${item.name}">${item.icon}</span>`;
+        return `<span class="gear-chip" title="${esc(item.name)}">${esc(item.icon)}</span>`;
       }).join('')
     : '<small>Aún sin equipo. ¡Visita el almacén!</small>';
 
@@ -679,8 +685,8 @@ function renderCamp() {
     const equippedNow = S.inventory.gear_equipped.includes(item.id);
     const row = document.createElement('div');
     row.className = 'shop-item';
-    row.innerHTML = `<span class="shop-icon">${item.icon}</span>
-      <div class="shop-info"><strong>${item.name}</strong><small>${item.cost} ${ico('coin')}</small></div>`;
+    row.innerHTML = `<span class="shop-icon">${esc(item.icon)}</span>
+      <div class="shop-info"><strong>${esc(item.name)}</strong><small>${item.cost} ${ico('coin')}</small></div>`;
     const btn = document.createElement('button');
     btn.className = 'btn btn-secondary btn-small';
     if (owned && item.type === 'gear') {
@@ -741,7 +747,7 @@ function renderFund() {
     <div class="fund-bar"><div class="fund-bar-fill" style="width:${pct}%"></div></div>
     <div class="fund-bar-legend">
       <strong>${total} ${ico('coin')}</strong> reunidos entre toda la clase
-      ${siguiente ? `<span>· faltan <strong>${Math.max(0, hasta - total)}</strong> para ${siguiente.icon} ${siguiente.name}</span>` : ''}
+      ${siguiente ? `<span>· faltan <strong>${Math.max(0, hasta - total)}</strong> para ${esc(siguiente.icon)} ${esc(siguiente.name)}</span>` : ''}
     </div>`;
 
   const hitos = (f.milestones || []).concat(
@@ -749,8 +755,8 @@ function renderFund() {
   $('#fund-milestones').innerHTML = hitos.map(m => {
     const hecho = total >= m.at;
     return `<div class="fund-milestone ${hecho ? 'fund-done' : ''}">
-      <span class="fund-icon">${hecho ? m.icon : ico('lock')}</span>
-      <div><strong>${m.name}</strong><small>${hecho ? m.desc : `Se abre con ${m.at} ${ico('coin')} de la clase`}</small></div>
+      <span class="fund-icon">${hecho ? esc(m.icon) : ico('lock')}</span>
+      <div><strong>${esc(m.name)}</strong><small>${hecho ? esc(m.desc) : `Se abre con ${m.at} ${ico('coin')} de la clase`}</small></div>
     </div>`;
   }).join('');
 
@@ -827,7 +833,7 @@ function renderDashboard() {
   let html = '';
   for (const branchId of playableBranchIds()) {
     const b = branchDef(branchId);
-    html += `<div class="dash-branch"><h4>${b.icon} ${b.name}</h4><div class="dash-strata">`;
+    html += `<div class="dash-branch"><h4>${esc(b.icon)} ${esc(b.name)}</h4><div class="dash-strata">`;
     for (const sId of STRATA_ORDER) {
       if (!stratumHasContent(b, sId)) continue;
       const st = getStratum(branchId, sId);
@@ -856,7 +862,7 @@ function renderDashboard() {
     for (const sId of STRATA_ORDER) {
       if (!stratumHasContent(branchDef(branchId), sId)) continue;
       const st = getStratum(branchId, sId);
-      if (st.status === 'mastered' && sandCover(st) > 0.3) decayed.push(`${branchDef(branchId).name} · ${STRATA_META[sId].label}`);
+      if (st.status === 'mastered' && sandCover(st) > 0.3) decayed.push(`${esc(branchDef(branchId).name)} · ${STRATA_META[sId].label}`);
     }
   }
   if (decayed.length) signals.push(`🏜️ Estratos cubriéndose de arena (repaso recomendado): ${decayed.join(', ')}.`);
@@ -878,7 +884,7 @@ function renderTeam() {
   if (!team) {
     body.innerHTML = `<div class="dialog bruno"><span class="dialog-avatar">🧔🏻‍♂️</span>
       <div class="dialog-text"><strong>Prof. Bruno Ocaña</strong>
-      <p>«Todavía no te he asignado cuadrilla, ${S.profile.explorer_name}. ¡Paciencia!
+      <p>«Todavía no te he asignado cuadrilla, ${esc(S.profile.explorer_name)}. ¡Paciencia!
       En cuanto lo haga, aparecerá aquí tu equipo.»</p></div></div>`;
     return;
   }
@@ -889,8 +895,8 @@ function renderTeam() {
 
   body.innerHTML = `
     <div class="team-banner">
-      <span class="team-icon">${team.icon}</span>
-      <div><h3>${team.name}</h3>
+      <span class="team-icon">${esc(team.icon)}</span>
+      <div><h3>${esc(team.name)}</h3>
         <p>${(team.members || []).length} exploradores</p></div>
     </div>
 
@@ -913,7 +919,7 @@ function renderTeam() {
 
     ${t.showComparison ? `<h3>Las demás cuadrillas</h3>
       <div class="team-others">${t.list.filter(x => x.id !== team.id).map(x =>
-        `<div class="team-other"><span>${x.icon}</span> ${x.name}
+        `<div class="team-other"><span>${esc(x.icon)}</span> ${esc(x.name)}
          <small>${(x.members || []).length} exploradores</small></div>`).join('')}</div>` : ''}`;
 }
 
@@ -944,8 +950,8 @@ function renderMerits() {
   $('#merits-today').innerHTML = ATLAS_CONFIG.behaviors.map(b => {
     const n = S.behavior_log.filter(e => e.id === b.id && e.date === today).length;
     return `<div class="merit-row${n ? ' merit-earned' : ''}">
-      <span class="merit-icon">${b.icon}</span>
-      <div class="merit-info"><strong>${b.name}</strong><small>${b.coins} ${ico('coin')} · hasta ${b.perDay} al día</small></div>
+      <span class="merit-icon">${esc(b.icon)}</span>
+      <div class="merit-info"><strong>${esc(b.name)}</strong><small>${b.coins} ${ico('coin')} · hasta ${b.perDay} al día</small></div>
       <span class="merit-count">${n ? '⭐'.repeat(Math.min(n, 5)) : '—'}</span>
     </div>`;
   }).join('');
@@ -958,7 +964,7 @@ function renderMerits() {
     ? orderedDays.map(d => {
         const icons = days[d].map(e => {
           const b = ATLAS_CONFIG.behaviors.find(x => x.id === e.id);
-          return b ? `<span title="${b.name}">${b.icon}</span>` : '';
+          return b ? `<span title="${esc(b.name)}">${esc(b.icon)}</span>` : '';
         }).join('');
         return `<div class="history-day"><span class="history-date">${formatDay(d)}</span>
           <span class="history-icons">${icons}</span></div>`;
@@ -985,8 +991,8 @@ function renderAwardList() {
     const btn = document.createElement('button');
     btn.className = 'award-btn' + (full ? ' award-full' : '');
     btn.disabled = full;
-    btn.innerHTML = `<span class="award-icon">${b.icon}</span>
-      <span class="award-name">${b.name}</span>
+    btn.innerHTML = `<span class="award-icon">${esc(b.icon)}</span>
+      <span class="award-name">${esc(b.name)}</span>
       <span class="award-meta">+${b.coins} ${ico('coin')} · ${used}/${b.perDay}</span>`;
     btn.addEventListener('click', () => {
       const res = awardBehavior(b.id);
@@ -1210,7 +1216,7 @@ function renderAulaBar() {
   const abierta = aulaActiva();
   bar.innerHTML = `<span class="teacher-warn-icon">🏫</span>
     <div>${abierta
-      ? `Clase abierta: <strong>${AULA.name || 'sin nombre'}</strong>. Lo que trabajes aquí se guarda en ella.`
+      ? `Clase abierta: <strong>${esc(AULA.name || 'sin nombre')}</strong>. Lo que trabajes aquí se guarda en ella.`
       : cloudUser()
         ? 'No tienes ninguna clase abierta. Ábrela para que lo que trabajes se guarde en tu cuenta.'
         : 'Entra con tu cuenta de docente para trabajar con tus clases.'}</div>
@@ -1259,7 +1265,7 @@ function renderAula() {
     for (const b of branchesEnabledOf(site, null)) pozos.push({ id: b.id, name: `${site.subject} · ${b.name}` });
   }
   sel.innerHTML = `<option value="auto">Lo que más le convenga a cada uno</option>` +
-    pozos.map(p => `<option value="${p.id}"${aulaTema === p.id ? ' selected' : ''}>${p.name}</option>`).join('');
+    pozos.map(p => `<option value="${p.id}"${aulaTema === p.id ? ' selected' : ''}>${esc(p.name)}</option>`).join('');
   sel.value = aulaTema;
 
   const alumnos = aulaAlumnos();
@@ -1291,7 +1297,7 @@ function renderAula() {
     card.className = 'aula-alumno-card' + (t.rondas ? ' aula-ya' : '');
     card.innerHTML = `
       <span class="aula-card-avatar">${t.rondas ? '✅' : '🧒'}</span>
-      <span class="aula-card-nombre">${a.name}</span>
+      <span class="aula-card-nombre">${esc(a.name)}</span>
       <span class="aula-card-meta">${gradeInfo(a.grade).label}${
         tiene ? ` · ${t.rondas} ronda(s) hoy` : ' · primera vez'}</span>`;
     card.addEventListener('click', () => empezarTurno(a));
@@ -1457,8 +1463,8 @@ function renderAulaMeritos() {
     const btn = document.createElement('button');
     btn.className = 'award-btn' + (lleno ? ' award-full' : '');
     btn.disabled = lleno;
-    btn.innerHTML = `<span class="award-icon">${b.icon}</span>
-      <span class="award-name">${b.name}</span>
+    btn.innerHTML = `<span class="award-icon">${esc(b.icon)}</span>
+      <span class="award-name">${esc(b.name)}</span>
       <span class="award-meta">+${b.coins} ${ico('coin')} · ${usados}/${b.perDay}</span>`;
     btn.addEventListener('click', () => {
       const res = awardBehavior(b.id);
@@ -1562,7 +1568,7 @@ function classErrorHtml(res) {
   return `<div class="class-error">
     <h3>No se han podido reunir los diarios</h3>
     <p>${res.reason === 'sin-nube' ? 'No hay sesión en la nube ahora mismo.' : 'Ha fallado la consulta.'}</p>
-    ${res.detail ? `<p class="cfg-hint">${res.detail}</p>` : ''}
+    ${res.detail ? `<p class="cfg-hint">${esc(res.detail)}</p>` : ''}
     <button class="btn btn-secondary btn-small" onclick="classData=null;renderClassView()">Reintentar</button>
   </div>`;
 }
@@ -1620,14 +1626,14 @@ function paintClassView() {
   const urgentes = d.students.filter(s => s.needsHelp);
   $('#class-alerts').innerHTML = urgentes.length
     ? `<div class="class-alert"><strong>🛟 Alerta de rescate:</strong>
-        ${urgentes.map(s => s.name).join(', ')} — ${urgentes.length === 1 ? 'acumula' : 'acumulan'}
+        ${urgentes.map(s => esc(s.name)).join(', ')} — ${urgentes.length === 1 ? 'acumula' : 'acumulan'}
         tres o más señales. Míralo en persona antes de tocar nada del juego.</div>`
     : '';
 
   $('#class-students').innerHTML = sortStudents(d.students, classSort).map(s => `
     <div class="student-card${s.needsHelp ? ' student-alert' : ''}">
       <div class="student-head">
-        <strong>${s.name}</strong>
+        <strong>${esc(s.name)}</strong>
         <span class="student-rank">Nv. ${s.level} · ${s.rank}</span>
       </div>
       <div class="student-bars">
@@ -1647,8 +1653,8 @@ function paintClassView() {
         <span title="Cámaras del Guardián superadas">${ico('map')} ${s.fragments} fragmentos</span>
       </div>
       ${s.signals.length ? `<div class="student-signals">${s.signals.map(x => `<span class="signal-chip">${x}</span>`).join('')}</div>` : ''}
-      ${s.stuck.length ? `<small class="student-stuck">Atascado en: ${s.stuck.join(' · ')}</small>` : ''}
-      <small class="student-seen">Última expedición: ${s.lastSeen || '—'}</small>
+      ${s.stuck.length ? `<small class="student-stuck">Atascado en: ${esc(s.stuck.join(' · '))}</small>` : ''}
+      <small class="student-seen">Última expedición: ${esc(s.lastSeen || '—')}</small>
     </div>`).join('') + pendientesHtml(d);
 
   const cmp = ATLAS_CONFIG.teams && ATLAS_CONFIG.teams.enabled;
@@ -1658,7 +1664,7 @@ function paintClassView() {
         const meta = ATLAS_CONFIG.teams.goalTarget || 1;
         const pct = Math.min(100, Math.round((t.contribution / meta) * 100));
         return `<div class="class-team">
-          <div class="class-team-head"><span>${t.icon} <strong>${t.name}</strong></span>
+          <div class="class-team-head"><span>${esc(t.icon)} <strong>${esc(t.name)}</strong></span>
             <span class="student-num">${t.contribution} / ${meta} ${ico('coin')}</span></div>
           <div class="mastery-bar"><div class="mastery-fill${pct >= 100 ? ' gold' : ''}" style="width:${pct}%"></div></div>
           <small>${t.members} con diario${t.listed !== t.members ? ` de ${t.listed} asignados` : ''} · ${t.mastered} estratos entre todos</small>
@@ -1671,7 +1677,7 @@ function paintClassView() {
   const erratas = d.missing.filter(m => m.origen === 'equipo' && !m.enLista);
   $('#class-missing').innerHTML = erratas.length
     ? `<div class="class-warn">⚠️ En una cuadrilla hay nombres que no están en la lista de clase:
-        ${erratas.map(m => `<strong>${m.name}</strong> (${m.team})`).join(', ')}.
+        ${erratas.map(m => `<strong>${esc(m.name)}</strong> (${esc(m.team)})`).join(', ')}.
         Si es una errata, su diario no se juntará nunca con su cuadrilla: corrígelo en
         «Cuadrillas de excavación».</div>`
     : '';
@@ -1691,13 +1697,13 @@ function pendientesHtml(d) {
     if (!hayNube) falta = 'Necesita su propia cuenta: sin nube, cada tablet guarda un único diario.';
     else if (m.account) falta = 'Ya tiene cuenta. Solo falta que entre y cree su diario.';
     else if (m.enLista) falta = 'Todavía sin cuenta. Créala en «Alumnado» → Crear las cuentas.';
-    else falta = `Está en ${m.team}, pero no en la lista de clase. ¿Una errata en el nombre?`;
+    else falta = `Está en ${esc(m.team)}, pero no en la lista de clase. ¿Una errata en el nombre?`;
     return `<div class="student-card student-pending">
       <div class="student-head">
-        <strong>${m.name}</strong>
+        <strong>${esc(m.name)}</strong>
         <span class="student-pending-tag">Aún no ha entrado</span>
       </div>
-      <small class="student-seen">${m.origen === 'equipo' ? m.team : 'En la lista de clase'} · ${falta}</small>
+      <small class="student-seen">${esc(m.origen === 'equipo' ? m.team : 'En la lista de clase')} · ${falta}</small>
     </div>`;
   }).join('');
 }
@@ -1715,10 +1721,10 @@ function paintClassFund(d) {
   const anotado = Number(f.classTotal) || 0;
   const { siguiente } = fundMilestoneFor(real);
   cont.innerHTML = `
-    <h3>🌍 ${f.name || 'Fondo de la Sociedad'}</h3>
+    <h3>🌍 ${esc(f.name || 'Fondo de la Sociedad')}</h3>
     <p class="class-meta">Donado de verdad entre todos: <strong>${real} ${ico('coin')}</strong> ·
       anotado en la configuración: <strong>${anotado} ${ico('coin')}</strong>
-      ${siguiente ? `· siguiente hito: ${siguiente.icon} ${siguiente.name} (${siguiente.at} ${ico('coin')})` : ''}</p>
+      ${siguiente ? `· siguiente hito: ${esc(siguiente.icon)} ${esc(siguiente.name)} (${siguiente.at} ${ico('coin')})` : ''}</p>
     ${real !== anotado
       ? `<button class="btn btn-secondary btn-small" id="class-fund-sync">${ico('pin')} Anotar ${real} ${ico('coin')} para que lo vea la clase</button>`
       : '<p class="cfg-hint">La clase ya ve el total correcto.</p>'}`;
@@ -1738,7 +1744,7 @@ function renderCourse() {
     const c = S.course.trimesters[i];
     const state = i === now ? 'en curso' : (i < now ? 'cerrado' : 'por venir');
     return `<div class="tri-card${i === now ? ' tri-current' : ''}">
-      <div class="tri-head"><strong>${t.name}</strong><span class="tri-state">${state}</span></div>
+      <div class="tri-head"><strong>${esc(t.name)}</strong><span class="tri-state">${state}</span></div>
       <div class="tri-dates">${t.start.split('-').reverse().slice(0,2).join('/')} – ${t.end.split('-').reverse().slice(0,2).join('/')}</div>
       <div class="tri-stats">
         <span><strong>${c.strata}</strong> estratos</span>
@@ -1749,7 +1755,7 @@ function renderCourse() {
     </div>`;
   }).join('');
   $('#dashboard-course').innerHTML =
-    `<p class="course-label">${ATLAS_CONFIG.course.label}</p><div class="tri-grid">${rows}</div>`;
+    `<p class="course-label">${esc(ATLAS_CONFIG.course.label)}</p><div class="tri-grid">${rows}</div>`;
 }
 
 /* ── Acceso con Appwrite ── */
@@ -1834,11 +1840,11 @@ function renderHomeSites() {
   const sites = sitesEnabled().filter(site => branchesEnabledOf(site).length);
   $('#home-sites').innerHTML = sites.length
     ? sites.map(site => `<div class="home-site">
-        <span class="home-site-icon">${site.icon}</span>
-        <div><strong>${site.name}</strong>
-          <small>${site.subject}${site.desc ? ' · ' + site.desc : ''}</small>
+        <span class="home-site-icon">${esc(site.icon)}</span>
+        <div><strong>${esc(site.name)}</strong>
+          <small>${esc(site.subject)}${esc(site.desc ? ' · ' + site.desc : '')}</small>
           <div class="home-site-wells">${branchesEnabledOf(site)
-            .map(b => `<span class="home-well">${b.icon} ${b.name}</span>`).join('')}</div>
+            .map(b => `<span class="home-well">${esc(b.icon)} ${esc(b.name)}</span>`).join('')}</div>
         </div>
       </div>`).join('')
     : '<p class="empty-note">El profesor aún está preparando los yacimientos.</p>';
