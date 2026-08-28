@@ -1027,9 +1027,18 @@ function cfgAcceso(body) {
     ${field('Project ID', `<input type="text" id="cfg-aw-pid" value="${a.projectId}">`)}
     ${field('Database ID', `<input type="text" id="cfg-aw-did" value="${a.databaseId}">`)}
     ${field('Collection ID (diarios)', `<input type="text" id="cfg-aw-cid" value="${a.collectionId}">`)}
-    ${field('Collection ID (aulas)', `<input type="text" id="cfg-aw-aid" value="${a.aulasCollectionId || ''}">`,
+    ${field('Collection ID (aulas)', `<input type="text" id="cfg-aw-aid" value="${esc(a.aulasCollectionId || '')}">`,
       'Solo si quieres que varios docentes usen la plataforma con sus clases por separado. Cada clase pertenece a la cuenta de su docente y las demás no pueden leerla.')}
-    <p class="cfg-warn">Tras cambiar los datos de Appwrite hay que recargar la página para que surtan efecto.</p>`;
+    ${field('Collection ID (configuración compartida)', `<input type="text" id="cfg-aw-ccid" value="${esc(a.configCollectionId || '')}">`,
+      'Opcional. Sirve para no configurar veinte tablets a mano. Con la colección de aulas puesta no hace falta: los ajustes de cada clase viajan en su documento.')}
+    <p class="cfg-warn">Tras cambiar los datos de Appwrite hay que recargar la página para que surtan efecto.</p>
+
+    <h4 class="cfg-h4">¿Está bien puesto?</h4>
+    <p class="cfg-hint">Prueba cada colección y dice cuál falla y por qué. El fallo más común es
+    un <strong>ID equivocado</strong>: en Appwrite el ID de una colección no tiene por qué ser su
+    nombre. Solo lee: no crea ni cambia nada.</p>
+    <button class="btn btn-secondary btn-small" id="cfg-aw-check">🔌 Comprobar la conexión</button>
+    <div id="cfg-aw-diag" class="ros-log hidden"></div>`;
 
   onInput('#cfg-pin', e => cfgSave('teacherPin', e.target.value || '1234'));
   onInput('#cfg-aw-ep', e => cfgSave('appwrite.endpoint', e.target.value.trim()));
@@ -1037,6 +1046,21 @@ function cfgAcceso(body) {
   onInput('#cfg-aw-did', e => cfgSave('appwrite.databaseId', e.target.value.trim()));
   onInput('#cfg-aw-cid', e => cfgSave('appwrite.collectionId', e.target.value.trim()));
   onInput('#cfg-aw-aid', e => cfgSave('appwrite.aulasCollectionId', e.target.value.trim()));
+  onInput('#cfg-aw-ccid', e => cfgSave('appwrite.configCollectionId', e.target.value.trim()));
+
+  $('#cfg-aw-check').addEventListener('click', async () => {
+    const caja = $('#cfg-aw-diag');
+    const boton = $('#cfg-aw-check');
+    boton.disabled = true;
+    caja.classList.remove('hidden');
+    caja.innerHTML = '<div>Comprobando…</div>';
+    let pasos;
+    try { pasos = await cloudDiagnostico(); }
+    catch (e) { pasos = [{ que: 'Comprobación', ok: false, texto: (e && e.message) || 'Ha fallado.' }]; }
+    boton.disabled = false;
+    caja.innerHTML = pasos.map(s =>
+      `<div>${s.ok ? '✓' : '✘'} <strong>${esc(s.que)}</strong> — ${esc(s.texto)}</div>`).join('');
+  });
 }
 
 /* ══════════ COPIA DE SEGURIDAD ══════════ */

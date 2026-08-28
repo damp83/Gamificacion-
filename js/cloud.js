@@ -490,6 +490,65 @@ async function sincronizarAula() {
   return { ok: !fallidos, enviados, fallidos, ajustes: cfg.ok };
 }
 
+/* ══════════ COMPROBACIÓN DE LA CONEXIÓN ══════════
+   Los identificadores de colección se copian a mano de la consola de Appwrite
+   y equivocarse en uno deja la plataforma en un fallo mudo: parece que va, y
+   los diarios no llegan a ninguna parte. Esto los prueba uno a uno y dice cuál
+   falla y por qué. Son todo lecturas: no crea ni cambia nada.
+
+   La parte que decide QUÉ significa cada error va aparte y es pura, para poder
+   probarla sin red. */
+function interpretarSondeo(e) {
+  if (!e) return { ok: true, veredicto: 'existe', texto: 'Responde.' };
+  const msg = (e && e.message) || '';
+  if (/could not be found|not be found|404/i.test(msg)) {
+    return { ok: false, veredicto: 'no-existe',
+             texto: 'No existe con ese ID. Revísalo en la consola de Appwrite: el ID no siempre es el nombre.' };
+  }
+  if (/not authorized|missing scope|unauthorized|permission/i.test(msg)) {
+    /* Existe: si no, habría contestado que no la encuentra. Que no deje leer
+       de golpe es lo NORMAL con seguridad por documento y sin sesión. */
+    return { ok: true, veredicto: 'sin-permiso',
+             texto: 'Existe, pero esta sesión no puede listarla entera. Con permisos por documento es lo esperado.' };
+  }
+  if (/fetch|network|CORS|Failed to fetch/i.test(msg)) {
+    return { ok: false, veredicto: 'sin-red',
+             texto: 'No se llega al servidor. Suele ser que falta añadir este dominio en Appwrite → Settings → Platforms.' };
+  }
+  return { ok: false, veredicto: 'error', texto: msg || 'Error desconocido.' };
+}
+
+async function cloudSondearColeccion(id) {
+  try {
+    await CLOUD.db.listDocuments(ATLAS_CONFIG.appwrite.databaseId, id, [Appwrite.Query.limit(1)]);
+    return interpretarSondeo(null);
+  } catch (e) { return interpretarSondeo(e); }
+}
+
+async function cloudDiagnostico() {
+  const c = ATLAS_CONFIG.appwrite;
+  const pasos = [];
+  const anotar = (que, r) => pasos.push({ que, ...r });
+
+  if (!cloudConfigured()) {
+    anotar('Configuración', { ok: false, texto: 'Faltan datos: endpoint, proyecto, base de datos o colección de diarios.' });
+    return pasos;
+  }
+  if (!CLOUD.enabled) {
+    anotar('SDK de Appwrite', { ok: false, texto: 'No ha cargado. Sin él la plataforma funciona en modo local.' });
+    return pasos;
+  }
+  anotar('SDK de Appwrite', { ok: true, texto: 'Cargado.' });
+  anotar('Sesión', CLOUD.user
+    ? { ok: true, texto: `Iniciada como ${CLOUD.user.name || CLOUD.user.email || CLOUD.user.$id}.` }
+    : { ok: true, texto: 'Sin sesión. Algunas comprobaciones dirán «no puede listarla»: es normal.' });
+
+  anotar(`Diarios («${c.collectionId}»)`, await cloudSondearColeccion(c.collectionId));
+  if (c.aulasCollectionId) anotar(`Aulas («${c.aulasCollectionId}»)`, await cloudSondearColeccion(c.aulasCollectionId));
+  if (c.configCollectionId) anotar(`Configuración («${c.configCollectionId}»)`, await cloudSondearColeccion(c.configCollectionId));
+  return pasos;
+}
+
 /* guardado perezoso: saveState() lo invoca; agrupa ráfagas en un envío */
 function cloudScheduleSave() {
   if (!CLOUD.enabled || !CLOUD.user) return;

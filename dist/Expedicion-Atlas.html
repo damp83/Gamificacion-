@@ -4254,20 +4254,29 @@ const RANKS = [
 
 const ATLAS_DEFAULTS = {
 
-  /* ── Appwrite: cuentas y guardado en la nube ── */
+  /* ── Appwrite: cuentas y guardado en la nube ──
+     Proyecto «Expedición Atlas», región de Fráncfort, base de datos «atlas».
+     Nada de esto es un secreto: viaja en el navegador de cada niño y se puede
+     leer con ver el código fuente. Lo que protege los diarios NO son estos
+     identificadores, son los permisos por documento de Appwrite y la lista de
+     plataformas Web autorizadas del proyecto. */
   appwrite: {
-    endpoint: '',
-    projectId: '',
-    databaseId: '',
-    collectionId: '',
+    endpoint: 'https://fra.cloud.appwrite.io/v1',
+    projectId: '6a8d7329000303fbfb52',
+    databaseId: '6a8d7636003c39f18455',
+    /* La colección (en el console nuevo, «tabla») con un documento por
+       diario de alumno. */
+    collectionId: 'diarios',
     /* Colección aparte para la configuración compartida del equipo docente.
-       Vacío = cada tablet con sus propios ajustes, como hasta ahora. */
+       Vacío = cada tablet con sus propios ajustes, como hasta ahora.
+       Con aulasCollectionId puesto no hace falta: los ajustes de cada clase
+       viajan dentro del documento de su aula. */
     configCollectionId: '',
     configDocId: 'clase',
     /* ── Aulas (varios docentes, cada uno con sus clases) ──
        Una colección con un documento por clase, cuyo dueño es la cuenta del
        docente. Vacío = una sola clase en este equipo, sin sincronizar. */
-    aulasCollectionId: ''
+    aulasCollectionId: 'aulas'
   },
 
   /* Los alumnos entran con USUARIO, no con email (más fácil a los 8-10
@@ -5093,6 +5102,65 @@ async function sincronizarAula() {
   }
   const cfg = await cloudSaveAulaConfig();
   return { ok: !fallidos, enviados, fallidos, ajustes: cfg.ok };
+}
+
+/* ══════════ COMPROBACIÓN DE LA CONEXIÓN ══════════
+   Los identificadores de colección se copian a mano de la consola de Appwrite
+   y equivocarse en uno deja la plataforma en un fallo mudo: parece que va, y
+   los diarios no llegan a ninguna parte. Esto los prueba uno a uno y dice cuál
+   falla y por qué. Son todo lecturas: no crea ni cambia nada.
+
+   La parte que decide QUÉ significa cada error va aparte y es pura, para poder
+   probarla sin red. */
+function interpretarSondeo(e) {
+  if (!e) return { ok: true, veredicto: 'existe', texto: 'Responde.' };
+  const msg = (e && e.message) || '';
+  if (/could not be found|not be found|404/i.test(msg)) {
+    return { ok: false, veredicto: 'no-existe',
+             texto: 'No existe con ese ID. Revísalo en la consola de Appwrite: el ID no siempre es el nombre.' };
+  }
+  if (/not authorized|missing scope|unauthorized|permission/i.test(msg)) {
+    /* Existe: si no, habría contestado que no la encuentra. Que no deje leer
+       de golpe es lo NORMAL con seguridad por documento y sin sesión. */
+    return { ok: true, veredicto: 'sin-permiso',
+             texto: 'Existe, pero esta sesión no puede listarla entera. Con permisos por documento es lo esperado.' };
+  }
+  if (/fetch|network|CORS|Failed to fetch/i.test(msg)) {
+    return { ok: false, veredicto: 'sin-red',
+             texto: 'No se llega al servidor. Suele ser que falta añadir este dominio en Appwrite → Settings → Platforms.' };
+  }
+  return { ok: false, veredicto: 'error', texto: msg || 'Error desconocido.' };
+}
+
+async function cloudSondearColeccion(id) {
+  try {
+    await CLOUD.db.listDocuments(ATLAS_CONFIG.appwrite.databaseId, id, [Appwrite.Query.limit(1)]);
+    return interpretarSondeo(null);
+  } catch (e) { return interpretarSondeo(e); }
+}
+
+async function cloudDiagnostico() {
+  const c = ATLAS_CONFIG.appwrite;
+  const pasos = [];
+  const anotar = (que, r) => pasos.push({ que, ...r });
+
+  if (!cloudConfigured()) {
+    anotar('Configuración', { ok: false, texto: 'Faltan datos: endpoint, proyecto, base de datos o colección de diarios.' });
+    return pasos;
+  }
+  if (!CLOUD.enabled) {
+    anotar('SDK de Appwrite', { ok: false, texto: 'No ha cargado. Sin él la plataforma funciona en modo local.' });
+    return pasos;
+  }
+  anotar('SDK de Appwrite', { ok: true, texto: 'Cargado.' });
+  anotar('Sesión', CLOUD.user
+    ? { ok: true, texto: `Iniciada como ${CLOUD.user.name || CLOUD.user.email || CLOUD.user.$id}.` }
+    : { ok: true, texto: 'Sin sesión. Algunas comprobaciones dirán «no puede listarla»: es normal.' });
+
+  anotar(`Diarios («${c.collectionId}»)`, await cloudSondearColeccion(c.collectionId));
+  if (c.aulasCollectionId) anotar(`Aulas («${c.aulasCollectionId}»)`, await cloudSondearColeccion(c.aulasCollectionId));
+  if (c.configCollectionId) anotar(`Configuración («${c.configCollectionId}»)`, await cloudSondearColeccion(c.configCollectionId));
+  return pasos;
 }
 
 /* guardado perezoso: saveState() lo invoca; agrupa ráfagas en un envío */
@@ -9694,9 +9762,18 @@ function cfgAcceso(body) {
     ${field('Project ID', `<input type="text" id="cfg-aw-pid" value="${a.projectId}">`)}
     ${field('Database ID', `<input type="text" id="cfg-aw-did" value="${a.databaseId}">`)}
     ${field('Collection ID (diarios)', `<input type="text" id="cfg-aw-cid" value="${a.collectionId}">`)}
-    ${field('Collection ID (aulas)', `<input type="text" id="cfg-aw-aid" value="${a.aulasCollectionId || ''}">`,
+    ${field('Collection ID (aulas)', `<input type="text" id="cfg-aw-aid" value="${esc(a.aulasCollectionId || '')}">`,
       'Solo si quieres que varios docentes usen la plataforma con sus clases por separado. Cada clase pertenece a la cuenta de su docente y las demás no pueden leerla.')}
-    <p class="cfg-warn">Tras cambiar los datos de Appwrite hay que recargar la página para que surtan efecto.</p>`;
+    ${field('Collection ID (configuración compartida)', `<input type="text" id="cfg-aw-ccid" value="${esc(a.configCollectionId || '')}">`,
+      'Opcional. Sirve para no configurar veinte tablets a mano. Con la colección de aulas puesta no hace falta: los ajustes de cada clase viajan en su documento.')}
+    <p class="cfg-warn">Tras cambiar los datos de Appwrite hay que recargar la página para que surtan efecto.</p>
+
+    <h4 class="cfg-h4">¿Está bien puesto?</h4>
+    <p class="cfg-hint">Prueba cada colección y dice cuál falla y por qué. El fallo más común es
+    un <strong>ID equivocado</strong>: en Appwrite el ID de una colección no tiene por qué ser su
+    nombre. Solo lee: no crea ni cambia nada.</p>
+    <button class="btn btn-secondary btn-small" id="cfg-aw-check">🔌 Comprobar la conexión</button>
+    <div id="cfg-aw-diag" class="ros-log hidden"></div>`;
 
   onInput('#cfg-pin', e => cfgSave('teacherPin', e.target.value || '1234'));
   onInput('#cfg-aw-ep', e => cfgSave('appwrite.endpoint', e.target.value.trim()));
@@ -9704,6 +9781,21 @@ function cfgAcceso(body) {
   onInput('#cfg-aw-did', e => cfgSave('appwrite.databaseId', e.target.value.trim()));
   onInput('#cfg-aw-cid', e => cfgSave('appwrite.collectionId', e.target.value.trim()));
   onInput('#cfg-aw-aid', e => cfgSave('appwrite.aulasCollectionId', e.target.value.trim()));
+  onInput('#cfg-aw-ccid', e => cfgSave('appwrite.configCollectionId', e.target.value.trim()));
+
+  $('#cfg-aw-check').addEventListener('click', async () => {
+    const caja = $('#cfg-aw-diag');
+    const boton = $('#cfg-aw-check');
+    boton.disabled = true;
+    caja.classList.remove('hidden');
+    caja.innerHTML = '<div>Comprobando…</div>';
+    let pasos;
+    try { pasos = await cloudDiagnostico(); }
+    catch (e) { pasos = [{ que: 'Comprobación', ok: false, texto: (e && e.message) || 'Ha fallado.' }]; }
+    boton.disabled = false;
+    caja.innerHTML = pasos.map(s =>
+      `<div>${s.ok ? '✓' : '✘'} <strong>${esc(s.que)}</strong> — ${esc(s.texto)}</div>`).join('');
+  });
 }
 
 /* ══════════ COPIA DE SEGURIDAD ══════════ */

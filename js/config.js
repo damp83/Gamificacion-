@@ -8,20 +8,29 @@
 
 const ATLAS_DEFAULTS = {
 
-  /* ── Appwrite: cuentas y guardado en la nube ── */
+  /* ── Appwrite: cuentas y guardado en la nube ──
+     Proyecto «Expedición Atlas», región de Fráncfort, base de datos «atlas».
+     Nada de esto es un secreto: viaja en el navegador de cada niño y se puede
+     leer con ver el código fuente. Lo que protege los diarios NO son estos
+     identificadores, son los permisos por documento de Appwrite y la lista de
+     plataformas Web autorizadas del proyecto. */
   appwrite: {
-    endpoint: '',
-    projectId: '',
-    databaseId: '',
-    collectionId: '',
+    endpoint: 'https://fra.cloud.appwrite.io/v1',
+    projectId: '6a8d7329000303fbfb52',
+    databaseId: '6a8d7636003c39f18455',
+    /* La colección (en el console nuevo, «tabla») con un documento por
+       diario de alumno. */
+    collectionId: 'diarios',
     /* Colección aparte para la configuración compartida del equipo docente.
-       Vacío = cada tablet con sus propios ajustes, como hasta ahora. */
+       Vacío = cada tablet con sus propios ajustes, como hasta ahora.
+       Con aulasCollectionId puesto no hace falta: los ajustes de cada clase
+       viajan dentro del documento de su aula. */
     configCollectionId: '',
     configDocId: 'clase',
     /* ── Aulas (varios docentes, cada uno con sus clases) ──
        Una colección con un documento por clase, cuyo dueño es la cuenta del
        docente. Vacío = una sola clase en este equipo, sin sincronizar. */
-    aulasCollectionId: ''
+    aulasCollectionId: 'aulas'
   },
 
   /* Los alumnos entran con USUARIO, no con email (más fácil a los 8-10

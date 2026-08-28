@@ -72,6 +72,7 @@ Cubren lo que ya se ha roto alguna vez, que es de donde salieron:
 | `contenido.test.js` | Que ningún reto salga malformado y que los de «encontrar el error» tengan de verdad un error |
 | `service-worker.test.js` | Que en la tablet no se quede guardado el diario del niño anterior |
 | `menores.test.js` | Contraseñas, claves peligrosas en la configuración compartida y el reparto del Fondo |
+| `nube.test.js` | Que la configuración de Appwrite esté completa y que el diagnóstico no confunda «no existe» con «no deja listar» |
 
 Lo que pide un navegador de verdad —que la página pinte, que un nombre hostil se
 vea como texto— no está aquí: eso se comprueba abriendo la app.
@@ -208,17 +209,45 @@ una vez — son cinco minutos y cubre lo único que de verdad importa:
 
 ### 5. Rellenar `js/config.js`
 
+Este despliegue ya viene configurado contra el proyecto **Expedición Atlas** de
+Fráncfort:
+
 ```js
 appwrite: {
-  endpoint: 'https://cloud.appwrite.io/v1',
-  projectId: 'TU_PROJECT_ID',
-  databaseId: 'TU_DATABASE_ID',
-  collectionId: 'TU_COLLECTION_ID',
-  configCollectionId: 'TU_CONFIG_COLLECTION_ID',   // opcional
+  endpoint: 'https://fra.cloud.appwrite.io/v1',
+  projectId: '6a8d7329000303fbfb52',
+  databaseId: '6a8d7636003c39f18455',   // base de datos «atlas»
+  collectionId: 'diarios',
+  configCollectionId: '',               // opcional; con aulas no hace falta
   configDocId: 'clase',
-  aulasCollectionId: 'TU_AULAS_COLLECTION_ID'      // opcional: varios docentes
+  aulasCollectionId: 'aulas'            // varios docentes, cada uno sus clases
 },
 ```
+
+Nada de esto es un secreto: viaja en el navegador de cada niño y se lee con ver
+el código fuente. Lo que protege los diarios **no** son estos identificadores,
+son los permisos por documento y la lista de plataformas Web del proyecto.
+
+> **Ojo con los IDs de colección.** En Appwrite el ID de una colección no tiene
+> por qué ser su nombre: si la creaste dejando que generara uno, será algo como
+> `6a8d76f10021b4c93a77` y hay que poner **ese**. Se ve en la consola, en la
+> cabecera de la colección, junto al nombre.
+
+### 6. Comprobar que está bien puesto
+
+En la app: *Sala de mapas → Configuración → Acceso y nube →* **🔌 Comprobar la
+conexión**. Prueba cada colección por separado y dice cuál falla y por qué. Solo
+lee: no crea ni cambia nada. Distingue los tres fallos que se parecen entre sí:
+
+| Lo que dice | Qué pasa |
+|---|---|
+| `✘ No existe con ese ID` | El ID de esa colección está mal escrito o es el nombre en vez del ID |
+| `✓ Existe, pero esta sesión no puede listarla entera` | Está bien: con permisos por documento y sin sesión, es lo esperado |
+| `✘ No se llega al servidor` | Falta añadir este dominio en Appwrite → *Settings → Platforms* |
+
+Ese último es el que muerde al publicar: hay que dar de alta como plataforma
+**Web** tanto `localhost` (para probar) como el dominio de GitHub Pages. Sin eso
+el navegador corta las peticiones por CORS y no hay cuentas ni sincronización.
 
 Cambia también `teacherPin`. Y ojo: **el PIN es una barrera de aula, no seguridad real** — el código se ejecuta en el navegador y un alumno curioso puede leerlo. Sirve para que no se concedan méritos por accidente, no para resistir a quien quiera saltárselo.
 
