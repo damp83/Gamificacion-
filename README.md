@@ -286,7 +286,7 @@ el navegador corta las peticiones por CORS y no hay cuentas ni sincronización.
 
 ### El PIN del docente, y por qué no basta con cambiarlo en el panel
 
-`teacherPin` está en `js/config.js` y de fábrica es `1234`. Se puede cambiar
+`teacherPin` está en `js/config.js` y ahora mismo es `2026`. Se puede cambiar
 desde *Configuración → Acceso y nube*, **pero eso vale solo para ese equipo**:
 queda en el `localStorage` de ese navegador y no viaja a ninguna parte.
 
@@ -490,7 +490,7 @@ navegador del niño: quien sepa abrir la consola lo lee. Sirve para que nadie
 entre por curiosidad, no contra alguien que quiera entrar. Y **cambiarlo desde
 el panel vale solo para ese equipo** —no puede viajar, porque los ajustes de la
 clase los leen los alumnos—, así que las demás tablets siguen con el de
-`js/config.js`. Si no lo has cambiado ahí, siguen con `1234`.
+`js/config.js`, que es el único sitio que vale para todo el despliegue.
 
 **Las contraseñas del alumnado se guardan en claro en el equipo del docente.**
 Es lo que permite reimprimir la hoja de credenciales cuando un niño pierde la

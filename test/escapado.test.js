@@ -150,3 +150,18 @@ test('ni el PIN ni los datos de conexión viajan', () => {
   assert.equal(paquete.teacherPin, undefined);
   assert.equal(paquete.appwrite, undefined);
 });
+
+test('el PIN de fábrica es el que llevan todas las tablets', () => {
+  /* El del panel vale solo para ese equipo. Este es el que viaja al publicar,
+     así que es el que abre el panel en las demás. */
+  const ctx = cargarApp();
+  assert.equal(ctx.ev('ATLAS_DEFAULTS.teacherPin'), '2026');
+  assert.equal(ctx.ev('ATLAS_CONFIG.teacherPin'), '2026');
+});
+
+test('vaciar el campo del PIN no deja el panel sin PIN', () => {
+  const ctx = cargarApp();
+  ctx.ev('setTeacherConfig')('teacherPin', ctx.ev('ATLAS_DEFAULTS.teacherPin'));
+  assert.equal(ctx.ev('ATLAS_CONFIG.teacherPin'), '2026');
+  assert.ok(String(ctx.ev('ATLAS_CONFIG.teacherPin')).length >= 4);
+});

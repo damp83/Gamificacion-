@@ -11,7 +11,7 @@
    copia guardada. Sin este número, «ya está arreglado» y «a mí no me pasa» son
    indistinguibles. Va junto al nombre de la caché del service worker, y una
    prueba comprueba que no se separen. */
-const ATLAS_VERSION = 'v21';
+const ATLAS_VERSION = 'v22';
 
 const ATLAS_DEFAULTS = {
 
@@ -44,10 +44,13 @@ const ATLAS_DEFAULTS = {
      años). Internamente se convierte en usuario@<este dominio>. */
   usernameDomain: 'expedicion-atlas.app',
 
-  /* PIN del panel del docente. CÁMBIALO desde el propio panel.
-     Es una barrera de aula frente a dedos curiosos, no seguridad real:
-     el código corre en el navegador. */
-  teacherPin: '1234',
+  /* PIN del panel del docente. Este es el que llevan TODAS las tablets: el que
+     se cambia desde el panel vale solo para ese equipo, porque el PIN no viaja
+     con los ajustes de la clase —los leen los alumnos—. Para cambiarlo en todo
+     el despliegue hay que tocarlo aquí y volver a publicar.
+     Es una barrera de aula frente a dedos curiosos, no seguridad real: el
+     código corre en el navegador de cada niño y quien sepa mirarlo lo lee. */
+  teacherPin: '2026',
 
   /* ── Cómo se usa la plataforma en clase (PRD §2.1) ──
      'docente' → clase dirigida: pregunta el docente desde su equipo y el

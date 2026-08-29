@@ -1218,7 +1218,9 @@ function cfgAcceso(body) {
     <button class="btn btn-secondary btn-small" id="cfg-aw-check">🔌 Comprobar la conexión</button>
     <div id="cfg-aw-diag" class="ros-log hidden"></div>`;
 
-  onInput('#cfg-pin', e => cfgSave('teacherPin', e.target.value || '1234'));
+  /* Vaciar el campo no puede dejar el panel sin PIN: se vuelve al de fábrica,
+     que es el que llevan las demás tablets. */
+  onInput('#cfg-pin', e => cfgSave('teacherPin', e.target.value || ATLAS_DEFAULTS.teacherPin));
   onInput('#cfg-aw-ep', e => cfgSave('appwrite.endpoint', e.target.value.trim()));
   onInput('#cfg-aw-pid', e => cfgSave('appwrite.projectId', e.target.value.trim()));
   onInput('#cfg-aw-did', e => cfgSave('appwrite.databaseId', e.target.value.trim()));
