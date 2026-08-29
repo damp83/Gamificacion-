@@ -1201,8 +1201,6 @@ body.en-mision #main { padding-bottom: var(--s-5); }
 }
 .kpi-card small { font-size: var(--t-xs); color: var(--ink-faint); line-height: 1.35; }
 
-.dash-actions { display: flex; flex-wrap: wrap; gap: .6rem; margin-bottom: var(--s-6); }
-
 /* Dominio por estrato: columna de etiquetas de ancho fijo para que todas
    las barras arranquen en la misma x. */
 .dash-branch {
@@ -1412,7 +1410,6 @@ body.en-mision #main { padding-bottom: var(--s-5); }
 
 /* ══════════ PANEL DE CONFIGURACIÓN ══════════ */
 #screen-config, #screen-class { max-width: var(--w-wide); }
-.dash-actions { margin: var(--s-4) 0 var(--s-2); }
 .cfg-top-note { font-size: var(--t-sm); color: var(--ink-soft); margin-bottom: var(--s-4); }
 
 /* Navegación del panel: columna lateral cuando hay sitio.
@@ -1674,7 +1671,6 @@ body.en-mision #main { padding-bottom: var(--s-5); }
 }
 .class-team-head { display: flex; justify-content: space-between; gap: .5rem; margin-bottom: .45rem; flex-wrap: wrap; }
 .class-team small { color: var(--ink-soft); font-size: var(--t-xs); }
-.dash-actions { display: flex; gap: .6rem; flex-wrap: wrap; }
 
 /* ══════════ PORTADA ══════════ */
 #screen-home, #screen-teacher { min-height: 100vh; padding: var(--s-5) clamp(1rem, 4vw, 2rem) var(--s-7); }
@@ -3243,16 +3239,15 @@ body.en-consulta #shop-list button { display: none !important; }
         Los sellos nunca se borran: si una semana no se completa, solo queda un tramo de ruta sin dibujar.</p>
       </section>
 
-      <!-- ══════════ DASHBOARD DOCENTE ══════════ -->
+      <!-- ══════════ DASHBOARD DOCENTE ══════════
+           Solo se llega aquí con el docente al mando (consultando el cuaderno
+           de un alumno): su pestaña está escondida en la sesión del niño. Es
+           una lectura SOBRE él, no PARA él. -->
       <section id="screen-dashboard" class="screen hidden">
         <h2><svg class="ico" viewBox="0 0 24 24" aria-hidden="true"><use href="#i-chart"/></svg> Cuaderno del Docente</h2>
-        <p class="dashboard-note">Vista de progreso pedagógico. Ninguna métrica de actividad se celebra sola:
-        lo que importa es el aprendizaje demostrado.</p>
+        <p class="dashboard-note">Vista de progreso pedagógico de este alumno. Ninguna métrica de actividad
+        se celebra sola: lo que importa es el aprendizaje demostrado.</p>
         <div id="dashboard-kpis" class="kpi-grid"></div>
-        <div class="dash-actions">
-          <button id="btn-open-class" class="btn btn-secondary btn-small"><svg class="ico" viewBox="0 0 24 24" aria-hidden="true"><use href="#i-group"/></svg> Vista general de la clase</button>
-          <button id="btn-open-config" class="btn btn-secondary btn-small"><svg class="ico" viewBox="0 0 24 24" aria-hidden="true"><use href="#i-gear"/></svg> Configurar la expedición</button>
-        </div>
 
         <h3>El curso por trimestres</h3>
         <div id="dashboard-course"></div>
@@ -3265,13 +3260,15 @@ body.en-consulta #shop-list button { display: none !important; }
 
     </main>
 
+    <!-- La pestaña «Docente» nace escondida y solo la enseña show() cuando manda
+         el docente. Ver puedeVerCuadernoDocente() en app.js. -->
     <nav id="tabbar">
       <button data-nav="map" class="tab active"><span class="tab-ico"><svg class="ico" viewBox="0 0 24 24" aria-hidden="true"><use href="#i-map"/></svg></span><span class="tab-label">Mapa</span></button>
       <button data-nav="camp" class="tab"><span class="tab-ico"><svg class="ico" viewBox="0 0 24 24" aria-hidden="true"><use href="#i-tent"/></svg></span><span class="tab-label">Campamento</span></button>
       <button data-nav="merits" class="tab"><span class="tab-ico"><svg class="ico" viewBox="0 0 24 24" aria-hidden="true"><use href="#i-medal"/></svg></span><span class="tab-label">Méritos</span></button>
       <button data-nav="team" class="tab" id="tab-team"><span class="tab-ico"><svg class="ico" viewBox="0 0 24 24" aria-hidden="true"><use href="#i-hut"/></svg></span><span class="tab-label">Cuadrilla</span></button>
       <button data-nav="logbook" class="tab"><span class="tab-ico"><svg class="ico" viewBox="0 0 24 24" aria-hidden="true"><use href="#i-logbook"/></svg></span><span class="tab-label">Bitácora</span></button>
-      <button data-nav="dashboard" class="tab"><span class="tab-ico"><svg class="ico" viewBox="0 0 24 24" aria-hidden="true"><use href="#i-chart"/></svg></span><span class="tab-label">Docente</span></button>
+      <button data-nav="dashboard" class="tab hidden" id="tab-dashboard"><span class="tab-ico"><svg class="ico" viewBox="0 0 24 24" aria-hidden="true"><use href="#i-chart"/></svg></span><span class="tab-label">Docente</span></button>
     </nav>
   </div>
 
@@ -7701,6 +7698,10 @@ const SCREENS = ['map', 'branch', 'guardian', 'mission', 'result', 'camp', 'meri
 function show(screenId) {
   SCREENS.forEach(s => $(`#screen-${s}`).classList.toggle('hidden', s !== screenId));
   $$('#tabbar .tab').forEach(t => t.classList.toggle('active', t.dataset.nav === screenId));
+  /* Se decide en cada navegación, no una vez al arrancar: quien manda cambia a
+     mitad de sesión —el docente entra a consultar un cuaderno y sale— y una
+     pestaña que se quedara puesta enseñaría al niño lo que no es suyo. */
+  $('#tab-dashboard').classList.toggle('hidden', !puedeVerCuadernoDocente());
   /* En misión los tabs ya estaban bloqueados por código; mostrarlos era
      ofrecer una salida que no existía. Se esconden y queda el reto solo. */
   document.body.classList.toggle('en-mision', screenId === 'mission');
@@ -11534,6 +11535,21 @@ function aplicarModoSesion() {
   document.body.classList.toggle('solo-docente', soloDocente);
 }
 
+/* ── Quién puede abrir el Cuaderno del Docente ──
+   Ese cuaderno es una lectura pedagógica SOBRE el niño, no PARA él: el nivel
+   de dificultad adaptativa y su objetivo de acierto, el tiempo real de
+   trabajo, «responde en menos de 2 s, posible sesión al azar», la lista de
+   conceptos que le cuestan. Un crío leyendo eso de sí mismo aprende dos cosas
+   que no queremos enseñarle: que se le mide por detrás, y que bajando el
+   acierto le llegan preguntas más fáciles.
+
+   Su progreso sí lo ve, pero contado para él: el mapa con los estratos, la
+   Bitácora con los sellos y los méritos. Aquí se exige que mande el docente:
+   su portal, o la consulta del cuaderno de un alumno. */
+function puedeVerCuadernoDocente() {
+  return teacherOnly || enModoLectura();
+}
+
 function showHome() {
   teacherOnly = false;
   document.body.classList.remove('teacher-mode');
@@ -11693,8 +11709,13 @@ function wireGlobalListeners() {
   $$('[data-nav]').forEach(el => el.addEventListener('click', () => {
     if (mission && el.dataset.nav !== 'map') return; /* no salir a mitad de misión por tabs */
     if (mission) { abandonMission(); }
-    /* en modo docente no hay cuaderno de alumno al que volver: se sale al portal */
-    if (teacherOnly && el.dataset.nav === 'dashboard') { showTeacherPortal(); return; }
+    /* La pestaña va escondida en la sesión del alumno; se comprueba igual aquí
+       por si se llega por otro camino: esconder no es impedir. */
+    if (el.dataset.nav === 'dashboard' && !puedeVerCuadernoDocente()) return;
+    /* En el portal del docente no hay cuaderno de ningún alumno que enseñar,
+       así que la pestaña lleva de vuelta al portal. Consultando SÍ lo hay, y
+       es justo lo que se ha venido a ver. */
+    if (teacherOnly && !enModoLectura() && el.dataset.nav === 'dashboard') { showTeacherPortal(); return; }
     show(el.dataset.nav);
   }));
   wireAula();
@@ -11774,21 +11795,8 @@ function wireGlobalListeners() {
   $('#teacher-go-config').addEventListener('click', () => { cfgSection = 'curso'; teacherScreen('config'); });
   $('#teacher-exit').addEventListener('click', showHome);
 
-  $('#btn-open-class').addEventListener('click', async () => {
-    if (!teacherUnlocked && !(await askPin())) return;
-    teacherUnlocked = true;
-    classData = null;               /* siempre datos frescos al entrar */
-    show('class');
-  });
   $('#class-sort').addEventListener('change', e => { classSort = e.target.value; paintClassView(); });
   $('#class-reload').addEventListener('click', () => { classData = null; renderClassView(); });
-
-  $('#btn-open-config').addEventListener('click', async () => {
-    if (!teacherUnlocked && !(await askPin())) return;
-    teacherUnlocked = true;
-    cfgSection = 'curso';
-    show('config');
-  });
 
   $('#btn-logout').addEventListener('click', async () => {
     if (!(await askConfirm('¿Cerrar sesión? Tu diario queda guardado en la nube.', 'Cerrar sesión'))) return;

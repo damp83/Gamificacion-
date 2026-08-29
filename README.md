@@ -80,6 +80,7 @@ Cubren lo que ya se ha roto alguna vez, que es de donde salieron:
 | `consulta.test.js` | Que ver el cuaderno de un alumno no le cambie ni una coma del diario |
 | `vista-vacia.test.js` | Que la vista de clase sin diarios diga quién falta y qué le falta, en vez de dejar huecos |
 | `cuentas.test.js` | Que el panel avise de una contraseña que Appwrite va a rechazar, y de que escribirla no crea la cuenta |
+| `cuaderno-docente.test.js` | Que la lectura pedagógica sobre un alumno solo se abra con el docente al mando |
 
 Lo que pide un navegador de verdad —que la página pinte, que un nombre hostil se
 vea como texto— no está aquí: eso se comprueba abriendo la app.
@@ -463,7 +464,7 @@ Los comportamientos, sus valores y sus topes diarios se editan en `js/config.js`
 
 ## Panel de Configuración
 
-**Cuaderno del Docente → ⚙️ Configurar la expedición** (pide el PIN). Ocho secciones:
+**Portada → 🧔🏻‍♂️ Soy docente → ⚙️ Configurar la expedición** (pide el PIN). Ocho secciones:
 
 | Sección | Qué puedes cambiar |
 |---|---|
@@ -514,6 +515,21 @@ Cuando hay lista de clase, los miembros de cada cuadrilla se marcan con **casill
 En cada ficha, **👁 Ver su cuaderno** abre lo que ve ese niño: su HUD, su mapa,
 su campamento, su bitácora y su cuaderno. Sirve para sentarse cinco minutos con
 él, o para preparar una reunión con su familia sin tener que imaginárselo.
+
+Durante la consulta —y **solo** durante la consulta— aparece además la pestaña
+**📊 Docente**, con la lectura pedagógica de ese alumno: dificultad adaptativa,
+tiempo real de trabajo, dominio por estrato, lo que le está costando y las
+señales de calidad. En la sesión del niño esa pestaña no existe:
+
+> El Cuaderno del Docente es una lectura **sobre** el alumno, no **para** él. Un
+> crío que lee de sí mismo «posible sesión de baja calidad, responder al azar» o
+> «objetivo: 70–85 % de acierto» aprende dos cosas que no queremos enseñarle: que
+> se le mide por detrás, y que bajando el acierto le llegan preguntas más
+> fáciles. Su progreso sí lo ve, contado para él: el mapa con los estratos, la
+> bitácora con los sellos y sus méritos.
+
+Esconder la pestaña no es lo único que la protege: la navegación comprueba quién
+manda antes de abrir esa pantalla, así que enseñarla a la fuerza no sirve de nada.
 
 Es **solo lectura**, y eso no es una promesa de la interfaz: es una barrera en
 el motor. Mientras dura la consulta, `saveState()` no escribe nada —ni en el
@@ -575,7 +591,7 @@ costando»: es lo que se mira antes de sentarse cinco minutos con un niño.
 > de su pozo. Se puede afinar poniendo un campo `skill` en los retos del banco.
 
 
-**Cuaderno del Docente → 👥 Vista general de la clase** (pide el PIN). Reúne los diarios de todos y muestra:
+**Portada → 🧔🏻‍♂️ Soy docente → 👥 Vista general de la clase** (pide el PIN). Reúne los diarios de todos y muestra:
 
 - **Los cinco KPIs de cabecera del PRD §6:** exploradores activos, minutos de excavación por sesión (atención de calidad), estratos por alumno (velocidad), % en zona de flujo y cuántos necesitan rescate.
 - **Alerta de rescate:** alumnos que acumulan **tres o más señales a la vez** — caída de sesiones, tasa de error alta, estrato atascado más de 7 días, fuera del canal de flujo, o respuestas sistemáticas por debajo de 2 segundos. Se nombran arriba y su ficha se destaca.

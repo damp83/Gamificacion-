@@ -1198,8 +1198,6 @@ body.en-mision #main { padding-bottom: var(--s-5); }
 }
 .kpi-card small { font-size: var(--t-xs); color: var(--ink-faint); line-height: 1.35; }
 
-.dash-actions { display: flex; flex-wrap: wrap; gap: .6rem; margin-bottom: var(--s-6); }
-
 /* Dominio por estrato: columna de etiquetas de ancho fijo para que todas
    las barras arranquen en la misma x. */
 .dash-branch {
@@ -1409,7 +1407,6 @@ body.en-mision #main { padding-bottom: var(--s-5); }
 
 /* ══════════ PANEL DE CONFIGURACIÓN ══════════ */
 #screen-config, #screen-class { max-width: var(--w-wide); }
-.dash-actions { margin: var(--s-4) 0 var(--s-2); }
 .cfg-top-note { font-size: var(--t-sm); color: var(--ink-soft); margin-bottom: var(--s-4); }
 
 /* Navegación del panel: columna lateral cuando hay sitio.
@@ -1671,7 +1668,6 @@ body.en-mision #main { padding-bottom: var(--s-5); }
 }
 .class-team-head { display: flex; justify-content: space-between; gap: .5rem; margin-bottom: .45rem; flex-wrap: wrap; }
 .class-team small { color: var(--ink-soft); font-size: var(--t-xs); }
-.dash-actions { display: flex; gap: .6rem; flex-wrap: wrap; }
 
 /* ══════════ PORTADA ══════════ */
 #screen-home, #screen-teacher { min-height: 100vh; padding: var(--s-5) clamp(1rem, 4vw, 2rem) var(--s-7); }

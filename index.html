@@ -906,16 +906,15 @@
         Los sellos nunca se borran: si una semana no se completa, solo queda un tramo de ruta sin dibujar.</p>
       </section>
 
-      <!-- ══════════ DASHBOARD DOCENTE ══════════ -->
+      <!-- ══════════ DASHBOARD DOCENTE ══════════
+           Solo se llega aquí con el docente al mando (consultando el cuaderno
+           de un alumno): su pestaña está escondida en la sesión del niño. Es
+           una lectura SOBRE él, no PARA él. -->
       <section id="screen-dashboard" class="screen hidden">
         <h2><svg class="ico" viewBox="0 0 24 24" aria-hidden="true"><use href="#i-chart"/></svg> Cuaderno del Docente</h2>
-        <p class="dashboard-note">Vista de progreso pedagógico. Ninguna métrica de actividad se celebra sola:
-        lo que importa es el aprendizaje demostrado.</p>
+        <p class="dashboard-note">Vista de progreso pedagógico de este alumno. Ninguna métrica de actividad
+        se celebra sola: lo que importa es el aprendizaje demostrado.</p>
         <div id="dashboard-kpis" class="kpi-grid"></div>
-        <div class="dash-actions">
-          <button id="btn-open-class" class="btn btn-secondary btn-small"><svg class="ico" viewBox="0 0 24 24" aria-hidden="true"><use href="#i-group"/></svg> Vista general de la clase</button>
-          <button id="btn-open-config" class="btn btn-secondary btn-small"><svg class="ico" viewBox="0 0 24 24" aria-hidden="true"><use href="#i-gear"/></svg> Configurar la expedición</button>
-        </div>
 
         <h3>El curso por trimestres</h3>
         <div id="dashboard-course"></div>
@@ -928,13 +927,15 @@
 
     </main>
 
+    <!-- La pestaña «Docente» nace escondida y solo la enseña show() cuando manda
+         el docente. Ver puedeVerCuadernoDocente() en app.js. -->
     <nav id="tabbar">
       <button data-nav="map" class="tab active"><span class="tab-ico"><svg class="ico" viewBox="0 0 24 24" aria-hidden="true"><use href="#i-map"/></svg></span><span class="tab-label">Mapa</span></button>
       <button data-nav="camp" class="tab"><span class="tab-ico"><svg class="ico" viewBox="0 0 24 24" aria-hidden="true"><use href="#i-tent"/></svg></span><span class="tab-label">Campamento</span></button>
       <button data-nav="merits" class="tab"><span class="tab-ico"><svg class="ico" viewBox="0 0 24 24" aria-hidden="true"><use href="#i-medal"/></svg></span><span class="tab-label">Méritos</span></button>
       <button data-nav="team" class="tab" id="tab-team"><span class="tab-ico"><svg class="ico" viewBox="0 0 24 24" aria-hidden="true"><use href="#i-hut"/></svg></span><span class="tab-label">Cuadrilla</span></button>
       <button data-nav="logbook" class="tab"><span class="tab-ico"><svg class="ico" viewBox="0 0 24 24" aria-hidden="true"><use href="#i-logbook"/></svg></span><span class="tab-label">Bitácora</span></button>
-      <button data-nav="dashboard" class="tab"><span class="tab-ico"><svg class="ico" viewBox="0 0 24 24" aria-hidden="true"><use href="#i-chart"/></svg></span><span class="tab-label">Docente</span></button>
+      <button data-nav="dashboard" class="tab hidden" id="tab-dashboard"><span class="tab-ico"><svg class="ico" viewBox="0 0 24 24" aria-hidden="true"><use href="#i-chart"/></svg></span><span class="tab-label">Docente</span></button>
     </nav>
   </div>
 

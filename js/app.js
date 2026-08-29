@@ -68,6 +68,21 @@ function aplicarModoSesion() {
   document.body.classList.toggle('solo-docente', soloDocente);
 }
 
+/* ── Quién puede abrir el Cuaderno del Docente ──
+   Ese cuaderno es una lectura pedagógica SOBRE el niño, no PARA él: el nivel
+   de dificultad adaptativa y su objetivo de acierto, el tiempo real de
+   trabajo, «responde en menos de 2 s, posible sesión al azar», la lista de
+   conceptos que le cuestan. Un crío leyendo eso de sí mismo aprende dos cosas
+   que no queremos enseñarle: que se le mide por detrás, y que bajando el
+   acierto le llegan preguntas más fáciles.
+
+   Su progreso sí lo ve, pero contado para él: el mapa con los estratos, la
+   Bitácora con los sellos y los méritos. Aquí se exige que mande el docente:
+   su portal, o la consulta del cuaderno de un alumno. */
+function puedeVerCuadernoDocente() {
+  return teacherOnly || enModoLectura();
+}
+
 function showHome() {
   teacherOnly = false;
   document.body.classList.remove('teacher-mode');
@@ -227,8 +242,13 @@ function wireGlobalListeners() {
   $$('[data-nav]').forEach(el => el.addEventListener('click', () => {
     if (mission && el.dataset.nav !== 'map') return; /* no salir a mitad de misión por tabs */
     if (mission) { abandonMission(); }
-    /* en modo docente no hay cuaderno de alumno al que volver: se sale al portal */
-    if (teacherOnly && el.dataset.nav === 'dashboard') { showTeacherPortal(); return; }
+    /* La pestaña va escondida en la sesión del alumno; se comprueba igual aquí
+       por si se llega por otro camino: esconder no es impedir. */
+    if (el.dataset.nav === 'dashboard' && !puedeVerCuadernoDocente()) return;
+    /* En el portal del docente no hay cuaderno de ningún alumno que enseñar,
+       así que la pestaña lleva de vuelta al portal. Consultando SÍ lo hay, y
+       es justo lo que se ha venido a ver. */
+    if (teacherOnly && !enModoLectura() && el.dataset.nav === 'dashboard') { showTeacherPortal(); return; }
     show(el.dataset.nav);
   }));
   wireAula();
@@ -308,21 +328,8 @@ function wireGlobalListeners() {
   $('#teacher-go-config').addEventListener('click', () => { cfgSection = 'curso'; teacherScreen('config'); });
   $('#teacher-exit').addEventListener('click', showHome);
 
-  $('#btn-open-class').addEventListener('click', async () => {
-    if (!teacherUnlocked && !(await askPin())) return;
-    teacherUnlocked = true;
-    classData = null;               /* siempre datos frescos al entrar */
-    show('class');
-  });
   $('#class-sort').addEventListener('change', e => { classSort = e.target.value; paintClassView(); });
   $('#class-reload').addEventListener('click', () => { classData = null; renderClassView(); });
-
-  $('#btn-open-config').addEventListener('click', async () => {
-    if (!teacherUnlocked && !(await askPin())) return;
-    teacherUnlocked = true;
-    cfgSection = 'curso';
-    show('config');
-  });
 
   $('#btn-logout').addEventListener('click', async () => {
     if (!(await askConfirm('¿Cerrar sesión? Tu diario queda guardado en la nube.', 'Cerrar sesión'))) return;

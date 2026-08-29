@@ -44,6 +44,10 @@ const SCREENS = ['map', 'branch', 'guardian', 'mission', 'result', 'camp', 'meri
 function show(screenId) {
   SCREENS.forEach(s => $(`#screen-${s}`).classList.toggle('hidden', s !== screenId));
   $$('#tabbar .tab').forEach(t => t.classList.toggle('active', t.dataset.nav === screenId));
+  /* Se decide en cada navegación, no una vez al arrancar: quien manda cambia a
+     mitad de sesión —el docente entra a consultar un cuaderno y sale— y una
+     pestaña que se quedara puesta enseñaría al niño lo que no es suyo. */
+  $('#tab-dashboard').classList.toggle('hidden', !puedeVerCuadernoDocente());
   /* En misión los tabs ya estaban bloqueados por código; mostrarlos era
      ofrecer una salida que no existía. Se esconden y queda el reto solo. */
   document.body.classList.toggle('en-mision', screenId === 'mission');
