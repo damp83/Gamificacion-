@@ -895,8 +895,12 @@ body.en-mision #main { padding-bottom: var(--s-5); }
 .option-wrong { background: var(--danger-tint) !important; border-color: var(--danger) !important; }
 .option-wrong::before { background: var(--danger); color: #fff; }
 .option-reveal { border-color: var(--jungle) !important; border-style: dashed !important; }
+/* Pista, escuchar y abandonar. Se envuelven: son tres botones, y con la letra
+   grande de 1.º —o con el de voz visible— no caben en una fila de 390 px. Sin
+   envolver, «Abandonar» se salía 40 px de la pantalla. */
 .mission-tools {
   display: flex; justify-content: space-between; align-items: center;
+  flex-wrap: wrap; gap: .5rem;
   margin-top: var(--s-5); padding-top: var(--s-4); border-top: var(--line);
 }
 
@@ -1044,6 +1048,10 @@ body.en-mision #main { padding-bottom: var(--s-5); }
 /* La casilla se iba al extremo derecho de una tarjeta muy ancha y perdía la
    relación con su etiqueta. */
 .camp-prefs .cfg-field-inline { max-width: 22rem; }
+/* Toda la fila es la zona de toque, no la casilla de 28 px: la pulsa un niño
+   con el dedo, y son los dos ajustes de accesibilidad de la app. La casilla ya
+   viene a 28 px de `.cfg-field-inline`; lo que faltaba era la altura de fila. */
+.camp-prefs .cfg-field-inline { min-height: 2.75rem; align-items: center; cursor: pointer; }
 
 .shop-note { font-size: var(--t-sm); color: var(--ink-soft); margin-bottom: var(--s-4); max-width: var(--w-narrow); }
 /* El almacén en rejilla: en columna única cada artículo ocupaba una fila
@@ -1870,7 +1878,26 @@ body.teacher-mode #main { padding-bottom: 2rem; }
   box-shadow: var(--shadow); padding: .7rem .9rem; }
 
 /* Letra grande: para 1.º y 2.º, donde la lectura aún se construye */
-body.large-text { font-size: 1.18rem; }
+/* ── Letra grande (1.º y 2.º, o a petición) ──
+   Antes esto era solo `font-size` en el body, y no servía de casi nada: TODA
+   la escala tipográfica va en `rem`, que se resuelve contra la raíz y no
+   contra el body. Medido: con el ajuste puesto, la etiqueta de las pestañas
+   seguía en 12,5 px, igual que sin él. Justo la letra más pequeña —la que
+   necesita el niño de seis años— era la que no crecía.
+
+   Se escala la ESCALA, que es lo que usa todo lo demás. El paso más pequeño
+   queda por encima de 14 px, que es el suelo para leer en una tablet. */
+body.large-text {
+  --t-xs:   0.95rem;
+  --t-sm:   1.05rem;
+  --t-base: 1.18rem;
+  --t-md:   1.30rem;
+  --t-lg:   1.50rem;
+  --t-xl:   1.85rem;
+  --t-2xl:  2.30rem;
+  --t-3xl:  3.05rem;
+  font-size: 1.18rem;
+}
 body.large-text .question-text { font-size: 1.45rem; line-height: 1.5; }
 body.large-text .option { font-size: 1.28rem; padding: 1rem 1.1rem; }
 body.large-text .feedback-title { font-size: 1.4rem; }
@@ -2311,12 +2338,42 @@ input[type="checkbox"]::after, input[type="radio"]::after {
 .taller-intro { margin: 0 0 10px; font-size: .9rem; opacity: .82; }
 .taller-estado { margin-bottom: 10px; font-size: .9rem; }
 .taller-quedan strong { font-size: 1.1em; }
-.taller-form { display: grid; gap: 9px; }
-.taller-opciones { display: grid; gap: 6px; }
+.taller-form { display: grid; gap: .6rem; }
+.taller-opciones { display: grid; gap: .45rem; }
+
+/* ── Los campos del Taller ──
+   Es el único sitio de toda la app donde un niño TECLEA, y estaba sin vestir:
+   los estilos de formulario colgaban de `.cfg-body`, que es el panel del
+   docente, así que aquí salían los del navegador. Medido: 19 px de alto y
+   letra de 13,3. Sobre una tablet, con el dedo, eso no se acierta. */
+#taller-block input[type="text"],
+#taller-block textarea {
+  width: 100%; min-height: 2.75rem;          /* 44 px, como el resto */
+  padding: .55rem .75rem;
+  font-family: var(--font-text); font-size: var(--t-md); line-height: 1.4;
+  color: var(--ink); background: var(--surface);
+  border: 1.5px solid rgba(122, 74, 33, .28); border-radius: var(--r-sm);
+  transition: border-color .15s ease, box-shadow .15s ease;
+}
+#taller-block textarea { resize: vertical; }
+#taller-block input[type="text"]:focus,
+#taller-block textarea:focus {
+  outline: none; border-color: var(--brass);
+  box-shadow: 0 0 0 3px rgba(191, 145, 63, .25);
+}
+
 /* La marca de la correcta va pegada a su opción: separarlas era la forma
-   segura de que un niño marcase la que no era. */
-.taller-opcion { display: flex; align-items: center; gap: 9px; }
-.taller-opcion input[type="text"] { flex: 1; }
+   segura de que un niño marcase la que no era. Y va grande —24 px— porque es
+   la decisión que más caro cuesta equivocar de todo el formulario. */
+.taller-opcion { display: flex; align-items: center; gap: .6rem; }
+.taller-opcion input[type="radio"] {
+  flex: none; width: 1.5rem; height: 1.5rem; margin: 0;
+  accent-color: var(--jungle); cursor: pointer;
+}
+.taller-opcion input[type="text"] { flex: 1; min-width: 0; }
+/* Toda la fila es zona de toque para marcarla, no solo el círculo. */
+.taller-opcion { padding: .15rem .25rem; border-radius: var(--r-sm); }
+.taller-opcion:focus-within { background: rgba(191, 145, 63, .1); }
 .taller-mios { margin-top: 14px; }
 .taller-h4 { margin: 0 0 7px; font-size: .95rem; }
 .taller-mio { padding: 8px 11px; border-radius: 8px; margin-bottom: 7px;
@@ -4611,7 +4668,7 @@ const RANKS = [
    copia guardada. Sin este número, «ya está arreglado» y «a mí no me pasa» son
    indistinguibles. Va junto al nombre de la caché del service worker, y una
    prueba comprueba que no se separen. */
-const ATLAS_VERSION = 'v22';
+const ATLAS_VERSION = 'v23';
 
 const ATLAS_DEFAULTS = {
 

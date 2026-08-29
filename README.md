@@ -82,6 +82,7 @@ Cubren lo que ya se ha roto alguna vez, que es de donde salieron:
 | `cuentas.test.js` | Que el panel avise de una contraseña que Appwrite va a rechazar, y de que escribirla no crea la cuenta |
 | `cuaderno-docente.test.js` | Que la lectura pedagógica sobre un alumno solo se abra con el docente al mando |
 | `version.test.js` | Que el número de versión que lee el docente no se separe del de la caché |
+| `usabilidad.test.js` | Que la letra grande escale de verdad, que el Taller se pueda teclear y que nada se salga de la pantalla |
 | `alta.test.js` | Que el diario de un alumno nazca ya dentro de su clase y con su docente |
 | `bolsa.test.js` | Que comprar o donar por un alumno salga de su bolsa, no toque sus PE, y vuelva a su documento |
 | `feedback.test.js` | Que el aviso de acierto/fallo no llegue a una misión que ya terminó |
@@ -478,6 +479,32 @@ Dos decisiones de diseño, tomadas del propio PRD:
 - **Solo suman, nunca restan** (§0.2: «nada se pierde nunca»). No hay botón de quitar puntos: castigar con la economía del juego rompe la seguridad emocional en la que se apoya todo el diseño.
 
 Los comportamientos, sus valores y sus topes diarios se editan en `js/config.js`. Los topes evitan que una sesión generosa desequilibre la economía.
+
+## Medido en pantalla, no supuesto
+
+La interfaz se audita con el navegador midiendo: objetivo táctil de cada
+control, contraste de cada texto contra su fondo real, tamaño de letra, ancho
+de 320 a 1440 px y número de toques de cada tarea.
+
+| Tarea | Toques |
+|---|---|
+| Un niño nuevo, de la portada a su primera pregunta | 4 (más teclear su nombre) |
+| Responder y pasar a la siguiente | 2 |
+| Desde el mapa, comprar en el almacén | 2 |
+| El docente, de la portada al turno de un alumno | 4 (más el PIN) |
+| Conceder un mérito sin salir del turno | 1 |
+| Comprarle algo a un alumno sin darle turno | 2 |
+| Del portal al cuaderno de un alumno | 2 |
+
+Contraste: **ninguna** combinación por debajo de AA. Sin desborde horizontal en
+ninguno de los siete anchos, tampoco con la letra grande puesta. El movimiento
+desaparece entero con `prefers-reduced-motion`.
+
+> **Sobre la legibilidad del texto.** Los índices de lectura (Fernández-Huerta)
+> salen bajos en el Mapa y en los pozos, y es un falso positivo: penalizan las
+> palabras largas, y ahí casi todo son NOMBRES —«Matemáticas», «Engranajes»,
+> «Cantimplora»—, no prosa. Lo que sí se mide bien es la frase: entre 3,5 y 7,8
+> palabras por frase en las pantallas del alumno.
 
 ## Lo que esta plataforma NO protege
 
