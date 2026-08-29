@@ -483,12 +483,18 @@ Los comportamientos, sus valores y sus topes diarios se editan en `js/config.js`
 
 ## Retos escritos por IA (a partir de tu currículo)
 
-Está montado el **motor**: una función de Appwrite que escribe retos de Lengua o
-Matemáticas a partir del currículo que le mandes, y todo lo que decide qué se
-acepta. Falta la pantalla del panel donde se aprueban; hasta entonces la función
-se puede llamar, pero no hay cola de revisión.
+En **Configuración → 🤖 Retos con IA**: pegas o subes el currículo de tu área,
+eliges pozo, estrato, curso y cuántos, y lo generado cae en una **cola de
+revisión**. De ahí lo apruebas, cambias la pregunta o lo descartas. **Nada entra
+en el banco sin que lo leas**, igual que con los acertijos que inventan los
+niños.
 
-Instrucciones de despliegue: **`functions/generador/README.md`**.
+Instrucciones de despliegue: **`functions/generador/README.md`**. Ojo con el
+tiempo máximo de la función: de fábrica son 15 segundos y hacen falta 300.
+
+El currículo y la cola **se quedan en tu equipo**: son decenas de miles de
+caracteres que a un niño no le sirven, y un borrador sin aprobar no se enseña.
+Si trabajas desde dos dispositivos, el currículo se pega en cada uno.
 
 **La clave de la API no puede vivir en el navegador.** La app es un sitio
 estático que se sirve a cada niño y los ajustes de la clase viajan a su tablet.
@@ -523,6 +529,15 @@ generador.
 > **El validador es el mismo fichero en la tablet y en el servidor.**
 > `tools/sync-generador.py` lo copia, y una prueba comprueba que la copia no se
 > quede vieja: si se separan, uno acepta lo que el otro rechaza y nadie se entera.
+
+### Lo que también se enseña
+
+Lo que se ha **tirado** en la última tanda, con el motivo. No llega a la cola,
+pero se ve: si se tiran muchos, casi siempre es que el currículo pegado no cubre
+lo que se está pidiendo, y eso solo se sabe mirándolo.
+
+Al aprobar se **vuelve a validar**: entre generar y aprobar, el docente ha podido
+cambiar la pregunta a mano y dejar la cuenta sin cuadrar.
 
 ### Lo que sigue sin garantizar nadie
 

@@ -1204,24 +1204,44 @@ function branchPlayable(branch) {
    banco evitando repetir dentro de la misma misión, y barajan las opciones
    para que no se memorice la posición de la respuesta. */
 function makeQuestion(branch, stratumId, tier, usedIdx, grade) {
-  if (branch.source === 'builtin') {
-    return BUILTIN_GENERATORS[branch.id][stratumId](tier, grade || currentGrade());
-  }
   const bank = ((branch.bank || {})[stratumId]) || [];
+
+  /* ── Un pozo de fábrica CON banco ──
+     Los pozos de fábrica generan retos infinitos, y durante mucho tiempo eso
+     hizo que ignoraran su banco por completo. Desde que el docente puede
+     aprobar retos escritos con IA sobre su currículo, eso los perdía en
+     silencio: se guardaban donde nadie los leía.
+
+     Ahora el banco va PRIMERO y sin repetir dentro de la misma misión, y
+     cuando se acaba sigue el generador. Es lo predecible: lo que el docente se
+     ha molestado en aprobar sale seguro, y lo demás lo rellena la máquina. */
+  if (branch.source === 'builtin') {
+    const sinUsar = bank.map((q, i) => i).filter(i => !(usedIdx || []).includes(i));
+    if (!sinUsar.length) {
+      return BUILTIN_GENERATORS[branch.id][stratumId](tier, grade || currentGrade());
+    }
+    return servirDelBanco(branch, bank, pick(sinUsar), usedIdx);
+  }
+
   if (!bank.length) return null;
 
   let pool = bank.map((q, i) => i).filter(i => !(usedIdx || []).includes(i));
   if (!pool.length) pool = bank.map((q, i) => i);   /* banco agotado: se recicla */
-  const idx = pick(pool);
-  if (usedIdx) usedIdx.push(idx);
+  return servirDelBanco(branch, bank, pick(pool), usedIdx);
+}
 
+/* Un reto del banco, listo para jugarse: las opciones barajadas para que no se
+   memorice la posición de la buena. */
+function servirDelBanco(branch, bank, idx, usedIdx) {
+  if (usedIdx && usedIdx.indexOf(idx) < 0) usedIdx.push(idx);
   const q = bank[idx];
   const correct = q.options[q.answer];
   const shuffled = shuffle(q.options.slice());
   return {
     /* Los retos que escribe el docente no declaran concepto, así que se
        agrupan por su pozo: es lo más útil que se puede decir de ellos sin
-       obligarle a etiquetar uno a uno lo que ya ha escrito. */
+       obligarle a etiquetar uno a uno lo que ya ha escrito. Los que salen del
+       generador de IA sí lo traen, y por eso cuentan en el diagnóstico. */
     skill: q.skill || ('pozo:' + branch.id),
     question: q.question,
     options: shuffled,

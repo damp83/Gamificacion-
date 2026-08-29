@@ -26,8 +26,66 @@ function cloudInit() {
     .setProject(ATLAS_CONFIG.appwrite.projectId);
   CLOUD.account = new Appwrite.Account(client);
   CLOUD.db = new Appwrite.Databases(client);
+  /* Funciones: solo se usa para el generador de retos. Si el SDK que se cargue
+     no las trae, la app funciona igual y el panel lo dice. */
+  CLOUD.functions = typeof Appwrite.Functions === 'function' ? new Appwrite.Functions(client) : null;
   CLOUD.enabled = true;
   return true;
+}
+
+/* ══════════ RETOS ESCRITOS POR IA ══════════
+   Se llama a la función de Appwrite, que es donde vive la clave de la API. Aquí
+   NO hay clave ni la puede haber: este código se sirve a la tablet de cada niño.
+
+   Lo que vuelve no entra en el banco: va a la cola de revisión del docente. */
+async function cloudGenerarRetos(peticion) {
+  if (!CLOUD.enabled) return { ok: false, reason: 'sin-nube', texto: 'No hay conexión con Appwrite.' };
+  if (!CLOUD.functions) {
+    return { ok: false, reason: 'sdk-viejo',
+      texto: 'El SDK de Appwrite que ha cargado no trae Functions. Recarga forzando la página.' };
+  }
+  if (!CLOUD.user) {
+    return { ok: false, reason: 'sin-sesion',
+      texto: 'Entra con tu cuenta de docente en «Mis clases» antes de generar.' };
+  }
+  const id = (ATLAS_CONFIG.appwrite.generadorFunctionId || '').trim();
+  if (!id) {
+    return { ok: false, reason: 'sin-funcion',
+      texto: 'Falta el ID de la función en Acceso y nube. Está en Appwrite → Functions.' };
+  }
+
+  try {
+    /* Síncrona: se espera la respuesta. La firma es posicional en el SDK v17
+       (functionId, body, async, path, method, headers). */
+    const ex = await CLOUD.functions.createExecution(
+      id, JSON.stringify(peticion), false, '/', 'POST', { 'content-type': 'application/json' });
+
+    if (ex.status === 'failed') {
+      /* Lo más habitual con diferencia: la función tarda más que su tope. Diez
+         retos con currículo no salen en los 15 s de fábrica. */
+      return { ok: false, reason: 'fallo',
+        texto: 'La función ha fallado. Si tarda, sube su tiempo máximo en Appwrite → Functions → '
+             + 'Settings → Timeout: 15 segundos no bastan, pon 300.' };
+    }
+    let datos = {};
+    try { datos = JSON.parse(ex.responseBody || '{}'); }
+    catch (e) { return { ok: false, reason: 'respuesta', texto: 'La función ha respondido algo que no se entiende.' }; }
+
+    if (!datos.ok) return { ok: false, reason: datos.reason || 'error', texto: datos.texto || 'No se han podido generar.' };
+    return { ok: true, retos: datos.retos || [], descartados: datos.descartados || [], usados: datos.usados };
+
+  } catch (e) {
+    const m = (e && e.message) || '';
+    if (/not found|could not be found/i.test(m)) {
+      return { ok: false, reason: 'no-existe', texto: 'No existe ninguna función con ese ID.' };
+    }
+    if (/not authorized|missing scope|permission/i.test(m)) {
+      return { ok: false, reason: 'sin-permiso',
+        texto: 'Tu cuenta no puede ejecutar la función. En Appwrite → Functions → Settings → '
+             + 'Execute access, marca «Users».' };
+    }
+    return { ok: false, reason: 'error', texto: 'No se ha podido llamar a la función: ' + m };
+  }
 }
 
 /* usuario del niño → email interno válido para Appwrite */

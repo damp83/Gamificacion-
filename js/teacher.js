@@ -15,6 +15,7 @@ const CFG_SECTIONS = [
   { id: 'economia',   icon: '⚖️', name: 'Economía' },
   { id: 'guardian',   icon: '🗿', name: 'Cámara del Guardián' },
   { id: 'taller',     icon: '✍️', name: 'Taller de Cartografía' },
+  { id: 'ia',         icon: '🤖', name: 'Retos con IA' },
   { id: 'fondo',      icon: '🌍', name: 'Fondo de la Sociedad' },
   { id: 'acceso',     icon: '🔐', name: 'Acceso y nube' },
   { id: 'copia',      icon: '💾', name: 'Copia de seguridad' }
@@ -48,7 +49,7 @@ function renderTeacherConfig() {
   const renderers = {
     curso: cfgCurso, premios: cfgPremios, alumnado: cfgAlumnado, equipos: cfgEquipos,
     yacimient: cfgYacimientos, almacen: cfgAlmacen, economia: cfgEconomia,
-    guardian: cfgGuardian, taller: cfgTaller, fondo: cfgFondo, acceso: cfgAcceso, copia: cfgCopia
+    guardian: cfgGuardian, taller: cfgTaller, ia: cfgIA, fondo: cfgFondo, acceso: cfgAcceso, copia: cfgCopia
   };
   body.innerHTML = '';
   renderers[cfgSection](body);
@@ -1100,6 +1101,223 @@ function cfgGuardian(body) {
   });
 }
 
+/* ══════════ RETOS ESCRITOS POR IA ══════════
+   Dos pantallas en una: el currículo del que no puede salirse el modelo, y la
+   cola de lo generado. Nada entra en el banco sin pasar por aquí, igual que
+   con los acertijos que escriben los niños.
+
+   El currículo y la cola NO viajan a las tablets (van en NO_SE_COMPARTE): son
+   decenas de miles de caracteres que a un niño no le sirven, y un borrador sin
+   aprobar no se enseña. */
+let iaEstado = '';          /* lo que se le dice al docente mientras trabaja */
+let iaGenerando = false;
+let iaDescartados = [];     /* lo que se tiró en la última tanda, con el motivo */
+
+function iaCola() { return Array.isArray(ATLAS_CONFIG.iaCola) ? ATLAS_CONFIG.iaCola : []; }
+function iaCurriculo(materia) { return (ATLAS_CONFIG.curriculo || {})[materia] || ''; }
+
+/* Los pozos donde se puede meter un reto: los del docente y los de fábrica. */
+function iaPozos() {
+  const out = [];
+  for (const site of sitesAll()) {
+    for (const b of branchesOf(site)) {
+      if (b.id === 'acertijos') continue;   /* el del Taller es de los niños */
+      out.push({ id: `${site.id}/${b.id}`, name: `${site.icon} ${site.name} · ${b.name}` });
+    }
+  }
+  return out;
+}
+
+function cfgIA(body) {
+  const materia = ATLAS_CONFIG.iaMateria || 'matematicas';
+  const cola = iaCola();
+  const curr = iaCurriculo(materia);
+  const pozos = iaPozos();
+  const nube = cloudConfigured() && cloudEnabled();
+  const conFuncion = !!(ATLAS_CONFIG.appwrite.generadorFunctionId || '').trim();
+
+  body.innerHTML = `
+    <p class="cfg-intro">Escribe retos a partir de <strong>tu</strong> currículo y los deja aquí para que
+    los leas. <strong>Nada entra en el banco sin que lo apruebes</strong>: igual que con los acertijos
+    que inventan los niños.</p>
+
+    ${!nube ? `<p class="cfg-warn">Hace falta Appwrite configurado. Ve a «Acceso y nube».</p>`
+      : !conFuncion ? `<p class="cfg-warn">Falta el <strong>Function ID</strong> del generador, en
+        «Acceso y nube». Cómo desplegar la función: <code>functions/generador/README.md</code>.</p>` : ''}
+
+    <h4 class="cfg-h4">1. El currículo</h4>
+    <p class="cfg-hint">Pega los saberes básicos de tu área y ciclo, o sube el fichero. Es de lo único
+    que el modelo puede tirar: si lo que ibas a preguntar no está en este texto, se le pide que no lo
+    pregunte. Se queda en este equipo y no viaja a las tablets.</p>
+    ${field('Materia', `<select id="ia-materia">
+      <option value="matematicas"${materia === 'matematicas' ? ' selected' : ''}>Matemáticas</option>
+      <option value="lengua"${materia === 'lengua' ? ' selected' : ''}>Lengua</option>
+    </select>`)}
+    <textarea id="ia-curriculo" rows="7" maxlength="20000"
+      placeholder="Saberes básicos de ${materia === 'lengua' ? 'Lengua Castellana y Literatura' : 'Matemáticas'}…">${esc(curr)}</textarea>
+    <div class="cfg-row cfg-row-actions">
+      <button class="btn btn-secondary btn-small" id="ia-subir">📄 Subir un .txt o .md</button>
+      <input type="file" id="ia-fichero" accept=".txt,.md,text/plain" class="hidden">
+      <span class="cfg-hint">${curr ? `${curr.length} caracteres guardados` : 'sin currículo todavía'}</span>
+    </div>
+
+    <h4 class="cfg-h4">2. Qué generar</h4>
+    ${field('Pozo de destino', `<select id="ia-pozo">${
+      pozos.map((p, i) => `<option value="${esc(p.id)}"${
+        (ATLAS_CONFIG.iaPozo || (pozos[0] || {}).id) === p.id ? ' selected' : ''}>${esc(p.name)}</option>`).join('')
+    }</select>`)}
+    ${field('Estrato', `<select id="ia-estrato">${
+      STRATA_ORDER.map(sId => `<option value="${sId}"${(ATLAS_CONFIG.iaEstrato || 'recordar') === sId ? ' selected' : ''}>${
+        esc(STRATA_META[sId].icon)} ${esc(STRATA_META[sId].label)}</option>`).join('')
+    }</select>`)}
+    ${field('Curso', `<select id="ia-curso">${
+      GRADES.map(g => `<option value="${g.n}"${(ATLAS_CONFIG.iaCurso || ATLAS_CONFIG.defaultGrade) === g.n ? ' selected' : ''}>${esc(g.label)}</option>`).join('')
+    }</select>`)}
+    ${field('Cuántos', `<input type="number" id="ia-cuantos" min="1" max="20" value="${ATLAS_CONFIG.iaCuantos || 10}">`,
+      'Diez cuestan unos 6 céntimos. El currículo va cacheado, así que las tandas siguientes de la misma área cuestan menos.')}
+    <button class="btn btn-primary btn-small" id="ia-generar"${
+      (!nube || !conFuncion || !curr || iaGenerando) ? ' disabled' : ''}>${
+      iaGenerando ? '⏳ Escribiendo…' : '🤖 Generar retos'}</button>
+    <p class="cfg-hint">Puede tardar un minuto largo: escribe los retos y luego los vuelve a resolver
+    por su cuenta para comprobar que la respuesta marcada es la buena.</p>
+    ${iaEstado ? `<div class="cfg-equipo ${iaEstado.startsWith('⚠️') ? '' : 'cfg-equipo-ok'}">${iaEstado}</div>` : ''}
+
+    <h4 class="cfg-h4">3. Por revisar <span class="cfg-tag">${cola.length}</span></h4>
+    ${cola.length ? `<div class="cfg-list">${cola.map(c => `
+      <div class="cfg-card taller-revision">
+        <div class="taller-rev-autor">${esc(conceptoLabel(c.skill))} · ${esc(c.pozoNombre || '')} · ${
+          esc((STRATA_META[c.estrato] || {}).label || c.estrato)}</div>
+        <p class="taller-rev-q">${esc(c.question)}</p>
+        <ol class="taller-rev-ops">
+          ${c.options.map((o, i) => `<li class="${i === c.answer ? 'taller-rev-ok' : ''}">${esc(o)}${
+            i === c.answer ? ' ✓' : ''}</li>`).join('')}
+        </ol>
+        <p class="taller-rev-exp">«${esc(c.explanation)}»</p>
+        <p class="cfg-hint">Pistas: ${esc(c.hint1)} → ${esc(c.hint2)}</p>
+        ${c.criterio ? `<p class="cfg-hint ia-criterio">Dice trabajar: «${esc(c.criterio)}»</p>` : ''}
+        <div class="cfg-row cfg-row-actions">
+          <button class="btn btn-primary btn-small" data-ia-ok="${esc(c.id)}">✓ Al banco</button>
+          <button class="btn btn-secondary btn-small" data-ia-edit="${esc(c.id)}">✏️ Cambiar la pregunta</button>
+          <button class="btn btn-quit btn-small" data-ia-no="${esc(c.id)}">🗑️ Descartar</button>
+        </div>
+      </div>`).join('')}</div>
+      <button class="btn btn-quit btn-small" id="ia-vaciar">Descartar toda la cola</button>`
+      : '<p class="cfg-hint">Nada pendiente.</p>'}
+
+    ${iaDescartados.length ? `<h4 class="cfg-h4">Tirados en la última tanda <span class="cfg-tag">${iaDescartados.length}</span></h4>
+      <p class="cfg-hint">No llegan a la cola. Se enseñan para que veas qué está fallando: si se tiran
+      muchos, suele ser que el currículo que has pegado no cubre lo que se está pidiendo.</p>
+      <div class="cfg-list">${iaDescartados.map(d => `
+        <div class="cfg-card ia-tirado">
+          <p class="taller-rev-q">${esc((d.reto && d.reto.question) || '(sin pregunta)')}</p>
+          <p class="cfg-warn">${esc((d.motivos || []).join(' · '))}</p>
+        </div>`).join('')}</div>` : ''}`;
+
+  /* cfgSave ya repinta el panel: el currículo que se enseña es el de la materia elegida. */
+  onInput('#ia-materia', e => cfgSave('iaMateria', e.target.value, false), 'change');
+  onInput('#ia-curriculo', e => cfgSave('curriculo.' + materia, e.target.value, false));
+  onInput('#ia-pozo', e => cfgSave('iaPozo', e.target.value, false), 'change');
+  onInput('#ia-estrato', e => cfgSave('iaEstrato', e.target.value, false), 'change');
+  onInput('#ia-curso', e => cfgSave('iaCurso', +e.target.value, false), 'change');
+  onInput('#ia-cuantos', e => cfgSave('iaCuantos', Math.max(1, Math.min(20, +e.target.value || 10)), false));
+
+  const subir = $('#ia-subir');
+  const fich = $('#ia-fichero');
+  /* El <input type=file> se esconde porque el que pinta el navegador no se
+     parece a nada de esta app; el botón de al lado es el que se ve. */
+  if (subir && fich) subir.addEventListener('click', () => fich.click());
+  if (fich) fich.addEventListener('change', async e => {
+    const f = e.target.files && e.target.files[0];
+    if (!f) return;
+    const texto = await f.text();
+    cfgSave('curriculo.' + materia, texto.slice(0, 20000), false);
+    iaEstado = `Currículo cargado: ${Math.min(texto.length, 20000)} caracteres.`;
+    renderTeacherConfig();
+  });
+
+  const gen = $('#ia-generar');
+  if (gen) gen.addEventListener('click', async () => {
+    /* Se guarda lo elegido ANTES de generar. Los `change` de un desplegable
+       solo saltan si lo tocas, así que sin esto el panel se repintaba y los
+       cuatro volvían a su primera opción: generabas la segunda tanda y caía
+       en el pozo equivocado sin avisar. */
+    const destino = String($('#ia-pozo').value || '');
+    const estrato = $('#ia-estrato').value;
+    const curso = +$('#ia-curso').value || ATLAS_CONFIG.defaultGrade;
+    const cuantos = Math.max(1, Math.min(20, +$('#ia-cuantos').value || 10));
+    setTeacherConfig('iaPozo', destino);
+    setTeacherConfig('iaEstrato', estrato);
+    setTeacherConfig('iaCurso', curso);
+    setTeacherConfig('iaCuantos', cuantos);
+    const pozo = destino.split('/');
+    iaGenerando = true; iaEstado = ''; renderTeacherConfig();
+    const r = await cloudGenerarRetos({ materia, curso, estrato, n: cuantos, curriculo: iaCurriculo(materia) });
+    iaGenerando = false;
+
+    if (!r.ok) { iaEstado = '⚠️ ' + r.texto; iaDescartados = []; renderTeacherConfig(); return; }
+
+    const nombrePozo = (iaPozos().find(p => p.id === pozo.join('/')) || {}).name || '';
+    const nuevos = r.retos.map((x, i) => Object.assign({}, x, {
+      id: 'ia' + Date.now() + '_' + i,
+      materia, estrato, siteId: pozo[0], branchId: pozo[1], pozoNombre: nombrePozo
+    }));
+    cfgSave('iaCola', iaCola().concat(nuevos), false);
+    iaDescartados = r.descartados || [];
+    iaEstado = `${nuevos.length} en la cola${
+      iaDescartados.length ? `, ${iaDescartados.length} tirados por las comprobaciones` : ''}.${
+      r.usados ? ` (${r.usados.entrada + r.usados.cacheados} tokens de entrada, ${r.usados.salida} de salida)` : ''}`;
+    renderTeacherConfig();
+  });
+
+  $$('[data-ia-ok]').forEach(b => b.addEventListener('click', () => aprobarReto(b.dataset.iaOk)));
+  $$('[data-ia-no]').forEach(b => b.addEventListener('click', () => {
+    cfgSave('iaCola', iaCola().filter(c => c.id !== b.dataset.iaNo), false);
+    renderTeacherConfig();
+  }));
+  $$('[data-ia-edit]').forEach(b => b.addEventListener('click', async () => {
+    const c = iaCola().find(x => x.id === b.dataset.iaEdit);
+    if (!c) return;
+    const texto = await askPrompt('La pregunta, como quieras que la lea el niño:', c.question, 'Guardar');
+    if (texto === null) return;
+    cfgSave('iaCola', iaCola().map(x => x.id === c.id ? Object.assign({}, x, { question: String(texto).trim() }) : x), false);
+    renderTeacherConfig();
+  }));
+  const vaciar = $('#ia-vaciar');
+  if (vaciar) vaciar.addEventListener('click', async () => {
+    if (!(await askConfirm('¿Descartar los ' + iaCola().length + ' retos de la cola?', 'Descartar'))) return;
+    cfgSave('iaCola', [], false);
+    iaEstado = 'Cola vaciada.';
+    renderTeacherConfig();
+  });
+}
+
+/* Del borrador al banco. Se vuelve a validar aquí: entre que se generó y que
+   se aprueba, el docente ha podido cambiar la pregunta a mano. */
+function aprobarReto(id) {
+  const c = iaCola().find(x => x.id === id);
+  if (!c) return;
+  const v = validarRetoIA(c, { materia: c.materia });
+  if (!v.ok) { iaEstado = '⚠️ No se puede aprobar: ' + v.motivos.join(' · '); renderTeacherConfig(); return; }
+
+  const l = sitesCopy();
+  const site = l.find(s => s.id === c.siteId);
+  const br = site && (site.branches || []).find(b => b.id === c.branchId);
+  if (!br) { iaEstado = '⚠️ Ese pozo ya no existe. Descártalo y vuelve a generar.'; renderTeacherConfig(); return; }
+
+  br.bank = br.bank || {};
+  br.bank[c.estrato] = (br.bank[c.estrato] || []).concat([{
+    question: c.question, options: c.options, answer: c.answer,
+    hint1: c.hint1, hint2: c.hint2, explanation: c.explanation,
+    /* El concepto es lo que mantiene vivo el diagnóstico «Le está costando».
+       Sin él el reto se jugaría igual y dejaría de contar para nada. */
+    skill: c.skill, origen: 'ia'
+  }]);
+  writeSites(l, false);
+  cfgSave('iaCola', iaCola().filter(x => x.id !== id), false);
+  iaEstado = `Al banco: ${br.name} · ${(STRATA_META[c.estrato] || {}).label || c.estrato}.`;
+  renderTeacherConfig();
+}
+
 /* ══════════ FONDO DE LA SOCIEDAD ══════════ */
 function cfgFondo(body) {
   const f = ATLAS_CONFIG.fund || {};
@@ -1207,6 +1425,8 @@ function cfgAcceso(body) {
     ${field('Collection ID (diarios)', `<input type="text" id="cfg-aw-cid" value="${esc(a.collectionId)}">`)}
     ${field('Collection ID (aulas)', `<input type="text" id="cfg-aw-aid" value="${esc(a.aulasCollectionId || '')}">`,
       'Solo si quieres que varios docentes usen la plataforma con sus clases por separado. Cada clase pertenece a la cuenta de su docente y las demás no pueden leerla.')}
+    ${field('Function ID (generador de retos)', `<input type="text" id="cfg-aw-fid" value="${esc(a.generadorFunctionId || '')}">`,
+      'De Appwrite → Functions. Es lo que permite generar retos desde «Retos con IA». La clave de la API vive DENTRO de esa función y nunca en esta app.')}
     ${field('Collection ID (configuración compartida)', `<input type="text" id="cfg-aw-ccid" value="${esc(a.configCollectionId || '')}">`,
       'Opcional. Sirve para no configurar veinte tablets a mano. Con la colección de aulas puesta no hace falta: los ajustes de cada clase viajan en su documento.')}
     <p class="cfg-warn">Tras cambiar los datos de Appwrite hay que recargar la página para que surtan efecto.</p>
@@ -1227,6 +1447,7 @@ function cfgAcceso(body) {
   onInput('#cfg-aw-cid', e => cfgSave('appwrite.collectionId', e.target.value.trim()));
   onInput('#cfg-aw-aid', e => cfgSave('appwrite.aulasCollectionId', e.target.value.trim()));
   onInput('#cfg-aw-ccid', e => cfgSave('appwrite.configCollectionId', e.target.value.trim()));
+  onInput('#cfg-aw-fid', e => cfgSave('appwrite.generadorFunctionId', e.target.value.trim()));
 
   $('#cfg-aw-check').addEventListener('click', async () => {
     const caja = $('#cfg-aw-diag');

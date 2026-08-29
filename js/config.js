@@ -11,7 +11,7 @@
    copia guardada. Sin este número, «ya está arreglado» y «a mí no me pasa» son
    indistinguibles. Va junto al nombre de la caché del service worker, y una
    prueba comprueba que no se separen. */
-const ATLAS_VERSION = 'v24';
+const ATLAS_VERSION = 'v25';
 
 const ATLAS_DEFAULTS = {
 
@@ -37,7 +37,11 @@ const ATLAS_DEFAULTS = {
     /* ── Aulas (varios docentes, cada uno con sus clases) ──
        Una colección con un documento por clase, cuyo dueño es la cuenta del
        docente. Vacío = una sola clase en este equipo, sin sincronizar. */
-    aulasCollectionId: 'aulas'
+    aulasCollectionId: 'aulas',
+    /* Función que escribe retos con IA. Vacío = la sección de generación se
+       ofrece pero dice qué falta. La clave de la API vive DENTRO de esa
+       función, nunca aquí: esto se sirve al navegador de cada niño. */
+    generadorFunctionId: ''
   },
 
   /* Los alumnos entran con USUARIO, no con email (más fácil a los 8-10
@@ -337,7 +341,12 @@ function configEditadaEnLocal() {
      cualquiera podría leerlo desde su propia tablet;
    · los datos de conexión de Appwrite son de cada instalación, y publicarlos
      dejaría sin nube a la tablet que los tuviera puestos a mano. */
-const NO_SE_COMPARTE = ['appwrite', 'teacherPin'];
+/* Lo que NUNCA sale de este equipo hacia las tablets del alumnado.
+   `curriculo` y `iaCola` se añaden por dos motivos distintos: el currículo son
+   decenas de miles de caracteres que a un niño no le sirven de nada y que
+   viajarían a las veinticinco tablets en cada apertura de clase; la cola es un
+   borrador del docente, y lo que está sin aprobar no se enseña. */
+const NO_SE_COMPARTE = ['appwrite', 'teacherPin', 'curriculo', 'iaCola'];
 
 function configParaCompartir() {
   const o = deepClone(ATLAS_OVERLAY);

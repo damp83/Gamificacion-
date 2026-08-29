@@ -1677,6 +1677,11 @@ body.en-mision #main { padding-bottom: var(--s-5); }
 .class-team-head { display: flex; justify-content: space-between; gap: .5rem; margin-bottom: .45rem; flex-wrap: wrap; }
 .class-team small { color: var(--ink-soft); font-size: var(--t-xs); }
 
+/* Retos escritos por IA: la cita del currículo y lo que se ha tirado. */
+.ia-criterio { font-style: italic; border-left: 3px solid var(--brass-light); padding-left: .6rem; }
+.ia-tirado { border-left: 3px solid var(--danger); opacity: .85; }
+.ia-tirado .taller-rev-q { text-decoration: line-through; opacity: .7; }
+
 /* ══════════ PORTADA ══════════ */
 #screen-home, #screen-teacher { min-height: 100vh; padding: var(--s-5) clamp(1rem, 4vw, 2rem) var(--s-7); }
 .home-wrap { max-width: var(--w-content); margin: 0 auto; }

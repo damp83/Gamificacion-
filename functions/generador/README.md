@@ -54,10 +54,15 @@ nada que se sirva al navegador.
 4. **Settings → Execute access**: marca **Users**. Así solo ejecuta quien tiene
    sesión; con `Any` la URL queda abierta a cualquiera.
 
-5. Sube la carpeta `functions/generador/` (o conecta el repositorio y apunta el
+5. **Settings → Timeout: 300 segundos.** De fábrica son 15 y no bastan: diez
+   retos con currículo, más la segunda pasada que los vuelve a resolver, pasan
+   de un minuto. Con 15 s la función se corta y el panel dice «ha fallado» sin
+   que haya fallado nada.
+
+6. Sube la carpeta `functions/generador/` (o conecta el repositorio y apunta el
    directorio raíz de la función a esa ruta).
 
-6. Copia el **Function ID** y ponlo en la app: *Configuración → Acceso y nube*.
+7. Copia el **Function ID** y ponlo en la app: *Configuración → Acceso y nube*.
 
 ## Lo que cuesta
 
