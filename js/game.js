@@ -154,6 +154,7 @@ function advance() {
 
 /* ── Cierre de misión: recompensas con reglas anti-grinding ── */
 function finishMission() {
+  cancelarFeedback();
   /* La cámara tiene su propio cierre: ni dominio, ni fatiga, ni castigo */
   if (mission.kind === 'guardian') return finishGuardian();
 
@@ -441,7 +442,29 @@ function bazarUnlocksGuardian(branchId, stratumId) {
   return false;
 }
 
-function abandonMission() { mission = null; }
+/* ── El aviso de acierto/fallo llega con retardo, y la misión puede no llegar ──
+   Se espera medio segundo largo antes de enseñarlo, a propósito: el niño ve
+   la losa moverse y su color antes de que le tapen la pantalla. Pero en ese
+   rato la misión puede haberse acabado —el crío toca «Mapa» o el docente
+   pulsa «Terminar turno»— y el aviso llegaba a una misión que ya no existe:
+   `mission.questions` sobre null, error en consola y la pantalla a medias.
+
+   Se compara la misión POR IDENTIDAD, no solo que exista: en clase dirigida
+   el docente puede empezar el turno del siguiente niño en ese mismo rato, y
+   el aviso del anterior no puede pintarse encima del suyo. */
+let feedbackPendiente = null;
+function programarFeedback(fn, ms) {
+  clearTimeout(feedbackPendiente);
+  const suya = mission;
+  feedbackPendiente = setTimeout(() => {
+    feedbackPendiente = null;
+    if (mission !== suya) return;
+    fn();
+  }, ms);
+}
+function cancelarFeedback() { clearTimeout(feedbackPendiente); feedbackPendiente = null; }
+
+function abandonMission() { cancelarFeedback(); mission = null; }
 
 /* ── Méritos de Campamento: puntos por comportamientos ──
    Los concede el docente (PIN en la UI). Solo Doblones, nunca PE:

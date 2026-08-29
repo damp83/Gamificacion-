@@ -390,7 +390,7 @@ function aulaResponder(index, btn) {
     const ok = $$('#aula-opciones .option')[mission.current.answer];
     if (ok) ok.classList.add('option-reveal');
   }
-  setTimeout(() => {
+  programarFeedback(() => {
     let coins = 0;
     if (restaurando) coins = completeRestore(res.correct);
     aulaFeedback(res, restaurando, coins);

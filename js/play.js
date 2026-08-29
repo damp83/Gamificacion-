@@ -303,7 +303,7 @@ function onAnswer(index, btn) {
   }
   renderHud();
 
-  setTimeout(() => {
+  programarFeedback(() => {
     if (wasRestoring) {
       const coins = completeRestore(res.correct);
       showFeedback(res, { restored: res.correct, restoreCoins: coins });

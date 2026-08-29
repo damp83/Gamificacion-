@@ -84,6 +84,7 @@ Cubren lo que ya se ha roto alguna vez, que es de donde salieron:
 | `version.test.js` | Que el número de versión que lee el docente no se separe del de la caché |
 | `alta.test.js` | Que el diario de un alumno nazca ya dentro de su clase y con su docente |
 | `bolsa.test.js` | Que comprar o donar por un alumno salga de su bolsa, no toque sus PE, y vuelva a su documento |
+| `feedback.test.js` | Que el aviso de acierto/fallo no llegue a una misión que ya terminó |
 
 Lo que pide un navegador de verdad —que la página pinte, que un nombre hostil se
 vea como texto— no está aquí: eso se comprueba abriendo la app.
