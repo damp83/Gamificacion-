@@ -17,7 +17,15 @@ function authError(msg) {
 }
 function friendlyAuthError(e) {
   const m = (e && e.message) || '';
-  if (/Invalid credentials|Invalid `?password/i.test(m)) return 'Usuario o contraseña incorrectos. Inténtalo otra vez.';
+  /* Appwrite responde lo mismo si la contraseña está mal Y si la cuenta no
+     existe —lo hace a propósito, para que no se pueda averiguar quién tiene
+     cuenta probando—. Así que el mensaje tiene que cubrir las dos: decir solo
+     «contraseña incorrecta» manda al docente a mirar donde no es cuando lo que
+     pasa es que nunca pulsó «Crear las cuentas». */
+  if (/Invalid credentials|Invalid `?password/i.test(m)) {
+    return 'No se ha podido entrar. Comprueba el usuario y la contraseña, y que el docente ' +
+           'haya creado ya tu cuenta.';
+  }
   if (/already exists/i.test(m)) return 'Ese usuario ya existe. Prueba con otro o entra con tu contraseña.';
   if (/at least 8/i.test(m)) return 'La contraseña necesita 8 letras o números como mínimo.';
   if (/Failed to fetch|NetworkError|network/i.test(m)) return 'No hay conexión con la Sociedad Geográfica. Revisa la red.';

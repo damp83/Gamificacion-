@@ -79,6 +79,7 @@ Cubren lo que ya se ha roto alguna vez, que es de donde salieron:
 | `taller.test.js` | Que ningún reto escrito por un niño llegue a la clase sin pasar por el docente |
 | `consulta.test.js` | Que ver el cuaderno de un alumno no le cambie ni una coma del diario |
 | `vista-vacia.test.js` | Que la vista de clase sin diarios diga quién falta y qué le falta, en vez de dejar huecos |
+| `cuentas.test.js` | Que el panel avise de una contraseña que Appwrite va a rechazar, y de que escribirla no crea la cuenta |
 
 Lo que pide un navegador de verdad —que la página pinte, que un nombre hostil se
 vea como texto— no está aquí: eso se comprueba abriendo la app.
@@ -294,7 +295,9 @@ Cambia también `teacherPin`. Y ojo: **el PIN es una barrera de aula, no segurid
 
 ### Cómo entran los alumnos
 
-Los niños escriben **usuario**, no email (más fácil a los 8–10 años). Internamente se convierte en `usuario@` + `usernameDomain`. Appwrite exige contraseñas de 8 caracteres como mínimo.
+Los niños escriben **usuario**, no email (más fácil a los 8–10 años). Internamente se convierte en `usuario@` + `usernameDomain`. Appwrite exige contraseñas de **8 caracteres como mínimo**, y el panel lo avisa en la propia ficha del alumno si te quedas corto.
+
+> **Escribir la contraseña en la lista de clase NO crea la cuenta.** La lista vive en el equipo; la cuenta hay que darla de alta en Appwrite con **Crear las cuentas**. Hasta que no se pulsa, ese alumno no puede entrar, y Appwrite responderá lo mismo que si la contraseña estuviera mal —lo hace a propósito, para que no se pueda averiguar quién tiene cuenta probando—. Por eso cada ficha dice lo que le falta.
 
 Las contraseñas que genera el panel son una palabra del mundo del juego más cuatro cifras (`brujula8845`), para que las pueda teclear un niño de ocho años en una tablet. Salen del generador criptográfico del navegador, no de `Math.random()`: el docente da de alta la clase entera de una tacada, y de unas pocas salidas seguidas de `Math.random()` se puede reconstruir su estado y predecir las demás — y la hoja de credenciales se reparte en clase. Lo que impide adivinarlas probando no es su tamaño, es el límite de intentos de Appwrite: igual que el PIN, esto es una barrera de aula.
 

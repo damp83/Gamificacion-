@@ -2341,3 +2341,10 @@ body.en-consulta #shop-list button { display: none !important; }
 .student-acciones { display: grid; gap: 6px; margin-top: 9px; }
 .student-acciones .btn { width: 100%; justify-content: center; opacity: .85; }
 .student-acciones .btn:hover { opacity: 1; }
+
+/* Lo que impide que un alumno entre, en su propia ficha de la lista de clase. */
+.ros-pega {
+  margin: 6px 0 0; padding: 7px 10px; border-radius: 7px;
+  background: rgba(168, 69, 47, .1); border-left: 3px solid var(--peligro, #a8452f);
+  font-size: .84rem; line-height: 1.4;
+}

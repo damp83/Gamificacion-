@@ -209,6 +209,27 @@ function makeUsername(name, taken) {
 }
 function rosterCopy() { return deepClone(ATLAS_CONFIG.roster || []); }
 
+/* Appwrite no acepta contraseñas de menos de 8 caracteres. Es SU regla, no
+   nuestra, y por eso se comprueba aquí antes de gastar una petición: el
+   panel dejaba escribir tres letras, las guardaba sin rechistar, y el fallo
+   aparecía mucho después al intentar entrar. */
+const PASS_MINIMO = 8;
+
+/* Qué le impide a este alumno entrar. Devuelve null si está todo listo. */
+function pegaDeLaCuenta(r) {
+  if (!r || !r.name) return 'Sin nombre.';
+  if (!r.username) return 'Le falta el usuario.';
+  if (!r.password) return 'Le falta la contraseña.';
+  if (String(r.password).length < PASS_MINIMO) {
+    return `La contraseña tiene ${String(r.password).length} caracteres y Appwrite exige ${PASS_MINIMO} como mínimo. `
+      + 'Con menos, la cuenta no se puede crear.';
+  }
+  if (!r.account) {
+    return 'Escribir la contraseña aquí NO crea la cuenta: hay que pulsar «Crear las cuentas» más abajo.';
+  }
+  return null;
+}
+
 function cfgAlumnado(body) {
   const roster = ATLAS_CONFIG.roster || [];
   const conCuenta = roster.filter(r => r.account).length;
@@ -250,14 +271,24 @@ function cfgAlumnado(body) {
           </div>
           <div class="cfg-row">
             <label>Usuario <input type="text" class="ros-user" data-i="${i}" value="${esc(r.username || '')}"></label>
-            <label>Contraseña <input type="text" class="ros-pass" data-i="${i}" value="${esc(r.password || '')}"></label>
+            <label>Contraseña <input type="text" class="ros-pass" data-i="${i}" minlength="${PASS_MINIMO}"
+              value="${esc(r.password || '')}"></label>
           </div>
           <div class="cfg-row">
             <label>Curso <select class="ros-grade" data-i="${i}">
               ${GRADES.map(g => `<option value="${g.n}"${(r.grade || ATLAS_CONFIG.defaultGrade) === g.n ? ' selected' : ''}>${g.label} · ${g.age}</option>`).join('')}
             </select></label>
-            <span class="cfg-tag${r.account ? ' cfg-tag-ok' : ''}">${r.account ? '✓ cuenta creada' : 'sin cuenta'}</span>
+            <span class="cfg-tag${r.account ? ' cfg-tag-ok' : ''}">${r.account ? '✓ cuenta creada' : 'sin cuenta todavía'}</span>
           </div>
+          ${(() => {
+            /* Lo que impide que este alumno entre, dicho en su propia ficha.
+               Antes había que deducirlo: se escribía una contraseña de tres
+               letras, se guardaba tan feliz, y el error solo aparecía al
+               intentar entrar —diciendo además «contraseña incorrecta», que
+               manda a mirar donde no es. */
+            const pega = pegaDeLaCuenta(r);
+            return pega ? `<p class="ros-pega">⚠️ ${esc(pega)}</p>` : '';
+          })()}
         </div>`).join('')
         : '<p class="cfg-hint">Todavía no hay nadie en la lista.</p>'}
     </div>
@@ -365,8 +396,12 @@ function cfgAlumnado(body) {
     for (let i = 0; i < l.length; i++) {
       const r = l[i];
       if (r.account) continue;
-      if (!r.name || !r.username || !r.password) {
-        lineas.push(`⚠️ ${esc(r.name || '(sin nombre)')} — le falta nombre, usuario o contraseña`);
+      /* Se comprueba aquí lo que ya se sabe que Appwrite va a rechazar: así el
+         docente lo lee de golpe para toda la clase en vez de una petición
+         fallida por niño. */
+      const pega = pegaDeLaCuenta({ ...r, account: true });
+      if (pega) {
+        lineas.push(`⚠️ ${esc(r.name || '(sin nombre)')} — ${esc(pega)}`);
         fallos++; continue;
       }
       log.innerHTML = lineas.concat([`⏳ Creando ${esc(r.name)}…`]).map(x => `<div>${x}</div>`).join('');
