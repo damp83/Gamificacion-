@@ -83,6 +83,7 @@ Cubren lo que ya se ha roto alguna vez, que es de donde salieron:
 | `cuaderno-docente.test.js` | Que la lectura pedagógica sobre un alumno solo se abra con el docente al mando |
 | `version.test.js` | Que el número de versión que lee el docente no se separe del de la caché |
 | `usabilidad.test.js` | Que la letra grande escale de verdad, que el Taller se pueda teclear y que nada se salga de la pantalla |
+| `generador.test.js` | Que un reto escrito por IA con la cuenta mal marcada no llegue nunca a un niño |
 | `alta.test.js` | Que el diario de un alumno nazca ya dentro de su clase y con su docente |
 | `bolsa.test.js` | Que comprar o donar por un alumno salga de su bolsa, no toque sus PE, y vuelva a su documento |
 | `feedback.test.js` | Que el aviso de acierto/fallo no llegue a una misión que ya terminó |
@@ -479,6 +480,54 @@ Dos decisiones de diseño, tomadas del propio PRD:
 - **Solo suman, nunca restan** (§0.2: «nada se pierde nunca»). No hay botón de quitar puntos: castigar con la economía del juego rompe la seguridad emocional en la que se apoya todo el diseño.
 
 Los comportamientos, sus valores y sus topes diarios se editan en `js/config.js`. Los topes evitan que una sesión generosa desequilibre la economía.
+
+## Retos escritos por IA (a partir de tu currículo)
+
+Está montado el **motor**: una función de Appwrite que escribe retos de Lengua o
+Matemáticas a partir del currículo que le mandes, y todo lo que decide qué se
+acepta. Falta la pantalla del panel donde se aprueban; hasta entonces la función
+se puede llamar, pero no hay cola de revisión.
+
+Instrucciones de despliegue: **`functions/generador/README.md`**.
+
+**La clave de la API no puede vivir en el navegador.** La app es un sitio
+estático que se sirve a cada niño y los ajustes de la clase viajan a su tablet.
+Por eso hay una función: la clave está en su variable de entorno y no sale del
+servidor. Una prueba comprueba que no aparezca en nada que se sirva al navegador.
+
+### Lo que se comprueba antes de enseñarte un reto
+
+Cuatro barreras, y ninguna sobra:
+
+1. **El esquema de salida.** Cuatro opciones, índice de 0 a 3, dos pistas,
+   explicación, concepto y cita del currículo. El modelo no puede devolver otra
+   forma.
+2. **El validador** (`js/generador.js`): opciones repetidas aunque cambien las
+   tildes, la correcta mucho más larga que las demás (se acierta midiendo, no
+   pensando), tres números y una palabra (esa se descarta sola), concepto que no
+   es del catálogo o es de la otra materia, pistas que dicen lo mismo.
+3. **La comprobación aritmética.** Si la pregunta es una operación entre dos
+   números y las cuatro opciones son números, se calcula y se compara con la
+   marcada. Y **calla cuando no puede estar segura**: una comprobación que
+   adivina descarta retos buenos, y entonces el docente deja de fiarse.
+4. **La segunda pasada.** Se le da el reto ya escrito y se le pide que lo
+   resuelva sin ver cuál está marcada. Si no coincide, fuera — sin intentar
+   decidir cuál de las dos tiene razón: un reto sobre el que dos lecturas no se
+   ponen de acuerdo ya no sirve para un niño de nueve años.
+
+Todo eso existe por una sola razón: **un reto con la respuesta correcta mal
+marcada le dice «has fallado» a un niño que acertó.** En una plataforma cuyo
+primer principio es que el error no penaliza, eso es peor que no tener
+generador.
+
+> **El validador es el mismo fichero en la tablet y en el servidor.**
+> `tools/sync-generador.py` lo copia, y una prueba comprueba que la copia no se
+> quede vieja: si se separan, uno acepta lo que el otro rechaza y nadie se entera.
+
+### Lo que sigue sin garantizar nadie
+
+La última lectura es la tuya. Un modelo que se equivoca y un docente que aprueba
+sin leer dan el mismo resultado.
 
 ## Medido en pantalla, no supuesto
 
