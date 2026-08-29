@@ -1993,16 +1993,39 @@ input[type="checkbox"]::after, input[type="radio"]::after {
   display: grid; gap: .6rem;
   grid-template-columns: repeat(auto-fill, minmax(11rem, 1fr));
 }
+/* La tarjeta lleva dos acciones —dar turno y abrir la bolsa— así que es un
+   contenedor: el turno es el botón grande que la ocupa entera y la bolsa un
+   botón pequeño en la esquina. */
 .aula-alumno-card {
-  display: flex; flex-direction: column; align-items: center; gap: .2rem;
+  position: relative;
   background: var(--surface); border: none; border-top: 3px solid var(--brass-light);
-  border-radius: var(--r-lg); padding: .9rem .6rem;
+  border-radius: var(--r-lg);
   box-shadow: var(--e-1); font-family: var(--font-text); color: var(--ink);
-  min-height: 6.5rem;
   transition: transform .14s ease, box-shadow .14s ease;
 }
+.aula-card-turno {
+  display: flex; flex-direction: column; align-items: center; gap: .2rem;
+  width: 100%; min-height: 6.5rem; padding: .9rem .6rem;
+  background: none; border: none; border-radius: var(--r-lg);
+  font-family: inherit; color: inherit;
+}
+/* 44 px de objetivo táctil, como el resto: se pulsa con el dedo, de pie y en
+   mitad de la clase. Medido, no supuesto. */
+.aula-card-bolsa {
+  position: absolute; top: .25rem; right: .25rem;
+  width: 2.75rem; height: 2.75rem; display: grid; place-items: center;
+  background: var(--brass-tint); border: 1px solid var(--brass-light);
+  border-radius: 50%; color: var(--leather-dark);
+  transition: background-color .14s ease, transform .14s ease;
+}
+.aula-card-bolsa:hover { background: var(--brass-light); transform: scale(1.06); }
 .aula-alumno-card:hover { transform: translateY(-2px); box-shadow: var(--e-2); }
 .aula-alumno-card.aula-ya { border-top-color: var(--jungle-light); background: var(--jungle-tint); }
+.aula-alumno-card.aula-ya .aula-card-bolsa { background: var(--surface); }
+
+/* La bolsa del alumno: el almacén y el Fondo, manejados por el docente */
+#aula-bolsa h3 { margin-top: var(--s-5); }
+#aula-bolsa .aula-instruccion { margin-bottom: var(--s-4); }
 .aula-card-avatar { font-size: 1.7rem; line-height: 1.2; }
 .aula-card-nombre { font-weight: 800; font-size: var(--t-md); }
 .aula-card-meta { font-size: var(--t-xs); color: var(--ink-soft); }

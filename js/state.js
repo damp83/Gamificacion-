@@ -403,9 +403,34 @@ function setAulaActiva(id, nombre) {
    mezclarlos con los de la nueva sería el peor error posible. */
 function cerrarAula() {
   saveDiaries({});
+  saveDocIds({});
   AULA = { id: '', name: '', pulledAt: 0 };
   saveAula();
 }
+
+/* ── De qué documento vino cada diario ──
+   Un diario puede vivir en dos sitios distintos de la misma colección: el que
+   crea el equipo del docente en clase dirigida, cuyo id se deriva del nombre,
+   y el de un alumno con cuenta propia, cuyo id es el de su cuenta. Sin
+   recordar de dónde vino cada uno, devolverlo lo escribía en el id derivado y
+   creaba un SEGUNDO documento: el docente le compraba algo a un niño y el niño
+   no lo veía nunca, porque su app seguía leyendo el suyo. */
+const DOCIDS_KEY = 'atlas_docids_v1';
+function loadDocIds() {
+  try { return JSON.parse(localStorage.getItem(DOCIDS_KEY) || '{}') || {}; }
+  catch (e) { return {}; }
+}
+function saveDocIds(map) {
+  try { localStorage.setItem(DOCIDS_KEY, JSON.stringify(map)); } catch (e) { /* sin almacenamiento */ }
+}
+function recordarDocId(clave, docId) {
+  if (!clave || !docId) return;
+  const map = loadDocIds();
+  if (map[clave] === docId) return;
+  map[clave] = docId;
+  saveDocIds(map);
+}
+function docIdConocido(clave) { return loadDocIds()[clave] || ''; }
 
 /* ── Fusión al traer de la nube ──
    La misma regla que la copia de seguridad: gana el más reciente. Un docente
@@ -419,6 +444,8 @@ function fusionarDiarios(entrantes) {
     if (!estado || !estado.profile) continue;
     const k = diaryKey(estado.profile.explorer_name);
     if (!k) continue;
+    /* De dónde vino, para devolverlo al mismo sitio */
+    if (d.$id) recordarDocId(k, d.$id);
     const hay = actuales[k];
     if (!hay) { actuales[k] = estado; nuevos++; }
     else if ((estado.updated_at || 0) > (hay.updated_at || 0)) { actuales[k] = estado; actualizados++; }

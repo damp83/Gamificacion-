@@ -686,7 +686,33 @@
           <div class="aula-meritos">
             <h3><svg class="ico" viewBox="0 0 24 24" aria-hidden="true"><use href="#i-medal"/></svg> Méritos para&nbsp;<span id="aula-merito-quien"></span></h3>
             <div id="aula-merito-lista" class="award-list"></div>
+            <button class="btn btn-secondary btn-small" id="aula-abrir-bolsa"><svg class="ico" viewBox="0 0 24 24" aria-hidden="true"><use href="#i-coin"/></svg> Su bolsa: comprar o donar</button>
           </div>
+        </div>
+
+        <!-- ══════════ LA BOLSA DE UN ALUMNO ══════════
+             En clase el niño pide en voz alta —«me compro el sombrero», «dono
+             diez al Fondo»— y lo hace el docente desde aquí, sin que el crío
+             tenga que entrar en la app. Se llega desde el turno y desde la
+             lista, porque las dos cosas pasan. -->
+        <div id="aula-bolsa" class="hidden">
+          <div class="aula-alumno">
+            <span class="aula-alumno-avatar" id="bolsa-avatar">🧒</span>
+            <div class="aula-alumno-info">
+              <strong id="bolsa-nombre"></strong>
+              <small id="bolsa-detalle"></small>
+            </div>
+            <button class="btn btn-quit btn-small" id="bolsa-cerrar">Cerrar</button>
+          </div>
+          <p class="aula-instruccion">Lo que te pida en voz alta. Sale de <strong>su</strong> bolsa de
+          doblones y nunca de sus PE: aquí no se compra ni se pierde aprendizaje.</p>
+
+          <h3><svg class="ico" viewBox="0 0 24 24" aria-hidden="true"><use href="#i-shop"/></svg> Almacén</h3>
+          <div id="bolsa-tienda" class="award-list"></div>
+
+          <h3><svg class="ico" viewBox="0 0 24 24" aria-hidden="true"><use href="#i-idol"/></svg> Fondo de la Sociedad</h3>
+          <p class="cfg-hint" id="bolsa-fondo-nota"></p>
+          <div id="bolsa-fondo" class="fund-buttons"></div>
         </div>
       </section>
 

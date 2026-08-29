@@ -120,6 +120,9 @@ async function cloudCrearDiarioDe(alumnoId, nombre, grado) {
       Appwrite.Permission.update(Appwrite.Role.user(docente)),
       Appwrite.Permission.delete(Appwrite.Role.user(docente))
     ]);
+    /* Para que lo que el docente le compre a este niño vaya a ESTE documento
+       y no a uno derivado del nombre, que su app nunca leería. */
+    recordarDocId(diaryKey(nombre), alumnoId);
     return { ok: true, aula };
   } catch (e) {
     const msg = (e && e.message) || '';
@@ -450,7 +453,9 @@ async function cloudPushDiario(clave, estado) {
   if (!aulasOn() || !aulaActiva() || !CLOUD.user) return { ok: false, reason: 'sin-nube' };
   const c = ATLAS_CONFIG.appwrite;
   const uid = CLOUD.user.$id;
-  const id = docIdDiario(aulaActiva(), clave);
+  /* Al mismo documento del que vino. Solo cuando no se sabe —el diario nació
+     en este equipo, en clase dirigida— se deriva el id del nombre. */
+  const id = docIdConocido(clave) || docIdDiario(aulaActiva(), clave);
   const data = {
     aula: aulaActiva(),
     owner: uid,
@@ -463,10 +468,12 @@ async function cloudPushDiario(clave, estado) {
 
   try {
     await CLOUD.db.updateDocument(c.databaseId, c.collectionId, id, data);
+    recordarDocId(clave, id);
     return { ok: true, id };
   } catch (e) {
     try {
       await CLOUD.db.createDocument(c.databaseId, c.collectionId, id, data, permisosDeAula(uid));
+      recordarDocId(clave, id);
       return { ok: true, id, creado: true };
     } catch (e2) { return errorNube(e2); }
   }

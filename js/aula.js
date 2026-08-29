@@ -250,6 +250,9 @@ function renderAula() {
   aulaAlumno = null;
   $('#aula-turnos').classList.remove('hidden');
   $('#aula-turno').classList.add('hidden');
+  $('#aula-bolsa').classList.add('hidden');
+  bolsaAlumno = null;
+  bolsaDesdeTurno = false;
 
   /* Selector de tema: automático o un pozo concreto (hoy tocan fracciones) */
   const sel = $('#aula-tema');
@@ -286,14 +289,28 @@ function renderAula() {
   for (const a of alumnos) {
     const t = turnos[diaryKey(a.name)] || { rondas: 0, minutos: 0 };
     const tiene = diaryExists(a.name);
-    const card = document.createElement('button');
+    /* Dos acciones por alumno, no una: darle turno y abrir su bolsa. Un botón
+       dentro de otro botón no es HTML válido, así que la tarjeta es un
+       contenedor y el turno es el botón grande de dentro. */
+    const card = document.createElement('div');
     card.className = 'aula-alumno-card' + (t.rondas ? ' aula-ya' : '');
-    card.innerHTML = `
+    const turno = document.createElement('button');
+    turno.className = 'aula-card-turno';
+    turno.innerHTML = `
       <span class="aula-card-avatar">${t.rondas ? '✅' : '🧒'}</span>
       <span class="aula-card-nombre">${esc(a.name)}</span>
       <span class="aula-card-meta">${gradeInfo(a.grade).label}${
         tiene ? ` · ${t.rondas} ronda(s) hoy` : ' · primera vez'}</span>`;
-    card.addEventListener('click', () => empezarTurno(a));
+    turno.addEventListener('click', () => empezarTurno(a));
+    card.appendChild(turno);
+
+    const bolsa = document.createElement('button');
+    bolsa.className = 'aula-card-bolsa';
+    bolsa.title = `Comprar o donar por ${a.name}`;
+    bolsa.setAttribute('aria-label', `Bolsa de ${a.name}: comprar o donar`);
+    bolsa.innerHTML = ico('coin');
+    bolsa.addEventListener('click', () => abrirBolsa(a, false));
+    card.appendChild(bolsa);
     lista.appendChild(card);
   }
 }
@@ -470,9 +487,118 @@ function renderAulaMeritos() {
   }
 }
 
+/* ══════════ LA BOLSA DE UN ALUMNO ══════════
+   En clase el niño pide en voz alta —«me compro el sombrero», «dono diez al
+   Fondo»— y hasta ahora tenía que entrar en la app para hacerlo él. Con
+   veinticinco críos eso es la sesión entera esperando turnos de tablet.
+
+   Se opera sobre SU diario, no sobre el del equipo: si no hay turno abierto se
+   abre el suyo y se cierra al salir. La compra pasa por buyItem() y la
+   donación por donateToFund(), las mismas funciones que usa el niño, así que
+   los topes y las reglas son exactamente los suyos. */
+let bolsaAlumno = null;
+let bolsaDesdeTurno = false;
+
+function abrirBolsa(alumno, desdeTurno) {
+  bolsaAlumno = alumno;
+  bolsaDesdeTurno = !!desdeTurno;
+  /* Durante un turno, S YA es el diario de ese niño y hay una misión viva:
+     volver a abrirlo la tiraría. Fuera del turno hay que abrirlo. */
+  if (!desdeTurno) openDiary(alumno.name, alumno.grade);
+  $('#aula-turnos').classList.add('hidden');
+  $('#aula-turno').classList.add('hidden');
+  $('#aula-bolsa').classList.remove('hidden');
+  renderBolsa();
+  window.scrollTo(0, 0);
+}
+
+function cerrarBolsa() {
+  $('#aula-bolsa').classList.add('hidden');
+  if (bolsaDesdeTurno) {
+    $('#aula-turno').classList.remove('hidden');
+  } else {
+    closeDiary();
+    $('#aula-turnos').classList.remove('hidden');
+    renderAula();
+  }
+  bolsaAlumno = null;
+  bolsaDesdeTurno = false;
+  window.scrollTo(0, 0);
+}
+
+function renderBolsa() {
+  if (!bolsaAlumno || !S) return;
+  const saldo = S.progression.doubloons_balance;
+  $('#bolsa-avatar').textContent = avatarEmoji();
+  $('#bolsa-nombre').textContent = bolsaAlumno.name;
+  $('#bolsa-detalle').innerHTML = `${esc(gradeInfo(S.profile.grade).label)} · <strong>${saldo}</strong> ${ico('coin')} en su bolsa`;
+
+  /* ── Almacén ──
+     Lo que ya tiene sale marcado y lo que no puede pagar sale con lo que le
+     falta: es la respuesta a «¿y esto puedo?» sin tener que restar en alto. */
+  const cont = $('#bolsa-tienda');
+  cont.innerHTML = '';
+  for (const item of shopCatalog()) {
+    const suyo = item.type !== 'treat' &&
+      (S.inventory.gear_owned.includes(item.id) || S.inventory.camp_items.includes(item.id));
+    const falta = item.cost - saldo;
+    const btn = document.createElement('button');
+    btn.className = 'award-btn' + (suyo || falta > 0 ? ' award-full' : '');
+    btn.disabled = suyo || falta > 0;
+    btn.innerHTML = `<span class="award-icon">${esc(item.icon)}</span>
+      <span class="award-name">${esc(item.name)}</span>
+      <span class="award-meta">${suyo ? 'ya lo tiene'
+        : falta > 0 ? `le faltan ${falta} ${ico('coin')}`
+        : `${item.cost} ${ico('coin')}`}</span>`;
+    btn.addEventListener('click', () => {
+      const res = buyItem(item.id);
+      if (!res.ok) {
+        toast(res.reason === 'no-coins' ? 'No le llegan los doblones.'
+          : res.reason === 'owned' ? 'Ya lo tiene.' : 'No se ha podido comprar.');
+        return;
+      }
+      toast(`${item.icon} ${bolsaAlumno.name}: ${item.name} · −${item.cost} doblones`);
+      renderBolsa();
+    });
+    cont.appendChild(btn);
+  }
+
+  /* ── Fondo de la Sociedad ── */
+  const f = ATLAS_CONFIG.fund || {};
+  const mio = S.progression.fund_donated || 0;
+  $('#bolsa-fondo-nota').innerHTML = mio
+    ? `Ya ha aportado ${mio} ${ico('coin')}. Donar es voluntario y no da ninguna ventaja: es por las ruinas.`
+    : 'Donar es voluntario y no da ninguna ventaja en las excavaciones.';
+  const caja = $('#bolsa-fondo');
+  caja.innerHTML = '';
+  for (const n of (f.steps || [5, 10, 25, 50])) {
+    const b = document.createElement('button');
+    b.className = 'btn btn-secondary btn-small';
+    b.innerHTML = `${n} ${ico('coin')}`;
+    b.disabled = saldo < n;
+    b.addEventListener('click', () => {
+      const res = donateToFund(n);
+      if (!res.ok) { toast('No le llegan los doblones.'); return; }
+      toast(`${bolsaAlumno.name} dona ${n} doblones al Fondo. ¡Gracias!`);
+      renderBolsa();
+    });
+    caja.appendChild(b);
+  }
+}
+
 function wireAula() {
+  $('#aula-abrir-bolsa').addEventListener('click', () => {
+    if (aulaAlumno) abrirBolsa(aulaAlumno, true);
+  });
+  $('#bolsa-cerrar').addEventListener('click', cerrarBolsa);
+
   $('#aula-salir').addEventListener('click', () => {
     if (mission) { aulaTerminar(); return; }
+    /* Puede quedarse abierta la bolsa de un alumno: cerrar el aula tiene que
+       soltar su diario, o el siguiente turno se daría sobre el suyo. */
+    $('#aula-bolsa').classList.add('hidden');
+    bolsaAlumno = null;
+    bolsaDesdeTurno = false;
     closeDiary();
     showTeacherPortal();
   });

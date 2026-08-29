@@ -83,6 +83,7 @@ Cubren lo que ya se ha roto alguna vez, que es de donde salieron:
 | `cuaderno-docente.test.js` | Que la lectura pedagógica sobre un alumno solo se abra con el docente al mando |
 | `version.test.js` | Que el número de versión que lee el docente no se separe del de la caché |
 | `alta.test.js` | Que el diario de un alumno nazca ya dentro de su clase y con su docente |
+| `bolsa.test.js` | Que comprar o donar por un alumno salga de su bolsa, no toque sus PE, y vuelva a su documento |
 
 Lo que pide un navegador de verdad —que la página pinte, que un nombre hostil se
 vea como texto— no está aquí: eso se comprueba abriendo la app.
@@ -518,6 +519,31 @@ Dos detalles:
 
 - **El diario lo crea el alumno al entrar por primera vez.** Crear la cuenta no crea su progreso; eso nace con su primera expedición.
 - **Quitar a alguien de la lista no borra su cuenta ni su diario.** Sale de tu lista y de las cuadrillas, pero puede seguir entrando. La app te lo recuerda antes de hacerlo.
+
+### Comprar y donar sin que el alumno entre
+
+En clase el niño lo pide en voz alta —«me compro el sombrero», «dono diez al
+Fondo»— y con veinticinco críos esperar a que cada uno entre en la app se come
+la sesión. El docente lo hace desde **Dirigir la clase**, por dos caminos
+porque las dos cosas pasan:
+
+- **Desde la lista**, el botón 🪙 de la esquina de cada tarjeta, sin darle turno.
+- **Dentro de un turno**, *Su bolsa: comprar o donar*, debajo de los méritos.
+
+Lo que ve el docente es su bolsa real: lo que ya tiene sale marcado y lo que no
+puede pagar dice **cuánto le falta**, para no tener que restar en alto delante
+de la clase.
+
+> Pasa por las mismas funciones que usa el niño (`buyItem`, `donateToFund`), así
+> que las reglas son exactamente las suyas: sale de **su** bolsa de Doblones,
+> nunca de sus PE, y no se le puede dejar a deber. Que lo haga el docente no
+> abre ninguna puerta que el niño no tuviera.
+
+Y el diario vuelve **al documento del que vino**. Esto no es un detalle: un
+diario puede vivir en dos sitios de la misma colección —el id derivado del
+nombre, en clase dirigida, o el de la cuenta del alumno si entró él— y sin
+recordarlo, lo que el docente le compre acabaría en un segundo documento que el
+niño no lee nunca.
 
 ### Cuadrillas sin erratas
 
