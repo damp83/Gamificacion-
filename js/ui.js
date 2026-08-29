@@ -23,7 +23,10 @@ const $$ = sel => document.querySelectorAll(sel);
 function esc(t) {
   return String(t == null ? '' : t)
     .replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;')
-    .replace(/"/g, '&quot;');
+    /* Las dos comillas, no solo la doble: en esta base todos los atributos van
+       con comilla doble, pero el día que alguien escriba uno con simple el
+       escapado tiene que seguir valiendo. */
+    .replace(/"/g, '&quot;').replace(/'/g, '&#39;');
 }
 
 /* ── Iconos propios ──

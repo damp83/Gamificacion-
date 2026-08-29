@@ -101,9 +101,12 @@ function renderTeacherSignature() {
   const nombre = (ATLAS_CONFIG.teacherName || '').trim();
   const clase = (ATLAS_CONFIG.className || '').trim();
   if (!nombre && !clase) { el.classList.add('hidden'); return; }
+  /* Los dos los teclea el docente Y VIAJAN a cada tablet dentro de los ajustes
+     de la clase: sin escapar, lo que se escriba aquí se ejecuta en la portada
+     de todos los niños. */
   const partes = [];
-  if (clase) partes.push(`Clase de <strong>${clase}</strong>`);
-  if (nombre) partes.push(`Expedición dirigida por <strong>${nombre}</strong>`);
+  if (clase) partes.push(`Clase de <strong>${esc(clase)}</strong>`);
+  if (nombre) partes.push(`Expedición dirigida por <strong>${esc(nombre)}</strong>`);
   el.innerHTML = '🧭 ' + partes.join(' · ');
   el.classList.remove('hidden');
 }

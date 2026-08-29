@@ -75,3 +75,78 @@ test('un resumen que no es lo que dice ser no tumba la vista de clase', () => {
   assert.equal(d.students[0].accuracy, null);
   assert.ok(!d.students[0].signals.includes('fuera del canal de flujo'));
 });
+
+/* ── Los cinco agujeros que encontró la auditoría ──
+   Todos tenían la misma forma: texto que teclea el docente y que VIAJA a cada
+   tablet dentro de los ajustes de la clase, pintado sin escapar. No hace
+   falta un atacante para que duela —un nombre de clase con un «<» rompe la
+   pantalla— pero con una cuenta de docente comprometida, la carga llega a la
+   portada de veinticinco niños.
+
+   Se comprueban sobre el código que se sirve, no sobre una copia: si alguien
+   quita un esc() de esas líneas, esto se pone rojo. */
+const fs = require('node:fs');
+const path = require('node:path');
+const LEER = f => fs.readFileSync(path.join(__dirname, '..', 'js', f), 'utf8');
+
+test("esc() también neutraliza la comilla simple", () => {
+  assert.equal(esc("'"), '&#39;');
+  assert.doesNotMatch(esc(`' onfocus='robar()`), /'/);
+});
+
+test('el nombre de la clase y el del docente se escapan en la portada', () => {
+  const app = LEER('app.js');
+  assert.match(app, /Clase de <strong>\$\{esc\(clase\)\}/);
+  assert.match(app, /dirigida por <strong>\$\{esc\(nombre\)\}/);
+});
+
+test('el nombre de la clase se escapa en la vista general', () => {
+  assert.match(LEER('aula.js'), /class-meta">\$\{clase \? esc\(clase\)/);
+});
+
+test('los miembros y la meta de la cuadrilla se escapan', () => {
+  const play = LEER('play.js');
+  assert.match(play, /team-member\$\{me \? ' team-me' : ''\}">\$\{me \? '🧭 ' : '🧒 '\}\$\{esc\(m\)\}/);
+  assert.match(play, /<strong>\$\{esc\(t\.goalLabel\)\}<\/strong>/);
+});
+
+test('los iconos del campamento comprado se escapan', () => {
+  /* Este solo se veía con el mueble YA comprado: por eso no salía mirando la
+     pantalla, solo inyectando. */
+  assert.match(LEER('play.js'), /campIcons = S\.inventory\.camp_items\.map\(id =>\s*esc\(/);
+});
+
+test('el PIN y los datos de Appwrite se escapan dentro de sus atributos', () => {
+  const t = LEER('teacher.js');
+  assert.match(t, /value="\$\{esc\(ATLAS_CONFIG\.teacherPin\)\}"/);
+  for (const campo of ['cfg-aw-ep', 'cfg-aw-pid', 'cfg-aw-did', 'cfg-aw-cid']) {
+    assert.match(t, new RegExp(`id="${campo}" value="\\$\\{esc\\(`), campo + ' sin escapar');
+  }
+});
+
+test('lo que el docente publica para la clase viaja, y por eso hay que escaparlo', () => {
+  /* La razón de que esto sea grave y no cosmético: className y teacherName
+     salen de este equipo y entran en el de cada niño. */
+  const ctx = cargarApp();
+  ctx.ev('setTeacherConfig')('className', ATAQUE);
+  ctx.ev('setTeacherConfig')('teacherName', ATAQUE);
+  const paquete = ctx.ev('configParaCompartir()');
+  assert.equal(paquete.className, ATAQUE, 'viaja tal cual: el escapado va al pintar');
+  assert.equal(paquete.teacherName, ATAQUE);
+});
+
+test('las contraseñas del alumnado NO viajan a las demás tablets', () => {
+  const ctx = cargarApp();
+  ctx.ev('setTeacherConfig')('roster', [{ name: 'Vega', username: 'vega', password: 'secreta123' }]);
+  const paquete = ctx.ev('configParaCompartir()');
+  assert.ok(!JSON.stringify(paquete).includes('secreta123'));
+  assert.equal(paquete.roster[0].username, 'vega', 'el usuario sí, que hace falta');
+});
+
+test('ni el PIN ni los datos de conexión viajan', () => {
+  const ctx = cargarApp();
+  ctx.ev('setTeacherConfig')('teacherPin', '9876');
+  const paquete = ctx.ev('configParaCompartir()');
+  assert.equal(paquete.teacherPin, undefined);
+  assert.equal(paquete.appwrite, undefined);
+});

@@ -489,7 +489,11 @@ function renderCamp() {
     : '<small>Aún sin equipo. ¡Visita el almacén!</small>';
 
   const scene = $('#camp-scene');
-  const campIcons = S.inventory.camp_items.map(id => (shopCatalog().find(i => i.id === id) || { icon: '📦' }).icon);
+  /* El icono lo teclea el docente en el almacén y viaja con los ajustes de la
+     clase: aquí se pintaba crudo, y solo se veía cuando el niño ya tenía
+     comprado ese mueble. */
+  const campIcons = S.inventory.camp_items.map(id =>
+    esc((shopCatalog().find(i => i.id === id) || { icon: '📦' }).icon));
   scene.innerHTML = `<div class="camp-scene-row">⛺ ${campIcons.join(' ')} ${S.inventory.treats_given > 0 ? '🐕' + '🦴'.repeat(Math.min(3, S.inventory.treats_given)) : '🐕'}</div>
     <small>${S.inventory.treats_given > 0 ? 'Tobías está feliz con sus golosinas.' : 'Tobías husmea buscando golosinas…'}</small>`;
 
@@ -825,7 +829,7 @@ function renderTeam() {
     </div>
 
     <div class="team-goal">
-      <strong>${t.goalLabel}</strong>
+      <strong>${esc(t.goalLabel)}</strong>
       <p class="team-goal-note">Toda la clase excava hacia la misma meta. Cada Doblón que ganas
       aporta un poco, y <em>no se descuenta de tu bolsa</em>: cooperar no cuesta nada.</p>
       <div class="mastery-bar"><div class="mastery-fill${pct >= 100 ? ' gold' : ''}" style="width:${pct}%"></div></div>
@@ -837,7 +841,9 @@ function renderTeam() {
     <div class="team-members">
       ${(team.members || []).map(m => {
         const me = m.trim().toLowerCase() === (S.profile.explorer_name || '').trim().toLowerCase();
-        return `<span class="team-member${me ? ' team-me' : ''}">${me ? '🧭 ' : '🧒 '}${m}${me ? ' (tú)' : ''}</span>`;
+        /* El nombre sale de la lista de clase, que el docente teclea y que
+           viaja con los ajustes: escapado como todo lo demás. */
+        return `<span class="team-member${me ? ' team-me' : ''}">${me ? '🧭 ' : '🧒 '}${esc(m)}${me ? ' (tú)' : ''}</span>`;
       }).join('')}
     </div>
 

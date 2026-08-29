@@ -479,6 +479,42 @@ Dos decisiones de diseño, tomadas del propio PRD:
 
 Los comportamientos, sus valores y sus topes diarios se editan en `js/config.js`. Los topes evitan que una sesión generosa desequilibre la economía.
 
+## Lo que esta plataforma NO protege
+
+Auditado inyectando cargas hostiles por cada entrada real, no leyendo el código.
+Lo que se encontró está arreglado y fijado con pruebas; lo que queda es
+deliberado, y conviene saberlo antes de repartir tablets.
+
+**El PIN es una barrera de aula, no seguridad.** El código se ejecuta en el
+navegador del niño: quien sepa abrir la consola lo lee. Sirve para que nadie
+entre por curiosidad, no contra alguien que quiera entrar. Y **cambiarlo desde
+el panel vale solo para ese equipo** —no puede viajar, porque los ajustes de la
+clase los leen los alumnos—, así que las demás tablets siguen con el de
+`js/config.js`. Si no lo has cambiado ahí, siguen con `1234`.
+
+**Las contraseñas del alumnado se guardan en claro en el equipo del docente.**
+Es lo que permite reimprimir la hoja de credenciales cuando un niño pierde la
+suya. No viajan a ninguna otra tablet ni a los ajustes compartidos, pero en un
+ordenador de sala de profesores están ahí. Si el equipo es compartido, usa un
+perfil de navegador propio.
+
+**Cerrar sesión no borra los diarios de la clase de ese equipo.** Borra el
+diario personal del dispositivo, no el archivo de la clase dirigida: es
+deliberado —el docente cierra sesión entre clases y no puede perder el trabajo
+del día— pero significa que en una tablet compartida los diarios siguen ahí.
+Para vaciarla del todo: *Configuración → Copia de seguridad*.
+
+**Quien pueda escribir en el documento de una clase escribe en las tablets de
+sus alumnos.** Los ajustes viajan de ahí a cada dispositivo. Lo que lo protege
+son los permisos por documento de Appwrite: ese documento pertenece a la cuenta
+del docente y nadie más puede tocarlo. Por eso la contraseña de esa cuenta es
+la llave de verdad de todo esto, y no el PIN.
+
+Lo que sí está cubierto, y probado: el texto que teclea cualquiera —docente,
+alumno o el resumen que sube el cliente de otro niño— se escapa al pintarlo; y
+ni la configuración compartida ni un diario que llegue de la nube pueden
+contaminar el prototipo de `Object`.
+
 ## Panel de Configuración
 
 **Portada → 🧔🏻‍♂️ Soy docente → ⚙️ Configurar la expedición** (pide el PIN). Ocho secciones:

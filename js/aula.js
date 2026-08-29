@@ -731,7 +731,7 @@ function paintClassView() {
      panel crea el diario al dar de alta la cuenta, las dos cosas dejaron de
      coincidir y contar documentos daba de alta a niños que no han entrado. */
   const empezados = typeof d.empezados === 'number' ? d.empezados : d.deLaLista;
-  const recuento = `<p class="class-meta">${clase ? clase + ' · ' : ''}${
+  const recuento = `<p class="class-meta">${clase ? esc(clase) + ' · ' : ''}${
     enLista ? `<strong>${empezados} de ${enLista}</strong> de la lista han empezado su diario${
         d.sinEstrenar ? ` · ${d.sinEstrenar} con la cuenta creada sin estrenar` : ''}${
         d.fueraDeLista ? ` · ${d.fueraDeLista} diario(s) más, fuera de la lista` : ''}`

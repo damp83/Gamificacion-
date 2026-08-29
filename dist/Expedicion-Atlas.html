@@ -4611,7 +4611,7 @@ const RANKS = [
    copia guardada. Sin este número, «ya está arreglado» y «a mí no me pasa» son
    indistinguibles. Va junto al nombre de la caché del service worker, y una
    prueba comprueba que no se separen. */
-const ATLAS_VERSION = 'v20';
+const ATLAS_VERSION = 'v21';
 
 const ATLAS_DEFAULTS = {
 
@@ -7928,7 +7928,10 @@ const $$ = sel => document.querySelectorAll(sel);
 function esc(t) {
   return String(t == null ? '' : t)
     .replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;')
-    .replace(/"/g, '&quot;');
+    /* Las dos comillas, no solo la doble: en esta base todos los atributos van
+       con comilla doble, pero el día que alguien escriba uno con simple el
+       escapado tiene que seguir valiendo. */
+    .replace(/"/g, '&quot;').replace(/'/g, '&#39;');
 }
 
 /* ── Iconos propios ──
@@ -8756,7 +8759,11 @@ function renderCamp() {
     : '<small>Aún sin equipo. ¡Visita el almacén!</small>';
 
   const scene = $('#camp-scene');
-  const campIcons = S.inventory.camp_items.map(id => (shopCatalog().find(i => i.id === id) || { icon: '📦' }).icon);
+  /* El icono lo teclea el docente en el almacén y viaja con los ajustes de la
+     clase: aquí se pintaba crudo, y solo se veía cuando el niño ya tenía
+     comprado ese mueble. */
+  const campIcons = S.inventory.camp_items.map(id =>
+    esc((shopCatalog().find(i => i.id === id) || { icon: '📦' }).icon));
   scene.innerHTML = `<div class="camp-scene-row">⛺ ${campIcons.join(' ')} ${S.inventory.treats_given > 0 ? '🐕' + '🦴'.repeat(Math.min(3, S.inventory.treats_given)) : '🐕'}</div>
     <small>${S.inventory.treats_given > 0 ? 'Tobías está feliz con sus golosinas.' : 'Tobías husmea buscando golosinas…'}</small>`;
 
@@ -9092,7 +9099,7 @@ function renderTeam() {
     </div>
 
     <div class="team-goal">
-      <strong>${t.goalLabel}</strong>
+      <strong>${esc(t.goalLabel)}</strong>
       <p class="team-goal-note">Toda la clase excava hacia la misma meta. Cada Doblón que ganas
       aporta un poco, y <em>no se descuenta de tu bolsa</em>: cooperar no cuesta nada.</p>
       <div class="mastery-bar"><div class="mastery-fill${pct >= 100 ? ' gold' : ''}" style="width:${pct}%"></div></div>
@@ -9104,7 +9111,9 @@ function renderTeam() {
     <div class="team-members">
       ${(team.members || []).map(m => {
         const me = m.trim().toLowerCase() === (S.profile.explorer_name || '').trim().toLowerCase();
-        return `<span class="team-member${me ? ' team-me' : ''}">${me ? '🧭 ' : '🧒 '}${m}${me ? ' (tú)' : ''}</span>`;
+        /* El nombre sale de la lista de clase, que el docente teclea y que
+           viaja con los ajustes: escapado como todo lo demás. */
+        return `<span class="team-member${me ? ' team-me' : ''}">${me ? '🧭 ' : '🧒 '}${esc(m)}${me ? ' (tú)' : ''}</span>`;
       }).join('')}
     </div>
 
@@ -9965,7 +9974,7 @@ function paintClassView() {
      panel crea el diario al dar de alta la cuenta, las dos cosas dejaron de
      coincidir y contar documentos daba de alta a niños que no han entrado. */
   const empezados = typeof d.empezados === 'number' ? d.empezados : d.deLaLista;
-  const recuento = `<p class="class-meta">${clase ? clase + ' · ' : ''}${
+  const recuento = `<p class="class-meta">${clase ? esc(clase) + ' · ' : ''}${
     enLista ? `<strong>${empezados} de ${enLista}</strong> de la lista han empezado su diario${
         d.sinEstrenar ? ` · ${d.sinEstrenar} con la cuenta creada sin estrenar` : ''}${
         d.fueraDeLista ? ` · ${d.fueraDeLista} diario(s) más, fuera de la lista` : ''}`
@@ -11624,16 +11633,16 @@ function cfgAcceso(body) {
     <p class="cfg-intro">Estado: <strong>${estado}</strong> · versión <strong>${esc(ATLAS_VERSION)}</strong></p>
     <p class="cfg-hint">Si la versión no coincide con la que se acaba de publicar, este navegador está
     sirviendo una copia guardada: recarga forzando (Ctrl+May+R, o mantén pulsado el botón de recargar).</p>
-    ${field('PIN del panel', `<input type="text" id="cfg-pin" value="${ATLAS_CONFIG.teacherPin}" maxlength="8" inputmode="numeric">`,
+    ${field('PIN del panel', `<input type="text" id="cfg-pin" value="${esc(ATLAS_CONFIG.teacherPin)}" maxlength="8" inputmode="numeric">`,
       'Barrera de aula, no seguridad real: el código se ejecuta en el navegador. ' +
       'OJO: cambiarlo aquí vale SOLO para este equipo. El PIN nunca viaja a las demás tablets ' +
       '—no puede, porque los ajustes del equipo los leen los alumnos— así que las otras siguen ' +
       'con el de js/config.js. Para cambiarlo en todas, cámbialo ahí y vuelve a publicar.')}
     <h4 class="cfg-h4">Appwrite</h4>
-    ${field('Endpoint', `<input type="text" id="cfg-aw-ep" value="${a.endpoint}" placeholder="https://cloud.appwrite.io/v1">`)}
-    ${field('Project ID', `<input type="text" id="cfg-aw-pid" value="${a.projectId}">`)}
-    ${field('Database ID', `<input type="text" id="cfg-aw-did" value="${a.databaseId}">`)}
-    ${field('Collection ID (diarios)', `<input type="text" id="cfg-aw-cid" value="${a.collectionId}">`)}
+    ${field('Endpoint', `<input type="text" id="cfg-aw-ep" value="${esc(a.endpoint)}" placeholder="https://cloud.appwrite.io/v1">`)}
+    ${field('Project ID', `<input type="text" id="cfg-aw-pid" value="${esc(a.projectId)}">`)}
+    ${field('Database ID', `<input type="text" id="cfg-aw-did" value="${esc(a.databaseId)}">`)}
+    ${field('Collection ID (diarios)', `<input type="text" id="cfg-aw-cid" value="${esc(a.collectionId)}">`)}
     ${field('Collection ID (aulas)', `<input type="text" id="cfg-aw-aid" value="${esc(a.aulasCollectionId || '')}">`,
       'Solo si quieres que varios docentes usen la plataforma con sus clases por separado. Cada clase pertenece a la cuenta de su docente y las demás no pueden leerla.')}
     ${field('Collection ID (configuración compartida)', `<input type="text" id="cfg-aw-ccid" value="${esc(a.configCollectionId || '')}">`,
@@ -12022,9 +12031,12 @@ function renderTeacherSignature() {
   const nombre = (ATLAS_CONFIG.teacherName || '').trim();
   const clase = (ATLAS_CONFIG.className || '').trim();
   if (!nombre && !clase) { el.classList.add('hidden'); return; }
+  /* Los dos los teclea el docente Y VIAJAN a cada tablet dentro de los ajustes
+     de la clase: sin escapar, lo que se escriba aquí se ejecuta en la portada
+     de todos los niños. */
   const partes = [];
-  if (clase) partes.push(`Clase de <strong>${clase}</strong>`);
-  if (nombre) partes.push(`Expedición dirigida por <strong>${nombre}</strong>`);
+  if (clase) partes.push(`Clase de <strong>${esc(clase)}</strong>`);
+  if (nombre) partes.push(`Expedición dirigida por <strong>${esc(nombre)}</strong>`);
   el.innerHTML = '🧭 ' + partes.join(' · ');
   el.classList.remove('hidden');
 }
