@@ -601,8 +601,13 @@ function paintClassView() {
   const enLista = d.enLista || 0;
   /* Antes, en modo local, este aviso sustituía al recuento: el docente añadía
      tres alumnos, veía una sola ficha y en ninguna parte se decía «1 de 3». */
+  /* «Han empezado» es haber abierto la app, no tener documento: desde que el
+     panel crea el diario al dar de alta la cuenta, las dos cosas dejaron de
+     coincidir y contar documentos daba de alta a niños que no han entrado. */
+  const empezados = typeof d.empezados === 'number' ? d.empezados : d.deLaLista;
   const recuento = `<p class="class-meta">${clase ? clase + ' · ' : ''}${
-    enLista ? `<strong>${d.deLaLista} de ${enLista}</strong> de la lista han empezado su diario${
+    enLista ? `<strong>${empezados} de ${enLista}</strong> de la lista han empezado su diario${
+        d.sinEstrenar ? ` · ${d.sinEstrenar} con la cuenta creada sin estrenar` : ''}${
         d.fueraDeLista ? ` · ${d.fueraDeLista} diario(s) más, fuera de la lista` : ''}`
             : `${d.students.length} explorador(es) con diario`} · datos al ${d.generatedAt}</p>`;
   /* Tres situaciones distintas, y decir la equivocada confunde más que callar:
@@ -693,7 +698,9 @@ function paintClassView() {
       </div>
       ${s.signals.length ? `<div class="student-signals">${s.signals.map(x => `<span class="signal-chip">${x}</span>`).join('')}</div>` : ''}
       ${s.stuck.length ? `<small class="student-stuck">Atascado en: ${esc(s.stuck.join(' · '))}</small>` : ''}
-      <small class="student-seen">Última expedición: ${esc(s.lastSeen || '—')}</small>
+      <small class="student-seen">${s.lastSeen
+        ? 'Última expedición: ' + esc(s.lastSeen)
+        : 'Cuenta creada · aún no ha entrado'}</small>
       ${s.tieneDiario ? `<div class="student-acciones">
         <button class="btn btn-secondary btn-small student-ver"
           data-ver="${esc(s.clave || s.id)}">${ico('lens')} Ver su cuaderno</button>

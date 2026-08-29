@@ -4562,7 +4562,7 @@ const RANKS = [
    copia guardada. Sin este número, «ya está arreglado» y «a mí no me pasa» son
    indistinguibles. Va junto al nombre de la caché del service worker, y una
    prueba comprueba que no se separen. */
-const ATLAS_VERSION = 'v16';
+const ATLAS_VERSION = 'v17';
 
 const ATLAS_DEFAULTS = {
 
@@ -5019,14 +5019,59 @@ async function cloudRegister(name, username, pass) {
 async function cloudCreateStudent(name, username, password) {
   if (!CLOUD.enabled) return { ok: false, reason: 'sin-nube' };
   try {
-    await CLOUD.account.create(Appwrite.ID.unique(), cloudEmail(username), password, name);
-    return { ok: true };
+    const u = await CLOUD.account.create(Appwrite.ID.unique(), cloudEmail(username), password, name);
+    /* El id hace falta para el paso siguiente: crear su diario ya dentro de
+       la clase. Es el ÚNICO momento en que se conoce. */
+    return { ok: true, id: u && u.$id };
   } catch (e) {
     const msg = (e && e.message) || '';
     if (/already exists/i.test(msg))       return { ok: false, reason: 'existe' };
     if (/Rate limit/i.test(msg))           return { ok: false, reason: 'ritmo' };
     if (/at least 8|password/i.test(msg))  return { ok: false, reason: 'contrasena' };
     if (/Invalid.*email/i.test(msg))       return { ok: false, reason: 'usuario' };
+    return { ok: false, reason: 'error', detail: msg };
+  }
+}
+
+/* ── El diario nace dentro de su clase ──
+   Un diario que crea el propio alumno desde su casa no puede saber de qué
+   clase es ni de quién: nace con permiso solo para él y con `aula` vacío, y
+   entonces el docente no lo ve —Appwrite no da error, simplemente no se lo
+   devuelve— ni la clase lo reconoce como suyo.
+
+   Aquí sí se sabe todo, porque lo llama el panel justo después de dar de alta
+   la cuenta: quién es el docente (la sesión), cuál es la clase (la activa) y
+   qué cuenta se acaba de crear (el id que devuelve el alta).
+
+   El id del documento es el del ALUMNO, que es donde su propia app va a
+   guardar después (cloudPush usa CLOUD.user.$id). Así el diario que el niño
+   estrena es este mismo, con su clase ya puesta, y no uno nuevo suelto. */
+async function cloudCrearDiarioDe(alumnoId, nombre, grado) {
+  if (!CLOUD.enabled || !CLOUD.user) return { ok: false, reason: 'sin-nube' };
+  if (!alumnoId) return { ok: false, reason: 'sin-id' };
+  const c = ATLAS_CONFIG.appwrite;
+  const docente = CLOUD.user.$id;
+  const aula = aulaActiva() || '';
+  try {
+    const estado = diarioSinEstrenar(nombre, grado);
+    const data = { state: JSON.stringify(estado), name: nombre, owner: docente };
+    try { data.summary = JSON.stringify(buildSummaryOf(estado)); } catch (e) { /* opcional */ }
+    if (aula) data.aula = aula;
+    await CLOUD.db.createDocument(c.databaseId, c.collectionId, alumnoId, data, [
+      /* El niño manda sobre su diario: lo lee y lo escribe. Borrarlo no, que
+         un despiste suyo no puede costarle el curso. */
+      Appwrite.Permission.read(Appwrite.Role.user(alumnoId)),
+      Appwrite.Permission.update(Appwrite.Role.user(alumnoId)),
+      /* Y su docente lo ve sin depender de ningún permiso de colección. */
+      Appwrite.Permission.read(Appwrite.Role.user(docente)),
+      Appwrite.Permission.update(Appwrite.Role.user(docente)),
+      Appwrite.Permission.delete(Appwrite.Role.user(docente))
+    ]);
+    return { ok: true, aula };
+  } catch (e) {
+    const msg = (e && e.message) || '';
+    if (/already exists/i.test(msg)) return { ok: false, reason: 'existe' };
+    if (/Unknown attribute/i.test(msg)) return { ok: false, reason: 'falta-columna', detail: msg };
     return { ok: false, reason: 'error', detail: msg };
   }
 }
@@ -5785,7 +5830,12 @@ function buildSummaryOf(S) {
     fundDonated: S.progression.fund_donated || 0,
     fragments: S.progression.atlas_fragments_recovered || 0,
     stuck: stuck.slice(0, 4),
-    lastSeen: todayStr(),
+    /* «Última expedición» es hoy porque este resumen lo escribe el propio
+       diario al guardarse, y guardar significa que el niño está jugando. La
+       excepción es el diario que crea el panel al dar de alta la cuenta: ese
+       no lo ha estrenado nadie y se queda sin fecha del día, para no decirle
+       al docente que ha entrado hoy alguien que no ha entrado nunca. */
+    lastSeen: (S.daily && S.daily.date) ? todayStr() : null,
     updated_at: Date.now()
   };
 }
@@ -6113,6 +6163,25 @@ function loadState() {
   } catch (e) { S = null; }
   return S;
 }
+/* ── Un diario que todavía no ha estrenado nadie ──
+   El panel lo crea al dar de alta la cuenta, para que nazca ya dentro de su
+   clase: en ese momento —y solo en ese— están juntas las tres cosas que hacen
+   falta (quién es el docente, cuál es la clase y qué cuenta se acaba de
+   crear). El alumno en su casa no sabe ninguna de las tres.
+
+   Se le quita la fecha del día. `defaultState` la pone a hoy porque da por
+   hecho que quien crea el diario es quien va a jugar, y aquí no: dejarla
+   haría que la vista de clase dijera «última expedición: hoy» de un niño que
+   no ha entrado nunca. Sin fecha, el primer arranque de verdad la pone —y
+   cobra su primer desembarco, que es lo correcto. */
+function diarioSinEstrenar(name, grade) {
+  const st = defaultState(name);
+  if (grade) st.profile.grade = grade;
+  st.daily.date = '';
+  st.updated_at = 0;   /* lo de la nube nunca gana a lo que el niño juegue */
+  return st;
+}
+
 function createState(name) {
   S = defaultState(name);
   saveState();
@@ -7669,10 +7738,16 @@ function buildClassOverview(entries, today) {
      contar diarios, porque puede haber diarios de quien no está en la lista
      (el docente probando, o un nombre escrito de otra forma). */
   const deLaLista = students.filter(s => enRoster.has(s.name.trim().toLowerCase())).length;
+  /* Tener diario y haber empezado dejaron de ser lo mismo el día que el panel
+     crea el diario al dar de alta la cuenta. Contar documentos diría «2 de 2
+     han empezado» de dos niños que no han abierto la app nunca. */
+  const sinEstrenar = students.filter(s => !s.lastSeen).length;
   return {
     students, kpis, teams, repasar, missing, generatedAt: day,
     enLista: roster.length,
     deLaLista,
+    empezados: students.filter(s => s.lastSeen && enRoster.has(s.name.trim().toLowerCase())).length,
+    sinEstrenar,
     fueraDeLista: students.length - deLaLista
   };
 }
@@ -9621,8 +9696,13 @@ function paintClassView() {
   const enLista = d.enLista || 0;
   /* Antes, en modo local, este aviso sustituía al recuento: el docente añadía
      tres alumnos, veía una sola ficha y en ninguna parte se decía «1 de 3». */
+  /* «Han empezado» es haber abierto la app, no tener documento: desde que el
+     panel crea el diario al dar de alta la cuenta, las dos cosas dejaron de
+     coincidir y contar documentos daba de alta a niños que no han entrado. */
+  const empezados = typeof d.empezados === 'number' ? d.empezados : d.deLaLista;
   const recuento = `<p class="class-meta">${clase ? clase + ' · ' : ''}${
-    enLista ? `<strong>${d.deLaLista} de ${enLista}</strong> de la lista han empezado su diario${
+    enLista ? `<strong>${empezados} de ${enLista}</strong> de la lista han empezado su diario${
+        d.sinEstrenar ? ` · ${d.sinEstrenar} con la cuenta creada sin estrenar` : ''}${
         d.fueraDeLista ? ` · ${d.fueraDeLista} diario(s) más, fuera de la lista` : ''}`
             : `${d.students.length} explorador(es) con diario`} · datos al ${d.generatedAt}</p>`;
   /* Tres situaciones distintas, y decir la equivocada confunde más que callar:
@@ -9713,7 +9793,9 @@ function paintClassView() {
       </div>
       ${s.signals.length ? `<div class="student-signals">${s.signals.map(x => `<span class="signal-chip">${x}</span>`).join('')}</div>` : ''}
       ${s.stuck.length ? `<small class="student-stuck">Atascado en: ${esc(s.stuck.join(' · '))}</small>` : ''}
-      <small class="student-seen">Última expedición: ${esc(s.lastSeen || '—')}</small>
+      <small class="student-seen">${s.lastSeen
+        ? 'Última expedición: ' + esc(s.lastSeen)
+        : 'Cuenta creada · aún no ha entrado'}</small>
       ${s.tieneDiario ? `<div class="student-acciones">
         <button class="btn btn-secondary btn-small student-ver"
           data-ver="${esc(s.clave || s.id)}">${ico('lens')} Ver su cuaderno</button>
@@ -10461,7 +10543,26 @@ function cfgAlumnado(body) {
       }
       log.innerHTML = lineas.concat([`⏳ Creando ${esc(r.name)}…`]).map(x => `<div>${x}</div>`).join('');
       const res = await cloudCreateStudent(r.name, r.username, r.password);
-      if (res.ok) { l[i].account = true; lineas.push(`✓ ${esc(r.name)} — cuenta creada`); ok++; }
+      if (res.ok) {
+        l[i].account = true; ok++;
+        /* La cuenta sola no basta: si el diario lo crea después el niño desde
+           su casa, nace sin clase y sin docente, y ya no hay forma de saber
+           de quién era. Se crea aquí, que es donde se sabe. */
+        const diario = await cloudCrearDiarioDe(res.id, r.name, r.grade);
+        if (diario.ok) {
+          lineas.push(`✓ ${esc(r.name)} — cuenta y diario creados${
+            diario.aula ? ', ya en esta clase' : ''}`);
+        } else if (diario.reason === 'existe') {
+          lineas.push(`✓ ${esc(r.name)} — cuenta creada (ya tenía diario)`);
+        } else if (diario.reason === 'falta-columna') {
+          lineas.push(`⚠️ ${esc(r.name)} — cuenta creada, pero el diario no: a la colección de
+            diarios le falta una columna (${esc(diario.detail || '')}). Revisa que estén «aula» y
+            «owner», escritas exactamente así.`);
+        } else {
+          lineas.push(`⚠️ ${esc(r.name)} — cuenta creada, pero su diario no ha podido asociarse a
+            la clase: ${esc(diario.detail || diario.reason || 'error')}`);
+        }
+      }
       else if (res.reason === 'existe') { l[i].account = true; lineas.push(`✓ ${esc(r.name)} — ya existía, se marca como creada`); ok++; }
       else {
         const motivo = { ritmo: 'Appwrite pide esperar un poco: vuelve a intentarlo en un minuto',

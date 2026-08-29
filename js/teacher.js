@@ -406,7 +406,26 @@ function cfgAlumnado(body) {
       }
       log.innerHTML = lineas.concat([`⏳ Creando ${esc(r.name)}…`]).map(x => `<div>${x}</div>`).join('');
       const res = await cloudCreateStudent(r.name, r.username, r.password);
-      if (res.ok) { l[i].account = true; lineas.push(`✓ ${esc(r.name)} — cuenta creada`); ok++; }
+      if (res.ok) {
+        l[i].account = true; ok++;
+        /* La cuenta sola no basta: si el diario lo crea después el niño desde
+           su casa, nace sin clase y sin docente, y ya no hay forma de saber
+           de quién era. Se crea aquí, que es donde se sabe. */
+        const diario = await cloudCrearDiarioDe(res.id, r.name, r.grade);
+        if (diario.ok) {
+          lineas.push(`✓ ${esc(r.name)} — cuenta y diario creados${
+            diario.aula ? ', ya en esta clase' : ''}`);
+        } else if (diario.reason === 'existe') {
+          lineas.push(`✓ ${esc(r.name)} — cuenta creada (ya tenía diario)`);
+        } else if (diario.reason === 'falta-columna') {
+          lineas.push(`⚠️ ${esc(r.name)} — cuenta creada, pero el diario no: a la colección de
+            diarios le falta una columna (${esc(diario.detail || '')}). Revisa que estén «aula» y
+            «owner», escritas exactamente así.`);
+        } else {
+          lineas.push(`⚠️ ${esc(r.name)} — cuenta creada, pero su diario no ha podido asociarse a
+            la clase: ${esc(diario.detail || diario.reason || 'error')}`);
+        }
+      }
       else if (res.reason === 'existe') { l[i].account = true; lineas.push(`✓ ${esc(r.name)} — ya existía, se marca como creada`); ok++; }
       else {
         const motivo = { ritmo: 'Appwrite pide esperar un poco: vuelve a intentarlo en un minuto',

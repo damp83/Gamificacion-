@@ -82,6 +82,7 @@ Cubren lo que ya se ha roto alguna vez, que es de donde salieron:
 | `cuentas.test.js` | Que el panel avise de una contraseña que Appwrite va a rechazar, y de que escribirla no crea la cuenta |
 | `cuaderno-docente.test.js` | Que la lectura pedagógica sobre un alumno solo se abra con el docente al mando |
 | `version.test.js` | Que el número de versión que lee el docente no se separe del de la caché |
+| `alta.test.js` | Que el diario de un alumno nazca ya dentro de su clase y con su docente |
 
 Lo que pide un navegador de verdad —que la página pinte, que un nombre hostil se
 vea como texto— no está aquí: eso se comprueba abriendo la app.
@@ -151,7 +152,11 @@ Sin configurar nada, la app funciona en **modo local**: cada tablet guarda su pr
 
 4. En **Settings** de la colección, activa **Document security**. Cada diario se crea con permisos solo para su dueño, así que ningún alumno puede leer el de otro.
 5. En **Permissions** de la colección, da permiso de **Create** al rol `users`. Es lo que permite a un alumno recién registrado crear su propio diario; leer, escribir y borrar quedan restringidos a su dueño por los permisos del documento.
-6. Crea un **equipo** llamado `docentes` (Auth → Teams), añádete a él, y en **Permissions** de esta colección dale **Read**. **Sin este paso la vista de clase sale vacía**, aunque el alumnado esté entrando y jugando.
+6. Añade dos atributos más: `aula` (String 64) y `owner` (String 64), **los dos opcionales**. Los rellena el panel al dar de alta cada alumno, y son lo que ata su diario a una clase y a un docente.
+
+   > **Cópialos con cuidado.** Si el nombre no coincide exactamente —`ower` en vez de `owner`, por ejemplo— Appwrite rechaza el documento con *Unknown attribute*. El panel lo dice ahora con todas las letras al crear las cuentas, pero es un rato perdido que se ahorra mirando dos veces.
+
+7. Crea un **equipo** llamado `docentes` (Auth → Teams), añádete a él, y en **Permissions** de esta colección dale **Read**. Hace falta para ver los diarios que **no** creó tu panel: los de quien se registró por su cuenta con «Soy nuevo», o los de antes de dar este paso. Los que crea el panel ya nacen con permiso de lectura para su docente.
 
    > Es el paso que más se olvida, y falla en silencio: un diario que tu cuenta no puede leer **no da error**. Appwrite responde con la lista vacía, exactamente igual que si no existiera ninguno, así que la pantalla dice «aún no ha empezado nadie» cuando lo que pasa es otra cosa.
    >
@@ -307,6 +312,8 @@ Cambia también `teacherPin`. Y ojo: **el PIN es una barrera de aula, no segurid
 Los niños escriben **usuario**, no email (más fácil a los 8–10 años). Internamente se convierte en `usuario@` + `usernameDomain`. Appwrite exige contraseñas de **8 caracteres como mínimo**, y el panel lo avisa en la propia ficha del alumno si te quedas corto.
 
 > **Escribir la contraseña en la lista de clase NO crea la cuenta.** La lista vive en el equipo; la cuenta hay que darla de alta en Appwrite con **Crear las cuentas**. Hasta que no se pulsa, ese alumno no puede entrar, y Appwrite responderá lo mismo que si la contraseña estuviera mal —lo hace a propósito, para que no se pueda averiguar quién tiene cuenta probando—. Por eso cada ficha dice lo que le falta.
+
+> **«Crear las cuentas» crea dos cosas, no una.** La cuenta de Appwrite y, con ella, el diario de ese alumno —ya dentro de la clase activa, con el docente como dueño y con permiso de lectura para él—. Es el único momento en que esa información está junta: el niño, desde su casa, no sabe de qué clase es ni de quién, así que un diario que se cree allí nace suelto y el docente no llega a verlo. Por eso conviene dar de alta desde el panel en vez de dejar que cada uno se registre con **Soy nuevo**.
 
 Las contraseñas que genera el panel son una palabra del mundo del juego más cuatro cifras (`brujula8845`), para que las pueda teclear un niño de ocho años en una tablet. Salen del generador criptográfico del navegador, no de `Math.random()`: el docente da de alta la clase entera de una tacada, y de unas pocas salidas seguidas de `Math.random()` se puede reconstruir su estado y predecir las demás — y la hoja de credenciales se reparte en clase. Lo que impide adivinarlas probando no es su tamaño, es el límite de intentos de Appwrite: igual que el PIN, esto es una barrera de aula.
 

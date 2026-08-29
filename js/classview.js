@@ -403,10 +403,16 @@ function buildClassOverview(entries, today) {
      contar diarios, porque puede haber diarios de quien no está en la lista
      (el docente probando, o un nombre escrito de otra forma). */
   const deLaLista = students.filter(s => enRoster.has(s.name.trim().toLowerCase())).length;
+  /* Tener diario y haber empezado dejaron de ser lo mismo el día que el panel
+     crea el diario al dar de alta la cuenta. Contar documentos diría «2 de 2
+     han empezado» de dos niños que no han abierto la app nunca. */
+  const sinEstrenar = students.filter(s => !s.lastSeen).length;
   return {
     students, kpis, teams, repasar, missing, generatedAt: day,
     enLista: roster.length,
     deLaLista,
+    empezados: students.filter(s => s.lastSeen && enRoster.has(s.name.trim().toLowerCase())).length,
+    sinEstrenar,
     fueraDeLista: students.length - deLaLista
   };
 }

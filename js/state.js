@@ -244,7 +244,12 @@ function buildSummaryOf(S) {
     fundDonated: S.progression.fund_donated || 0,
     fragments: S.progression.atlas_fragments_recovered || 0,
     stuck: stuck.slice(0, 4),
-    lastSeen: todayStr(),
+    /* «Última expedición» es hoy porque este resumen lo escribe el propio
+       diario al guardarse, y guardar significa que el niño está jugando. La
+       excepción es el diario que crea el panel al dar de alta la cuenta: ese
+       no lo ha estrenado nadie y se queda sin fecha del día, para no decirle
+       al docente que ha entrado hoy alguien que no ha entrado nunca. */
+    lastSeen: (S.daily && S.daily.date) ? todayStr() : null,
     updated_at: Date.now()
   };
 }
@@ -572,6 +577,25 @@ function loadState() {
   } catch (e) { S = null; }
   return S;
 }
+/* ── Un diario que todavía no ha estrenado nadie ──
+   El panel lo crea al dar de alta la cuenta, para que nazca ya dentro de su
+   clase: en ese momento —y solo en ese— están juntas las tres cosas que hacen
+   falta (quién es el docente, cuál es la clase y qué cuenta se acaba de
+   crear). El alumno en su casa no sabe ninguna de las tres.
+
+   Se le quita la fecha del día. `defaultState` la pone a hoy porque da por
+   hecho que quien crea el diario es quien va a jugar, y aquí no: dejarla
+   haría que la vista de clase dijera «última expedición: hoy» de un niño que
+   no ha entrado nunca. Sin fecha, el primer arranque de verdad la pone —y
+   cobra su primer desembarco, que es lo correcto. */
+function diarioSinEstrenar(name, grade) {
+  const st = defaultState(name);
+  if (grade) st.profile.grade = grade;
+  st.daily.date = '';
+  st.updated_at = 0;   /* lo de la nube nunca gana a lo que el niño juegue */
+  return st;
+}
+
 function createState(name) {
   S = defaultState(name);
   saveState();

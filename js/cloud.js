@@ -72,14 +72,59 @@ async function cloudRegister(name, username, pass) {
 async function cloudCreateStudent(name, username, password) {
   if (!CLOUD.enabled) return { ok: false, reason: 'sin-nube' };
   try {
-    await CLOUD.account.create(Appwrite.ID.unique(), cloudEmail(username), password, name);
-    return { ok: true };
+    const u = await CLOUD.account.create(Appwrite.ID.unique(), cloudEmail(username), password, name);
+    /* El id hace falta para el paso siguiente: crear su diario ya dentro de
+       la clase. Es el ÚNICO momento en que se conoce. */
+    return { ok: true, id: u && u.$id };
   } catch (e) {
     const msg = (e && e.message) || '';
     if (/already exists/i.test(msg))       return { ok: false, reason: 'existe' };
     if (/Rate limit/i.test(msg))           return { ok: false, reason: 'ritmo' };
     if (/at least 8|password/i.test(msg))  return { ok: false, reason: 'contrasena' };
     if (/Invalid.*email/i.test(msg))       return { ok: false, reason: 'usuario' };
+    return { ok: false, reason: 'error', detail: msg };
+  }
+}
+
+/* ── El diario nace dentro de su clase ──
+   Un diario que crea el propio alumno desde su casa no puede saber de qué
+   clase es ni de quién: nace con permiso solo para él y con `aula` vacío, y
+   entonces el docente no lo ve —Appwrite no da error, simplemente no se lo
+   devuelve— ni la clase lo reconoce como suyo.
+
+   Aquí sí se sabe todo, porque lo llama el panel justo después de dar de alta
+   la cuenta: quién es el docente (la sesión), cuál es la clase (la activa) y
+   qué cuenta se acaba de crear (el id que devuelve el alta).
+
+   El id del documento es el del ALUMNO, que es donde su propia app va a
+   guardar después (cloudPush usa CLOUD.user.$id). Así el diario que el niño
+   estrena es este mismo, con su clase ya puesta, y no uno nuevo suelto. */
+async function cloudCrearDiarioDe(alumnoId, nombre, grado) {
+  if (!CLOUD.enabled || !CLOUD.user) return { ok: false, reason: 'sin-nube' };
+  if (!alumnoId) return { ok: false, reason: 'sin-id' };
+  const c = ATLAS_CONFIG.appwrite;
+  const docente = CLOUD.user.$id;
+  const aula = aulaActiva() || '';
+  try {
+    const estado = diarioSinEstrenar(nombre, grado);
+    const data = { state: JSON.stringify(estado), name: nombre, owner: docente };
+    try { data.summary = JSON.stringify(buildSummaryOf(estado)); } catch (e) { /* opcional */ }
+    if (aula) data.aula = aula;
+    await CLOUD.db.createDocument(c.databaseId, c.collectionId, alumnoId, data, [
+      /* El niño manda sobre su diario: lo lee y lo escribe. Borrarlo no, que
+         un despiste suyo no puede costarle el curso. */
+      Appwrite.Permission.read(Appwrite.Role.user(alumnoId)),
+      Appwrite.Permission.update(Appwrite.Role.user(alumnoId)),
+      /* Y su docente lo ve sin depender de ningún permiso de colección. */
+      Appwrite.Permission.read(Appwrite.Role.user(docente)),
+      Appwrite.Permission.update(Appwrite.Role.user(docente)),
+      Appwrite.Permission.delete(Appwrite.Role.user(docente))
+    ]);
+    return { ok: true, aula };
+  } catch (e) {
+    const msg = (e && e.message) || '';
+    if (/already exists/i.test(msg)) return { ok: false, reason: 'existe' };
+    if (/Unknown attribute/i.test(msg)) return { ok: false, reason: 'falta-columna', detail: msg };
     return { ok: false, reason: 'error', detail: msg };
   }
 }
