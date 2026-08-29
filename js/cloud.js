@@ -129,6 +129,27 @@ async function cloudCrearDiarioDe(alumnoId, nombre, grado) {
   }
 }
 
+/* ── Traer el diario ENTERO de un alumno ──
+   La vista de clase baja solo el resumen (<1 KB por alumno) porque los lee
+   todos de una vez. Pero ver el cuaderno de un niño o escribir el informe de
+   su familia necesita el diario completo, y eso es UN alumno: ~20 KB pedidos
+   a propósito, no 20 KB × 25 en cada apertura de la pantalla. */
+async function cloudTraerDiario(docId) {
+  if (!CLOUD.enabled || !CLOUD.user) return { ok: false, reason: 'sin-nube' };
+  if (!docId) return { ok: false, reason: 'sin-id' };
+  const c = ATLAS_CONFIG.appwrite;
+  try {
+    const doc = await CLOUD.db.getDocument(c.databaseId, c.collectionId, docId);
+    const estado = JSON.parse(doc.state);
+    return { ok: true, estado, name: doc.name || (estado.profile && estado.profile.explorer_name) || '' };
+  } catch (e) {
+    if (/JSON|Unexpected token/i.test((e && e.message) || '')) {
+      return { ok: false, reason: 'ilegible', detail: 'El diario guardado no se puede leer.' };
+    }
+    return errorNube(e);
+  }
+}
+
 async function cloudLoadState() {
   const c = ATLAS_CONFIG.appwrite;
   try {

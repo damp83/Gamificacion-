@@ -106,3 +106,62 @@ test('consultar a un alumno que no está en el equipo no rompe nada', () => {
   assert.equal(ctx.ev('abrirDiarioLectura')('Nadie'), null);
   assert.equal(ctx.ev('enModoLectura()'), false, 'no se queda a medias en modo consulta');
 });
+
+/* ── Con el alumnado en su propio dispositivo ──
+   La vista de clase baja solo el resumen (<1 KB), así que el diario entero no
+   está en este equipo. Los dos botones que lo necesitan —ver el cuaderno y el
+   informe para la familia— dependían de que estuviera, así que en el modo en
+   que el alumnado entra con su cuenta no aparecían nunca. */
+function docenteConNube(doc) {
+  const ctx = cargarApp();
+  ctx.Appwrite = { Query: { limit: () => ({}) } };
+  const c = ctx.ev('ATLAS_CONFIG.appwrite');
+  c.databaseId = 'db'; c.collectionId = 'diarios';
+  const CLOUD = ctx.ev('CLOUD');
+  CLOUD.enabled = true;
+  CLOUD.user = { $id: 'docente1' };
+  CLOUD.db = { getDocument: async () => { if (doc instanceof Error) throw doc; return doc; } };
+  return ctx;
+}
+
+test('el diario de un alumno se trae de la nube cuando no está aquí', async () => {
+  const ctx = cargarApp();
+  const estado = ctx.ev('defaultState')('Nadia Roca');
+  const dctx = docenteConNube({ state: JSON.stringify(estado), name: 'Nadia Roca' });
+
+  const r = await dctx.ev('diarioCompletoDe')('alu7');
+  assert.equal(r.ok, true);
+  assert.equal(r.name, 'Nadia Roca');
+  assert.equal(r.estado.profile.explorer_name, 'Nadia Roca');
+});
+
+test('lo local gana: no se pide a la red lo que ya está aquí', async () => {
+  /* En clase dirigida los diarios viven en el equipo. Salir a la red por cada
+     ficha sería gastar la red del centro en algo que ya se tiene. */
+  const ctx = docenteConNube(new Error('no debería llamarse'));
+  ctx.ev('saveDiaries')({ 'vega serrano': ctx.ev('defaultState')('Vega Serrano') });
+  const r = await ctx.ev('diarioCompletoDe')('vega serrano');
+  assert.equal(r.ok, true);
+  assert.equal(r.name, 'Vega Serrano');
+});
+
+test('sin permiso para leerlo, se dice dónde mirar', async () => {
+  const ctx = docenteConNube(new Error('User (role: guest) missing scope / not authorized'));
+  const r = await ctx.ev('diarioCompletoDe')('alu7');
+  assert.equal(r.ok, false);
+  assert.match(r.texto, /Comprobar la conexión/);
+});
+
+test('consultar un diario traído de la nube tampoco lo toca', async () => {
+  /* La garantía de siempre, ahora también por este camino: mirar no escribe. */
+  const ctx = cargarApp();
+  const estado = ctx.ev('defaultState')('Nadia Roca');
+  ctx.__st = estado;
+  assert.ok(ctx.ev('abrirEstadoEnLectura(__st, "Nadia Roca")'));
+  assert.equal(ctx.ev('enModoLectura()'), true);
+  assert.equal(ctx.ev('S.profile.explorer_name'), 'Nadia Roca');
+
+  ctx.ev('S.progression.doubloons_balance = 99999');
+  ctx.ev('saveState()');
+  assert.deepEqual(Object.keys(ctx.ev('loadDiaries()')), [], 'no ha guardado nada en este equipo');
+});

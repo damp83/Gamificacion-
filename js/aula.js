@@ -701,7 +701,7 @@ function paintClassView() {
       <small class="student-seen">${s.lastSeen
         ? 'Última expedición: ' + esc(s.lastSeen)
         : 'Cuenta creada · aún no ha entrado'}</small>
-      ${s.tieneDiario ? `<div class="student-acciones">
+      ${(s.tieneDiario || (s.id && cloudEnabled() && cloudUser())) ? `<div class="student-acciones">
         <button class="btn btn-secondary btn-small student-ver"
           data-ver="${esc(s.clave || s.id)}">${ico('lens')} Ver su cuaderno</button>
         <button class="btn btn-secondary btn-small student-informe"
@@ -857,10 +857,12 @@ function informeFileName(estado) {
    Se ve exactamente lo que ve el niño: sus pestañas, su HUD, su mapa. Por eso
    se quita `teacher-mode`, que las esconde. Lo que NO se puede es jugar,
    comprar ni donar: eso está bloqueado en el motor, no solo escondido. */
-function entrarEnLectura(clave) {
-  const nombre = (loadDiaries()[clave] || {}).profile;
-  if (!nombre) { toast('No encuentro ese diario en este equipo.'); return; }
-  if (!abrirDiarioLectura(nombre.explorer_name)) { toast('No se ha podido abrir.'); return; }
+async function entrarEnLectura(clave) {
+  const r = await diarioCompletoDe(clave);
+  if (!r.ok) { toast(r.texto); return; }
+  if (!abrirEstadoEnLectura(r.estado, r.name || r.estado.profile.explorer_name)) {
+    toast('No se ha podido abrir.'); return;
+  }
 
   document.body.classList.remove('teacher-mode');
   document.body.classList.add('en-consulta');
@@ -883,16 +885,41 @@ function salirDeLectura() {
   showTeacherPortal();
 }
 
+/* ── El diario ENTERO de un alumno, esté donde esté ──
+   Dos sitios posibles y ninguno es opcional: en clase dirigida los diarios
+   viven en este equipo; con el alumnado entrando desde el suyo, viven en la
+   nube y aquí solo ha llegado el resumen. Ver el cuaderno y escribir el
+   informe necesitan el diario completo, así que se trae el de ESE alumno.
+   Uno, a propósito: bajarlos todos por si acaso son 20 KB × 25 cada vez que
+   se abre la pantalla. */
+async function diarioCompletoDe(clave) {
+  const diarios = loadDiaries();
+  const local = diarios[clave] || (S && diaryKey(S.profile.explorer_name) === clave ? S : null);
+  if (local) return { ok: true, estado: migrateState(local), name: local.profile.explorer_name };
+
+  if (!(cloudEnabled() && cloudUser())) {
+    return { ok: false, texto: 'No encuentro el diario de ese alumno en este equipo.' };
+  }
+  const r = await cloudTraerDiario(clave);
+  if (!r.ok) {
+    return { ok: false, texto: r.reason === 'sin-permiso'
+      ? 'Tu cuenta no puede leer ese diario. Míralo en Acceso y nube → Comprobar la conexión.'
+      : r.reason === 'ilegible' ? 'Ese diario está guardado en un formato que no se puede leer.'
+      : 'No se ha podido traer ese diario de la nube.' };
+  }
+  return { ok: true, estado: migrateState(r.estado), name: r.name };
+}
+
 /* Genera y descarga el informe de un alumno a partir de su diario completo. */
 async function descargarInforme(clave) {
-  const diarios = loadDiaries();
-  const estado = diarios[clave] || (S && diaryKey(S.profile.explorer_name) === clave ? S : null);
-  if (!estado) { toast('No encuentro el diario de ese alumno en este equipo.'); return; }
-  const st = migrateState(estado);
+  toast('Preparando el informe…');
+  const r = await diarioCompletoDe(clave);
+  if (!r.ok) { toast(r.texto); return; }
+  const st = r.estado;
   const html = informeFamilia(st, { clase: ATLAS_CONFIG.className });
   if (!html) { toast('No se ha podido generar el informe.'); return; }
-  const r = await guardarArchivo(informeFileName(st), html, 'text/html');
-  toast(r && r.ok === false
+  const guardado = await guardarArchivo(informeFileName(st), html, 'text/html');
+  toast(guardado && guardado.ok === false
     ? 'No se ha podido descargar. Prueba desde Configuración → Copia de seguridad.'
     : `Informe de ${st.profile.explorer_name} descargado ✓`);
 }

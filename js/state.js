@@ -346,8 +346,20 @@ function abrirDiarioLectura(nombre) {
      aquí no es el objeto guardado. Aun así, no se guarda. */
   const map = loadDiaries();
   if (!map[k]) return null;
-  S = migrateState(map[k]);
+  return abrirEstadoEnLectura(map[k], nombre);
+}
+
+/* El mismo modo consulta, pero sobre un diario que NO está en este equipo:
+   el que se acaba de traer de la nube. Con el alumnado entrando desde su
+   propio dispositivo, este es el único camino que hay. */
+function abrirEstadoEnLectura(estado, nombre) {
+  const k = diaryKey(nombre);
+  if (!k || !estado) return null;
+  S = migrateState(estado);
   S.profile.explorer_name = nombre;
+  /* Se deja apuntando a su clave aunque no exista aquí: si algún día alguien
+     lograra guardar con la bandera puesta, escribiría en el archivo de clase
+     bajo el nombre de ese niño y no encima del diario propio del equipo. */
   diarioActivo = k;
   LECTURA = true;
   return S;

@@ -531,6 +531,13 @@ En cada ficha, **👁 Ver su cuaderno** abre lo que ve ese niño: su HUD, su map
 su campamento, su bitácora y su cuaderno. Sirve para sentarse cinco minutos con
 él, o para preparar una reunión con su familia sin tener que imaginárselo.
 
+Funciona con el diario esté donde esté. En clase dirigida vive en este equipo;
+con el alumnado entrando desde el suyo, vive en la nube y aquí solo ha llegado
+su resumen, así que al pulsar se trae el diario **de ese alumno** —uno, a
+propósito: bajarlos todos por si acaso son 20 KB × 25 cada vez que se abre la
+pantalla—. Lo mismo vale para el informe a la familia, que también necesita el
+diario completo.
+
 Durante la consulta —y **solo** durante la consulta— aparece además la pestaña
 **📊 Docente**, con la lectura pedagógica de ese alumno: dificultad adaptativa,
 tiempo real de trabajo, dominio por estrato, lo que le está costando y las
