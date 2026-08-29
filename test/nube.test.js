@@ -79,3 +79,65 @@ test('sin SDK cargado el diagnóstico lo dice y no revienta', async () => {
   assert.equal(pasos[0].ok, false);
   assert.match(pasos[0].texto, /modo local/);
 });
+
+/* ── Un diario que no puedes leer no da error ──
+   Con seguridad por documento, Appwrite contesta con la lista vacía tanto si
+   no hay diarios como si los hay y no son tuyos. Es el punto exacto donde un
+   docente se queda atascado: el alumno entró, el diario existe, y la vista de
+   clase enseña cero sin decir nada. */
+test('con diarios legibles, el diagnóstico dice cuántos', async () => {
+  const ctx = cargarApp();
+  ctx.Appwrite = { Query: { limit: () => ({}) } };
+  const CLOUD = ctx.ev('CLOUD');
+  CLOUD.enabled = true;
+  CLOUD.user = { $id: 'd1', name: 'Diego' };
+  CLOUD.db = { listDocuments: async () => ({ total: 7, documents: [{}] }) };
+
+  const r = await ctx.ev('cloudContarDiarios')();
+  assert.equal(r.veredicto, 'lee');
+  assert.match(r.texto, /7 diario/);
+});
+
+test('con cero diarios se nombran las DOS causas, no una', async () => {
+  const ctx = cargarApp();
+  ctx.Appwrite = { Query: { limit: () => ({}) } };
+  const CLOUD = ctx.ev('CLOUD');
+  CLOUD.enabled = true;
+  CLOUD.user = { $id: 'd1', name: 'Diego' };
+  CLOUD.db = { listDocuments: async () => ({ total: 0, documents: [] }) };
+
+  const r = await ctx.ev('cloudContarDiarios')();
+  assert.equal(r.veredicto, 'cero');
+  assert.equal(r.aviso, true, 'ni un ✓ verde ni un ✘ de conexión: es un aviso');
+  assert.match(r.texto, /aún no haya ninguno/, 'la causa inocente');
+  assert.match(r.texto, /permiso/, 'y la que hay que arreglar');
+  assert.match(r.texto, /docentes/, 'con el equipo que lo resuelve');
+});
+
+test('sin sesión no se cuenta: no sería el número de nadie', async () => {
+  const ctx = cargarApp();
+  const pedidas = [];
+  ctx.Appwrite = { Query: { limit: () => ({}) } };
+  const CLOUD = ctx.ev('CLOUD');
+  CLOUD.enabled = true;
+  CLOUD.user = null;
+  CLOUD.db = { listDocuments: async (db, col) => { pedidas.push(col); return { total: 0, documents: [] }; } };
+
+  const pasos = await ctx.ev('cloudDiagnostico')();
+  assert.ok(!pasos.some(s => /puede leer/.test(s.texto)));
+  assert.equal(pedidas.filter(c => c === 'diarios').length, 1, 'una sola petición por colección');
+});
+
+test('el diagnóstico dice qué versión se está ejecutando', async () => {
+  /* Es la primera pregunta cuando algo «sigue pasando» después de arreglarlo. */
+  const ctx = cargarApp();
+  ctx.Appwrite = { Query: { limit: () => ({}) } };
+  const CLOUD = ctx.ev('CLOUD');
+  CLOUD.enabled = true;
+  CLOUD.db = { listDocuments: async () => ({ total: 0, documents: [] }) };
+
+  const pasos = await ctx.ev('cloudDiagnostico')();
+  const paso = pasos.find(s => /Versión/.test(s.que));
+  assert.ok(paso, 'hay un paso de versión');
+  assert.ok(paso.texto.startsWith(ctx.ev('ATLAS_VERSION')));
+});

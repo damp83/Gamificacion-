@@ -75,3 +75,28 @@ test('sin lista y sin diarios se dice qué falta, no un hueco', () => {
   assert.equal(d.missing.length, 0);
   assert.equal(d.enLista, 0);
 });
+
+/* ── Cero diarios con la nube puesta ──
+   Hay dos causas posibles y dan exactamente el mismo síntoma: que aún no haya
+   empezado nadie, o que los diarios existan y esta cuenta no pueda leerlos.
+   Appwrite responde con la lista vacía en los dos casos, así que afirmar la
+   primera es afirmar lo que no se sabe. */
+test('en clase dirigida se explica que el diario nace con el turno', () => {
+  const ctx = cargarApp();
+  const nota = ctx.ev('notaClaseVacia')('docente');
+  assert.match(nota, /Dirigir la clase/);
+  assert.ok(!/permiso/i.test(nota), 'sin cuentas de alumno no hay problema de permisos que contar');
+});
+
+test('con alumnado por su cuenta se nombra también el permiso que falta', () => {
+  const nota = cargarApp().ev('notaClaseVacia')('alumno');
+  assert.match(nota, /no puede leer/, 'la causa que deja atascado');
+  assert.match(nota, /docentes/, 'el equipo que lo resuelve');
+  assert.match(nota, /Read/, 'y el permiso concreto');
+});
+
+test('el modo «ambos» cuenta lo mismo que el de alumno', () => {
+  /* Con las dos puertas abiertas, la causa del permiso sigue existiendo. */
+  const ctx = cargarApp();
+  assert.equal(ctx.ev('notaClaseVacia')('ambos'), ctx.ev('notaClaseVacia')('alumno'));
+});

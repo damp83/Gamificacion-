@@ -1173,7 +1173,9 @@ function cfgAcceso(body) {
     : (cloudEnabled() ? (cloudUser() ? 'Conectado. Sesión iniciada.' : 'Conectado. Sin sesión.')
                       : 'Configurado, pero el SDK de Appwrite no ha cargado.');
   body.innerHTML = `
-    <p class="cfg-intro">Estado: <strong>${estado}</strong></p>
+    <p class="cfg-intro">Estado: <strong>${estado}</strong> · versión <strong>${esc(ATLAS_VERSION)}</strong></p>
+    <p class="cfg-hint">Si la versión no coincide con la que se acaba de publicar, este navegador está
+    sirviendo una copia guardada: recarga forzando (Ctrl+May+R, o mantén pulsado el botón de recargar).</p>
     ${field('PIN del panel', `<input type="text" id="cfg-pin" value="${ATLAS_CONFIG.teacherPin}" maxlength="8" inputmode="numeric">`,
       'Barrera de aula, no seguridad real: el código se ejecuta en el navegador. ' +
       'OJO: cambiarlo aquí vale SOLO para este equipo. El PIN nunca viaja a las demás tablets ' +
@@ -1215,8 +1217,11 @@ function cfgAcceso(body) {
     try { pasos = await cloudDiagnostico(); }
     catch (e) { pasos = [{ que: 'Comprobación', ok: false, texto: (e && e.message) || 'Ha fallado.' }]; }
     boton.disabled = false;
+    /* Tres estados, no dos: hay un caso —«tu cuenta no ve ningún diario»— que
+       no es un fallo de conexión y tampoco es que todo vaya bien. Con un ✓
+       verde al lado, la línea que hay que leer es la que no se lee. */
     caja.innerHTML = pasos.map(s =>
-      `<div>${s.ok ? '✓' : '✘'} <strong>${esc(s.que)}</strong> — ${esc(s.texto)}</div>`).join('');
+      `<div>${s.aviso ? '⚠️' : s.ok ? '✓' : '✘'} <strong>${esc(s.que)}</strong> — ${esc(s.texto)}</div>`).join('');
   });
 }
 

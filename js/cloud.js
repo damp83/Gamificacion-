@@ -525,6 +525,28 @@ async function cloudSondearColeccion(id) {
   } catch (e) { return interpretarSondeo(e); }
 }
 
+/* ── Cuántos diarios ve ESTA cuenta ──
+   Con seguridad por documento, un diario que no puedes leer no da error: la
+   consulta responde bien y con la lista vacía. Para el docente eso es
+   indistinguible de «todavía no ha empezado nadie», y es exactamente el punto
+   donde se queda atascado. Aquí al menos se convierte en un número. */
+async function cloudContarDiarios() {
+  const c = ATLAS_CONFIG.appwrite;
+  try {
+    const res = await CLOUD.db.listDocuments(c.databaseId, c.collectionId, [Appwrite.Query.limit(1)]);
+    const n = Number(res.total);
+    const cuantos = Number.isFinite(n) ? n : res.documents.length;
+    if (cuantos > 0) {
+      return { ok: true, veredicto: 'lee', texto: `Tu cuenta puede leer ${cuantos} diario(s).` };
+    }
+    return { ok: true, aviso: true, veredicto: 'cero', texto:
+      'Tu cuenta no ve ningún diario. Puede ser que aún no haya ninguno, o que existan y tu '
+      + 'cuenta no tenga permiso para leerlos: Appwrite no distingue las dos cosas, responde '
+      + 'con la lista vacía en las dos. Si algún alumno ya ha entrado, es lo segundo: en la '
+      + 'consola, colección de diarios → Permissions → Read para el equipo «docentes».' };
+  } catch (e) { return interpretarSondeo(e); }
+}
+
 async function cloudDiagnostico() {
   const c = ATLAS_CONFIG.appwrite;
   const pasos = [];
@@ -543,7 +565,15 @@ async function cloudDiagnostico() {
     ? { ok: true, texto: `Iniciada como ${CLOUD.user.name || CLOUD.user.email || CLOUD.user.$id}.` }
     : { ok: true, texto: 'Sin sesión. Algunas comprobaciones dirán «no puede listarla»: es normal.' });
 
-  anotar(`Diarios («${c.collectionId}»)`, await cloudSondearColeccion(c.collectionId));
+  anotar('Versión de la app', { ok: true, texto:
+    `${ATLAS_VERSION}. Si aquí sale una versión vieja, el navegador está sirviendo una copia `
+    + 'guardada: recarga forzando (Ctrl+May+R, o mantén pulsado el botón de recargar).' });
+
+  /* Con sesión se cuenta, que dice más y cuesta la misma petición: si la
+     colección no existiera o no hubiera red, el conteo lo interpreta igual. */
+  anotar(`Diarios («${c.collectionId}»)`, CLOUD.user
+    ? await cloudContarDiarios()
+    : await cloudSondearColeccion(c.collectionId));
   if (c.aulasCollectionId) anotar(`Aulas («${c.aulasCollectionId}»)`, await cloudSondearColeccion(c.aulasCollectionId));
   if (c.configCollectionId) anotar(`Configuración («${c.configCollectionId}»)`, await cloudSondearColeccion(c.configCollectionId));
   return pasos;

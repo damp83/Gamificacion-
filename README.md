@@ -81,6 +81,7 @@ Cubren lo que ya se ha roto alguna vez, que es de donde salieron:
 | `vista-vacia.test.js` | Que la vista de clase sin diarios diga quién falta y qué le falta, en vez de dejar huecos |
 | `cuentas.test.js` | Que el panel avise de una contraseña que Appwrite va a rechazar, y de que escribirla no crea la cuenta |
 | `cuaderno-docente.test.js` | Que la lectura pedagógica sobre un alumno solo se abra con el docente al mando |
+| `version.test.js` | Que el número de versión que lee el docente no se separe del de la caché |
 
 Lo que pide un navegador de verdad —que la página pinte, que un nombre hostil se
 vea como texto— no está aquí: eso se comprueba abriendo la app.
@@ -150,6 +151,13 @@ Sin configurar nada, la app funciona en **modo local**: cada tablet guarda su pr
 
 4. En **Settings** de la colección, activa **Document security**. Cada diario se crea con permisos solo para su dueño, así que ningún alumno puede leer el de otro.
 5. En **Permissions** de la colección, da permiso de **Create** al rol `users`. Es lo que permite a un alumno recién registrado crear su propio diario; leer, escribir y borrar quedan restringidos a su dueño por los permisos del documento.
+6. Crea un **equipo** llamado `docentes` (Auth → Teams), añádete a él, y en **Permissions** de esta colección dale **Read**. **Sin este paso la vista de clase sale vacía**, aunque el alumnado esté entrando y jugando.
+
+   > Es el paso que más se olvida, y falla en silencio: un diario que tu cuenta no puede leer **no da error**. Appwrite responde con la lista vacía, exactamente igual que si no existiera ninguno, así que la pantalla dice «aún no ha empezado nadie» cuando lo que pasa es otra cosa.
+   >
+   > Los alumnos siguen sin poder leerse entre ellos: el permiso de lectura de la colección es solo para el equipo docente; ellos únicamente tienen el de su propio documento.
+   >
+   > Para comprobarlo: *Configuración → Acceso y nube → **Comprobar la conexión*** dice cuántos diarios ve tu cuenta ahora mismo.
 
 ### 3. Colección de configuración compartida (opcional)
 

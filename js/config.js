@@ -6,6 +6,13 @@
    semilla y el botón de «restaurar todo».
    ═══════════════════════════════════════════════════════════ */
 
+/* Versión de la app publicada. Sirve para una cosa concreta: un docente que ve
+   un comportamiento viejo necesita saber si su navegador le está sirviendo una
+   copia guardada. Sin este número, «ya está arreglado» y «a mí no me pasa» son
+   indistinguibles. Va junto al nombre de la caché del service worker, y una
+   prueba comprueba que no se separen. */
+const ATLAS_VERSION = 'v16';
+
 const ATLAS_DEFAULTS = {
 
   /* ── Appwrite: cuentas y guardado en la nube ──

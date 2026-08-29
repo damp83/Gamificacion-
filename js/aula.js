@@ -566,6 +566,33 @@ function classErrorHtml(res) {
   </div>`;
 }
 
+/* ── Nube puesta y cero diarios ──
+   Antes no se decía nada, y es justo el momento en que el docente no sabe si
+   se ha equivocado. Va aparte porque el texto es la mitad del arreglo y así
+   se puede probar sin pintar. */
+function notaClaseVacia(modo) {
+  if (modo === 'docente') {
+    return `<div class="class-note">${ico('mic')} <strong>Aún no ha empezado nadie.</strong> Esta clase está en
+      <em>dirigida por el docente</em>: el diario de cada alumno se crea la primera vez que le das un
+      turno desde <em>Dirigir la clase</em>. No hacen falta cuentas para eso.</div>`;
+  }
+  /* Con el alumnado entrando por su cuenta hay una segunda causa, y es la que
+     deja atascado a un docente: un diario que su cuenta no puede leer NO da
+     error. Appwrite contesta con la lista vacía, igual que si no existiera.
+     Decir solo «aún no ha empezado nadie» es afirmar lo que no se sabe. */
+  return `<div class="class-note">${ico('explorer')} <strong>Aquí no aparece ningún diario.</strong> Los
+    diarios salen en cuanto el alumnado entre con su cuenta; las cuentas se crean en
+    Configuración → Alumnado.
+    <br><br><strong>Pero si alguno ya ha entrado y aun así no está, es un permiso que falta.</strong>
+    Un diario que tu cuenta no puede leer no da error: Appwrite contesta con la lista vacía, igual
+    que si no existiera. Cada alumno crea el suyo con permiso solo para él —eso es lo correcto, así
+    ninguno lee el de otro— y tu cuenta necesita el suyo aparte:
+    <br>en la consola de Appwrite, <strong>Auth → Teams</strong>, crea el equipo <code>docentes</code>
+    y añádete; luego en la colección de diarios, <strong>Settings → Permissions → Add role →
+    Team «docentes» → Read</strong>. Cierra sesión y vuelve a entrar. <em>Comprobar la conexión</em>,
+    en Acceso y nube, te dice cuántos diarios ve tu cuenta ahora mismo.</div>`;
+}
+
 function paintClassView() {
   const d = classData;
   $('#class-body').classList.remove('hidden');
@@ -595,15 +622,7 @@ function paintClassView() {
     nota = `<div class="class-note">${ico('phone')} <strong>Todavía no hay ningún diario.</strong> Empieza una sesión
       desde <em>Dirigir la clase</em> y se irá creando el de cada alumno al que preguntes.</div>`;
   } else if (!d.students.length) {
-    /* Con la nube puesta y cero diarios no se decía absolutamente nada, y es
-       justo el momento en que el docente no sabe si ha hecho algo mal. */
-    nota = ATLAS_CONFIG.sessionMode === 'docente'
-      ? `<div class="class-note">${ico('mic')} <strong>Aún no ha empezado nadie.</strong> Esta clase está en
-         <em>dirigida por el docente</em>: el diario de cada alumno se crea la primera vez que le das un
-         turno desde <em>Dirigir la clase</em>. No hacen falta cuentas para eso.</div>`
-      : `<div class="class-note">${ico('explorer')} <strong>Aún no ha empezado nadie.</strong> Los diarios
-         aparecerán aquí en cuanto el alumnado entre con su cuenta. Las cuentas se crean en
-         Configuración → Alumnado.</div>`;
+    nota = notaClaseVacia(ATLAS_CONFIG.sessionMode);
   }
   classStatus(recuento + nota);
 
