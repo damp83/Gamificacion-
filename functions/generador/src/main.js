@@ -55,11 +55,19 @@ export default async ({ req, res, log, error }) => {
     return res.json({ ok: false, reason: 'materia', texto: 'Materia no reconocida.' }, 400);
   }
 
-  const clave = process.env.ANTHROPIC_API_KEY;
+  /* ── La clave ──
+     Manda la del docente, que llega en la petición desde SU panel: así cada
+     uno paga lo suyo y no hay una factura común del centro. La variable de
+     entorno queda como reserva para quien no tenga clave propia.
+
+     La clave no se registra ni se devuelve NUNCA. `log()` en Appwrite queda
+     guardado en la ejecución y lo lee cualquiera con acceso a la consola. */
+  const clave = (typeof p.clave === 'string' && p.clave.trim()) || process.env.ANTHROPIC_API_KEY;
   if (!clave) {
-    error('ANTHROPIC_API_KEY sin configurar en la función');
+    error('sin clave: ni en la petición ni en ANTHROPIC_API_KEY');
     return res.json({ ok: false, reason: 'sin-clave',
-      texto: 'La función no tiene clave de API configurada. Se pone en Appwrite → Functions → Settings → Variables.' }, 500);
+      texto: 'No hay clave de API. Pon la tuya en Configuración → Retos con IA, o pide que se '
+           + 'configure ANTHROPIC_API_KEY en la función.' }, 400);
   }
   const client = new Anthropic({ apiKey: clave });
 
@@ -114,10 +122,13 @@ export default async ({ req, res, log, error }) => {
     });
 
   } catch (e) {
-    error('fallo generando: ' + (e && e.message));
+    /* Si la clave se colara en el texto de un error, saldría en la consola de
+       Appwrite y en la pantalla del docente. Se tapa antes de mirarla. */
+    const sinClave = t => String(t || '').split(clave).join('sk-ant-…');
+    error('fallo generando: ' + sinClave(e && e.message));
     /* Se distingue lo que arregla el docente de lo que no: «vuelve a
        intentarlo» sobre una clave caducada es mandarle a dar vueltas. */
-    const m = (e && e.message) || '';
+    const m = sinClave((e && e.message) || '');
     if (/401|authentication|api key/i.test(m)) {
       return res.json({ ok: false, reason: 'clave', texto: 'La clave de la API no vale o ha caducado.' }, 500);
     }

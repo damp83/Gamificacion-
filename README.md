@@ -489,8 +489,22 @@ revisión**. De ahí lo apruebas, cambias la pregunta o lo descartas. **Nada ent
 en el banco sin que lo leas**, igual que con los acertijos que inventan los
 niños.
 
-Instrucciones de despliegue: **`functions/generador/README.md`**. Ojo con el
-tiempo máximo de la función: de fábrica son 15 segundos y hacen falta 300.
+**Cómo desplegarlo, paso a paso: [`GUIA-GENERADOR.md`](GUIA-GENERADOR.md).**
+Quince minutos. Los detalles técnicos, en `functions/generador/README.md`.
+
+> Ojo con el tiempo máximo de la función: de fábrica son 15 segundos y hacen
+> falta 300. Es donde se atasca todo el mundo.
+
+**La clave de la API la pone cada docente en su panel** y se queda en su
+navegador: no viaja a las tablets ni entra en la copia de seguridad, que se
+lleva en un pincho y se manda por correo. Se le pasa a la función en cada
+petición y allí no se guarda, así que **cada uno paga lo suyo** en vez de
+compartir una factura. Quien no tenga la suya usa la del centro, si quien montó
+la función puso una en su variable de entorno.
+
+> Crea la clave con **límite de gasto**. Una clave en un ordenador de sala de
+> profesores está ahí para quien se siente después; con techo, lo peor que
+> puede pasar lo tiene.
 
 El currículo y la cola **se quedan en tu equipo**: son decenas de miles de
 caracteres que a un niño no le sirven, y un borrador sin aprobar no se enseña.

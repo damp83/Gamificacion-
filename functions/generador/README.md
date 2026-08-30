@@ -45,11 +45,18 @@ nada que se sirva al navegador.
    - Entrypoint: `src/main.js`
    - Build command: `npm install`
 
-3. **Settings → Variables**, añade:
+3. **La clave de la API.** Hay dos formas y no son excluyentes:
 
-   | Variable | Valor |
-   |---|---|
-   | `ANTHROPIC_API_KEY` | Tu clave de console.anthropic.com |
+   - **Cada docente la suya** (recomendado en un claustro): no se toca nada
+     aquí. Cada uno pega su clave en *Configuración → Retos con IA*, se queda
+     en su navegador, y **cada uno paga lo suyo**. La app se la manda a la
+     función en cada petición y la función no la guarda.
+   - **Una del centro**, para quien no tenga la suya: *Settings → Variables*
+     → `ANTHROPIC_API_KEY`. Se usa solo cuando el docente no ha puesto ninguna.
+
+   > Crea las claves con **límite de gasto** en console.anthropic.com. Una
+   > clave en un ordenador de sala de profesores está ahí para quien se siente
+   > después; con techo, lo peor que puede pasar tiene un tope.
 
 4. **Settings → Execute access**: marca **Users**. Así solo ejecuta quien tiene
    sesión; con `Any` la URL queda abierta a cualquiera.

@@ -11,7 +11,7 @@
    copia guardada. Sin este número, «ya está arreglado» y «a mí no me pasa» son
    indistinguibles. Va junto al nombre de la caché del service worker, y una
    prueba comprueba que no se separen. */
-const ATLAS_VERSION = 'v25';
+const ATLAS_VERSION = 'v26';
 
 const ATLAS_DEFAULTS = {
 
@@ -47,6 +47,16 @@ const ATLAS_DEFAULTS = {
   /* Los alumnos entran con USUARIO, no con email (más fácil a los 8-10
      años). Internamente se convierte en usuario@<este dominio>. */
   usernameDomain: 'expedicion-atlas.app',
+
+  /* ── Clave de la API para el generador de retos ──
+     La pone cada docente en su panel y se queda en SU navegador: no viaja a
+     las tablets del alumnado (va en NO_SE_COMPARTE) ni entra en la copia de
+     seguridad, que se lleva en un pincho y se manda por correo. Se le pasa a
+     la función de Appwrite en cada petición y allí no se guarda.
+
+     Así cada docente paga lo suyo. Si se deja vacía, la función usa la clave
+     del centro que tenga en su variable de entorno, si la hay. */
+  iaClave: '',
 
   /* PIN del panel del docente. Este es el que llevan TODAS las tablets: el que
      se cambia desde el panel vale solo para ese equipo, porque el PIN no viaja
@@ -346,7 +356,7 @@ function configEditadaEnLocal() {
    decenas de miles de caracteres que a un niño no le sirven de nada y que
    viajarían a las veinticinco tablets en cada apertura de clase; la cola es un
    borrador del docente, y lo que está sin aprobar no se enseña. */
-const NO_SE_COMPARTE = ['appwrite', 'teacherPin', 'curriculo', 'iaCola'];
+const NO_SE_COMPARTE = ['appwrite', 'teacherPin', 'curriculo', 'iaCola', 'iaClave'];
 
 function configParaCompartir() {
   const o = deepClone(ATLAS_OVERLAY);

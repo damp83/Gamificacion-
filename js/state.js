@@ -479,13 +479,19 @@ function exportBackup() {
     const raw = localStorage.getItem(STORAGE_KEY);
     if (raw) propio = JSON.parse(raw);
   } catch (e) { /* sin diario propio, o ilegible */ }
+  /* La clave de la API se queda fuera. Las contraseñas del alumnado sí van
+     —restaurar una copia tiene que devolver la clase entera, y esa es la
+     gracia—, pero una clave con saldo es otra cosa: la copia se lleva en un
+     pincho y se manda por correo, y ahí una clave viva no puede ir. */
+  const ajustes = deepClone(ATLAS_OVERLAY);
+  delete ajustes.iaClave;
   return {
     atlas: BACKUP_MARCA,
     v: BACKUP_VERSION,
     fecha: new Date().toISOString(),
     docente: ATLAS_CONFIG.teacherName || '',
     clase: ATLAS_CONFIG.className || '',
-    ajustes: deepClone(ATLAS_OVERLAY),
+    ajustes,
     diarios: loadDiaries(),
     diarioPropio: propio
   };

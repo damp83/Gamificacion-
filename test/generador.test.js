@@ -397,3 +397,54 @@ test('al servirse del banco, las opciones se barajan sin perder la correcta', ()
   }
   assert.ok(posiciones.size > 1, 'la correcta no cae siempre en el mismo sitio');
 });
+
+/* ── La clave del docente ──
+   Está en su navegador para que cada uno pague lo suyo. Lo que se prueba aquí
+   es que de ahí no salga a ninguno de los tres sitios donde no puede estar. */
+const CLAVE = 'sk-ant-api03-' + 'x'.repeat(40);
+
+test('la clave no viaja a las tablets del alumnado', () => {
+  const c = cargarApp();
+  c.ev('setTeacherConfig')('iaClave', CLAVE);
+  const paquete = c.ev('configParaCompartir()');
+  assert.equal(paquete.iaClave, undefined);
+  assert.ok(!JSON.stringify(paquete).includes(CLAVE));
+});
+
+test('la clave no entra en la copia de seguridad', () => {
+  /* La copia se lleva en un pincho y se manda por correo. Las contraseñas del
+     alumnado sí van —restaurar tiene que devolver la clase entera— pero una
+     clave con saldo es otra cosa. */
+  const c = cargarApp();
+  c.ev('setTeacherConfig')('iaClave', CLAVE);
+  c.ev('setTeacherConfig')('roster', [{ name: 'Vega', username: 'vega', password: 'secreta123' }]);
+  const copia = c.ev('exportBackup()');
+  assert.ok(!JSON.stringify(copia).includes(CLAVE), 'la clave se queda fuera');
+  assert.ok(JSON.stringify(copia).includes('secreta123'), 'las contraseñas sí van: es la gracia de la copia');
+});
+
+test('guardar la clave en el panel no la deja a la vista', () => {
+  const c = cargarApp();
+  const tapada = c.ev('claveEnmascarada')(CLAVE);
+  assert.ok(!tapada.includes('xxxxx'), 'no se enseña el cuerpo de la clave');
+  assert.match(tapada, /^sk-ant-api0…/, 'se ve el principio, para saber que es de Anthropic');
+  assert.match(tapada, /xxxx$/, 'los últimos cuatro, para reconocer cuál es');
+  assert.ok(tapada.length < 20);
+});
+
+test('la clave se manda a la función y la función la prefiere a la del centro', () => {
+  const cloud = leer('js/cloud.js');
+  assert.match(cloud, /cuerpo\.clave = clave/, 'el cliente la manda en la petición');
+  const main = leer('functions/generador/src/main.js');
+  assert.match(main, /p\.clave.*\|\|.*process\.env\.ANTHROPIC_API_KEY/,
+    'la del docente manda; la del centro es la reserva');
+});
+
+test('la función no puede escupir la clave en un error ni en su registro', () => {
+  /* `log()` de Appwrite queda guardado en la ejecución y lo lee cualquiera con
+     acceso a la consola. */
+  const main = leer('functions/generador/src/main.js');
+  assert.match(main, /const sinClave = t => String\(t \|\| ''\)\.split\(clave\)/);
+  assert.match(main, /error\('fallo generando: ' \+ sinClave/);
+  assert.match(main, /const m = sinClave\(/);
+});

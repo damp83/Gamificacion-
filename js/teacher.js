@@ -1113,6 +1113,13 @@ let iaEstado = '';          /* lo que se le dice al docente mientras trabaja */
 let iaGenerando = false;
 let iaDescartados = [];     /* lo que se tiró en la última tanda, con el motivo */
 
+/* Lo justo para reconocer cuál es sin enseñarla: nadie tiene que leer una
+   clave entera en la pantalla de un ordenador compartido. */
+function claveEnmascarada(v) {
+  const t = String(v || '');
+  return t.length < 14 ? 'sk-ant-…' : t.slice(0, 11) + '…' + t.slice(-4);
+}
+
 function iaCola() { return Array.isArray(ATLAS_CONFIG.iaCola) ? ATLAS_CONFIG.iaCola : []; }
 function iaCurriculo(materia) { return (ATLAS_CONFIG.curriculo || {})[materia] || ''; }
 
@@ -1135,6 +1142,7 @@ function cfgIA(body) {
   const pozos = iaPozos();
   const nube = cloudConfigured() && cloudEnabled();
   const conFuncion = !!(ATLAS_CONFIG.appwrite.generadorFunctionId || '').trim();
+  const clave = (ATLAS_CONFIG.iaClave || '').trim();
 
   body.innerHTML = `
     <p class="cfg-intro">Escribe retos a partir de <strong>tu</strong> currículo y los deja aquí para que
@@ -1145,7 +1153,20 @@ function cfgIA(body) {
       : !conFuncion ? `<p class="cfg-warn">Falta el <strong>Function ID</strong> del generador, en
         «Acceso y nube». Cómo desplegar la función: <code>functions/generador/README.md</code>.</p>` : ''}
 
-    <h4 class="cfg-h4">1. El currículo</h4>
+    <h4 class="cfg-h4">1. Tu clave de la API</h4>
+    <p class="cfg-hint">Se queda en <strong>este</strong> navegador: no viaja a las tablets del alumnado
+    ni entra en la copia de seguridad. Se le pasa a la función en cada petición y allí no se guarda.
+    Así <strong>cada docente paga lo suyo</strong> en vez de compartir una factura.</p>
+    ${clave ? `<div class="cfg-equipo cfg-equipo-ok">Clave guardada: <code>${esc(claveEnmascarada(clave))}</code></div>
+      <button class="btn btn-quit btn-small" id="ia-quitar-clave">Quitar la clave de este equipo</button>`
+      : `${field('Clave', `<input type="password" id="ia-clave" autocomplete="off"
+           placeholder="sk-ant-…" spellcheck="false">`,
+          'De console.anthropic.com → API keys. Créala con LÍMITE DE GASTO: en un ordenador compartido, ' +
+          'lo peor que puede pasar conviene que tenga techo.')}
+         <button class="btn btn-secondary btn-small" id="ia-guardar-clave">Guardar la clave</button>
+         <p class="cfg-hint">Sin clave propia se usa la del centro, si quien montó la función puso una.</p>`}
+
+    <h4 class="cfg-h4">2. El currículo</h4>
     <p class="cfg-hint">Pega los saberes básicos de tu área y ciclo, o sube el fichero. Es de lo único
     que el modelo puede tirar: si lo que ibas a preguntar no está en este texto, se le pide que no lo
     pregunte. Se queda en este equipo y no viaja a las tablets.</p>
@@ -1161,7 +1182,7 @@ function cfgIA(body) {
       <span class="cfg-hint">${curr ? `${curr.length} caracteres guardados` : 'sin currículo todavía'}</span>
     </div>
 
-    <h4 class="cfg-h4">2. Qué generar</h4>
+    <h4 class="cfg-h4">3. Qué generar</h4>
     ${field('Pozo de destino', `<select id="ia-pozo">${
       pozos.map((p, i) => `<option value="${esc(p.id)}"${
         (ATLAS_CONFIG.iaPozo || (pozos[0] || {}).id) === p.id ? ' selected' : ''}>${esc(p.name)}</option>`).join('')
@@ -1182,7 +1203,7 @@ function cfgIA(body) {
     por su cuenta para comprobar que la respuesta marcada es la buena.</p>
     ${iaEstado ? `<div class="cfg-equipo ${iaEstado.startsWith('⚠️') ? '' : 'cfg-equipo-ok'}">${iaEstado}</div>` : ''}
 
-    <h4 class="cfg-h4">3. Por revisar <span class="cfg-tag">${cola.length}</span></h4>
+    <h4 class="cfg-h4">4. Por revisar <span class="cfg-tag">${cola.length}</span></h4>
     ${cola.length ? `<div class="cfg-list">${cola.map(c => `
       <div class="cfg-card taller-revision">
         <div class="taller-rev-autor">${esc(conceptoLabel(c.skill))} · ${esc(c.pozoNombre || '')} · ${
@@ -1220,6 +1241,27 @@ function cfgIA(body) {
   onInput('#ia-estrato', e => cfgSave('iaEstrato', e.target.value, false), 'change');
   onInput('#ia-curso', e => cfgSave('iaCurso', +e.target.value, false), 'change');
   onInput('#ia-cuantos', e => cfgSave('iaCuantos', Math.max(1, Math.min(20, +e.target.value || 10)), false));
+
+  const guardarClave = $('#ia-guardar-clave');
+  if (guardarClave) guardarClave.addEventListener('click', () => {
+    const v = String($('#ia-clave').value || '').trim();
+    /* Se comprueba la forma antes de guardarla: pegar media clave y esperar a
+       que la primera generación falle con un 401 es media hora tirada. */
+    if (!/^sk-ant-[A-Za-z0-9_-]{20,}$/.test(v)) {
+      iaEstado = '⚠️ Eso no parece una clave de Anthropic. Empiezan por «sk-ant-» y son largas.';
+      renderTeacherConfig(); return;
+    }
+    cfgSave('iaClave', v, false);
+    iaEstado = 'Clave guardada en este equipo.';
+    renderTeacherConfig();
+  });
+  const quitarClave = $('#ia-quitar-clave');
+  if (quitarClave) quitarClave.addEventListener('click', async () => {
+    if (!(await askConfirm('¿Quitar tu clave de este equipo? Podrás volver a pegarla cuando quieras.', 'Quitar'))) return;
+    cfgSave('iaClave', '', false);
+    iaEstado = 'Clave quitada.';
+    renderTeacherConfig();
+  });
 
   const subir = $('#ia-subir');
   const fich = $('#ia-fichero');

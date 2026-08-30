@@ -54,11 +54,18 @@ async function cloudGenerarRetos(peticion) {
       texto: 'Falta el ID de la función en Acceso y nube. Está en Appwrite → Functions.' };
   }
 
+  /* La clave del docente, si la tiene puesta. Va en el cuerpo y no se guarda
+     en ningún sitio: la función la usa y la suelta. Si va vacía, la función
+     recurre a la del centro (su variable de entorno). */
+  const cuerpo = Object.assign({}, peticion);
+  const clave = (ATLAS_CONFIG.iaClave || '').trim();
+  if (clave) cuerpo.clave = clave;
+
   try {
     /* Síncrona: se espera la respuesta. La firma es posicional en el SDK v17
        (functionId, body, async, path, method, headers). */
     const ex = await CLOUD.functions.createExecution(
-      id, JSON.stringify(peticion), false, '/', 'POST', { 'content-type': 'application/json' });
+      id, JSON.stringify(cuerpo), false, '/', 'POST', { 'content-type': 'application/json' });
 
     if (ex.status === 'failed') {
       /* Lo más habitual con diferencia: la función tarda más que su tope. Diez
