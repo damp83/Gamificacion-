@@ -71,20 +71,33 @@ Ya dentro de la función, pestaña **Settings**:
 
 ---
 
-## 4. La clave (opcional aquí)
+## 4. La clave: cada docente la suya
 
-Si quieres que **cada docente use la suya**, no toques nada: se pega en el
-panel de la app y ya está. Es lo recomendable en un claustro, porque cada uno
-paga lo suyo.
+**No pongas ninguna clave en la función.** Cada docente pega la suya en
+*Configuración → 🤖 Retos con IA*, se queda en su navegador y se le pasa a la
+función en cada petición, que no la guarda. Cada uno paga lo suyo.
 
-Si prefieres **una clave del centro** para quien no tenga la suya:
-*Settings → Variables* → **Create variable**:
+Esto no es solo una cuestión de facturas, y conviene entender por qué antes
+de cambiarlo:
 
-| Key | Value |
-|---|---|
-| `ANTHROPIC_API_KEY` | tu clave `sk-ant-…` |
+> El **Function ID viene ya puesto en la app**, para que nadie tenga que
+> teclearlo. Eso significa que el identificador **viaja también a las tablets
+> del alumnado**, porque `config.js` se sirve a todos. Y las cuentas del
+> alumnado tienen sesión de Appwrite, que es justo lo que pide *Execute
+> access: Users*.
+>
+> Lo único que impide que una cuenta de alumno ejecute el generador y gaste
+> la cuenta de alguien es que **la función no tenga clave**: sin clave corta
+> con «No hay clave de API» y no llama a nadie. Un alumno curioso encuentra
+> una puerta que no da a ninguna parte.
 
-Las dos pueden convivir: manda la del docente y la del centro es la reserva.
+Si algún día pones `ANTHROPIC_API_KEY` en *Settings → Variables* para tener
+una clave del centro, esa puerta pasa a dar a tu factura. Si aun así lo
+necesitas, hazlo con dos cosas a la vez:
+
+- Un **límite de gasto** en `console.anthropic.com`, bajo.
+- Y quita el Function ID de `js/config.js`, dejándolo en `''`, para que cada
+  docente lo teclee en *Acceso y nube* y no viaje en lo que se sirve.
 
 ---
 
@@ -163,13 +176,17 @@ El texto completo está en **Response → Body**. Ojo, que la consola abre por
 
 ---
 
-## 7. Pegar el ID en la app
+## 7. El ID en la app
 
-Arriba de la pantalla de la función, junto a su nombre, hay un identificador
-—algo como `6a9f12ab003c…`—. Cópialo.
+**Normalmente no hay que hacer nada**: el Function ID de la función del
+centro viene ya escrito en `js/config.js`, así que ningún docente lo teclea.
+Comprueba solo que coincide con el que sale arriba de la pantalla de la
+función, junto a su nombre.
 
-En Expedición Atlas: **Configuración → 🔐 Acceso y nube → Function ID
-(generador de retos)**. Pégalo ahí.
+Si montas **otra** función distinta —la tuya, en tu propio proyecto—, copia
+su identificador y pégalo en **Configuración → 🔐 Acceso y nube → Function ID
+(generador de retos)**. Lo que escribas ahí manda sobre lo que trae la app, y
+se queda solo en ese equipo.
 
 ---
 

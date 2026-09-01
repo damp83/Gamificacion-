@@ -11,7 +11,7 @@
    copia guardada. Sin este número, «ya está arreglado» y «a mí no me pasa» son
    indistinguibles. Va junto al nombre de la caché del service worker, y una
    prueba comprueba que no se separen. */
-const ATLAS_VERSION = 'v26';
+const ATLAS_VERSION = 'v27';
 
 const ATLAS_DEFAULTS = {
 
@@ -38,10 +38,16 @@ const ATLAS_DEFAULTS = {
        Una colección con un documento por clase, cuyo dueño es la cuenta del
        docente. Vacío = una sola clase en este equipo, sin sincronizar. */
     aulasCollectionId: 'aulas',
-    /* Función que escribe retos con IA. Vacío = la sección de generación se
-       ofrece pero dice qué falta. La clave de la API vive DENTRO de esa
-       función, nunca aquí: esto se sirve al navegador de cada niño. */
-    generadorFunctionId: ''
+    /* Función que escribe retos con IA. Viene puesta para que ningún docente
+       tenga que teclearla: es la misma para todos, porque la función es una
+       sola. Como el resto de identificadores de aquí, no es un secreto —
+       quien protege la función es su «Execute access: Users», que exige
+       sesión, y sobre todo que NO tenga clave de API propia: cada docente
+       pone la suya en su panel y se queda en su navegador. Si algún día se
+       pusiera una clave del centro en la variable de entorno de la función,
+       este identificador dejaría de ser inocuo, porque también viaja a las
+       tablets del alumnado y cualquier cuenta con sesión podría gastarla. */
+    generadorFunctionId: '6a973fcf0031242dbd3e'
   },
 
   /* Los alumnos entran con USUARIO, no con email (más fácil a los 8-10

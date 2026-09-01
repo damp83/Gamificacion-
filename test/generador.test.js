@@ -448,3 +448,24 @@ test('la función no puede escupir la clave en un error ni en su registro', () =
   assert.match(main, /error\('fallo generando: ' \+ sinClave/);
   assert.match(main, /const m = sinClave\(/);
 });
+
+test('el Function ID viene puesto: ningún docente lo teclea', () => {
+  const c = cargarApp();
+  const id = c.ev("ATLAS_CONFIG.appwrite.generadorFunctionId");
+  assert.match(id, /^[a-z0-9]{16,}$/, 'hay un identificador de verdad, no un hueco');
+});
+
+test('el ID viaja a las tablets, así que la función no puede tener clave propia', () => {
+  /* El identificador está en config.js, que se sirve al navegador de cada
+     niño, y las cuentas del alumnado también tienen sesión de Appwrite. Con
+     «Execute access: Users» eso basta para ejecutar la función. Lo único que
+     impide que un alumno gaste la cuenta de nadie es que la función NO tenga
+     clave: la pone cada docente en su panel y no sale de su navegador. */
+  const main = leer('functions/generador/src/main.js');
+  assert.match(main, /reason: 'sin-clave'/, 'sin clave, la función corta y no gasta');
+  const cfg = leer('js/config.js');
+  assert.ok(!/ANTHROPIC_API_KEY/.test(cfg), 'la clave del centro nunca se nombra en lo que se sirve');
+  const c = cargarApp();
+  assert.equal(c.ev('ATLAS_CONFIG.iaClave'), '', 'no viene ninguna clave de fábrica');
+  assert.ok(c.ev('NO_SE_COMPARTE').includes('iaClave'), 'y la que ponga el docente no se comparte');
+});

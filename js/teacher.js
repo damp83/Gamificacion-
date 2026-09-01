@@ -1164,7 +1164,9 @@ function cfgIA(body) {
           'De console.anthropic.com → API keys. Créala con LÍMITE DE GASTO: en un ordenador compartido, ' +
           'lo peor que puede pasar conviene que tenga techo.')}
          <button class="btn btn-secondary btn-small" id="ia-guardar-clave">Guardar la clave</button>
-         <p class="cfg-hint">Sin clave propia se usa la del centro, si quien montó la función puso una.</p>`}
+         <p class="cfg-hint"><strong>Es lo único que hay que poner aquí.</strong> Lo demás ya viene
+         configurado. Sin clave no se genera nada: no hay una clave del centro que pague por todos,
+         y es a propósito —así nadie gasta la cuenta de otro.</p>`}
 
     <h4 class="cfg-h4">2. El currículo</h4>
     <p class="cfg-hint">Pega los saberes básicos de tu área y ciclo, o sube el fichero. Es de lo único
@@ -1468,7 +1470,7 @@ function cfgAcceso(body) {
     ${field('Collection ID (aulas)', `<input type="text" id="cfg-aw-aid" value="${esc(a.aulasCollectionId || '')}">`,
       'Solo si quieres que varios docentes usen la plataforma con sus clases por separado. Cada clase pertenece a la cuenta de su docente y las demás no pueden leerla.')}
     ${field('Function ID (generador de retos)', `<input type="text" id="cfg-aw-fid" value="${esc(a.generadorFunctionId || '')}">`,
-      'De Appwrite → Functions. Es lo que permite generar retos desde «Retos con IA». La clave de la API vive DENTRO de esa función y nunca en esta app.')}
+      'Ya viene puesta: la función es una sola y es la misma para todos, no hay que teclear nada. Solo cámbiala si montas la tuya propia. Lo que sí pone cada docente es su clave, en «Retos con IA».')}
     ${field('Collection ID (configuración compartida)', `<input type="text" id="cfg-aw-ccid" value="${esc(a.configCollectionId || '')}">`,
       'Opcional. Sirve para no configurar veinte tablets a mano. Con la colección de aulas puesta no hace falta: los ajustes de cada clase viajan en su documento.')}
     <p class="cfg-warn">Tras cambiar los datos de Appwrite hay que recargar la página para que surtan efecto.</p>
