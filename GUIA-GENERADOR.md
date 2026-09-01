@@ -145,6 +145,22 @@ Dos cosas más que valen un intento antes de escribir a nadie:
    a Node 18 —el `package.json` lo declara así— y las imágenes de
    compilación recién salidas fallan más.
 
+
+### Comprobar que dentro está nuestro código y no la plantilla
+
+Si creaste la función desde la plantilla de ejemplo de Appwrite, puede que
+siga ahí. Se sale de dudas en diez segundos: **Execute**, con el cuerpo
+vacío, y mira la ejecución en la pestaña **Executions**.
+
+| Lo que responde | Qué es |
+|---|---|
+| `400` con `content-length: 119` | **Es nuestro código.** Son los 119 bytes exactos del aviso «Falta el currículo». Que te dé un error es lo correcto: has llamado sin currículo y lo ha rechazado |
+| `401` con `content-length: 104` | También es nuestro código: te ha rechazado por no ir identificado |
+| `200` con «Hello, World!» | Es la plantilla. Revisa en *Settings* que **Entrypoint** sea `src/main.js` y **Build settings → Commands** sea `npm install`, y vuelve a desplegar |
+
+El texto completo está en **Response → Body**. Ojo, que la consola abre por
+*Headers* y ahí no se lee nada.
+
 ---
 
 ## 7. Pegar el ID en la app
