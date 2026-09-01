@@ -3,6 +3,9 @@
   "version": "1.0.0",
   "type": "module",
   "main": "src/main.js",
+  "engines": {
+    "node": ">=18"
+  },
   "dependencies": {
     "@anthropic-ai/sdk": "^0.122.0"
   }

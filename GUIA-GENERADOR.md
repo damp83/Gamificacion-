@@ -47,7 +47,7 @@ Elige **Manual** (no la plantilla de ejemplo) y rellena:
 | Campo | Valor |
 |---|---|
 | **Name** | `generador` |
-| **Runtime** | **Node.js 18.0** o superior |
+| **Runtime** | **Node.js 18.0** o **22.0**. Evita la última recién salida (Node 26): compila peor y esta función no la necesita |
 
 Dale a **Create**.
 
@@ -111,17 +111,39 @@ sube `generador.tar.gz`. Deja **Activate** marcado.
 **Deployments → Create deployment → Git** → conecta tu cuenta de GitHub y elige
 `damp83/Gamificacion-`.
 
-Importante: en **Root directory** pon `functions/generador`. Si lo dejas
-vacío, Appwrite intenta desplegar el repositorio entero y falla.
+Dos campos hay que mirarlos con lupa, porque Appwrite los rellena solo y casi
+siempre los rellena mal:
+
+| Campo | Valor exacto | Si está mal |
+|---|---|---|
+| **Root directory** | `functions/generador` | Sin barra delante ni detrás. Vacío, Appwrite empaqueta el repositorio entero y falla |
+| **Production branch** | `claude/new-session-5sbfxo` | Appwrite propone `main` de fábrica, **y en este repositorio no existe ninguna rama `main`** |
+
+Si la rama que pone no existe, Appwrite no encuentra nada que empaquetar, y el
+despliegue falla con la caja vacía: **Total size 0 B**.
 
 ---
 
 ## 6. Comprobar que ha subido bien
 
 En **Deployments** debe salir en verde con estado **Ready**. Si sale
-**Failed**, pulsa encima y lee el registro de compilación: casi siempre es que
-`npm install` no ha encontrado el `package.json`, y eso es que el `.tar.gz`
-lleva una carpeta de más o el **Root directory** está mal.
+**Failed**, pulsa encima: lo primero que hay que mirar no es el mensaje de
+error, es el **Total size**.
+
+| Lo que ves en el despliegue fallido | Lo que pasa |
+|---|---|
+| **Total size 0 B** (y dura 3–5 segundos) | Appwrite no ha empaquetado nada. Es el **Root directory** o la **Production branch**: revisa la tabla de arriba. El mensaje de error da igual, no ha llegado a compilar |
+| Total size de algunos cientos de KB, error en `npm install` | Ahí sí llegó el código. Suele ser que el `.tar.gz` lleva una carpeta de más: dentro del `.tar.gz` el `package.json` tiene que estar en la raíz, no dentro de `generador/` |
+| «An internal error occurred while building» | Es el mensaje genérico de Appwrite, sirve para cualquiera de los dos casos. Si el tamaño es 0 B, no le hagas caso: es el empaquetado |
+
+Dos cosas más que valen un intento antes de escribir a nadie:
+
+1. **Redeploy**, una vez. El propio mensaje de Appwrite dice «try again», y a
+   veces es verdad.
+2. **Baja el runtime.** Si elegiste Node 26, cámbialo a **Node 22** o **Node
+   18**: son las versiones asentadas. Esta función no necesita nada posterior
+   a Node 18 —el `package.json` lo declara así— y las imágenes de
+   compilación recién salidas fallan más.
 
 ---
 
