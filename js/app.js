@@ -409,7 +409,7 @@ function wireGlobalListeners() {
   });
   $('#teacher-go-aula').addEventListener('click', () => { aulaAlumno = null; teacherScreen('aula'); });
   $('#teacher-go-class').addEventListener('click', () => { classData = null; teacherScreen('class'); });
-  $('#teacher-go-config').addEventListener('click', () => { cfgSection = 'curso'; teacherScreen('config'); });
+  $('#teacher-go-config').addEventListener('click', () => { cfgSection = CFG_INICIO; teacherScreen('config'); });
   $('#teacher-exit').addEventListener('click', showHome);
 
   $('#class-sort').addEventListener('change', e => { classSort = e.target.value; paintClassView(); });

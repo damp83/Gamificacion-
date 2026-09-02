@@ -5,23 +5,70 @@
    cuadrillas. Todo se guarda como una capa sobre js/config.js.
    ═══════════════════════════════════════════════════════════ */
 
-const CFG_SECTIONS = [
-  { id: 'curso',      icon: '📅', name: 'Curso y trimestres' },
-  { id: 'premios',    icon: '🏅', name: 'Comportamientos, tareas y actividades' },
-  { id: 'alumnado',   icon: '👥', name: 'Alumnado' },
-  { id: 'equipos',    icon: '🛖', name: 'Cuadrillas de excavación' },
-  { id: 'yacimient',  icon: '🏛️', name: 'Yacimientos y pozos' },
-  { id: 'almacen',    icon: '🏪', name: 'Almacén' },
-  { id: 'economia',   icon: '⚖️', name: 'Economía' },
-  { id: 'guardian',   icon: '🗿', name: 'Cámara del Guardián' },
-  { id: 'taller',     icon: '✍️', name: 'Taller de Cartografía' },
-  { id: 'ia',         icon: '🤖', name: 'Retos con IA' },
-  { id: 'fondo',      icon: '🌍', name: 'Fondo de la Sociedad' },
-  { id: 'acceso',     icon: '🔐', name: 'Acceso y nube' },
-  { id: 'copia',      icon: '💾', name: 'Copia de seguridad' }
+/* Las trece secciones, en DOS grupos y por orden de cuánto se abren.
+
+   No es una manía de orden. En una tablet la tira de secciones no cabe: se
+   medía 1 de 13 visibles en un móvil y 3 de 13 en un iPad, con casi dos mil
+   píxeles escondidos detrás de un scroll lateral que nadie ve que está ahí.
+   Con «Curso y trimestres» ocupando el primer sitio —que se toca en
+   septiembre y ya no— «Retos con IA» quedaba en el número diez.
+
+   Así que delante va lo que se abre cualquier martes, detrás lo que se
+   prepara una vez por trimestre, y las dos cosas se dicen con su nombre. */
+const CFG_GRUPOS = [
+  { id: 'diario',   name: 'El día a día' },
+  { id: 'preparar', name: 'Preparar la expedición' }
 ];
 
-let cfgSection = 'curso';
+const CFG_SECTIONS = [
+  /* ── Lo de cualquier martes ── */
+  { id: 'alumnado',   icon: '👥', name: 'Alumnado',            grupo: 'diario' },
+  { id: 'premios',    icon: '🏅', name: 'Comportamientos, tareas y actividades', grupo: 'diario' },
+  { id: 'yacimient',  icon: '🏛️', name: 'Yacimientos y pozos',  grupo: 'diario' },
+  { id: 'ia',         icon: '🤖', name: 'Retos con IA',         grupo: 'diario' },
+  /* El Taller va aquí y no con lo de preparar porque es una cola: los niños
+     escriben acertijos y alguien tiene que leerlos, igual que la de la IA. */
+  { id: 'taller',     icon: '✍️', name: 'Taller de Cartografía', grupo: 'diario' },
+
+  /* ── Lo que se monta una vez y aguanta el trimestre ── */
+  { id: 'curso',      icon: '📅', name: 'Curso y trimestres',   grupo: 'preparar' },
+  { id: 'equipos',    icon: '🛖', name: 'Cuadrillas de excavación', grupo: 'preparar' },
+  { id: 'almacen',    icon: '🏪', name: 'Almacén',              grupo: 'preparar' },
+  { id: 'economia',   icon: '⚖️', name: 'Economía',             grupo: 'preparar' },
+  { id: 'guardian',   icon: '🗿', name: 'Cámara del Guardián',  grupo: 'preparar' },
+  { id: 'fondo',      icon: '🌍', name: 'Fondo de la Sociedad', grupo: 'preparar' },
+  { id: 'acceso',     icon: '🔐', name: 'Acceso y nube',        grupo: 'preparar' },
+  { id: 'copia',      icon: '💾', name: 'Copia de seguridad',   grupo: 'preparar' }
+];
+
+/* Por dónde se abre el panel al entrar desde la sala de mapas. */
+const CFG_INICIO = 'alumnado';
+
+/* ── Grupos plegados ──
+   En una tablet, las trece secciones desplegadas son medio metro de índice
+   antes de llegar a nada. Se pliega el grupo de preparar, que es el que casi
+   nunca se busca, PERO con su nombre y su flecha a la vista: eso es lo que
+   distingue esto del scroll lateral que había antes, que escondía doce
+   secciones detrás de un gesto que no se ve que exista.
+
+   En pantalla ancha empiezan los dos abiertos: allí sobra sitio, el índice va
+   fijo en un lado, y esconder «Copia de seguridad» de quien tiene monitor
+   sería quitarle algo por nada. El botón pliega igual en los dos sitios: lo
+   que cambia es por dónde se empieza, no lo que se puede hacer. */
+let cfgPlegados = (() => {
+  try { return window.matchMedia('(min-width: 62rem)').matches ? [] : ['preparar']; }
+  catch (e) { return []; }   /* sin matchMedia (pruebas): nada plegado */
+})();
+
+/* El grupo de la sección que se está viendo se abre siempre: si no, al
+   entrar en «Acceso y nube» desde otro sitio no se vería dónde se está. */
+function grupoAbierto(id) {
+  if (!cfgPlegados.includes(id)) return true;
+  const actual = CFG_SECTIONS.find(s => s.id === cfgSection);
+  return !!(actual && actual.grupo === id);
+}
+
+let cfgSection = CFG_INICIO;
 /* Aviso que debe sobrevivir al repintado del panel: si se pintara y el
    repintado lo borrase, la corrección ocurriría en silencio. */
 let cfgNotice = '';
@@ -36,9 +83,22 @@ function slugify(text, fallback) {
 
 /* ── Chasis ── */
 function renderTeacherConfig() {
-  $('#cfg-nav').innerHTML = CFG_SECTIONS.map(sec =>
-    `<button class="cfg-nav-btn${sec.id === cfgSection ? ' active' : ''}" data-cfg="${sec.id}">
-      <span>${sec.icon}</span>${sec.name}</button>`).join('');
+  $('#cfg-nav').innerHTML = CFG_GRUPOS.map(g => {
+    const suyas = CFG_SECTIONS.filter(sec => sec.grupo === g.id);
+    if (!suyas.length) return '';
+    const abierto = grupoAbierto(g.id);
+    return `<button class="cfg-nav-grupo" data-grupo="${g.id}" aria-expanded="${abierto}">
+        ${g.name}<span class="cfg-nav-chevron" aria-hidden="true">${abierto ? '▾' : '▸'}</span>
+      </button>
+      <div class="cfg-nav-grupo-body${abierto ? '' : ' cerrado'}">` + suyas.map(sec =>
+      `<button class="cfg-nav-btn${sec.id === cfgSection ? ' active' : ''}" data-cfg="${sec.id}">
+        <span>${sec.icon}</span>${sec.name}</button>`).join('') + '</div>';
+  }).join('');
+  $$('#cfg-nav .cfg-nav-grupo').forEach(b => b.addEventListener('click', () => {
+    const g = b.dataset.grupo;
+    cfgPlegados = cfgPlegados.includes(g) ? cfgPlegados.filter(x => x !== g) : cfgPlegados.concat([g]);
+    renderTeacherConfig();
+  }));
   $$('#cfg-nav .cfg-nav-btn').forEach(b => b.addEventListener('click', () => {
     if (b.dataset.cfg !== cfgSection) cfgNotice = '';
     cfgSection = b.dataset.cfg;

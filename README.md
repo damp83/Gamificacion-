@@ -622,18 +622,40 @@ contaminar el prototipo de `Object`.
 
 ## Panel de Configuración
 
-**Portada → 🧔🏻‍♂️ Soy docente → ⚙️ Configurar la expedición** (pide el PIN). Ocho secciones:
+**Portada → 🧔🏻‍♂️ Soy docente → ⚙️ Configurar la expedición** (pide el PIN).
+
+Trece secciones, repartidas en dos grupos. No es una manía de orden: la tira
+de secciones no cabía en una tablet y se medía **1 sección visible de 13 en un
+móvil**, con casi dos mil píxeles detrás de un scroll lateral que nadie ve que
+está ahí. Ahora delante va lo que se abre cualquier martes, detrás lo que se
+monta una vez por trimestre, y en pantalla estrecha el segundo grupo empieza
+plegado —con su nombre y su flecha a la vista, que es lo que le faltaba al
+scroll—. El panel abre por **Alumnado**.
+
+**El día a día**
+
+| Sección | Qué puedes cambiar |
+|---|---|
+| 👥 Alumnado | Tu nombre y el de la clase, la lista de alumnos, y **crear sus cuentas de golpe** |
+| 🏅 Comportamientos, tareas y actividades | Crear, editar y retirar reconocimientos: icono, nombre, Doblones, tope diario y categoría |
+| 🏛️ Yacimientos y pozos | **Crear yacimientos y pozos nuevos y escribir los retos de cada estrato**, además de renombrar y ocultar |
+| 🤖 Retos con IA | Tu clave de la API, el currículo de tu área, y la **cola de revisión**: nada escrito por IA entra en el banco sin que lo apruebes |
+| ✍️ Taller de Cartografía | Los acertijos que escriben los niños, esperando a que alguien los lea |
+
+Las dos últimas son colas: alguien escribió algo y espera. Por eso van aquí y
+no con lo de preparar el curso.
+
+**Preparar la expedición**
 
 | Sección | Qué puedes cambiar |
 |---|---|
 | 📅 Curso y trimestres | Nombre del curso y las fechas de los tres trimestres |
-| 🏅 Comportamientos, tareas y actividades | Crear, editar y retirar reconocimientos: icono, nombre, Doblones, tope diario y categoría |
-| 👥 Alumnado | Tu nombre y el de la clase, la lista de alumnos, y **crear sus cuentas de golpe** |
 | 🛖 Cuadrillas de excavación | Crear equipos, **asignar alumnos marcando casillas**, fijar la meta común y la aportación |
-| 🏛️ Yacimientos y pozos | **Crear yacimientos y pozos nuevos y escribir los retos de cada estrato**, además de renombrar y ocultar |
 | 🏪 Almacén | Añadir, retirar y reajustar precios de los artículos cosméticos |
 | ⚖️ Economía | Retos por misión, Doblones de cada fuente, topes diarios, minutos hasta la fatiga, bolsa inicial… |
-| 🔐 Acceso y nube | PIN del panel y datos de Appwrite |
+| 🗿 Cámara del Guardián | La prueba sumativa de cada pozo: cuántos retos, cuánto hay que acertar y cada cuánto se puede repetir |
+| 🌍 Fondo de la Sociedad | La meta común de toda la clase y lo que lleva donado |
+| 🔐 Acceso y nube | PIN del panel, datos de Appwrite y el Function ID del generador |
 | 💾 Copia de seguridad | Exportar los ajustes para llevarlos a otra tablet, importarlos y restaurar los de fábrica |
 
 Los cambios se aplican **al instante**: renombras un pozo y el mapa ya lo muestra así.

@@ -1430,10 +1430,34 @@ body.en-mision #main { padding-bottom: var(--s-5); }
   background: var(--surface); border-radius: var(--r-lg);
   padding: .45rem; box-shadow: var(--e-1); border: var(--line);
 }
-/* En pantalla estrecha vuelve a ser una tira, pero con scroll propio */
+/* Títulos de los dos grupos: «El día a día» y «Preparar la expedición».
+   En pantalla estrecha son el botón que los pliega; en ancha, una etiqueta. */
+.cfg-nav-grupo {
+  display: flex; align-items: center; justify-content: space-between; gap: .5rem;
+  width: 100%; background: transparent; border: none; text-align: left;
+  font-family: var(--font-text);
+  font-size: var(--t-xs); font-weight: 800; letter-spacing: .04em;
+  text-transform: uppercase; color: var(--ink-faint);
+  padding: .55rem .7rem .25rem; margin: 0;
+}
+.cfg-nav-grupo:first-child { padding-top: .2rem; }
+.cfg-nav-chevron { font-size: .9rem; }
+.cfg-nav-grupo-body { display: flex; flex-direction: column; gap: .15rem; }
+.cfg-nav-grupo-body.cerrado { display: none; }
+
+.cfg-nav-grupo:hover { color: var(--ink); }
+
+/* En pantalla estrecha las secciones BAJAN, no se van a la derecha.
+
+   Antes era una tira con scroll horizontal, y medida daba 1 sección visible
+   de 13 en un móvil: las otras doce estaban detrás de un gesto que no se ve
+   que existe. Ocupar tres dedos más de alto y que estén todas es mejor
+   trato que ahorrar sitio escondiendo el panel entero. */
 @media (max-width: 61.99rem) {
-  .cfg-nav { flex-direction: row; overflow-x: auto; scrollbar-width: thin; }
-  .cfg-nav-btn { white-space: nowrap; }
+  .cfg-nav { flex-direction: row; flex-wrap: wrap; gap: .3rem; }
+  .cfg-nav-grupo { flex: 1 0 100%; min-height: 44px; }
+  .cfg-nav-grupo-body { flex: 1 0 100%; flex-direction: row; flex-wrap: wrap; gap: .3rem; }
+  .cfg-nav-btn { flex: 0 1 auto; }
 }
 .cfg-nav-btn {
   display: flex; align-items: center; gap: .55rem; text-align: left;
