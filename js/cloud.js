@@ -38,7 +38,7 @@ function cloudInit() {
    NO hay clave ni la puede haber: este código se sirve a la tablet de cada niño.
 
    Lo que vuelve no entra en el banco: va a la cola de revisión del docente. */
-async function cloudGenerarRetos(peticion) {
+async function cloudGenerarRetos(peticion, onProgreso) {
   if (!CLOUD.enabled) return { ok: false, reason: 'sin-nube', texto: 'No hay conexión con Appwrite.' };
   if (!CLOUD.functions) {
     return { ok: false, reason: 'sdk-viejo',
@@ -54,10 +54,72 @@ async function cloudGenerarRetos(peticion) {
       texto: 'Falta el ID de la función en Acceso y nube. Está en Appwrite → Functions.' };
   }
 
-  /* La clave del docente, si la tiene puesta. Va en el cuerpo y no se guarda
-     en ningún sitio: la función la usa y la suelta. Si va vacía, la función
-     recurre a la del centro (su variable de entorno). */
-  const cuerpo = Object.assign({}, peticion);
+  const cuantos = Math.max(1, Math.min(20, Number(peticion.n) || 1));
+  const avisar = (hechos, fase) => { if (typeof onProgreso === 'function') onProgreso(hechos, cuantos, fase); };
+
+  const buenos = [], descartados = [];
+  let gastado = { entrada: 0, cacheados: 0, salida: 0 };
+  const suma = u => { if (!u) return; gastado = { entrada: gastado.entrada + (u.entrada || 0),
+    cacheados: gastado.cacheados + (u.cacheados || 0), salida: gastado.salida + (u.salida || 0) }; };
+
+  /* ── Se escriben DE UNO EN UNO ──
+     No es un capricho: Appwrite corta toda ejecución síncrona a los 30
+     segundos, y en asíncrono el cuerpo de la respuesta llega vacío, así que
+     no habría forma de leer el resultado. Una llamada por reto cabe de
+     sobra; una tanda entera con su comprobación, no.
+
+     Sale casi igual de caro porque el currículo va cacheado: la primera
+     llamada lo paga y las demás lo leen a una fracción del precio. */
+  const evitar = [];
+  let corte = null;
+  for (let i = 0; i < cuantos; i++) {
+    avisar(i, 'escribiendo');
+    const r = await ejecutarGenerador(id, Object.assign({}, peticion, { paso: 'generar', n: 1, evitar }));
+    if (!r.ok) {
+      /* Si ya hay retos escritos, no se tiran: están pagados. Se sigue con lo
+         que haya y se dice qué pasó. */
+      if (!buenos.length && !descartados.length) return r;
+      corte = r.texto;
+      break;
+    }
+    suma(r.usados);
+    for (const x of (r.retos || [])) { buenos.push(x); evitar.push(x.question); }
+    for (const d of (r.descartados || [])) descartados.push(d);
+  }
+
+  if (!buenos.length) {
+    return { ok: true, retos: [], descartados, usados: gastado, corte };
+  }
+
+  /* ── La comprobación, en tandas ──
+     Resolver ocho de golpe a esfuerzo bajo cabe en los 30 segundos; veinte,
+     no. Se parte por si el docente pidió muchos. */
+  const supervivientes = [];
+  for (let i = 0; i < buenos.length; i += 4) {
+    avisar(i, 'comprobando');
+    const trozo = buenos.slice(i, i + 4);
+    const r = await ejecutarGenerador(id, Object.assign({}, peticion,
+      { paso: 'verificar', retos: trozo }));
+    if (!r.ok) {
+      /* Sin comprobar no se aprueban a ciegas: van a la cola marcados, y el
+         docente decide. Callarse esto sería lo peor que podría hacer aquí. */
+      for (const x of trozo) supervivientes.push(Object.assign({}, x, { sinComprobar: true }));
+      corte = corte || r.texto;
+      continue;
+    }
+    suma(r.usados);
+    for (const x of (r.retos || [])) supervivientes.push(x);
+    for (const d of (r.descartados || [])) descartados.push(d);
+  }
+
+  return { ok: true, retos: supervivientes, descartados, usados: gastado, corte };
+}
+
+/* Una llamada a la función, con la clave del docente pegada al cuerpo.
+
+   La clave va aquí y no se guarda en ningún sitio: la función la usa y la
+   suelta. Si va vacía, la función recurre a la del centro, si la hay. */
+async function ejecutarGenerador(id, cuerpo) {
   const clave = (ATLAS_CONFIG.iaClave || '').trim();
   if (clave) cuerpo.clave = clave;
   /* Solo lo piden las claves ligadas a la cuenta. Vacío = no se manda. */
@@ -65,7 +127,8 @@ async function cloudGenerarRetos(peticion) {
   if (espacio) cuerpo.workspace = espacio;
 
   try {
-    /* Síncrona: se espera la respuesta. La firma es posicional en el SDK v17
+    /* Síncrona a propósito: en asíncrono el `responseBody` llega vacío y no
+       habría resultado que leer. La firma es posicional en el SDK v17
        (functionId, body, async, path, method, headers). */
     const ex = await CLOUD.functions.createExecution(
       id, JSON.stringify(cuerpo), false, '/', 'POST', { 'content-type': 'application/json' });
@@ -86,7 +149,7 @@ async function cloudGenerarRetos(peticion) {
       if (ex.status === 'failed') {
         return { ok: false, reason: 'fallo',
           texto: 'La función ha fallado sin llegar a contestar. Casi siempre es el tope de tiempo: '
-               + 'súbelo en Appwrite → Functions → Settings → Timeout. 15 segundos no bastan, pon 300.' };
+               + 'súbelo en Appwrite → Functions → Settings → Timeout.' };
       }
       return { ok: false, reason: 'respuesta', texto: 'La función ha respondido algo que no se entiende.' };
     }
@@ -103,6 +166,15 @@ async function cloudGenerarRetos(peticion) {
       return { ok: false, reason: 'sin-permiso',
         texto: 'Tu cuenta no puede ejecutar la función. En Appwrite → Functions → Settings → '
              + 'Execute access, marca «Users».' };
+    }
+    /* El tope duro de Appwrite: 30 segundos por ejecución síncrona, y no se
+       puede subir. Por eso se pide un reto por llamada. Si aun así salta, lo
+       que hay que bajar es el esfuerzo, no el número. */
+    if (/timed out|timeout/i.test(m)) {
+      return { ok: false, reason: 'tope',
+        texto: 'Appwrite ha cortado la llamada a los 30 segundos, que es su tope y no se puede subir. '
+             + 'Vuelve a intentarlo: si se repite, el modelo está tardando de más con este currículo '
+             + '—prueba a mandar solo el bloque del área que estás trabajando, no el documento entero—.' };
     }
     return { ok: false, reason: 'error', texto: 'No se ha podido llamar a la función: ' + m };
   }

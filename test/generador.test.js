@@ -447,11 +447,28 @@ test('la clave se manda a la función y la función la prefiere a la del centro'
 
 test('la función no puede escupir la clave en un error ni en su registro', () => {
   /* `log()` de Appwrite queda guardado en la ejecución y lo lee cualquiera con
-     acceso a la consola. */
+     acceso a la consola.
+
+     En vez de fijar las líneas concretas —que se mueven en cuanto se toca la
+     estructura, como pasó al partir la función en dos pasos— se comprueba la
+     regla: el mensaje de un error SOLO puede leerse a través de sinClave. */
   const main = leer('functions/generador/src/main.js');
-  assert.match(main, /const sinClave = t => String\(t \|\| ''\)\.split\(clave\)/);
-  assert.match(main, /error\('fallo generando: ' \+ sinClave/);
-  assert.match(main, /const m = sinClave\(/);
+  assert.match(main, /const sinClave = t => String\(t \|\| ''\)\.split\(clave\)/,
+    'existe la función que tapa la clave');
+
+  const usos = main.split('\n')
+    .map((l, i) => ({ n: i + 1, l }))
+    .filter(x => /e\.message/.test(x.l) && !/^\s*\/[/*]|^\s*\*/.test(x.l));
+  assert.ok(usos.length, 'la prueba no vale si nadie lee e.message');
+  for (const u of usos) {
+    assert.match(u.l, /sinClave\(/, `línea ${u.n}: e.message sin tapar la clave`);
+  }
+
+  /* Y lo que se registra es el texto ya tapado, no el error crudo. */
+  const registra = main.match(/error\([^)]*\)/g) || [];
+  for (const r of registra) {
+    assert.ok(!/e\.message/.test(r) || /sinClave/.test(r), `se registra sin tapar: ${r}`);
+  }
 });
 
 test('el Function ID viene puesto: ningún docente lo teclea', () => {
@@ -559,4 +576,70 @@ test('lo que se quitó del esquema lo sigue exigiendo el validador', () => {
   const fuera = validar({ ...base, answer: 7 });
   assert.equal(fuera.ok, false);
   assert.match(fuera.motivos.join(' '), /no señala a ninguna opción/, 'la respuesta fuera de rango');
+});
+
+/* ── El tope de 30 segundos de Appwrite ──
+   Es la restricción que manda en el diseño y no se puede negociar: toda
+   ejecución síncrona se corta a los 30 s, y en asíncrono el `responseBody`
+   llega vacío —lo dice el modelo Execution del propio SDK—, así que no hay
+   resultado que leer. De ahí que cada llamada tenga que ser pequeña. */
+
+test('los retos se piden de uno en uno, no la tanda entera', () => {
+  const cloud = leer('js/cloud.js');
+  assert.match(cloud, /paso: 'generar', n: 1/, 'un reto por llamada');
+  assert.match(cloud, /for \(let i = 0; i < cuantos; i\+\+\)/, 'una vuelta por reto');
+});
+
+test('la comprobación es otra llamada, y en tandas', () => {
+  /* Junta con la escritura era lo que hacía saltar el tope. */
+  const cloud = leer('js/cloud.js');
+  assert.match(cloud, /paso: 'verificar'/);
+  assert.match(cloud, /i \+= 4/, 'se parte por si el docente pidió muchos');
+  const main = leer('functions/generador/src/main.js');
+  assert.match(main, /const paso = p\.paso === 'verificar'/, 'la función atiende los dos encargos');
+});
+
+test('la llamada se hace síncrona a propósito', () => {
+  /* En asíncrono no habría cuerpo que leer. Si alguien lo cambia a `true`
+     «para que no dé timeout», la generación deja de devolver nada. */
+  const cloud = leer('js/cloud.js');
+  assert.match(cloud, /createExecution\(\s*\n?\s*id, JSON\.stringify\(cuerpo\), false,/);
+});
+
+test('lo ya escrito no se tira si una llamada falla a mitad', () => {
+  /* Está pagado. Perder ocho retos buenos porque el noveno dio un 429 sería
+     cobrarle al docente el fallo de la red. */
+  const cloud = leer('js/cloud.js');
+  assert.match(cloud, /if \(!buenos\.length && !descartados\.length\) return r;/);
+  assert.match(cloud, /corte = r\.texto;/, 'y se dice que se paró antes de acabar');
+});
+
+test('un reto que no se pudo comprobar llega marcado, no colado', () => {
+  /* Si la comprobación falla, lo peor sería meterlo en la cola como si
+     hubiera pasado los dos filtros. */
+  const cloud = leer('js/cloud.js');
+  assert.match(cloud, /sinComprobar: true/);
+  const teacher = leer('js/teacher.js');
+  assert.match(teacher, /sinComprobar/, 'y la pantalla lo dice');
+});
+
+test('el encargo dice qué retos NO repetir', () => {
+  /* Pidiéndolos de uno en uno, el modelo no ve los anteriores: sin esto la
+     segunda llamada reescribe la pregunta de la primera. */
+  const p = ctx.ev('promptGenerador')({
+    materia: 'matematicas', curso: 4, estrato: 'recordar', curriculo: 'La tabla del 8.',
+    n: 1, evitar: ['¿Cuánto es 8 × 3?'] });
+  assert.match(p.usuario, /Ya has escrito estos retos/);
+  assert.match(p.usuario, /8 × 3/);
+  assert.match(p.usuario, /Escribe 1 reto\./, 'en singular, que se pide uno');
+
+  const solo = ctx.ev('promptGenerador')({
+    materia: 'matematicas', curso: 4, estrato: 'recordar', curriculo: 'La tabla del 8.', n: 1 });
+  assert.ok(!/Ya has escrito/.test(solo.usuario), 'sin lista, no se le cuenta nada');
+});
+
+test('el tope de Appwrite se explica por su nombre, no como «la función falló»', () => {
+  const cloud = leer('js/cloud.js');
+  assert.match(cloud, /30 segundos, que es su tope y no se puede subir/);
+  assert.match(cloud, /timed out\|timeout/, 'se reconoce el mensaje de Appwrite');
 });

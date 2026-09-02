@@ -239,7 +239,15 @@ function promptGenerador(p) {
     textoLimpio(p.curriculo, 20000),
     '"""',
     '',
-    `Escribe ${cuantos} retos distintos entre sí.`
+    /* Los retos se piden de uno en uno (el tope de 30 s de Appwrite), así que
+       el modelo no ve los anteriores: sin esta lista, la segunda llamada
+       vuelve a escribir la misma pregunta que la primera. */
+    Array.isArray(p.evitar) && p.evitar.length
+      ? 'Ya has escrito estos retos. Escribe uno DISTINTO, de otro aspecto del concepto:\n' +
+        p.evitar.slice(-12).map(q => '  · ' + textoLimpio(q, 200)).join('\n')
+      : '',
+    '',
+    `Escribe ${cuantos} ${cuantos === 1 ? 'reto' : 'retos distintos entre sí'}.`
   ].filter(x => x !== '').join('\n');
 
   return { sistema, usuario, cuantos };

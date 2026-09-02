@@ -198,7 +198,10 @@ se queda solo en ese equipo.
 2. Pega el currículo de tu área y ciclo, o sube un `.txt`.
 3. Elige pozo, estrato, curso y cuántos. **Empieza con 3**, no con 10: si algo
    está mal configurado, lo sabrás por seis céntimos menos.
-4. **Generar retos.** Tarda. Es normal.
+4. **Generar retos.** Tarda, y el botón va contando: «Escribiendo el 2 de 3…».
+   Es normal, y es a propósito: cada reto es una llamada aparte porque
+   Appwrite corta toda ejecución síncrona a los 30 segundos. Diez retos son
+   once llamadas seguidas.
 
 Deberías ver los retos en la cola y, debajo, los que se hayan tirado con el
 motivo.
@@ -213,7 +216,8 @@ motivo.
 | «Falta el ID de la función» | El paso 7 |
 | «No existe ninguna función con ese ID» | El ID está mal copiado |
 | «Tu cuenta no puede ejecutar la función» | *Execute access* no está en **Users** |
-| **«La función ha fallado»** | Casi siempre el **timeout**. Ponlo en 300 |
+| **«Appwrite ha cortado la llamada a los 30 segundos»** | Su tope duro para ejecuciones síncronas. **No se puede subir**, y el ajuste de *Timeout* no lo cambia. Por eso los retos se piden de uno en uno. Si salta igual, manda un currículo más corto —solo el bloque del área que trabajas— |
+| «La función ha fallado sin llegar a contestar» | Ahí sí es el **Timeout** de la función: súbelo a 300 |
 | «No hay clave de API» | Ni la tuya en el panel ni la del centro en la función |
 | «La clave de la API no vale» | Mal copiada, o borrada en la consola de Anthropic |
 | «Tu clave está ligada a tu cuenta…» | Las claves nuevas de Anthropic no dicen en qué espacio de trabajo actúan. Copia el ID en *console.anthropic.com → Settings → Workspaces* y pégalo en el panel, debajo de la clave |

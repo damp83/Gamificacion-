@@ -1171,6 +1171,10 @@ function cfgGuardian(body) {
    aprobar no se enseña. */
 let iaEstado = '';          /* lo que se le dice al docente mientras trabaja */
 let iaGenerando = false;
+/* Qué se está haciendo ahora mismo. Se enseña en el propio botón: los retos
+   se piden de uno en uno y una tanda de diez son once llamadas, así que un
+   «Escribiendo…» quieto durante dos minutos parece que se ha colgado. */
+let iaProgreso = '';
 let iaDescartados = [];     /* lo que se tiró en la última tanda, con el motivo */
 
 /* Lo justo para reconocer cuál es sin enseñarla: nadie tiene que leer una
@@ -1267,7 +1271,7 @@ function cfgIA(body) {
       'Diez cuestan unos 6 céntimos. El currículo va cacheado, así que las tandas siguientes de la misma área cuestan menos.')}
     <button class="btn btn-primary btn-small" id="ia-generar"${
       (!nube || !conFuncion || !curr || iaGenerando) ? ' disabled' : ''}>${
-      iaGenerando ? '⏳ Escribiendo…' : '🤖 Generar retos'}</button>
+      iaGenerando ? '⏳ ' + (iaProgreso || 'Escribiendo…') : '🤖 Generar retos'}</button>
     <p class="cfg-hint">Puede tardar un minuto largo: escribe los retos y luego los vuelve a resolver
     por su cuenta para comprobar que la respuesta marcada es la buena.</p>
     ${iaEstado ? `<div class="cfg-equipo ${iaEstado.startsWith('⚠️') ? '' : 'cfg-equipo-ok'}">${iaEstado}</div>` : ''}
@@ -1363,9 +1367,16 @@ function cfgIA(body) {
     setTeacherConfig('iaCurso', curso);
     setTeacherConfig('iaCuantos', cuantos);
     const pozo = destino.split('/');
-    iaGenerando = true; iaEstado = ''; renderTeacherConfig();
-    const r = await cloudGenerarRetos({ materia, curso, estrato, n: cuantos, curriculo: iaCurriculo(materia) });
-    iaGenerando = false;
+    iaGenerando = true; iaEstado = ''; iaProgreso = ''; renderTeacherConfig();
+    const r = await cloudGenerarRetos(
+      { materia, curso, estrato, n: cuantos, curriculo: iaCurriculo(materia) },
+      (hechos, total, fase) => {
+        iaProgreso = fase === 'comprobando'
+          ? 'Comprobando las respuestas…'
+          : `Escribiendo el ${hechos + 1} de ${total}…`;
+        renderTeacherConfig();
+      });
+    iaGenerando = false; iaProgreso = '';
 
     if (!r.ok) { iaEstado = '⚠️ ' + r.texto; iaDescartados = []; renderTeacherConfig(); return; }
 
@@ -1376,8 +1387,14 @@ function cfgIA(body) {
     }));
     cfgSave('iaCola', iaCola().concat(nuevos), false);
     iaDescartados = r.descartados || [];
+    /* `corte` = se paró a mitad. Lo escrito hasta ahí está pagado y se guarda,
+       pero hay que decir que la tanda no llegó al final: si no, el docente
+       pide diez, recibe cuatro y no sabe si es que se tiraron seis. */
+    const sinComprobar = nuevos.filter(x => x.sinComprobar).length;
     iaEstado = `${nuevos.length} en la cola${
       iaDescartados.length ? `, ${iaDescartados.length} tirados por las comprobaciones` : ''}.${
+      sinComprobar ? ` ⚠️ ${sinComprobar} sin comprobar: léelos con más cuidado.` : ''}${
+      r.corte ? ` ⚠️ Se paró antes de acabar: ${r.corte}` : ''}${
       r.usados ? ` (${r.usados.entrada + r.usados.cacheados} tokens de entrada, ${r.usados.salida} de salida)` : ''}`;
     renderTeacherConfig();
   });
