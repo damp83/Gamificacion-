@@ -1600,6 +1600,9 @@ body.en-mision #main { padding-bottom: var(--s-5); }
   width: 1.6rem; height: 1.6rem; display: grid; place-items: center;
   font-size: .8rem; font-weight: 700;
 }
+/* «(solo si te lo pide)» dentro de una etiqueta: se lee como aclaración,
+   no como parte del nombre del campo. */
+.cfg-opt { font-weight: 400; color: var(--ink-faint); font-size: var(--t-xs); }
 .cfg-opt-row { gap: .5rem; }
 .cfg-opt-row input[type="radio"] { width: 20px; height: 20px; flex: 0 0 auto; accent-color: var(--jungle); }
 .cfg-opt-row .cfg-q-opt { flex: 1; }

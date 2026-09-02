@@ -11,7 +11,7 @@
    copia guardada. Sin este número, «ya está arreglado» y «a mí no me pasa» son
    indistinguibles. Va junto al nombre de la caché del service worker, y una
    prueba comprueba que no se separen. */
-const ATLAS_VERSION = 'v29';
+const ATLAS_VERSION = 'v30';
 
 const ATLAS_DEFAULTS = {
 
@@ -63,6 +63,14 @@ const ATLAS_DEFAULTS = {
      Así cada docente paga lo suyo. Si se deja vacía, la función usa la clave
      del centro que tenga en su variable de entorno, si la hay. */
   iaClave: '',
+
+  /* ── El espacio de trabajo de la clave ──
+     Las claves que reparte ahora la consola de Anthropic van ligadas a la
+     cuenta y no dicen por sí solas dónde actúan: sin esto la API contesta un
+     400. Las de toda la vida no lo necesitan y este campo se queda vacío.
+     No es un secreto —es un identificador— pero acompaña a la clave, así que
+     viaja con ella: se queda en el equipo del docente. */
+  iaWorkspace: '',
 
   /* PIN del panel del docente. Este es el que llevan TODAS las tablets: el que
      se cambia desde el panel vale solo para ese equipo, porque el PIN no viaja
@@ -362,7 +370,7 @@ function configEditadaEnLocal() {
    decenas de miles de caracteres que a un niño no le sirven de nada y que
    viajarían a las veinticinco tablets en cada apertura de clase; la cola es un
    borrador del docente, y lo que está sin aprobar no se enseña. */
-const NO_SE_COMPARTE = ['appwrite', 'teacherPin', 'curriculo', 'iaCola', 'iaClave'];
+const NO_SE_COMPARTE = ['appwrite', 'teacherPin', 'curriculo', 'iaCola', 'iaClave', 'iaWorkspace'];
 
 function configParaCompartir() {
   const o = deepClone(ATLAS_OVERLAY);

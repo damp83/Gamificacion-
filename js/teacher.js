@@ -1228,6 +1228,13 @@ function cfgIA(body) {
          configurado. Sin clave no se genera nada: no hay una clave del centro que pague por todos,
          y es a propósito —así nadie gasta la cuenta de otro.</p>`}
 
+    ${field('Espacio de trabajo <span class="cfg-opt">(solo si te lo pide)</span>',
+      `<input type="text" id="ia-workspace" autocomplete="off" spellcheck="false"
+        value="${esc(ATLAS_CONFIG.iaWorkspace || '')}" placeholder="déjalo vacío de momento">`,
+      'Las claves nuevas de Anthropic van ligadas a tu cuenta y necesitan saber en qué espacio ' +
+      'de trabajo actúan. Si al generar te dice que falta, ven aquí y pega el ID: está en ' +
+      'console.anthropic.com → Settings → Workspaces. Con una clave de las de siempre, no hace falta.')}
+
     <h4 class="cfg-h4">2. El currículo</h4>
     <p class="cfg-hint">Pega los saberes básicos de tu área y ciclo, o sube el fichero. Es de lo único
     que el modelo puede tirar: si lo que ibas a preguntar no está en este texto, se le pide que no lo
@@ -1317,6 +1324,8 @@ function cfgIA(body) {
     iaEstado = 'Clave guardada en este equipo.';
     renderTeacherConfig();
   });
+  onInput('#ia-workspace', e => cfgSave('iaWorkspace', e.target.value.trim(), false));
+
   const quitarClave = $('#ia-quitar-clave');
   if (quitarClave) quitarClave.addEventListener('click', async () => {
     if (!(await askConfirm('¿Quitar tu clave de este equipo? Podrás volver a pegarla cuando quieras.', 'Quitar'))) return;

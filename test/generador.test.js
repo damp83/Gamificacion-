@@ -469,3 +469,41 @@ test('el ID viaja a las tablets, así que la función no puede tener clave propi
   assert.equal(c.ev('ATLAS_CONFIG.iaClave'), '', 'no viene ninguna clave de fábrica');
   assert.ok(c.ev('NO_SE_COMPARTE').includes('iaClave'), 'y la que ponga el docente no se comparte');
 });
+
+test('el espacio de trabajo viaja solo si el docente lo ha puesto', () => {
+  /* Las claves de siempre no lo necesitan y mandar la cabecera vacía sería
+     pedirle a la API que rechace una petición que iba bien. */
+  const cloud = leer('js/cloud.js');
+  assert.match(cloud, /if \(espacio\) cuerpo\.workspace = espacio/);
+  const main = leer('functions/generador/src/main.js');
+  assert.match(main, /defaultHeaders: \{ 'anthropic-workspace-id': espacio \}/);
+  assert.match(main, /espacio\s*\n?\s*\?/, 'sin espacio, el cliente va como siempre');
+  const c = cargarApp();
+  assert.equal(c.ev('ATLAS_CONFIG.iaWorkspace'), '', 'de fábrica, vacío');
+  assert.ok(c.ev('NO_SE_COMPARTE').includes('iaWorkspace'), 'acompaña a la clave: no se comparte');
+});
+
+test('el aviso del espacio se comprueba antes que el de la clave', () => {
+  /* El texto de ese error dice «identity-linked API key»: la comprobación de
+     la clave lo cazaría y le diría al docente que su clave no vale. */
+  const main = leer('functions/generador/src/main.js');
+  const iWs = main.indexOf("reason: 'workspace'");
+  const iClave = main.indexOf("reason: 'clave'");
+  assert.ok(iWs > 0 && iClave > 0);
+  assert.ok(iWs < iClave, 'el del espacio va primero');
+  const real = 'anthropic-workspace-id is required when authenticating with an identity-linked API key';
+  assert.ok(/workspace/i.test(real), 'el mensaje real lo caza');
+  assert.ok(/api key/i.test(real), 'y también caería en el de la clave, por eso importa el orden');
+});
+
+test('un fallo con motivo escrito no se sustituye por el aviso del timeout', () => {
+  /* Appwrite marca «failed» cualquier 4xx, y las nuestras lo son a propósito:
+     llevan el motivo dentro. Leer el cuerpo primero es lo que separa «te falta
+     el espacio de trabajo» de «sube el timeout», que fue lo que se enseñó. */
+  const cloud = leer('js/cloud.js');
+  const iCuerpo = cloud.indexOf("JSON.parse(ex.responseBody");
+  const iFallo = cloud.indexOf("ex.status === 'failed'");
+  assert.ok(iCuerpo > 0 && iFallo > 0);
+  assert.ok(iCuerpo < iFallo, 'primero se lee el cuerpo, después se mira el estado');
+  assert.match(cloud, /if \(!datos\) \{/, 'el aviso del tope solo cuando no hay nada que leer');
+});

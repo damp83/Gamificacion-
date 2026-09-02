@@ -216,6 +216,7 @@ motivo.
 | **«La función ha fallado»** | Casi siempre el **timeout**. Ponlo en 300 |
 | «No hay clave de API» | Ni la tuya en el panel ni la del centro en la función |
 | «La clave de la API no vale» | Mal copiada, o borrada en la consola de Anthropic |
+| «Tu clave está ligada a tu cuenta…» | Las claves nuevas de Anthropic no dicen en qué espacio de trabajo actúan. Copia el ID en *console.anthropic.com → Settings → Workspaces* y pégalo en el panel, debajo de la clave |
 | «La cuenta se ha quedado sin saldo» | Recarga en console.anthropic.com |
 | Se tiran casi todos los retos | El currículo pegado no cubre lo que pides. Mira los motivos |
 

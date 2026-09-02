@@ -60,6 +60,9 @@ async function cloudGenerarRetos(peticion) {
   const cuerpo = Object.assign({}, peticion);
   const clave = (ATLAS_CONFIG.iaClave || '').trim();
   if (clave) cuerpo.clave = clave;
+  /* Solo lo piden las claves ligadas a la cuenta. Vacío = no se manda. */
+  const espacio = (ATLAS_CONFIG.iaWorkspace || '').trim();
+  if (espacio) cuerpo.workspace = espacio;
 
   try {
     /* Síncrona: se espera la respuesta. La firma es posicional en el SDK v17
@@ -67,16 +70,26 @@ async function cloudGenerarRetos(peticion) {
     const ex = await CLOUD.functions.createExecution(
       id, JSON.stringify(cuerpo), false, '/', 'POST', { 'content-type': 'application/json' });
 
-    if (ex.status === 'failed') {
-      /* Lo más habitual con diferencia: la función tarda más que su tope. Diez
-         retos con currículo no salen en los 15 s de fábrica. */
-      return { ok: false, reason: 'fallo',
-        texto: 'La función ha fallado. Si tarda, sube su tiempo máximo en Appwrite → Functions → '
-             + 'Settings → Timeout: 15 segundos no bastan, pon 300.' };
+    /* Appwrite marca «failed» cualquier respuesta 4xx o 5xx, y las nuestras lo
+       son A PROPÓSITO: la función contesta 400 con el motivo escrito dentro.
+       Así que primero se lee el cuerpo y solo si no hay nada que leer se da el
+       aviso del tope de tiempo —que es justo el caso en que no hay cuerpo,
+       porque a la función la cortaron a media frase—.
+
+       Estuvo al revés y costó una sesión de depuración: la API decía
+       exactamente qué faltaba y la pantalla contestaba «sube el timeout». */
+    let datos = null;
+    try { datos = JSON.parse(ex.responseBody || 'null'); }
+    catch (e) { datos = null; }
+
+    if (!datos) {
+      if (ex.status === 'failed') {
+        return { ok: false, reason: 'fallo',
+          texto: 'La función ha fallado sin llegar a contestar. Casi siempre es el tope de tiempo: '
+               + 'súbelo en Appwrite → Functions → Settings → Timeout. 15 segundos no bastan, pon 300.' };
+      }
+      return { ok: false, reason: 'respuesta', texto: 'La función ha respondido algo que no se entiende.' };
     }
-    let datos = {};
-    try { datos = JSON.parse(ex.responseBody || '{}'); }
-    catch (e) { return { ok: false, reason: 'respuesta', texto: 'La función ha respondido algo que no se entiende.' }; }
 
     if (!datos.ok) return { ok: false, reason: datos.reason || 'error', texto: datos.texto || 'No se han podido generar.' };
     return { ok: true, retos: datos.retos || [], descartados: datos.descartados || [], usados: datos.usados };

@@ -69,7 +69,16 @@ export default async ({ req, res, log, error }) => {
       texto: 'No hay clave de API. Pon la tuya en Configuración → Retos con IA, o pide que se '
            + 'configure ANTHROPIC_API_KEY en la función.' }, 400);
   }
-  const client = new Anthropic({ apiKey: clave });
+  /* ── El espacio de trabajo ──
+     Las claves «ligadas a la identidad» que reparte ahora la consola de
+     Anthropic no dicen por sí solas en qué espacio de trabajo actúan, y la
+     API las rechaza con un 400 hasta que se le manda. Las claves de toda la
+     vida no lo necesitan, así que solo se manda si lo hay. */
+  const espacio = (typeof p.workspace === 'string' && p.workspace.trim())
+    || process.env.ANTHROPIC_WORKSPACE_ID || '';
+  const client = new Anthropic(espacio
+    ? { apiKey: clave, defaultHeaders: { 'anthropic-workspace-id': espacio } }
+    : { apiKey: clave });
 
   try {
     /* ── 1. Escribir los retos ── */
@@ -129,6 +138,16 @@ export default async ({ req, res, log, error }) => {
     /* Se distingue lo que arregla el docente de lo que no: «vuelve a
        intentarlo» sobre una clave caducada es mandarle a dar vueltas. */
     const m = sinClave((e && e.message) || '');
+    /* Va ANTES que el de la clave a propósito: el aviso del espacio de
+       trabajo dice «identity-linked API key», así que la comprobación de
+       abajo lo cazaría y le diría al docente que su clave no vale, que es
+       mentira y le manda a crear otra igual de rota. */
+    if (/workspace/i.test(m)) {
+      return res.json({ ok: false, reason: 'workspace',
+        texto: 'Tu clave está ligada a tu cuenta y necesita saber en qué espacio de trabajo '
+             + 'actúa. Pega el ID del espacio en Configuración → Retos con IA, debajo de la '
+             + 'clave. Lo tienes en console.anthropic.com → Settings → Workspaces.' }, 400);
+    }
     if (/401|authentication|api key/i.test(m)) {
       return res.json({ ok: false, reason: 'clave', texto: 'La clave de la API no vale o ha caducado.' }, 500);
     }
