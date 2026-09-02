@@ -175,14 +175,19 @@ test('las dos materias cubren conceptos reales del catálogo', () => {
   assert.equal(mates.filter(c => lengua.includes(c)).length, 0, 'no se solapan');
 });
 
-test('el esquema obliga a cuatro opciones y a un índice de 0 a 3', () => {
-  /* Sin esto, el modelo devuelve tres opciones o un índice de 1 a 4 y el
-     fallo aparece en la tablet de un niño, no aquí. */
+test('el esquema pide los ocho campos, y nada más', () => {
+  /* Esta prueba daba por bueno que el esquema obligara a cuatro opciones y a
+     un índice de 0 a 3, con minItems/maxItems y minimum/maximum. Era mentira:
+     el esquema de salida no admite esas restricciones y la API rechazaba la
+     petición ENTERA con un 400, así que no se escribía ni un reto. La prueba
+     no lo cazó porque comprobaba el esquema contra sí mismo y no contra lo
+     que la API acepta; ahora eso lo mira «el esquema de salida no lleva nada
+     que la API rechace», y el número de opciones lo exige el validador. */
   const e = ctx.ev('esquemaRetos')();
   const it = e.properties.retos.items;
-  assert.equal(it.properties.options.minItems, 4);
-  assert.equal(it.properties.options.maxItems, 4);
-  assert.equal(it.properties.answer.maximum, 3);
+  assert.equal(it.properties.options.type, 'array');
+  assert.equal(it.properties.options.items.type, 'string');
+  assert.equal(it.properties.answer.type, 'integer');
   assert.deepEqual(it.required.sort(),
     ['answer', 'criterio', 'explanation', 'hint1', 'hint2', 'options', 'question', 'skill']);
 });
@@ -506,4 +511,52 @@ test('un fallo con motivo escrito no se sustituye por el aviso del timeout', () 
   assert.ok(iCuerpo > 0 && iFallo > 0);
   assert.ok(iCuerpo < iFallo, 'primero se lee el cuerpo, después se mira el estado');
   assert.match(cloud, /if \(!datos\) \{/, 'el aviso del tope solo cuando no hay nada que leer');
+});
+
+test('el esquema de salida no lleva nada que la API rechace', () => {
+  /* El esquema de structured outputs no admite restricciones numéricas ni de
+     tamaño de array: si se cuela una, la API devuelve 400 y NO se escribe ni
+     un reto —la tanda entera se pierde antes de empezar—. Pasó con
+     `minItems: 4` y `minimum/maximum` en la respuesta correcta.
+
+     La forma se pide en el prompt y la exige validarRetoIA, que además
+     explica en castellano qué falló en vez de tumbar la petición entera. */
+  const PROHIBIDAS = ['minItems', 'maxItems', 'minimum', 'maximum', 'multipleOf', 'minLength', 'maxLength'];
+  const c = cargarApp(['content', 'generador']);
+
+  const recorrer = (nodo, ruta, fallos) => {
+    if (!nodo || typeof nodo !== 'object') return;
+    if (Array.isArray(nodo)) { nodo.forEach((x, i) => recorrer(x, `${ruta}[${i}]`, fallos)); return; }
+    for (const k of Object.keys(nodo)) {
+      if (PROHIBIDAS.includes(k)) fallos.push(`${ruta}.${k}`);
+      recorrer(nodo[k], `${ruta}.${k}`, fallos);
+    }
+    /* Y al revés: todo objeto tiene que cerrar propiedades, eso sí es obligatorio. */
+    if (nodo.type === 'object' && nodo.additionalProperties !== false) {
+      fallos.push(`${ruta}: falta additionalProperties:false`);
+    }
+  };
+
+  for (const nombre of ['esquemaRetos', 'esquemaVerificacion']) {
+    const fallos = [];
+    recorrer(c.ev(nombre)(), nombre, fallos);
+    assert.deepEqual(fallos, [], `${nombre} lleva algo que la API no admite`);
+  }
+});
+
+test('lo que se quitó del esquema lo sigue exigiendo el validador', () => {
+  const c = cargarApp(['content', 'generador']);
+  const validar = (r) => c.ev('validarRetoIA')(r, { materia: 'matematicas' });
+  const base = {
+    question: '¿Cuánto es 7 × 8?', options: ['56', '54', '48', '63'], answer: 0,
+    hint1: 'Siete veces ocho.', hint2: 'Está entre 50 y 60.', explanation: 'Siete grupos de ocho.',
+    skill: 'multiplicacion'
+  };
+  const tres = validar({ ...base, options: ['56', '54', '48'] });
+  assert.equal(tres.ok, false);
+  assert.match(tres.motivos.join(' '), /4 opciones/, 'el número de opciones');
+
+  const fuera = validar({ ...base, answer: 7 });
+  assert.equal(fuera.ok, false);
+  assert.match(fuera.motivos.join(' '), /no señala a ninguna opción/, 'la respuesta fuera de rango');
 });

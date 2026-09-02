@@ -208,7 +208,8 @@ function promptGenerador(p) {
     'Los lee un niño solo, en una tablet, sin nadie al lado que le aclare el enunciado.',
     '',
     'Reglas que no se negocian:',
-    '1. Cuatro opciones, y las tres falsas tienen que ser PLAUSIBLES: cada una debe',
+    '1. EXACTAMENTE cuatro opciones —ni tres ni cinco— y `answer` es la posición de la',
+    '   correcta contando desde 0, o sea 0, 1, 2 o 3. Las tres falsas tienen que ser PLAUSIBLES: cada una debe',
     '   corresponder a un error que un niño de ese curso comete de verdad (olvidar la',
     '   llevada, confundir el orden, aplicar la regla al revés). Una opción absurda',
     '   convierte el reto en tres opciones.',
@@ -245,7 +246,17 @@ function promptGenerador(p) {
 }
 
 /* El esquema con el que se pide la salida: el modelo no puede devolver otra
-   cosa, y así el validador recibe siempre la misma forma. */
+   cosa, y así el validador recibe siempre la misma forma.
+
+   OJO con lo que se pone aquí. El esquema de salida NO admite restricciones
+   numéricas (`minimum`, `maximum`) ni de tamaño de array (`minItems`,
+   `maxItems`): la petición entera se rechaza con un 400 antes de escribir
+   nada. Tenía las dos cosas —cuatro opciones exactas y la respuesta entre 0
+   y 3— y por eso no salía ni un reto.
+
+   No se pierde nada quitándolas, porque de eso ya se encarga `validarRetoIA`,
+   que además dice en castellano qué falló en vez de tirar la tanda entera.
+   La forma se pide en el prompt; el validador es quien la exige. */
 function esquemaRetos() {
   return {
     type: 'object',
@@ -260,8 +271,8 @@ function esquemaRetos() {
           required: ['question', 'options', 'answer', 'hint1', 'hint2', 'explanation', 'skill', 'criterio'],
           properties: {
             question: { type: 'string' },
-            options: { type: 'array', items: { type: 'string' }, minItems: 4, maxItems: 4 },
-            answer: { type: 'integer', minimum: 0, maximum: 3 },
+            options: { type: 'array', items: { type: 'string' } },
+            answer: { type: 'integer' },
             hint1: { type: 'string' },
             hint2: { type: 'string' },
             explanation: { type: 'string' },
