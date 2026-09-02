@@ -223,6 +223,7 @@ motivo.
 | «Tu clave está ligada a tu cuenta…» | Las claves nuevas de Anthropic no dicen en qué espacio de trabajo actúan. Copia el ID en *console.anthropic.com → Settings → Workspaces* y pégalo en el panel, debajo de la clave |
 | «La cuenta se ha quedado sin saldo» | Recarga en console.anthropic.com |
 | Se tiran casi todos los retos | El currículo pegado no cubre lo que pides. Mira los motivos |
+| «Se cortó la conexión» a mitad de una tanda | Es el navegador abortando la petición, no la función. Se reintenta tres veces solo. Si se repite: deja la pantalla encendida y la app delante —una tanda de diez son casi cinco minutos— |
 
 Para ver qué pasó de verdad: en Appwrite, la función → pestaña **Executions**
 → pincha la última. Ahí están los registros y el error.

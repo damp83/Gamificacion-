@@ -643,3 +643,45 @@ test('el tope de Appwrite se explica por su nombre, no como «la función falló
   assert.match(cloud, /30 segundos, que es su tope y no se puede subir/);
   assert.match(cloud, /timed out\|timeout/, 'se reconoce el mensaje de Appwrite');
 });
+
+/* ── Una tanda larga en una tablet ──
+   Diez retos son once llamadas de medio minuto: casi cinco minutos con el
+   wifi de un colegio y una pantalla que se apaga sola. La primera tanda de
+   diez se cortó en el segundo con «Load failed», que es Safari abortando la
+   petición, no la función fallando. */
+
+test('un corte de red se reintenta; un error de la API, no', () => {
+  const cloud = leer('js/cloud.js');
+  assert.match(cloud, /function esCorteDeRed\(m\)/);
+  assert.match(cloud, /load failed\|failed to fetch/i, 'se reconoce lo que dice Safari');
+  assert.match(cloud, /reintentable: true/, 'solo eso se marca reintentable');
+  assert.match(cloud, /if \(r\.ok \|\| !r\.reintentable\) return r;/,
+    'una clave mala no se reintenta tres veces: fallaría igual');
+});
+
+test('los reintentos esperan cada vez más, y son pocos', () => {
+  const cloud = leer('js/cloud.js');
+  assert.match(cloud, /const ESPERAS = \[2000, 5000\]/);
+});
+
+test('las dos fases usan el reintento, no solo la de escribir', () => {
+  const cloud = leer('js/cloud.js');
+  const usos = (cloud.match(/await ejecutarConReintento\(/g) || []).length;
+  assert.equal(usos, 2, 'escribir y comprobar');
+});
+
+test('la pantalla se mantiene encendida mientras genera', () => {
+  /* Si el iPad se bloquea a mitad, Safari aborta la petición en curso. */
+  const t = leer('js/teacher.js');
+  assert.match(t, /navigator\.wakeLock/);
+  assert.match(t, /await pantallaDespierta\(\);/, 'se pide al empezar');
+  assert.match(t, /soltarPantallaDespierta\(\);/, 'y se suelta al acabar');
+  assert.match(t, /if \(!despierta\) pantallaDespierta\(\);/, 'se recupera al volver de segundo plano');
+  assert.match(t, /catch \(e\) \{ despierta = null; \}/, 'si el navegador no la trae, se genera igual');
+});
+
+test('un reintento se ve en el botón, no se queda en «Escribiendo el 3 de 10»', () => {
+  const t = leer('js/teacher.js');
+  assert.match(t, /fase === 'escribiendo' \?/, 'la fase se compara explícitamente');
+  assert.match(t, /: String\(fase\);/, 'cualquier otro aviso se enseña tal cual');
+});

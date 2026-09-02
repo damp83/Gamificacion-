@@ -74,7 +74,8 @@ async function cloudGenerarRetos(peticion, onProgreso) {
   let corte = null;
   for (let i = 0; i < cuantos; i++) {
     avisar(i, 'escribiendo');
-    const r = await ejecutarGenerador(id, Object.assign({}, peticion, { paso: 'generar', n: 1, evitar }));
+    const r = await ejecutarConReintento(id, Object.assign({}, peticion, { paso: 'generar', n: 1, evitar }),
+      (n, de) => avisar(i, `reintentando (${n} de ${de})`));
     if (!r.ok) {
       /* Si ya hay retos escritos, no se tiran: están pagados. Se sigue con lo
          que haya y se dice qué pasó. */
@@ -98,8 +99,8 @@ async function cloudGenerarRetos(peticion, onProgreso) {
   for (let i = 0; i < buenos.length; i += 4) {
     avisar(i, 'comprobando');
     const trozo = buenos.slice(i, i + 4);
-    const r = await ejecutarGenerador(id, Object.assign({}, peticion,
-      { paso: 'verificar', retos: trozo }));
+    const r = await ejecutarConReintento(id, Object.assign({}, peticion,
+      { paso: 'verificar', retos: trozo }), (n, de) => avisar(i, `reintentando (${n} de ${de})`));
     if (!r.ok) {
       /* Sin comprobar no se aprueban a ciegas: van a la cola marcados, y el
          docente decide. Callarse esto sería lo peor que podría hacer aquí. */
@@ -176,8 +177,46 @@ async function ejecutarGenerador(id, cuerpo) {
              + 'Vuelve a intentarlo: si se repite, el modelo está tardando de más con este currículo '
              + '—prueba a mandar solo el bloque del área que estás trabajando, no el documento entero—.' };
     }
+    /* ── Se cayó el transporte, no la función ──
+       «Load failed» es lo que dice Safari cuando aborta una petición: la
+       pantalla se apagó, el iPad cambió de red, o el wifi del centro
+       parpadeó. Se distingue de un error de la API porque no llegó a haber
+       respuesta, y por eso merece reintento y no un mensaje técnico. */
+    if (esCorteDeRed(m)) {
+      return { ok: false, reason: 'red', reintentable: true,
+        texto: 'Se cortó la conexión a mitad de la petición.' };
+    }
     return { ok: false, reason: 'error', texto: 'No se ha podido llamar a la función: ' + m };
   }
+}
+
+/* Los mensajes con los que cada navegador dice «no pude ni mandarla». */
+function esCorteDeRed(m) {
+  return /load failed|failed to fetch|network|networkerror|aborted|ERR_|connection/i.test(m || '');
+}
+
+/* Una llamada con reintentos, solo para lo que se cae por la red.
+
+   Una tanda de diez son once llamadas de medio minuto: casi cinco minutos
+   con el wifi de un colegio de por medio. Que un parpadeo tire la tanda
+   entera —y con ella lo que ya se ha pagado— no es aceptable. Un error de
+   la API (clave mala, sin saldo) NO se reintenta: sería gastar tiempo en
+   algo que va a fallar igual las tres veces. */
+async function ejecutarConReintento(id, cuerpo, avisar) {
+  const ESPERAS = [2000, 5000];
+  let ultimo = null;
+  for (let intento = 0; intento <= ESPERAS.length; intento++) {
+    const r = await ejecutarGenerador(id, cuerpo);
+    if (r.ok || !r.reintentable) return r;
+    ultimo = r;
+    if (intento < ESPERAS.length) {
+      if (typeof avisar === 'function') avisar(intento + 1, ESPERAS.length);
+      await new Promise(res => setTimeout(res, ESPERAS[intento]));
+    }
+  }
+  return Object.assign({}, ultimo, {
+    texto: 'Se cortó la conexión y no se ha recuperado tras tres intentos. '
+         + 'Si estás en un iPad, deja la pantalla encendida y la app delante mientras genera.' });
 }
 
 /* usuario del niño → email interno válido para Appwrite */

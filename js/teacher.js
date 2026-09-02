@@ -1229,6 +1229,25 @@ function iaPozos() {
   return out;
 }
 
+/* ── Que no se apague la pantalla mientras genera ──
+   No es una comodidad: si el iPad se bloquea a mitad, Safari aborta la
+   petición en curso y la tanda se corta. El navegador puede no traer esta
+   API, o negarla, y entonces no pasa nada: se genera igual, solo que el
+   docente tiene que dejar la app delante. */
+let despierta = null;
+async function pantallaDespierta() {
+  try {
+    if (!navigator.wakeLock || despierta) return;
+    despierta = await navigator.wakeLock.request('screen');
+    /* Al volver de segundo plano el bloqueo se pierde: se vuelve a pedir. */
+    despierta.addEventListener('release', () => { despierta = null; });
+  } catch (e) { despierta = null; }
+}
+function soltarPantallaDespierta() {
+  try { if (despierta) despierta.release(); } catch (e) { /* ya soltado */ }
+  despierta = null;
+}
+
 function cfgIA(body) {
   const materia = ATLAS_CONFIG.iaMateria || 'matematicas';
   const cola = iaCola();
@@ -1398,15 +1417,27 @@ function cfgIA(body) {
     setTeacherConfig('iaCuantos', cuantos);
     const pozo = destino.split('/');
     iaGenerando = true; iaEstado = ''; iaProgreso = ''; renderTeacherConfig();
+    /* Una tanda de diez son casi cinco minutos. Si el iPad apaga la pantalla
+       a mitad, Safari aborta la petición en curso y la tanda se corta con un
+       «Load failed» que no es culpa de nadie. Esto lo evita mientras dura. */
+    await pantallaDespierta();
     const r = await cloudGenerarRetos(
       { materia, curso, estrato, n: cuantos, curriculo: iaCurriculo(materia) },
       (hechos, total, fase) => {
-        iaProgreso = fase === 'comprobando'
-          ? 'Comprobando las respuestas…'
-          : `Escribiendo el ${hechos + 1} de ${total}…`;
+        iaProgreso = fase === 'comprobando' ? 'Comprobando las respuestas…'
+          : fase === 'escribiendo' ? `Escribiendo el ${hechos + 1} de ${total}…`
+          /* Cualquier otra cosa es un aviso escrito por cloud.js —los
+             reintentos— y se enseña tal cual: quedarse en «Escribiendo el 3
+             de 10» mientras se reintenta parece que se ha colgado. */
+          : String(fase);
+        /* Al volver de segundo plano el bloqueo de pantalla se ha soltado
+           solo: se vuelve a pedir en cada aviso, que es cuando sabemos que
+           la página está viva. */
+        if (!despierta) pantallaDespierta();
         renderTeacherConfig();
       });
     iaGenerando = false; iaProgreso = '';
+    soltarPantallaDespierta();
 
     if (!r.ok) { iaEstado = '⚠️ ' + r.texto; iaDescartados = []; renderTeacherConfig(); return; }
 
