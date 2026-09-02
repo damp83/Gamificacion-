@@ -2129,6 +2129,37 @@ input[type="checkbox"]::after, input[type="radio"]::after {
 .teacher-warn > div { flex: 1; min-width: 14rem; }
 .teacher-warn-icon { font-size: 1.6rem; line-height: 1; }
 
+/* ── El pulso de la sala de mapas ──
+   Cuatro cifras en una fila, no cuatro tarjetas de pantalla y media: son
+   números de una o dos cifras y se leen igual pequeños. En un móvil caben
+   dos por fila; en el portátil del aula, las cuatro.
+
+   Todas se pulsan, así que todas tienen 44px de alto de sobra: son botones
+   de verdad, no adorno. */
+.teacher-pulse {
+  display: grid; gap: .6rem; margin-bottom: var(--s-5);
+  grid-template-columns: repeat(auto-fit, minmax(9rem, 1fr));
+}
+.pulso-ficha {
+  display: flex; align-items: center; gap: .6rem;
+  min-height: 3.25rem; padding: .7rem .9rem;
+  background: var(--surface); border: 1px solid var(--paper-deep);
+  border-radius: var(--r-md); box-shadow: var(--e-1);
+  font-family: inherit; color: var(--ink); text-align: left; cursor: pointer;
+  transition: transform .12s ease, box-shadow .12s ease;
+}
+.pulso-ficha:hover { transform: translateY(-2px); box-shadow: var(--e-2); }
+.pulso-ficha:active { transform: none; }
+.pulso-icono { font-size: 1.5rem; line-height: 1; flex: none; }
+.pulso-n { font-size: 1.45rem; font-weight: 800; line-height: 1; flex: none; }
+.pulso-que { font-size: var(--t-xs); line-height: 1.25; color: var(--ink-soft); }
+/* El que pide algo: sin cifra, con el verbo delante. */
+.pulso-accion { border-style: dashed; background: transparent; }
+.pulso-hacer { font-size: var(--t-sm); font-weight: 700; color: var(--brass); line-height: 1.25; }
+/* El que avisa de algo que hay que atender hoy. */
+.pulso-avisa { border-left: 4px solid var(--brass); background: var(--brass-tint); }
+.pulso-avisa .pulso-que { color: var(--ink); }
+
 /* Barra de clase abierta, en la sala de mapas */
 .teacher-aula {
   display: flex; align-items: center; gap: .9rem; flex-wrap: wrap;

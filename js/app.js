@@ -138,6 +138,86 @@ function startStudentPath() {
   showOnboarding();
 }
 
+/* ══════════ EL PULSO DE LA SALA DE MAPAS ══════════
+
+   Cuatro cifras al entrar, para no tener que ir a buscarlas por el panel.
+
+   La regla que las gobierna: un número que sale siempre igual es ruido, y
+   una fila de ceros es peor todavía, porque ocupa sitio sin decir nada. Así
+   que aquí cada cifra o SE PUEDE PULSAR y lleva a donde se arregla, o no
+   sale. Un cero de «no tienes alumnos» no se enseña como cero: se enseña
+   como «Apunta a tu clase →», que es lo que hay que hacer con él.
+
+   Todas se calculan aquí mismo, sin red: son datos que ya están en este
+   equipo. Que la sala de mapas dependa de la nube para pintarse sería
+   cambiar información por espera. */
+
+function pulsoDocente() {
+  const fichas = [];
+
+  /* 1. Cuánta gente hay. La lista de clase más quien tenga diario aquí
+        aunque se le haya quitado de la lista: si un niño juega, cuenta. */
+  const alumnos = typeof aulaAlumnos === 'function' ? aulaAlumnos().length : 0;
+  fichas.push(alumnos
+    ? { icono: '👥', n: alumnos, que: alumnos === 1 ? 'explorador' : 'exploradores', ir: 'alumnado' }
+    : { icono: '👥', accion: 'Apunta a tu clase', ir: 'alumnado' });
+
+  /* 2. Dónde pueden excavar hoy. Pozos abiertos, no yacimientos: un
+        yacimiento con todos los pozos cerrados no da juego a nadie. */
+  let pozos = 0;
+  for (const site of sitesEnabled()) pozos += branchesEnabledOf(site).length;
+  fichas.push(pozos
+    ? { icono: '⛏️', n: pozos, que: pozos === 1 ? 'pozo abierto' : 'pozos abiertos', ir: 'yacimient' }
+    : { icono: '⛏️', accion: 'Abre un pozo', ir: 'yacimient' });
+
+  /* 3. Lo que la IA ha escrito y nadie ha leído todavía. Solo sale si hay
+        algo: es un recado, no una estadística. */
+  const cola = typeof iaCola === 'function' ? iaCola().length : 0;
+  if (cola) fichas.push({ icono: '🤖', n: cola, que: cola === 1 ? 'reto por revisar' : 'retos por revisar',
+    ir: 'ia', avisa: true });
+
+  /* 4. Quién lo está pasando mal. Sale de los diarios que hay EN ESTE
+        equipo: leyendo de la nube solo llega el resumen y esta cifra sería
+        mentira. Por eso, sin diarios aquí, no se enseña nada en vez de
+        enseñar un cero tranquilizador que no significa «van bien». */
+  const locales = typeof allDiaries === 'function' ? allDiaries() : [];
+  if (locales.length) {
+    const resumen = buildClassOverview(locales);
+    if (resumen.kpis.needHelp) {
+      fichas.push({ icono: '🆘', n: resumen.kpis.needHelp, que: 'necesitan un empujón',
+        clase: true, avisa: true });
+    }
+  }
+  /* Delante lo que hay que hacer hoy, detrás lo que solo informa. Las fichas
+     de recado son excepcionales —solo salen cuando hay algo— así que no se
+     mueven de sitio en el día a día: lo que se mueve es que aparezcan. */
+  const peso = f => (f.avisa ? 0 : f.accion ? 1 : 2);
+  return fichas.sort((a, b) => peso(a) - peso(b));
+}
+
+function renderPulsoDocente() {
+  const zona = $('#teacher-pulse');
+  if (!zona) return;
+  const fichas = pulsoDocente();
+  if (!fichas.length) { zona.classList.add('hidden'); return; }
+  zona.classList.remove('hidden');
+  zona.innerHTML = fichas.map((f, i) => `
+    <button class="pulso-ficha${f.avisa ? ' pulso-avisa' : ''}${f.accion ? ' pulso-accion' : ''}"
+            data-pulso="${i}">
+      <span class="pulso-icono">${f.icono}</span>
+      ${f.accion
+        ? `<span class="pulso-hacer">${esc(f.accion)} →</span>`
+        : `<span class="pulso-n">${f.n}</span><span class="pulso-que">${esc(f.que)}</span>`}
+    </button>`).join('');
+
+  zona.querySelectorAll('[data-pulso]').forEach(b => b.addEventListener('click', () => {
+    const f = fichas[+b.dataset.pulso];
+    if (f.clase) return teacherScreen('class');
+    cfgSection = f.ir;
+    teacherScreen('config');
+  }));
+}
+
 /* Entrada del docente: sin diario de alumno, sin HUD y sin pestañas */
 /* El saludo se recalcula cada vez que se muestra: si no, al volver del panel
    seguiría con el texto de antes de poner el nombre. */
@@ -165,6 +245,7 @@ function showTeacherPortal() {
     $('#teacher-go-backup').addEventListener('click', () => { cfgSection = 'copia'; teacherScreen('config'); });
   }
 
+  renderPulsoDocente();
   renderAulaBar();
   $('#screen-home').classList.add('hidden');
   $('#app').classList.add('hidden');
