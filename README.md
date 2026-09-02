@@ -664,7 +664,9 @@ Los cambios se aplican **al instante**: renombras un pozo y el mapa ya lo muestr
 
 Tres cosas que conviene saber:
 
-- **Los ajustes viven en la tablet donde los haces.** Para replicarlos, usa Copia de seguridad → copiar, y pégalo en las demás. No se sincronizan solos: hacerlo exigiría permisos de escritura compartidos que, sin una cuenta de docente real, cualquier alumno podría usar.
+- **Con una clase abierta, los ajustes se suben solos.** Cada cambio del panel se guarda en este equipo y, unos segundos después, en el documento de tu clase — el banco de retos incluido. La línea de arriba del panel dice dónde están: *guardados aquí y en tu clase*, *subiendo*, o **sin subir**, que es cuando hay que hacer una copia. Si la subida falla no se da por hecha: queda pendiente y se reintenta al siguiente cambio, al abrir la clase y al dejar la app.
+  Lo que sube es la versión filtrada: **nunca** las contraseñas del alumnado, el PIN, los datos de Appwrite ni la clave de la API. El documento de la clase lo leen las tablets de los niños.
+  **Sin clase abierta** (modo local, o Appwrite sin configurar) los ajustes viven solo en ese navegador, y entonces la copia de seguridad es la única red. Ojo con esto en un iPad: iOS borra el almacenamiento de un sitio que no se abre en unos días si no está instalado en la pantalla de inicio.
 - **Retirar algo del catálogo no borra lo ya ganado.** Si quitas un reconocimiento, los méritos que ya concediste siguen en el diario de los niños. Igual con el almacén: quien compró una prenda la conserva.
 - **Restaurar los valores de fábrica solo borra tus ajustes**, nunca el progreso de los alumnos.
 

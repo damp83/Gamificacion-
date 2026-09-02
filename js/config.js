@@ -11,7 +11,7 @@
    copia guardada. Sin este número, «ya está arreglado» y «a mí no me pasa» son
    indistinguibles. Va junto al nombre de la caché del service worker, y una
    prueba comprueba que no se separen. */
-const ATLAS_VERSION = 'v32';
+const ATLAS_VERSION = 'v33';
 
 const ATLAS_DEFAULTS = {
 
@@ -325,9 +325,33 @@ function loadTeacherConfig() {
   } catch (e) { applyOverlay({}); }
   return ATLAS_CONFIG;
 }
+/* Mientras se ADOPTAN ajustes que vienen de fuera —los de la clase al
+   abrirla— no hay que volver a subirlos: sería devolver el eco. */
+let subidaSilenciada = false;
+function sinSubir(fn) {
+  subidaSilenciada = true;
+  try { return fn(); } finally { subidaSilenciada = false; }
+}
+
 function saveTeacherConfig() {
   try { localStorage.setItem(TEACHER_CONFIG_KEY, JSON.stringify(ATLAS_OVERLAY)); }
   catch (e) { /* almacenamiento no disponible */ }
+
+  /* ── Y arriba, a la clase ──
+     Esto vive aquí, en el único sitio por el que pasan TODOS los cambios de
+     ajustes, y no en cada botón del panel: así no hay que acordarse de
+     llamarlo al añadir la próxima sección.
+
+     Antes no subía nada. Los ajustes se mandaban a la nube al crear la clase
+     y al cambiar de una clase a otra, y ya está: con una sola clase, eso
+     significa que se subieron el primer día y nunca más. Un banco de retos
+     aprobado durante un trimestre vivía entero en el localStorage de un
+     iPad, que iOS borra si el sitio no se abre en unos días.
+
+     `programarSubidaAjustes` está en cloud.js, que carga después: se
+     comprueba que exista en vez de darlo por hecho. */
+  if (subidaSilenciada) return;
+  if (typeof programarSubidaAjustes === 'function') programarSubidaAjustes();
 }
 
 /* ── Configuración compartida por el equipo docente ──
@@ -399,8 +423,7 @@ function adoptSharedConfig(paquete) {
       return pw ? { ...r, password: pw } : r;
     });
   }
-  applyOverlay(nuevo);
-  saveTeacherConfig();
+  sinSubir(() => { applyOverlay(nuevo); saveTeacherConfig(); });
   ATLAS_CONFIG_META.sharedAt = paquete.updated_at || Date.now();
   ATLAS_CONFIG_META.touchedAt = ATLAS_CONFIG_META.sharedAt;
   ATLAS_CONFIG_META.by = paquete.by || '';

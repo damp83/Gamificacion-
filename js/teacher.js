@@ -81,8 +81,38 @@ function slugify(text, fallback) {
   return base || fallback + '_' + Date.now().toString(36);
 }
 
+/* Lo llama cloud.js cuando acaba de subir los ajustes: si el panel está
+   delante, la línea de estado tiene que cambiar sola. */
+function refrescarPanelSiAbierto() {
+  const p = $('#screen-config');
+  if (p && !p.classList.contains('hidden')) pintarEstadoAjustes();
+}
+
+/* ── Dónde están los ajustes ahora mismo ──
+   Decía «se guardan en esta tablet» y era verdad a medias: se guardan aquí Y
+   se suben a la clase. Lo que no se puede es decir «guardado» a secas cuando
+   la subida ha fallado, porque el docente aprueba retos durante un trimestre
+   creyendo que están a salvo. */
+function pintarEstadoAjustes() {
+  const el = $('#cfg-top-note');
+  if (!el) return;
+  const s = (typeof ajustesArriba === 'function') ? ajustesArriba() : { estado: 'local' };
+  const textos = {
+    local:     'Los cambios se aplican al instante y se guardan <strong>solo en este equipo</strong>. ' +
+               'Abre una clase en «Mis clases» para que suban también a la nube.',
+    subiendo:  'Los cambios se aplican al instante. Subiéndolos a la clase…',
+    'al-dia':  'Los cambios se aplican al instante y se guardan aquí y <strong>en tu clase</strong>.',
+    pendiente: `⚠️ Hay cambios <strong>sin subir</strong> a la clase${
+                 s.detalle ? ' (' + esc(s.detalle) + ')' : ''}. Están guardados en este equipo y se ` +
+               'reintenta solo. Si esto no se quita, haz una copia de seguridad.'
+  };
+  el.innerHTML = textos[s.estado] || textos.local;
+  el.classList.toggle('cfg-top-warn', s.estado === 'pendiente');
+}
+
 /* ── Chasis ── */
 function renderTeacherConfig() {
+  pintarEstadoAjustes();
   $('#cfg-nav').innerHTML = CFG_GRUPOS.map(g => {
     const suyas = CFG_SECTIONS.filter(sec => sec.grupo === g.id);
     if (!suyas.length) return '';

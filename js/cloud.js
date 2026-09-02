@@ -504,6 +504,64 @@ async function cloudCreateAula(nombre) {
   } catch (e) { return errorNube(e); }
 }
 
+/* ══════════ LOS AJUSTES, A LA CLASE ══════════
+
+   Todo cambio del panel acaba aquí, porque `saveTeacherConfig()` llama a
+   `programarSubidaAjustes()`. Se espera unos segundos antes de mandar: al
+   escribir el nombre de un pozo se guarda letra a letra, y sin la espera
+   serían quince peticiones para un cambio.
+
+   Lo que se sube es `configParaCompartir()`, o sea SIN las contraseñas del
+   alumnado, sin el PIN, sin los datos de Appwrite y sin la clave de la API.
+   Eso no cambia: sigue viviendo solo en cada equipo.
+
+   Si falla —sin red, permiso denegado— no se pierde: queda anotado como
+   pendiente y se reintenta al siguiente cambio y al abrir la clase. El
+   estado se puede consultar con `ajustesArriba()`, que es lo que lee el
+   panel para decir la verdad en vez de «guardado ✓». */
+let ajustesTimer = null;
+let ajustesSubiendo = false;
+let ajustesPendientes = false;
+let ajustesFallo = '';
+const AJUSTES_ESPERA = 4000;
+
+function ajustesArriba() {
+  if (!aulasOn() || !aulaActiva()) return { estado: 'local' };
+  if (ajustesSubiendo) return { estado: 'subiendo' };
+  if (ajustesPendientes) return { estado: 'pendiente', detalle: ajustesFallo };
+  return { estado: 'al-dia' };
+}
+
+function programarSubidaAjustes() {
+  if (!aulasOn() || !aulaActiva()) return;   /* sin clase abierta no hay dónde */
+  ajustesPendientes = true;
+  clearTimeout(ajustesTimer);
+  ajustesTimer = setTimeout(() => { subirAjustesAhora(); }, AJUSTES_ESPERA);
+}
+
+async function subirAjustesAhora() {
+  if (ajustesSubiendo) return { ok: false, reason: 'ocupado' };
+  if (!aulasOn() || !aulaActiva()) return { ok: false, reason: 'sin-nube' };
+  clearTimeout(ajustesTimer);
+  ajustesSubiendo = true;
+  try {
+    const r = await cloudSaveAulaConfig();
+    if (r.ok) { ajustesPendientes = false; ajustesFallo = ''; }
+    else {
+      /* Se queda pendiente A PROPÓSITO: el próximo cambio o la próxima
+         apertura de la clase lo vuelven a intentar. Darlo por subido cuando
+         no lo está es la única forma de perderlo sin enterarse. */
+      ajustesFallo = r.reason === 'sin-permiso'
+        ? 'tu cuenta no puede escribir en la clase'
+        : (r.detail || 'no hay conexión');
+    }
+    return r;
+  } finally {
+    ajustesSubiendo = false;
+    if (typeof refrescarPanelSiAbierto === 'function') refrescarPanelSiAbierto();
+  }
+}
+
 /* Guarda los ajustes de la clase activa (no los diarios: van aparte) */
 async function cloudSaveAulaConfig() {
   if (!aulasOn() || !aulaActiva()) return { ok: false, reason: 'sin-nube' };
@@ -697,6 +755,9 @@ async function abrirAula(aulaId, nombre, opciones) {
   /* El nombre lo manda el documento de la clase, no lo que hubiera aquí */
   if (res.aula.name) setTeacherConfig('className', res.aula.name);
   const fus = fusionarDiarios(res.diarios || []);
+  /* Si algo quedó sin subir de la última vez, este es el momento: hay clase
+     abierta y acaba de haber red suficiente para traerla entera. */
+  if (ajustesPendientes) subirAjustesAhora();
   return { ok: true, aula: res.aula, ...fus };
 }
 

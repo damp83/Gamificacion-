@@ -436,8 +436,21 @@ function wireGlobalListeners() {
     navigator.serviceWorker.register('sw.js').catch(() => {});
   }
 
-  /* último volcado a la nube al cerrar la pestaña */
-  window.addEventListener('pagehide', () => { if (cloudEnabled() && cloudUser()) cloudPush(); });
+  /* Último volcado a la nube al cerrar la pestaña. Van las dos cosas: los
+     diarios y los AJUSTES, que esperan unos segundos antes de subir y se
+     quedarían en el aire si el docente aprueba un reto y cierra. */
+  window.addEventListener('pagehide', () => {
+    if (!cloudEnabled() || !cloudUser()) return;
+    cloudPush();
+    if (typeof subirAjustesAhora === 'function') subirAjustesAhora();
+  });
+  /* En un iPad casi nunca se «cierra» una pestaña: se cambia de app, y ahí
+     pagehide puede no llegar nunca. Este sí llega. */
+  document.addEventListener('visibilitychange', () => {
+    if (document.visibilityState !== 'hidden') return;
+    if (!cloudEnabled() || !cloudUser()) return;
+    if (typeof subirAjustesAhora === 'function') subirAjustesAhora();
+  });
 }
 
 function wireAuthListeners() {

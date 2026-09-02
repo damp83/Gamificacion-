@@ -1447,6 +1447,12 @@ body.en-mision #main { padding-bottom: var(--s-5); }
 
 .cfg-nav-grupo:hover { color: var(--ink); }
 
+/* La línea de estado de los ajustes, cuando hay algo sin subir. */
+.cfg-top-warn {
+  background: var(--brass-tint); border-left: 4px solid var(--brass);
+  border-radius: var(--r-md); padding: .7rem .9rem; color: var(--ink);
+}
+
 /* En pantalla estrecha las secciones BAJAN, no se van a la derecha.
 
    Antes era una tira con scroll horizontal, y medida daba 1 sección visible
