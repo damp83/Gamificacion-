@@ -154,3 +154,58 @@ test('el identificador de la tabla viene puesto', () => {
   const c = cargarApp();
   assert.match(c.ev('ATLAS_CONFIG.appwrite.retosCollectionId'), /^[a-z0-9]{16,}$/);
 });
+
+test('guardar los yacimientos no se lleva los retos de la nube a los ajustes', () => {
+  /* El fallo más fácil de introducir aquí, y el más caro: `sitesCopy()` copia
+     la configuración YA CALCULADA, y ahí dentro están los retos inyectados
+     desde la tabla. Guardarla tal cual los metería en los ajustes —el techo
+     de los 200.000 otra vez— y saldrían por duplicado, una copia desde la
+     tabla y otra desde los ajustes. Y pasa con cualquier cambio del panel:
+     renombrar un pozo también guarda el array entero. */
+  const c = cargarApp();
+  const sitio = c.ev('ATLAS_CONFIG.sites')[0];
+  c.ev('saveRetosCache')('aulaX', [{ ...RETO, siteId: sitio.id, branchId: sitio.branches[0].id }]);
+  c.ev('applyOverlay')(c.ev('ATLAS_OVERLAY'));
+
+  const copia = c.ev('sitesCopy')();
+  copia[0].branches[0].name = 'Pozo renombrado';
+  c.ev('writeSites')(copia, false);
+
+  const overlay = JSON.stringify(c.ev('ATLAS_OVERLAY'));
+  assert.ok(!overlay.includes('centenas'), 'el reto NO ha entrado en los ajustes');
+  assert.equal(c.ev('ATLAS_CONFIG.sites')[0].branches[0].name, 'Pozo renombrado', 'y el cambio sí se guardó');
+  const banco = c.ev('ATLAS_CONFIG.sites')[0].branches[0].bank || {};
+  assert.equal((banco.recordar || []).length, 1, 'sigue habiendo UN reto, no dos');
+});
+
+test('la mudanza se lleva también los escritos a mano', () => {
+  /* Estuvieron fuera una versión y fue un error: los ajustes del aula solo
+     los lee su docente, así que un reto escrito a mano tampoco llegaba a
+     ninguna tablet. Dónde vive un reto no puede depender de quién lo
+     escribió. */
+  const cloud = leer('js/cloud.js');
+  const i = cloud.indexOf('async function migrarRetosALaTabla()');
+  const cuerpo = cloud.slice(i, cloud.indexOf('\n}\n', i));
+  assert.ok(!/origen === 'ia'/.test(cuerpo), 'ya no se filtra por quién lo escribió');
+  assert.match(cuerpo, /if \(r && !r\.docId\)/, 'se sube lo que aún no está en la tabla');
+  assert.match(cuerpo, /origen: r\.origen \|\| 'docente'/);
+});
+
+test('mudar dos veces no duplica nada', () => {
+  /* Se ejecuta en cada arranque con clase abierta. Sin la comprobación del
+     docId, cada mañana habría una copia más de cada reto. */
+  const cloud = leer('js/cloud.js');
+  assert.match(cloud, /Los que ya viven en la tabla llegan con docId/);
+});
+
+test('el editor a mano escribe en la tabla, no en los ajustes', () => {
+  const t = leer('js/teacher.js');
+  assert.match(t, /const guardarCampo = async \(qi, campos, msg\)/);
+  assert.match(t, /if \(q && q\.docId && typeof cloudActualizarReto === 'function'\)/);
+  assert.match(t, /origen: 'docente'/, 'los nuevos nacen marcados como escritos por el docente');
+  /* Y el alta masiva también: es la vía por la que un docente mete veinte de
+     golpe, justo la que más engordaría los ajustes. */
+  const i = t.indexOf("$('#cfg-bulk-go')");
+  const cuerpo = t.slice(i, i + 2000);
+  assert.match(cuerpo, /cloudCrearRetos\(conDestino, 'banco'\)/);
+});

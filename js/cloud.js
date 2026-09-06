@@ -514,9 +514,11 @@ function miAula() {
    tabla y se quitan de ahí, en ese orden: si la subida falla no se borra
    nada, y se vuelve a intentar la próxima vez.
 
-   Solo se mudan los de la IA. Los retos que el docente escribió a mano en
-   «Yacimientos y pozos» se quedan donde están: son unos pocos, se editan por
-   otra pantalla, y moverlos sería cambiar dos cosas a la vez. */
+   Se muda TODO el banco, no solo lo que escribió la IA. Los escritos a mano
+   estuvieron fuera de la mudanza una versión, y fue un error: los ajustes
+   del aula solo los lee su docente, así que un reto escrito a mano tampoco
+   llegaba a ninguna tablet. El sitio donde vive un reto no puede depender de
+   quién lo escribió. */
 async function migrarRetosALaTabla() {
   if (!retosOn() || !CLOUD.user || !aulaActiva()) return { ok: false, reason: 'sin-nube' };
 
@@ -526,8 +528,11 @@ async function migrarRetosALaTabla() {
     for (const b of (site.branches || [])) {
       for (const est of Object.keys(b.bank || {})) {
         for (const r of (b.bank[est] || [])) {
-          if (r && r.origen === 'ia') {
-            aprobados.push(Object.assign({}, r, { siteId: site.id, branchId: b.id, estrato: est }));
+          /* Los que ya viven en la tabla llegan con docId: mudarlos otra vez
+             los duplicaría en cada arranque. */
+          if (r && !r.docId) {
+            aprobados.push(Object.assign({}, r, {
+              siteId: site.id, branchId: b.id, estrato: est, origen: r.origen || 'docente' }));
           }
         }
       }
@@ -543,14 +548,12 @@ async function migrarRetosALaTabla() {
   /* Ya están arriba: ahora sí se quitan de los ajustes. */
   if (cola.length) setTeacherConfig('iaCola', []);
   if (aprobados.length) {
+    /* Todo lo que había en el banco está ya en la tabla, así que el banco de
+       los ajustes se queda vacío. Los pozos de fábrica no traen banco, de
+       modo que vaciarlo no pierde nada de la configuración original. */
     const l = deepClone(ATLAS_CONFIG.sites || []);
     for (const site of l) {
-      for (const b of (site.branches || [])) {
-        for (const est of Object.keys(b.bank || {})) {
-          b.bank[est] = (b.bank[est] || []).filter(r => !(r && r.origen === 'ia'));
-          if (!b.bank[est].length) delete b.bank[est];
-        }
-      }
+      for (const b of (site.branches || [])) delete b.bank;
     }
     setTeacherConfig('sites', l);
   }

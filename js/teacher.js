@@ -643,7 +643,31 @@ let cfgOpenSite = null;    /* yacimiento desplegado */
 let cfgEditBranch = null;  /* {siteId, branchId} cuyo banco se está editando */
 let cfgEditStratum = STRATA_ORDER[0];
 
-function writeSites(sites, msg) { cfgSave('sites', sites, msg); }
+/* ── Guardar los yacimientos SIN los retos de la nube ──
+   `sitesCopy()` copia la configuración ya calculada, y ahí dentro están los
+   retos que se inyectan desde la tabla de Appwrite. Guardarla tal cual los
+   metería en los ajustes, o sea: volverían a viajar dentro del `config` del
+   aula —el techo de los 200.000 caracteres otra vez— y saldrían duplicados,
+   una copia desde la tabla y otra desde los ajustes.
+
+   Pasa con CUALQUIER cambio del panel de yacimientos, no solo al tocar un
+   reto: renombrar un pozo también guarda el array entero. */
+function writeSites(sites, msg) { cfgSave('sites', sinRetosDeLaNube(sites), msg); }
+
+function sinRetosDeLaNube(sites) {
+  const l = deepClone(sites || []);
+  for (const site of l) {
+    for (const b of (site.branches || [])) {
+      if (!b.bank) continue;
+      for (const est of Object.keys(b.bank)) {
+        b.bank[est] = (b.bank[est] || []).filter(r => r && !r.docId);
+        if (!b.bank[est].length) delete b.bank[est];
+      }
+      if (!Object.keys(b.bank).length) delete b.bank;
+    }
+  }
+  return l;
+}
 function sitesCopy() { return deepClone(ATLAS_CONFIG.sites || []); }
 
 function cfgYacimientos(body) {
@@ -877,7 +901,18 @@ function cfgBancoRetos(body) {
     renderTeacherConfig();
   }));
 
-  /* Escribe en el banco del estrato abierto */
+  /* ── Dónde acaba lo que se escribe aquí ──
+     En la tabla `retos` de Appwrite, igual que los que escribe la IA. Los
+     retos escritos a mano estuvieron en los ajustes hasta la v36, y eso los
+     dejaba con el mismo problema: el documento del aula solo lo lee su
+     docente, así que un reto escrito aquí no llegaba a ninguna tablet.
+
+     Los campos se guardan al SALIR del campo, no en cada tecla: `onInput`
+     escucha «change», no «input». Por eso se puede escribir directamente en
+     la nube sin llenarla de peticiones.
+
+     Los que quedaran en los ajustes de antes de la mudanza se siguen
+     editando ahí, para no perder nada. */
   const writeBank = (mutate, msg) => {
     const l = sitesCopy();
     const st = l.find(x => x.id === siteId);
@@ -888,30 +923,66 @@ function cfgBancoRetos(body) {
     writeSites(l, msg === undefined ? false : msg);
   };
 
-  $$('.cfg-q-text').forEach(el => onInput(el, e => writeBank(b => { b[+e.target.dataset.qi].question = e.target.value; })));
-  $$('.cfg-q-exp').forEach(el => onInput(el, e => writeBank(b => { b[+e.target.dataset.qi].explanation = e.target.value; })));
-  $$('.cfg-q-h1').forEach(el => onInput(el, e => writeBank(b => { b[+e.target.dataset.qi].hint1 = e.target.value; })));
-  $$('.cfg-q-h2').forEach(el => onInput(el, e => writeBank(b => { b[+e.target.dataset.qi].hint2 = e.target.value; })));
-  $$('.cfg-q-opt').forEach(el => onInput(el, e => writeBank(b => {
-    const q = b[+e.target.dataset.qi];
-    q.options = q.options || ['', '', '', ''];
-    q.options[+e.target.dataset.oi] = e.target.value;
-  })));
-  $$('.cfg-q-ans').forEach(el => el.addEventListener('change', e => writeBank(b => {
-    b[+e.target.dataset.qi].answer = +e.target.dataset.oi;
-  }, 'Respuesta correcta marcada ✓')));
+  /* Guarda un campo del reto número `qi`: a la tabla si vive allí, y si no
+     al banco local de siempre. */
+  const guardarCampo = async (qi, campos, msg) => {
+    const q = ((branch.bank || {})[cfgEditStratum] || [])[qi];
+    if (q && q.docId && typeof cloudActualizarReto === 'function') {
+      const r = await cloudActualizarReto(q.docId, campos);
+      if (!r.ok) { toast('⚠️ No se ha podido guardar: ' + (r.detail || r.reason || 'sin conexión')); return; }
+      await cloudTraerRetos();
+      renderTeacherConfig();
+      if (msg) toast(msg);
+      return;
+    }
+    writeBank(b => Object.assign(b[qi], campos), msg === undefined ? false : msg);
+  };
+
+  $$('.cfg-q-text').forEach(el => onInput(el, e => guardarCampo(+e.target.dataset.qi, { question: e.target.value })));
+  $$('.cfg-q-exp').forEach(el => onInput(el, e => guardarCampo(+e.target.dataset.qi, { explanation: e.target.value })));
+  $$('.cfg-q-h1').forEach(el => onInput(el, e => guardarCampo(+e.target.dataset.qi, { hint1: e.target.value })));
+  $$('.cfg-q-h2').forEach(el => onInput(el, e => guardarCampo(+e.target.dataset.qi, { hint2: e.target.value })));
+  $$('.cfg-q-opt').forEach(el => onInput(el, e => {
+    const qi = +e.target.dataset.qi;
+    const q = ((branch.bank || {})[cfgEditStratum] || [])[qi] || {};
+    const options = (q.options || ['', '', '', '']).slice();
+    options[+e.target.dataset.oi] = e.target.value;
+    guardarCampo(qi, { options });
+  }));
+  $$('.cfg-q-ans').forEach(el => el.addEventListener('change', e =>
+    guardarCampo(+e.target.dataset.qi, { answer: +e.target.dataset.oi }, 'Respuesta correcta marcada ✓')));
+
   $$('[data-delq]').forEach(el => el.addEventListener('click', async () => {
     const qi = +el.dataset.delq;
     if (!(await askConfirm('¿Eliminar este reto?', 'Eliminar'))) return;
+    const q = ((branch.bank || {})[cfgEditStratum] || [])[qi];
+    if (q && q.docId && typeof cloudBorrarReto === 'function') {
+      const r = await cloudBorrarReto(q.docId);
+      if (!r.ok) { toast('⚠️ No se ha podido eliminar: ' + (r.detail || r.reason || 'sin conexión')); return; }
+      await cloudTraerRetos();
+      renderTeacherConfig();
+      toast('Reto eliminado ✓');
+      return;
+    }
     writeBank(b => b.splice(qi, 1), 'Reto eliminado ✓');
   }));
-  $('#cfg-add-q').addEventListener('click', () => {
-    writeBank(b => b.push({ question: '', options: ['', '', '', ''], answer: 0, hint1: '', hint2: '', explanation: '' }),
-      'Reto añadido: complétalo ✓');
+
+  $('#cfg-add-q').addEventListener('click', async () => {
+    const vacio = { question: '', options: ['', '', '', ''], answer: 0, hint1: '', hint2: '', explanation: '',
+      siteId, branchId, estrato: cfgEditStratum, materia: '', skill: '', origen: 'docente' };
+    if (typeof cloudCrearRetos === 'function' && retosOn() && aulaActiva()) {
+      const r = await cloudCrearRetos([vacio], 'banco');
+      if (!r.ok) { toast('⚠️ No se ha podido añadir: ' + ((r.fallidos && r.fallidos[0] && r.fallidos[0].error.detail) || r.texto || 'sin conexión')); return; }
+      await cloudTraerRetos();
+      renderTeacherConfig();
+      toast('Reto añadido: complétalo ✓');
+      return;
+    }
+    writeBank(b => b.push(vacio), 'Reto añadido: complétalo ✓');
   });
 
   /* Alta masiva */
-  $('#cfg-bulk-go').addEventListener('click', () => {
+  $('#cfg-bulk-go').addEventListener('click', async () => {
     const err = $('#cfg-bulk-err');
     const raw = $('#cfg-bulk').value.trim();
     if (!raw) { err.textContent = 'Escribe al menos una línea.'; err.classList.remove('hidden'); return; }
@@ -935,8 +1006,25 @@ function cfgBancoRetos(body) {
       err.classList.remove('hidden');
       return;
     }
-    writeBank(b => nuevos.forEach(q => b.push(q)),
-      `${nuevos.length} reto(s) añadidos${malas.length ? `. Líneas ignoradas por formato: ${malas.join(', ')}` : ''} ✓`);
+    const cola = malas.length ? `. Líneas ignoradas por formato: ${malas.join(', ')}` : '';
+    if (typeof cloudCrearRetos === 'function' && retosOn() && aulaActiva()) {
+      const conDestino = nuevos.map(q => Object.assign(q, {
+        siteId, branchId, estrato: cfgEditStratum, origen: 'docente' }));
+      const r = await cloudCrearRetos(conDestino, 'banco');
+      if (!r.creados.length) {
+        err.textContent = 'No se ha podido guardar ninguno: ' +
+          ((r.fallidos && r.fallidos[0] && r.fallidos[0].error.detail) || r.texto || 'sin conexión');
+        err.classList.remove('hidden');
+        return;
+      }
+      await cloudTraerRetos();
+      $('#cfg-bulk').value = '';
+      renderTeacherConfig();
+      toast(`${r.creados.length} reto(s) añadidos${
+        r.fallidos.length ? `, ${r.fallidos.length} sin guardar` : ''}${cola} ✓`);
+      return;
+    }
+    writeBank(b => nuevos.forEach(q => b.push(q)), `${nuevos.length} reto(s) añadidos${cola} ✓`);
   });
 }
 

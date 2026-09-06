@@ -241,11 +241,14 @@ propia tabla, una fila por reto. No están en los ajustes, y hay dos razones:
 
 5. Pega el ID de la tabla en `retosCollectionId`, en `js/config.js`.
 
-**La mudanza es automática.** Los retos que ya estuvieran en los ajustes —la
-cola y los aprobados con `origen: 'ia'`— se suben a la tabla la primera vez
-que se abre la clase con la tabla configurada, y solo entonces se borran de
-los ajustes. Los retos que el docente escribió a mano en «Yacimientos y
-pozos» se quedan donde están.
+**Todos los retos van aquí**, los escriba la IA o el docente a mano en
+«Yacimientos y pozos». Dónde vive un reto no depende de quién lo escribió:
+si se quedara en los ajustes, no llegaría a ninguna tablet.
+
+**La mudanza es automática.** Lo que ya estuviera en los ajustes —la cola y
+los bancos de cada pozo— se sube a la tabla la primera vez que se abre la
+clase con la tabla configurada, y solo entonces se borra de los ajustes. Se
+puede ejecutar mil veces: lo que ya está en la tabla no se vuelve a subir.
 
 ---
 
