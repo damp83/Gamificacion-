@@ -586,6 +586,34 @@ function miAula() {
   try { return localStorage.getItem(MI_AULA_KEY) || ''; } catch (e) { return ''; }
 }
 
+/* ── Los ajustes de la clase, al arrancar ──
+   Suben solos desde la v33, pero no bajaban solos: solo se traían al tocar
+   la clase en «Mis clases». Un docente creaba un yacimiento en el portátil,
+   abría el iPad al día siguiente y no estaba, porque el iPad seguía con su
+   copia de la semana pasada. Parecía que no se había guardado.
+
+   Dos cautelas, y las dos importan:
+     · Si este equipo tiene cambios SIN SUBIR, no se baja nada. Traer lo de
+       la nube encima de trabajo sin guardar es perderlo.
+     · Solo se adopta lo que sea MÁS NUEVO que lo último que este equipo vio
+       o escribió. Si no, cada arranque pisaría los cambios locales con una
+       copia vieja. */
+async function traerAjustesDeAula() {
+  if (!aulasOn() || !aulaActiva() || !CLOUD.user) return { ok: false, reason: 'sin-aula' };
+  if (ajustesPendientes) return { ok: false, reason: 'hay-pendientes' };
+  const c = ATLAS_CONFIG.appwrite;
+  try {
+    const doc = await CLOUD.db.getDocument(c.databaseId, c.aulasCollectionId, aulaActiva());
+    const marca = Number(doc.updated_at) || 0;
+    if (marca <= (ATLAS_CONFIG_META.sharedAt || 0)) return { ok: true, adoptado: false };
+    let ajustes = null;
+    try { ajustes = JSON.parse(doc.config || '{}'); } catch (e) { return { ok: false, reason: 'ilegible' }; }
+    if (!ajustes || typeof ajustes !== 'object') return { ok: true, adoptado: false };
+    adoptSharedConfig({ overlay: ajustes, updated_at: marca, by: doc.teacher || '' });
+    return { ok: true, adoptado: true };
+  } catch (e) { return errorNube(e); }
+}
+
 /* ── Mudanza de lo que ya había ──
    Los retos vivían en los ajustes: la cola en `iaCola` y los aprobados
    dentro del banco de cada pozo, marcados con `origen: 'ia'`. Se suben a la
@@ -920,6 +948,11 @@ async function cloudSaveAulaConfig() {
 
   try {
     await CLOUD.db.updateDocument(c.databaseId, c.aulasCollectionId, aulaActiva(), data);
+    /* Se anota la marca que se acaba de escribir. Sin esto, al arrancar este
+       mismo equipo vería una versión «más nueva» en la nube —la suya— y se
+       la volvería a tragar, pisando lo que hubiera tocado desde entonces. */
+    ATLAS_CONFIG_META.sharedAt = Number(data.updated_at) || Date.now();
+    saveConfigMeta();
     return { ok: true };
   } catch (e) { return errorNube(e); }
 }

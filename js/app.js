@@ -295,6 +295,11 @@ async function boot() {
     /* Ajustes del equipo docente. Si fallan, la tablet sigue con los suyos:
        nunca se queda sin configuración por un problema de red. */
     try { await syncSharedConfig(); } catch (e) { /* se queda con los locales */ }
+    /* Los ajustes de la clase abierta: yacimientos, pozos, méritos… Suben
+       solos con cada cambio, y esto es la otra mitad, que faltaba: bajarlos
+       al arrancar. Sin esto, un yacimiento creado en el portátil no aparecía
+       en el iPad hasta volver a tocar la clase en «Mis clases». */
+    try { await traerAjustesDeAula(); } catch (e) { /* se queda con los suyos */ }
     /* Y los retos escritos de su clase. Si no hay red se juega con la caché
        de la última vez: por eso no se espera a esto para arrancar ni se
        avisa si falla. */
