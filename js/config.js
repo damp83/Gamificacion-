@@ -11,7 +11,7 @@
    copia guardada. Sin este número, «ya está arreglado» y «a mí no me pasa» son
    indistinguibles. Va junto al nombre de la caché del service worker, y una
    prueba comprueba que no se separen. */
-const ATLAS_VERSION = 'v34';
+const ATLAS_VERSION = 'v35';
 
 const ATLAS_DEFAULTS = {
 
@@ -47,7 +47,15 @@ const ATLAS_DEFAULTS = {
        pusiera una clave del centro en la variable de entorno de la función,
        este identificador dejaría de ser inocuo, porque también viaja a las
        tablets del alumnado y cualquier cuenta con sesión podría gastarla. */
-    generadorFunctionId: '6a973fcf0031242dbd3e'
+    generadorFunctionId: '6a973fcf0031242dbd3e',
+    /* ── Los retos escritos, uno por fila ──
+       Estuvieron dentro del campo `config` del aula, con dos problemas: ese
+       campo son 200.000 caracteres y un reto ocupa ~718, así que el techo
+       estaba en unos 278 en total; y sobre todo, el documento del aula solo
+       lo puede leer su docente, así que un reto aprobado NUNCA llegaba a la
+       tablet de un niño. Aquí los lee cualquier cuenta con sesión y los
+       escribe solo el equipo «docentes». */
+    retosCollectionId: '6a9d78a900277f44b6e4'
   },
 
   /* Los alumnos entran con USUARIO, no con email (más fácil a los 8-10
@@ -295,6 +303,10 @@ let ATLAS_CONFIG = deepClone(ATLAS_DEFAULTS);
 function applyOverlay(overlay) {
   ATLAS_OVERLAY = overlay && typeof overlay === 'object' ? overlay : {};
   ATLAS_CONFIG = deepMerge(ATLAS_DEFAULTS, ATLAS_OVERLAY);
+  /* Recalcular la config borra los retos que se hubieran inyectado en los
+     pozos, porque no están en el overlay. Se vuelven a poner aquí: es el
+     único sitio por el que pasa todo recálculo. */
+  aplicarRetosDeLaNube();
   return ATLAS_CONFIG;
 }
 /* Ajustes guardados por versiones anteriores: branchOverrides era un mapa
@@ -331,6 +343,15 @@ let subidaSilenciada = false;
 function sinSubir(fn) {
   subidaSilenciada = true;
   try { return fn(); } finally { subidaSilenciada = false; }
+}
+
+/* Los retos que vienen de la nube NO están en el overlay —si lo estuvieran,
+   volverían a viajar dentro del `config` del aula y volveríamos al techo de
+   los 200.000—. Viven en su propia caché y se inyectan en los pozos DESPUÉS
+   de cada recálculo, que es lo único que hace falta para que el motor los
+   sirva igual que a los de fábrica. */
+function aplicarRetosDeLaNube() {
+  if (typeof mezclarRetosEnSitios === 'function') mezclarRetosEnSitios();
 }
 
 function saveTeacherConfig() {

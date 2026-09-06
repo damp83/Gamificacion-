@@ -1205,6 +1205,8 @@ let iaGenerando = false;
    se piden de uno en uno y una tanda de diez son once llamadas, así que un
    «Escribiendo…» quieto durante dos minutos parece que se ha colgado. */
 let iaProgreso = '';
+/* Aviso que sobrevive al repintado: lo que no se pudo subir a la nube. */
+let iaAviso = '';
 let iaDescartados = [];     /* lo que se tiró en la última tanda, con el motivo */
 
 /* Lo justo para reconocer cuál es sin enseñarla: nadie tiene que leer una
@@ -1214,7 +1216,20 @@ function claveEnmascarada(v) {
   return t.length < 14 ? 'sk-ant-…' : t.slice(0, 11) + '…' + t.slice(-4);
 }
 
-function iaCola() { return Array.isArray(ATLAS_CONFIG.iaCola) ? ATLAS_CONFIG.iaCola : []; }
+/* ── La cola ya no vive en los ajustes ──
+   Vive en la tabla `retos` de Appwrite, con estado `cola`, y aquí se lee de
+   la caché que deja `cloudTraerRetos`. Dos cosas que antes no había: se
+   genera en el iPad y se aprueba en el portátil, y la cola deja de contar
+   para el techo de 200.000 caracteres del `config` del aula.
+
+   `iaCola` de los ajustes se sigue leyendo mientras quede algo, para no
+   perder lo que hubiera antes de la migración. */
+function iaCola() {
+  const nube = (typeof retosDeLaCola === 'function' ? retosDeLaCola() : [])
+    .map(r => Object.assign({}, r, { id: r.$id }));
+  const viejos = Array.isArray(ATLAS_CONFIG.iaCola) ? ATLAS_CONFIG.iaCola : [];
+  return nube.concat(viejos);
+}
 function iaCurriculo(materia) { return (ATLAS_CONFIG.curriculo || {})[materia] || ''; }
 
 /* Los pozos donde se puede meter un reto: los del docente y los de fábrica. */
@@ -1416,7 +1431,7 @@ function cfgIA(body) {
     setTeacherConfig('iaCurso', curso);
     setTeacherConfig('iaCuantos', cuantos);
     const pozo = destino.split('/');
-    iaGenerando = true; iaEstado = ''; iaProgreso = ''; renderTeacherConfig();
+    iaGenerando = true; iaEstado = ''; iaProgreso = ''; iaAviso = ''; renderTeacherConfig();
     /* Una tanda de diez son casi cinco minutos. Si el iPad apaga la pantalla
        a mitad, Safari aborta la petición en curso y la tanda se corta con un
        «Load failed» que no es culpa de nadie. Esto lo evita mientras dura. */
@@ -1442,17 +1457,29 @@ function cfgIA(body) {
     if (!r.ok) { iaEstado = '⚠️ ' + r.texto; iaDescartados = []; renderTeacherConfig(); return; }
 
     const nombrePozo = (iaPozos().find(p => p.id === pozo.join('/')) || {}).name || '';
-    const nuevos = r.retos.map((x, i) => Object.assign({}, x, {
-      id: 'ia' + Date.now() + '_' + i,
-      materia, estrato, siteId: pozo[0], branchId: pozo[1], pozoNombre: nombrePozo
+    const nuevos = r.retos.map(x => Object.assign({}, x, {
+      materia, curso, estrato, siteId: pozo[0], branchId: pozo[1], pozoNombre: nombrePozo
     }));
-    cfgSave('iaCola', iaCola().concat(nuevos), false);
+
+    /* A la tabla, no a los ajustes. Si la escritura falla se dice y NO se
+       pierden: quedan en la cola local de siempre, que sigue funcionando. */
+    let guardado = { ok: false };
+    if (typeof cloudCrearRetos === 'function') guardado = await cloudCrearRetos(nuevos, 'cola');
+    if (guardado.ok) {
+      await cloudTraerRetos();
+    } else {
+      cfgSave('iaCola', (ATLAS_CONFIG.iaCola || []).concat(
+        nuevos.map((x, i) => Object.assign({}, x, { id: 'ia' + Date.now() + '_' + i }))), false);
+      iaAviso = '⚠️ No se han podido guardar en la nube (' +
+        (guardado.texto || guardado.reason || 'sin conexión') +
+        '). Están en este equipo: vuelve a entrar aquí con conexión y se subirán.';
+    }
     iaDescartados = r.descartados || [];
     /* `corte` = se paró a mitad. Lo escrito hasta ahí está pagado y se guarda,
        pero hay que decir que la tanda no llegó al final: si no, el docente
        pide diez, recibe cuatro y no sabe si es que se tiraron seis. */
     const sinComprobar = nuevos.filter(x => x.sinComprobar).length;
-    iaEstado = `${nuevos.length} en la cola${
+    iaEstado = `${iaAviso ? iaAviso + ' ' : ''}${nuevos.length} en la cola${
       iaDescartados.length ? `, ${iaDescartados.length} tirados por las comprobaciones` : ''}.${
       sinComprobar ? ` ⚠️ ${sinComprobar} sin comprobar: léelos con más cuidado.` : ''}${
       r.corte ? ` ⚠️ Se paró antes de acabar: ${r.corte}` : ''}${
@@ -1461,42 +1488,91 @@ function cfgIA(body) {
   });
 
   $$('[data-ia-ok]').forEach(b => b.addEventListener('click', () => aprobarReto(b.dataset.iaOk)));
-  $$('[data-ia-no]').forEach(b => b.addEventListener('click', () => {
-    cfgSave('iaCola', iaCola().filter(c => c.id !== b.dataset.iaNo), false);
-    renderTeacherConfig();
-  }));
+  $$('[data-ia-no]').forEach(b => b.addEventListener('click', () => descartarReto(b.dataset.iaNo)));
   $$('[data-ia-edit]').forEach(b => b.addEventListener('click', async () => {
     const c = iaCola().find(x => x.id === b.dataset.iaEdit);
     if (!c) return;
     const texto = await askPrompt('La pregunta, como quieras que la lea el niño:', c.question, 'Guardar');
     if (texto === null) return;
-    cfgSave('iaCola', iaCola().map(x => x.id === c.id ? Object.assign({}, x, { question: String(texto).trim() }) : x), false);
+    const question = String(texto).trim();
+    if (c.$id && typeof cloudActualizarReto === 'function') {
+      const r = await cloudActualizarReto(c.$id, { question: question.slice(0, 600) });
+      if (!r.ok) { iaEstado = '⚠️ No se ha podido guardar el cambio: ' + (r.detail || r.reason || 'sin conexión') + '.'; }
+      else await cloudTraerRetos();
+      renderTeacherConfig(); return;
+    }
+    cfgSave('iaCola', (ATLAS_CONFIG.iaCola || []).map(x => x.id === c.id ? Object.assign({}, x, { question }) : x), false);
     renderTeacherConfig();
   }));
   const vaciar = $('#ia-vaciar');
   if (vaciar) vaciar.addEventListener('click', async () => {
-    if (!(await askConfirm('¿Descartar los ' + iaCola().length + ' retos de la cola?', 'Descartar'))) return;
+    const cola = iaCola();
+    if (!(await askConfirm('¿Descartar los ' + cola.length + ' retos de la cola?', 'Descartar'))) return;
+    let fallos = 0;
+    for (const c of cola) {
+      if (!c.$id) continue;
+      const r = await cloudBorrarReto(c.$id);
+      if (!r.ok) fallos++;
+    }
     cfgSave('iaCola', [], false);
-    iaEstado = 'Cola vaciada.';
+    if (typeof cloudTraerRetos === 'function') await cloudTraerRetos();
+    iaEstado = fallos ? `Cola vaciada, menos ${fallos} que no se han podido borrar.` : 'Cola vaciada.';
     renderTeacherConfig();
   });
 }
 
+/* Descartar es borrar la fila. No hay papelera a propósito: la cola es un
+   sitio de paso y un reto tirado no se echa de menos —se vuelve a generar
+   por medio céntimo—. */
+async function descartarReto(id) {
+  const c = iaCola().find(x => x.id === id);
+  if (!c) return;
+  if (c.$id && typeof cloudBorrarReto === 'function') {
+    const r = await cloudBorrarReto(c.$id);
+    if (!r.ok) {
+      iaEstado = '⚠️ No se ha podido descartar: ' + (r.detail || r.reason || 'sin conexión') + '.';
+      renderTeacherConfig(); return;
+    }
+    await cloudTraerRetos();
+    renderTeacherConfig(); return;
+  }
+  cfgSave('iaCola', (ATLAS_CONFIG.iaCola || []).filter(x => x.id !== id), false);
+  renderTeacherConfig();
+}
+
 /* Del borrador al banco. Se vuelve a validar aquí: entre que se generó y que
    se aprueba, el docente ha podido cambiar la pregunta a mano. */
-function aprobarReto(id) {
+async function aprobarReto(id) {
   const c = iaCola().find(x => x.id === id);
   if (!c) return;
   const v = validarRetoIA(c, { materia: c.materia });
   if (!v.ok) { iaEstado = '⚠️ No se puede aprobar: ' + v.motivos.join(' · '); renderTeacherConfig(); return; }
 
-  const l = sitesCopy();
-  const site = l.find(s => s.id === c.siteId);
+  const site = (ATLAS_CONFIG.sites || []).find(s => s.id === c.siteId);
   const br = site && (site.branches || []).find(b => b.id === c.branchId);
   if (!br) { iaEstado = '⚠️ Ese pozo ya no existe. Descártalo y vuelve a generar.'; renderTeacherConfig(); return; }
 
-  br.bank = br.bank || {};
-  br.bank[c.estrato] = (br.bank[c.estrato] || []).concat([{
+  /* En la nube aprobar es cambiar el estado de la fila: de `cola` a `banco`.
+     Nada se copia a los ajustes, que es lo que antes hacía crecer el `config`
+     del aula hasta su tope. */
+  if (c.$id && typeof cloudActualizarReto === 'function') {
+    const r = await cloudActualizarReto(c.$id, { estado: 'banco' });
+    if (!r.ok) {
+      iaEstado = '⚠️ No se ha podido aprobar: ' + (r.detail || r.reason || 'sin conexión') +
+                 '. Sigue en la cola; inténtalo con conexión.';
+      renderTeacherConfig(); return;
+    }
+    await cloudTraerRetos();
+    iaEstado = `Al banco: ${br.name} · ${(STRATA_META[c.estrato] || {}).label || c.estrato}.`;
+    renderTeacherConfig(); return;
+  }
+
+  /* Sin nube (o un reto de los de antes de la migración): al banco local. */
+  const l = sitesCopy();
+  const site2 = l.find(s => s.id === c.siteId);
+  const br2 = site2 && (site2.branches || []).find(b => b.id === c.branchId);
+  br2.bank = br2.bank || {};
+  br2.bank[c.estrato] = (br2.bank[c.estrato] || []).concat([{
     question: c.question, options: c.options, answer: c.answer,
     hint1: c.hint1, hint2: c.hint2, explanation: c.explanation,
     /* El concepto es lo que mantiene vivo el diagnóstico «Le está costando».
@@ -1504,8 +1580,8 @@ function aprobarReto(id) {
     skill: c.skill, origen: 'ia'
   }]);
   writeSites(l, false);
-  cfgSave('iaCola', iaCola().filter(x => x.id !== id), false);
-  iaEstado = `Al banco: ${br.name} · ${(STRATA_META[c.estrato] || {}).label || c.estrato}.`;
+  cfgSave('iaCola', (ATLAS_CONFIG.iaCola || []).filter(x => x.id !== id), false);
+  iaEstado = `Al banco: ${br2.name} · ${(STRATA_META[c.estrato] || {}).label || c.estrato}.`;
   renderTeacherConfig();
 }
 

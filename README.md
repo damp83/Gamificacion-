@@ -187,6 +187,68 @@ Sirve para no configurar veinte tablets a mano: un docente publica sus ajustes y
 
 > El id del documento es siempre `clase` (`appwrite.configDocId`), así que hay una única configuración por proyecto. Para dos clases distintas, dos proyectos o dos ids.
 
+### 3 bis. Tabla de retos (para el generador con IA)
+
+Los retos escritos —los de la cola de revisión y los aprobados— viven en su
+propia tabla, una fila por reto. No están en los ajustes, y hay dos razones:
+
+- El campo `config` del aula son 200.000 caracteres y un reto ocupa unos 718:
+  el techo estaba en **278 retos para toda la clase**.
+- Y sobre todo: el documento del aula **solo lo puede leer su docente**, así
+  que un reto aprobado no llegaba jamás a la tablet de un niño.
+
+1. Crea la colección (tabla) `retos`.
+2. Columnas:
+
+   | Columna | Tipo | Tamaño | Oblig. | Array |
+   |---|---|---|---|---|
+   | `owner` | String | 64 | sí | |
+   | `aula` | String | 64 | sí | |
+   | `estado` | String | 16 | sí | | 
+   | `siteId` | String | 64 | sí | |
+   | `branchId` | String | 64 | sí | |
+   | `estrato` | String | 16 | sí | |
+   | `materia` | String | 16 | no | |
+   | `curso` | Integer | | no | |
+   | `skill` | String | 48 | sí | |
+   | `question` | String | 600 | sí | |
+   | `options` | String | 200 | sí | **sí** |
+   | `answer` | Integer | | sí | |
+   | `hint1` | String | 500 | no | |
+   | `hint2` | String | 500 | no | |
+   | `explanation` | String | 1000 | no | |
+   | `criterio` | String | 600 | no | |
+   | `origen` | String | 16 | no | |
+   | `comprobado` | Boolean | | no | |
+   | `updated_at` | String | 20 | no | |
+
+   `estado` es `cola` (escrito, sin revisar) o `banco` (aprobado, jugándose).
+
+3. Índices: uno por `aula`, y otro compuesto por `aula` + `estado`. Sin el
+   primero, listar los retos de una clase falla en cuanto haya unos cientos.
+4. **Permisos** (pestaña *Security*):
+
+   | Rol | CREATE | READ | UPDATE | DELETE |
+   |---|---|---|---|---|
+   | All users | | ✓ | | |
+   | Team `docentes` | ✓ | ✓ | ✓ | ✓ |
+
+   El READ de `All users` es lo que hace que la pregunta llegue al niño. No
+   des UPDATE ni DELETE ahí: cualquier cuenta con sesión —un alumno— podría
+   reescribir las preguntas. No hace falta activar **Row level security**:
+   con estos permisos de tabla está resuelto, y la app pone además los
+   permisos por fila para que siga funcionando si algún día se enciende.
+
+5. Pega el ID de la tabla en `retosCollectionId`, en `js/config.js`.
+
+**La mudanza es automática.** Los retos que ya estuvieran en los ajustes —la
+cola y los aprobados con `origen: 'ia'`— se suben a la tabla la primera vez
+que se abre la clase con la tabla configurada, y solo entonces se borran de
+los ajustes. Los retos que el docente escribió a mano en «Yacimientos y
+pozos» se quedan donde están.
+
+---
+
 ### 4. Colección de aulas (para varios docentes)
 
 Sirve para que **un claustro entero comparta el despliegue** y cada docente

@@ -432,6 +432,83 @@ function recordarDocId(clave, docId) {
 }
 function docIdConocido(clave) { return loadDocIds()[clave] || ''; }
 
+/* ══════════ LOS RETOS ESCRITOS, EN CACHÉ ══════════
+
+   La verdad de un reto está en Appwrite, en la tabla `retos`. Aquí solo hay
+   una copia para dos cosas que la nube no puede dar:
+
+     · Que un niño juegue SIN CONEXIÓN. El motor lee los retos de memoria, en
+       mitad de una misión, y no puede esperar a una petición.
+     · Que el panel del docente enseñe la cola al abrirlo, sin pantalla en
+       blanco mientras carga.
+
+   Vive en su PROPIA clave de localStorage, no en el overlay de ajustes. Es
+   deliberado: si estuvieran en el overlay volverían a viajar dentro del
+   campo `config` del aula, que son 200.000 caracteres, y un reto ocupa unos
+   718. El techo estaba en 278 retos para toda la clase. */
+const RETOS_KEY = 'atlas_retos_v1';
+
+function loadRetosCache() {
+  try {
+    const c = JSON.parse(localStorage.getItem(RETOS_KEY) || 'null');
+    return (c && Array.isArray(c.retos)) ? c : { aula: '', retos: [], at: 0 };
+  } catch (e) { return { aula: '', retos: [], at: 0 }; }
+}
+function saveRetosCache(aula, retos) {
+  try { localStorage.setItem(RETOS_KEY, JSON.stringify({ aula: aula || '', retos, at: Date.now() })); }
+  catch (e) { /* almacenamiento lleno: se seguirá leyendo de la nube */ }
+}
+function retosEnCache() { return loadRetosCache().retos; }
+function retosDeLaCola() { return retosEnCache().filter(r => r.estado === 'cola'); }
+function retosDelBanco() { return retosEnCache().filter(r => r.estado === 'banco'); }
+
+/* Mete los retos aprobados en el banco del pozo que les toca, para que el
+   motor los sirva igual que a los que escribió el docente a mano.
+
+   Se llama después de CADA recálculo de la configuración, porque recalcular
+   la deja como estaba en el overlay y estos no están ahí. */
+function mezclarRetosEnSitios() {
+  const aprobados = retosDelBanco();
+  if (!aprobados.length || !ATLAS_CONFIG || !Array.isArray(ATLAS_CONFIG.sites)) return;
+
+  /* Índice por pozo y estrato, para no recorrer la lista una vez por pozo. */
+  const porDestino = {};
+  for (const r of aprobados) {
+    const k = r.siteId + '/' + r.branchId + '/' + r.estrato;
+    (porDestino[k] = porDestino[k] || []).push(retoParaElBanco(r));
+  }
+
+  for (const site of ATLAS_CONFIG.sites) {
+    for (const b of (site.branches || [])) {
+      for (const estrato of Object.keys(porDestino)) {
+        const [sid, bid, est] = estrato.split('/');
+        if (sid !== site.id || bid !== b.id) continue;
+        b.bank = b.bank || {};
+        /* Los del docente van DELANTE: si escribió uno a mano para ese
+           estrato, es el que quiere que salga primero. */
+        b.bank[est] = (b.bank[est] || []).concat(porDestino[estrato]);
+      }
+    }
+  }
+}
+
+/* Del documento de Appwrite a la forma que espera el motor. El motor no sabe
+   nada de filas ni de estados: lee `question`, `options`, `answer`… */
+function retoParaElBanco(r) {
+  return {
+    question: r.question,
+    options: Array.isArray(r.options) ? r.options.slice() : [],
+    answer: Number(r.answer) || 0,
+    hint1: r.hint1 || '',
+    hint2: r.hint2 || '',
+    explanation: r.explanation || '',
+    skill: r.skill || '',
+    origen: r.origen || 'ia',
+    /* Se conserva para poder borrarlo desde el panel sin buscarlo. */
+    docId: r.$id || r.docId || ''
+  };
+}
+
 /* ── Fusión al traer de la nube ──
    La misma regla que la copia de seguridad: gana el más reciente. Un docente
    puede haber trabajado en el portátil sin red y traer luego lo del aula. */

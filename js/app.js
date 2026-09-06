@@ -295,6 +295,10 @@ async function boot() {
     /* Ajustes del equipo docente. Si fallan, la tablet sigue con los suyos:
        nunca se queda sin configuración por un problema de red. */
     try { await syncSharedConfig(); } catch (e) { /* se queda con los locales */ }
+    /* Y los retos escritos de su clase. Si no hay red se juega con la caché
+       de la última vez: por eso no se espera a esto para arrancar ni se
+       avisa si falla. */
+    try { await sincronizarRetos(); } catch (e) { /* la caché sigue valiendo */ }
   } else {
     /* Modo local: el progreso vive en este navegador */
     loadState();

@@ -219,6 +219,146 @@ async function ejecutarConReintento(id, cuerpo, avisar) {
          + 'Si estás en un iPad, deja la pantalla encendida y la app delante mientras genera.' });
 }
 
+/* ══════════ LA TABLA DE RETOS ══════════
+
+   Una fila por reto, en dos estados: `cola` (escrito, sin revisar) y `banco`
+   (aprobado, jugándose). Sustituye a guardarlos dentro del campo `config`
+   del aula, que tenía dos fallos: cabían unos 278 en total, y ese documento
+   solo lo puede leer su docente, así que un reto aprobado no llegaba jamás a
+   la tablet de un niño.
+
+   Permisos, tal como está montada la tabla:
+     · READ para `users` — las cuentas del alumnado leen las preguntas.
+     · CREATE/UPDATE/DELETE para el equipo `docentes` — solo el claustro
+       escribe. Un alumno con el identificador de la tabla no puede tocar
+       nada.
+
+   Los permisos por fila se ponen igualmente aunque el RLS esté apagado: si
+   algún día se enciende, sigue funcionando sin tocar código. */
+
+function retosOn() {
+  return !!(CLOUD.enabled && ATLAS_CONFIG.appwrite.retosCollectionId);
+}
+
+function permisosDeReto() {
+  return [
+    Appwrite.Permission.read(Appwrite.Role.users()),
+    Appwrite.Permission.update(Appwrite.Role.team('docentes')),
+    Appwrite.Permission.delete(Appwrite.Role.team('docentes'))
+  ];
+}
+
+/* Los campos tal cual van a la tabla. Se recortan a lo que declara cada
+   columna: pasarse de largo es un 400 con un mensaje que no dice cuál. */
+function filaDeReto(r, aulaId, estado) {
+  const t = (v, n) => String(v == null ? '' : v).slice(0, n);
+  return {
+    owner: (CLOUD.user && CLOUD.user.$id) || '',
+    aula: aulaId,
+    estado: estado || r.estado || 'cola',
+    siteId: t(r.siteId, 64),
+    branchId: t(r.branchId, 64),
+    estrato: t(r.estrato, 16),
+    materia: t(r.materia, 16),
+    curso: Number(r.curso) || 0,
+    skill: t(r.skill, 48),
+    question: t(r.question, 600),
+    options: (Array.isArray(r.options) ? r.options : []).map(o => t(o, 200)),
+    answer: Number(r.answer) || 0,
+    hint1: t(r.hint1, 500),
+    hint2: t(r.hint2, 500),
+    explanation: t(r.explanation, 1000),
+    criterio: t(r.criterio, 600),
+    origen: t(r.origen || 'ia', 16),
+    comprobado: !r.sinComprobar,
+    updated_at: String(Date.now())
+  };
+}
+
+/* Crea varios de golpe. Devuelve los creados y los que fallaron: una tanda
+   de diez no puede perderse entera porque el séptimo diera error. */
+async function cloudCrearRetos(lista, estado) {
+  if (!retosOn()) return { ok: false, reason: 'sin-nube', texto: 'Falta la tabla de retos en Acceso y nube.' };
+  if (!CLOUD.user) return { ok: false, reason: 'sin-sesion', texto: 'Entra con tu cuenta de docente.' };
+  const aulaId = aulaActiva();
+  if (!aulaId) return { ok: false, reason: 'sin-aula',
+    texto: 'Abre una clase en «Mis clases»: los retos se guardan en ella.' };
+
+  const c = ATLAS_CONFIG.appwrite;
+  const creados = [], fallidos = [];
+  for (const r of lista) {
+    try {
+      const doc = await CLOUD.db.createDocument(
+        c.databaseId, c.retosCollectionId, 'unique()',
+        filaDeReto(r, aulaId, estado), permisosDeReto());
+      creados.push(doc);
+    } catch (e) { fallidos.push({ reto: r, error: errorNube(e) }); }
+  }
+  return { ok: !!creados.length || !lista.length, creados, fallidos };
+}
+
+async function cloudActualizarReto(docId, campos) {
+  if (!retosOn() || !CLOUD.user) return { ok: false, reason: 'sin-nube' };
+  const c = ATLAS_CONFIG.appwrite;
+  try {
+    const doc = await CLOUD.db.updateDocument(c.databaseId, c.retosCollectionId, docId,
+      Object.assign({ updated_at: String(Date.now()) }, campos));
+    return { ok: true, doc };
+  } catch (e) { return errorNube(e); }
+}
+
+async function cloudBorrarReto(docId) {
+  if (!retosOn() || !CLOUD.user) return { ok: false, reason: 'sin-nube' };
+  const c = ATLAS_CONFIG.appwrite;
+  try {
+    await CLOUD.db.deleteDocument(c.databaseId, c.retosCollectionId, docId);
+    return { ok: true };
+  } catch (e) { return errorNube(e); }
+}
+
+/* Trae TODOS los retos de una clase y refresca la caché.
+
+   Pagina: un banco de curso entero pasa de mil filas y Appwrite sirve como
+   mucho unas decenas por página. Sin esto, a partir de la primera página los
+   retos dejarían de aparecer sin ningún error visible, que es la peor clase
+   de fallo. */
+const RETOS_PAGINA = 100;
+async function cloudTraerRetos(aulaId) {
+  if (!retosOn()) return { ok: false, reason: 'sin-nube' };
+  const c = ATLAS_CONFIG.appwrite;
+  const id = aulaId || aulaActiva();
+  if (!id) return { ok: false, reason: 'sin-aula' };
+  const fuera = [];
+  let cursor = null;
+  try {
+    for (let p = 0; p < 40; p++) {
+      const q = [Appwrite.Query.equal('aula', id), Appwrite.Query.limit(RETOS_PAGINA)];
+      if (cursor) q.push(Appwrite.Query.cursorAfter(cursor));
+      const res = await CLOUD.db.listDocuments(c.databaseId, c.retosCollectionId, q);
+      fuera.push(...res.documents);
+      if (res.documents.length < RETOS_PAGINA) break;
+      cursor = res.documents[res.documents.length - 1].$id;
+    }
+  } catch (e) { return errorNube(e); }
+
+  saveRetosCache(id, fuera.map(limpiarFila));
+  applyOverlay(ATLAS_OVERLAY);   /* recalcula y vuelve a mezclarlos en los pozos */
+  return { ok: true, retos: fuera.length };
+}
+
+/* El documento de Appwrite trae metadatos ($permissions, $collectionId…) que
+   no hacen falta y engordan la caché. Se guarda solo lo que se usa. */
+function limpiarFila(d) {
+  return {
+    $id: d.$id, estado: d.estado, aula: d.aula, owner: d.owner,
+    siteId: d.siteId, branchId: d.branchId, estrato: d.estrato,
+    materia: d.materia, curso: d.curso, skill: d.skill,
+    question: d.question, options: d.options || [], answer: d.answer,
+    hint1: d.hint1, hint2: d.hint2, explanation: d.explanation,
+    criterio: d.criterio, origen: d.origen, comprobado: d.comprobado
+  };
+}
+
 /* usuario del niño → email interno válido para Appwrite */
 function cloudEmail(username) {
   return username.trim().toLowerCase().replace(/[^a-z0-9._-]/g, '') + '@' + ATLAS_CONFIG.usernameDomain;
@@ -346,8 +486,87 @@ async function cloudLoadState() {
   const c = ATLAS_CONFIG.appwrite;
   try {
     const doc = await CLOUD.db.getDocument(c.databaseId, c.collectionId, CLOUD.user.$id);
+    /* De qué clase es este niño. Lo pone el panel del docente al crearle el
+       diario, y es lo único que dice a su tablet QUÉ retos le tocan: sin
+       esto habría que bajarse los de todos los docentes del centro. */
+    if (doc.aula) recordarMiAula(doc.aula);
     return JSON.parse(doc.state);
   } catch (e) { return null; } /* primer inicio: aún no hay documento */
+}
+
+/* La clase de quien está usando este equipo: la abierta si es un docente, y
+   si no la que diga su diario. Un alumno que se registró por su cuenta y a
+   quien nadie ha asignado clase se queda sin ella, y entonces juega con los
+   pozos de fábrica, como hasta ahora. */
+const MI_AULA_KEY = 'atlas_mi_aula_v1';
+function recordarMiAula(id) {
+  try { if (id) localStorage.setItem(MI_AULA_KEY, String(id)); } catch (e) { /* sin almacenamiento */ }
+}
+function miAula() {
+  const abierta = (typeof aulaActiva === 'function' && aulaActiva()) || '';
+  if (abierta) return abierta;
+  try { return localStorage.getItem(MI_AULA_KEY) || ''; } catch (e) { return ''; }
+}
+
+/* ── Mudanza de lo que ya había ──
+   Los retos vivían en los ajustes: la cola en `iaCola` y los aprobados
+   dentro del banco de cada pozo, marcados con `origen: 'ia'`. Se suben a la
+   tabla y se quitan de ahí, en ese orden: si la subida falla no se borra
+   nada, y se vuelve a intentar la próxima vez.
+
+   Solo se mudan los de la IA. Los retos que el docente escribió a mano en
+   «Yacimientos y pozos» se quedan donde están: son unos pocos, se editan por
+   otra pantalla, y moverlos sería cambiar dos cosas a la vez. */
+async function migrarRetosALaTabla() {
+  if (!retosOn() || !CLOUD.user || !aulaActiva()) return { ok: false, reason: 'sin-nube' };
+
+  const cola = (Array.isArray(ATLAS_CONFIG.iaCola) ? ATLAS_CONFIG.iaCola : []).slice();
+  const aprobados = [];
+  for (const site of (ATLAS_CONFIG.sites || [])) {
+    for (const b of (site.branches || [])) {
+      for (const est of Object.keys(b.bank || {})) {
+        for (const r of (b.bank[est] || [])) {
+          if (r && r.origen === 'ia') {
+            aprobados.push(Object.assign({}, r, { siteId: site.id, branchId: b.id, estrato: est }));
+          }
+        }
+      }
+    }
+  }
+  if (!cola.length && !aprobados.length) return { ok: true, mudados: 0 };
+
+  const rc = cola.length ? await cloudCrearRetos(cola, 'cola') : { ok: true, creados: [], fallidos: [] };
+  const ra = aprobados.length ? await cloudCrearRetos(aprobados, 'banco') : { ok: true, creados: [], fallidos: [] };
+  const fallos = (rc.fallidos || []).length + (ra.fallidos || []).length;
+  if (fallos) return { ok: false, reason: 'parcial', fallos };
+
+  /* Ya están arriba: ahora sí se quitan de los ajustes. */
+  if (cola.length) setTeacherConfig('iaCola', []);
+  if (aprobados.length) {
+    const l = deepClone(ATLAS_CONFIG.sites || []);
+    for (const site of l) {
+      for (const b of (site.branches || [])) {
+        for (const est of Object.keys(b.bank || {})) {
+          b.bank[est] = (b.bank[est] || []).filter(r => !(r && r.origen === 'ia'));
+          if (!b.bank[est].length) delete b.bank[est];
+        }
+      }
+    }
+    setTeacherConfig('sites', l);
+  }
+  return { ok: true, mudados: (rc.creados || []).length + (ra.creados || []).length };
+}
+
+/* Trae los retos de la clase de este equipo. Se llama al arrancar, después
+   de que haya sesión. Si falla no se dice nada en pantalla: la caché de la
+   última vez sigue sirviendo y un niño no puede hacer nada con ese aviso. */
+async function sincronizarRetos() {
+  const id = miAula();
+  if (!id || !retosOn()) return { ok: false, reason: 'sin-aula' };
+  /* Solo el docente muda: es quien tiene los retos en sus ajustes y quien
+     puede escribir en la tabla. Un alumno solo lee. */
+  if (aulaActiva()) { try { await migrarRetosALaTabla(); } catch (e) { /* se reintenta */ } }
+  return cloudTraerRetos(id);
 }
 
 async function cloudPush() {
