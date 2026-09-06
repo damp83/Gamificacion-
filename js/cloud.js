@@ -240,16 +240,29 @@ function retosOn() {
   return !!(CLOUD.enabled && ATLAS_CONFIG.appwrite.retosCollectionId);
 }
 
+/* ── Los permisos de cada fila ──
+   Aquí NO se nombra al equipo docente, y es a propósito.
+
+   Appwrite solo deja poner permisos que quien escribe pueda otorgar, y los
+   equipos se nombran por su ID, no por su etiqueta. Un equipo etiquetado
+   «docentes» tiene un ID como `6a92c58d001142cf8ba2`, así que `team:docentes`
+   no existe y Appwrite rechaza la escritura ENTERA con un «Permissions must
+   be one of…». Escribir ese ID en la configuración sería pedirle a cada
+   centro que copie un identificador para que la app arranque.
+
+   No hace falta: `users` y `user:<uno mismo>` los puede otorgar cualquiera
+   siempre. Y no se pierde nada, porque quien decide de verdad es la tabla —
+   el equipo docente tiene ahí UPDATE y DELETE—: con el Row level security
+   apagado estos permisos ni se miran, y encendido se suman a los de la
+   tabla, nunca los recortan. */
 function permisosDeReto() {
-  /* El equipo se nombra por su ID, no por su etiqueta, y no tiene por qué
-     ser «docentes»: por eso es configurable, igual que en la configuración
-     compartida. */
-  const equipo = ATLAS_CONFIG.teacherTeam || 'docentes';
-  return [
-    Appwrite.Permission.read(Appwrite.Role.users()),
-    Appwrite.Permission.update(Appwrite.Role.team(equipo)),
-    Appwrite.Permission.delete(Appwrite.Role.team(equipo))
-  ];
+  const yo = CLOUD.user && CLOUD.user.$id;
+  const p = [Appwrite.Permission.read(Appwrite.Role.users())];
+  if (yo) {
+    p.push(Appwrite.Permission.update(Appwrite.Role.user(yo)));
+    p.push(Appwrite.Permission.delete(Appwrite.Role.user(yo)));
+  }
+  return p;
 }
 
 /* Los campos tal cual van a la tabla. Se recortan a lo que declara cada
@@ -713,8 +726,11 @@ async function cloudPublishConfig(nombreDocente) {
     /* Los alumnos LEEN la configuración —sin ella no hay nada que jugar—
        pero solo el equipo docente puede cambiarla. */
     Appwrite.Permission.read(Appwrite.Role.users()),
-    Appwrite.Permission.update(Appwrite.Role.team(ATLAS_CONFIG.teacherTeam || 'docentes')),
-    Appwrite.Permission.delete(Appwrite.Role.team(ATLAS_CONFIG.teacherTeam || 'docentes'))
+    /* Por su ID no, por la misma razón que en permisosDeReto(): un equipo
+       se nombra por su identificador y Appwrite rechaza la escritura entera
+       si se le da la etiqueta. Quien manda es el permiso de la colección. */
+    Appwrite.Permission.update(Appwrite.Role.user(CLOUD.user.$id)),
+    Appwrite.Permission.delete(Appwrite.Role.user(CLOUD.user.$id))
   ];
   /* Publicar deja esta tablet al día consigo misma: si no, al abrir de nuevo
      se avisaría de un conflicto con lo que acaba de publicar ella. */

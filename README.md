@@ -239,6 +239,15 @@ propia tabla, una fila por reto. No están en los ajustes, y hay dos razones:
    con estos permisos de tabla está resuelto, y la app pone además los
    permisos por fila para que siga funcionando si algún día se enciende.
 
+   > **Los permisos por fila no nombran al equipo, y es a propósito.**
+   > Appwrite identifica los equipos por su **ID** (algo como
+   > `6a92c58d001142cf8ba2`), no por la etiqueta que se les pone, y solo
+   > acepta permisos que quien escribe pueda otorgar. Mandar `team:docentes`
+   > hace que rechace la escritura entera con un *«Permissions must be one
+   > of…»*. Cada fila se crea con `users` para leer y el propio autor para
+   > editar y borrar, que son permisos que cualquiera puede otorgar siempre;
+   > al claustro le da permiso la tabla, no la fila.
+
 5. Pega el ID de la tabla en `retosCollectionId`, en `js/config.js`.
 
 **Todos los retos van aquí**, los escriba la IA o el docente a mano en

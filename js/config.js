@@ -11,7 +11,7 @@
    copia guardada. Sin este número, «ya está arreglado» y «a mí no me pasa» son
    indistinguibles. Va junto al nombre de la caché del service worker, y una
    prueba comprueba que no se separen. */
-const ATLAS_VERSION = 'v38';
+const ATLAS_VERSION = 'v39';
 
 const ATLAS_DEFAULTS = {
 
@@ -100,6 +100,11 @@ const ATLAS_DEFAULTS = {
   className: '',
   /* Equipo de Appwrite con permiso para leer la clase y publicar la
      configuración compartida. Debe existir con este mismo id. */
+  /* Solo se usa para textos de ayuda: los permisos por documento NO nombran
+     al equipo. Appwrite identifica los equipos por su ID —algo como
+     6a92c58d001142cf8ba2—, no por esta etiqueta, y darle la etiqueta hace
+     que rechace la escritura entera. Quien da permiso al claustro es la
+     pestaña Security de cada colección. */
   teacherTeam: 'docentes',
 
   /* ── Lista de clase ──

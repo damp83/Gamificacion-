@@ -88,10 +88,8 @@ test('cada fila se crea con los permisos correctos', () => {
   const i = cloud.indexOf('function permisosDeReto()');
   const cuerpo = cloud.slice(i, cloud.indexOf('\n}', i));
   assert.match(cuerpo, /Permission\.read\(Appwrite\.Role\.users\(\)\)/);
-  assert.match(cuerpo, /Permission\.update\(Appwrite\.Role\.team\(equipo\)\)/);
-  assert.match(cuerpo, /Permission\.delete\(Appwrite\.Role\.team\(equipo\)\)/);
-  assert.match(cuerpo, /ATLAS_CONFIG\.teacherTeam \|\| 'docentes'/,
-    'el equipo se nombra por su ID y no tiene por qué llamarse «docentes»');
+  assert.match(cuerpo, /Permission\.update\(Appwrite\.Role\.user\(yo\)\)/);
+  assert.match(cuerpo, /Permission\.delete\(Appwrite\.Role\.user\(yo\)\)/);
   assert.ok(!/Role\.any\(\)/.test(cuerpo), 'nunca «any»: eso es internet entero');
 });
 
@@ -288,4 +286,30 @@ test('el diagnóstico enseña qué columnas manda la app', () => {
   assert.match(cols, /answer \(Integer\)/);
   assert.match(cols, /comprobado \(Boolean\)/);
   assert.equal(cols.split(',').length, 19);
+});
+
+test('los permisos de fila nunca nombran a un equipo', () => {
+  /* Appwrite solo acepta permisos que quien escribe pueda otorgar, y a los
+     equipos los identifica por su ID, no por su etiqueta. Un equipo
+     etiquetado «docentes» tiene un ID como 6a92c58d001142cf8ba2, así que
+     `team:docentes` no existe y Appwrite rechaza la escritura ENTERA:
+
+       Permissions must be one of: (any, users, user:…, team:6a92c58d…)
+
+     `users` y `user:<uno mismo>` los puede otorgar cualquiera siempre. No se
+     pierde nada: quien da permiso al claustro es la pestaña Security de la
+     tabla, y estos permisos se suman a los de ahí, nunca los recortan. */
+  const cloud = leer('js/cloud.js');
+  assert.ok(!/Role\.team\(/.test(cloud),
+    'ninguna escritura nombra a un equipo: se rechazaría entera');
+});
+
+test('sin sesión no se inventa un permiso de nadie', () => {
+  const c = cargarApp();
+  c.ev('CLOUD').user = null;
+  c.Appwrite = {
+    Permission: { read: r => 'read:' + r, update: r => 'upd:' + r, delete: r => 'del:' + r },
+    Role: { users: () => 'users', user: u => 'user:' + u }
+  };
+  assert.deepEqual(c.ev('permisosDeReto')(), ['read:users']);
 });
