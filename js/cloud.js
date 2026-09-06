@@ -294,7 +294,37 @@ async function cloudCrearRetos(lista, estado) {
       creados.push(doc);
     } catch (e) { fallidos.push({ reto: r, error: errorNube(e) }); }
   }
-  return { ok: !!creados.length || !lista.length, creados, fallidos };
+  /* El motivo del PRIMER fallo sube con el resultado. Sin esto, quien llama
+     no encontraba ni `reason` ni `texto` y acababa enseñando «sin conexión»
+     —que era mentira— en vez de lo que dijo Appwrite: que falta una columna,
+     que el tipo no cuadra, o que la cuenta no está en el equipo «docentes».
+     Tragarse el error convierte un arreglo de dos minutos en una noche. */
+  const primero = fallidos.length ? fallidos[0].error : null;
+  return {
+    ok: !!creados.length || !lista.length,
+    creados, fallidos,
+    reason: primero ? primero.reason : undefined,
+    texto: primero ? textoDeFalloAlCrear(primero) : undefined
+  };
+}
+
+/* Los tres motivos por los que falla crear un reto, con lo que hay que
+   tocar en cada caso. El mensaje crudo de Appwrite dice qué pasa pero no
+   dónde se arregla. */
+function textoDeFalloAlCrear(err) {
+  const d = err.detail || '';
+  if (err.reason === 'sin-permiso' || /not authorized|missing scope|permission/i.test(d)) {
+    return 'tu cuenta no puede escribir en la tabla «retos». Comprueba dos cosas en Appwrite: '
+         + 'que estés dentro del equipo «docentes» (Auth → Teams), y que ese equipo tenga CREATE '
+         + 'en la pestaña Security de la tabla';
+  }
+  if (err.reason === 'no-existe' || /could not be found/i.test(d)) {
+    return 'no existe ninguna tabla con ese identificador en esta base de datos';
+  }
+  if (/unknown attribute|invalid document structure|attribute/i.test(d)) {
+    return 'a la tabla le falta alguna columna, o su tipo no coincide. Appwrite dice: «' + d + '»';
+  }
+  return d || 'Appwrite ha rechazado la escritura sin decir por qué';
 }
 
 async function cloudActualizarReto(docId, campos) {
@@ -1121,7 +1151,39 @@ async function cloudDiagnostico() {
     : await cloudSondearColeccion(c.collectionId));
   if (c.aulasCollectionId) anotar(`Aulas («${c.aulasCollectionId}»)`, await cloudSondearColeccion(c.aulasCollectionId));
   if (c.configCollectionId) anotar(`Configuración («${c.configCollectionId}»)`, await cloudSondearColeccion(c.configCollectionId));
+  if (c.retosCollectionId) anotar(`Retos («${c.retosCollectionId}»)`, await cloudSondearColeccion(c.retosCollectionId));
+  /* Leer no es escribir: la tabla de retos se lee con `users` y se escribe
+     con el equipo «docentes», así que se puede listar perfectamente y luego
+     no poder guardar. Esto lo prueba de verdad, creando y borrando. */
+  if (c.retosCollectionId && CLOUD.user) anotar('Escribir un reto de prueba', await cloudProbarEscrituraRetos());
   return pasos;
+}
+
+/* Crea un reto de mentira y lo borra. Es la única forma de saber si el
+   docente podrá guardar: listar la tabla solo prueba la lectura, que la
+   tiene cualquier cuenta con sesión. */
+async function cloudProbarEscrituraRetos() {
+  if (!aulaActiva()) {
+    return { ok: false, texto: 'No hay clase abierta. Ábrela en «Mis clases»: un reto se guarda en una clase.' };
+  }
+  const c = ATLAS_CONFIG.appwrite;
+  const prueba = {
+    siteId: '_prueba', branchId: '_prueba', estrato: 'recordar', skill: '_prueba',
+    question: 'Reto de prueba del diagnóstico', options: ['a', 'b', 'c', 'd'], answer: 0
+  };
+  let doc = null;
+  try {
+    doc = await CLOUD.db.createDocument(c.databaseId, c.retosCollectionId, 'unique()',
+      filaDeReto(prueba, aulaActiva(), 'cola'), permisosDeReto());
+  } catch (e) {
+    return { ok: false, texto: textoDeFalloAlCrear(errorNube(e)) };
+  }
+  try { await CLOUD.db.deleteDocument(c.databaseId, c.retosCollectionId, doc.$id); }
+  catch (e) {
+    return { ok: false, texto: 'Se puede crear, pero NO borrar: revisa DELETE del equipo «docentes» en Security. '
+      + 'Ha quedado un reto de prueba en la tabla; bórralo desde la consola.' };
+  }
+  return { ok: true, texto: 'Se puede crear y borrar. Los retos se guardarán bien.' };
 }
 
 /* guardado perezoso: saveState() lo invoca; agrupa ráfagas en un envío */

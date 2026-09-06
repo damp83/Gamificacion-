@@ -58,18 +58,34 @@ test('sin error, la colección responde', () => {
 
 test('el diagnóstico prueba todas las colecciones configuradas', async () => {
   const ctx = cargarApp();
-  ctx.Appwrite = { Query: { limit: () => ({}) } };
+  ctx.Appwrite = {
+    Query: { limit: () => ({}) },
+    Permission: { read: r => 'read:' + r, update: r => 'upd:' + r, delete: r => 'del:' + r },
+    Role: { users: () => 'users', team: t => 'team:' + t, user: u => 'user:' + u }
+  };
   const pedidas = [];
   const CLOUD = ctx.ev('CLOUD');
   CLOUD.enabled = true;
   CLOUD.user = { $id: 'd1', name: 'Diego' };
-  CLOUD.db = { listDocuments: async (db, col) => { pedidas.push(col); return { documents: [] }; } };
+  const escrituras = [];
+  CLOUD.db = {
+    listDocuments: async (db, col) => { pedidas.push(col); return { documents: [] }; },
+    createDocument: async (db, col) => { escrituras.push('crear:' + col); return { $id: 'tmp1' }; },
+    deleteDocument: async (db, col, id) => { escrituras.push('borrar:' + col + '/' + id); }
+  };
   ctx.ev('ATLAS_CONFIG.appwrite').configCollectionId = 'configuracion';
+  const idRetos = ctx.ev('ATLAS_CONFIG.appwrite.retosCollectionId');
+  ctx.ev('setAulaActiva')('aulaX', 'Clase');
 
   const pasos = await ctx.ev('cloudDiagnostico')();
-  assert.deepEqual(pedidas, ['diarios', 'aulas', 'configuracion']);
+  assert.deepEqual(pedidas, ['diarios', 'aulas', 'configuracion', idRetos]);
+  /* La tabla de retos se LEE con `users` y se ESCRIBE con el equipo docente:
+     listarla puede salir bien y aun así no poder guardar un reto. Por eso el
+     diagnóstico crea uno de prueba y lo borra. */
+  assert.deepEqual(escrituras, ['crear:' + idRetos, 'borrar:' + idRetos + '/tmp1']);
   assert.ok(pasos.every(s => s.ok), 'con todo respondiendo, ningún paso falla');
   assert.ok(pasos.some(s => /Sesión/.test(s.que)));
+  assert.ok(pasos.some(s => /Escribir un reto/.test(s.que)));
 });
 
 test('sin SDK cargado el diagnóstico lo dice y no revienta', async () => {

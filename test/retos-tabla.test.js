@@ -209,3 +209,43 @@ test('el editor a mano escribe en la tabla, no en los ajustes', () => {
   const cuerpo = t.slice(i, i + 2000);
   assert.match(cuerpo, /cloudCrearRetos\(conDestino, 'banco'\)/);
 });
+
+test('un fallo al guardar dice POR QUÉ, no «sin conexión»', () => {
+  /* Se tragaba el error de Appwrite: `cloudCrearRetos` devolvía el resultado
+     sin `reason` ni `texto`, quien llamaba no encontraba nada y enseñaba
+     «sin conexión» —con el iPad conectado—. El motivo real (falta una
+     columna, la cuenta no está en el equipo) se perdía por el camino. */
+  const cloud = leer('js/cloud.js');
+  const i = cloud.indexOf('async function cloudCrearRetos(');
+  const cuerpo = cloud.slice(i, cloud.indexOf('\nasync function cloudActualizarReto', i));
+  assert.match(cuerpo, /const primero = fallidos\.length \? fallidos\[0\]\.error : null;/);
+  assert.match(cuerpo, /texto: primero \? textoDeFalloAlCrear\(primero\) : undefined/);
+
+  const teacher = leer('js/teacher.js');
+  /* Y ningún mensaje de error del panel usa «sin conexión» como comodín
+     cuando no sabe la causa: eso fue exactamente lo que despistó. */
+  assert.ok(!/\|\| 'sin conexión'/.test(teacher),
+    'ya no se da por supuesto que el problema es la conexión');
+});
+
+test('cada motivo de fallo dice dónde se arregla', () => {
+  const cloud = leer('js/cloud.js');
+  const i = cloud.indexOf('function textoDeFalloAlCrear(err)');
+  const cuerpo = cloud.slice(i, cloud.indexOf('\n}', i));
+  assert.match(cuerpo, /equipo «docentes»/, 'permiso: dónde mirar');
+  assert.match(cuerpo, /falta alguna columna/, 'esquema: qué revisar');
+  assert.match(cuerpo, /no existe ninguna tabla/, 'id mal copiado');
+});
+
+test('el diagnóstico prueba a ESCRIBIR, no solo a leer', () => {
+  /* La tabla se lee con `users` y se escribe con el equipo «docentes»: se
+     puede listar perfectamente y no poder guardar nada. Un diagnóstico que
+     solo lista daría verde con el problema delante. */
+  const cloud = leer('js/cloud.js');
+  assert.match(cloud, /async function cloudProbarEscrituraRetos\(\)/);
+  const i = cloud.indexOf('async function cloudProbarEscrituraRetos()');
+  const cuerpo = cloud.slice(i, cloud.indexOf('\n}\n\n', i));
+  assert.match(cuerpo, /createDocument/, 'crea');
+  assert.match(cuerpo, /deleteDocument/, 'y borra, para no dejar basura');
+  assert.match(cuerpo, /Se puede crear, pero NO borrar/, 'y distingue los dos permisos');
+});

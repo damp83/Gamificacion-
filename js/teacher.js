@@ -929,7 +929,7 @@ function cfgBancoRetos(body) {
     const q = ((branch.bank || {})[cfgEditStratum] || [])[qi];
     if (q && q.docId && typeof cloudActualizarReto === 'function') {
       const r = await cloudActualizarReto(q.docId, campos);
-      if (!r.ok) { toast('⚠️ No se ha podido guardar: ' + (r.detail || r.reason || 'sin conexión')); return; }
+      if (!r.ok) { toast('⚠️ No se ha podido guardar: ' + (r.detail || r.reason || 'Appwrite no ha dicho por qué')); return; }
       await cloudTraerRetos();
       renderTeacherConfig();
       if (msg) toast(msg);
@@ -958,7 +958,7 @@ function cfgBancoRetos(body) {
     const q = ((branch.bank || {})[cfgEditStratum] || [])[qi];
     if (q && q.docId && typeof cloudBorrarReto === 'function') {
       const r = await cloudBorrarReto(q.docId);
-      if (!r.ok) { toast('⚠️ No se ha podido eliminar: ' + (r.detail || r.reason || 'sin conexión')); return; }
+      if (!r.ok) { toast('⚠️ No se ha podido eliminar: ' + (r.detail || r.reason || 'Appwrite no ha dicho por qué')); return; }
       await cloudTraerRetos();
       renderTeacherConfig();
       toast('Reto eliminado ✓');
@@ -972,7 +972,7 @@ function cfgBancoRetos(body) {
       siteId, branchId, estrato: cfgEditStratum, materia: '', skill: '', origen: 'docente' };
     if (typeof cloudCrearRetos === 'function' && retosOn() && aulaActiva()) {
       const r = await cloudCrearRetos([vacio], 'banco');
-      if (!r.ok) { toast('⚠️ No se ha podido añadir: ' + ((r.fallidos && r.fallidos[0] && r.fallidos[0].error.detail) || r.texto || 'sin conexión')); return; }
+      if (!r.ok) { toast('⚠️ No se ha podido añadir: ' + ((r.fallidos && r.fallidos[0] && r.fallidos[0].error.detail) || r.texto || 'Appwrite no ha dicho por qué')); return; }
       await cloudTraerRetos();
       renderTeacherConfig();
       toast('Reto añadido: complétalo ✓');
@@ -1013,7 +1013,7 @@ function cfgBancoRetos(body) {
       const r = await cloudCrearRetos(conDestino, 'banco');
       if (!r.creados.length) {
         err.textContent = 'No se ha podido guardar ninguno: ' +
-          ((r.fallidos && r.fallidos[0] && r.fallidos[0].error.detail) || r.texto || 'sin conexión');
+          ((r.fallidos && r.fallidos[0] && r.fallidos[0].error.detail) || r.texto || 'Appwrite no ha dicho por qué');
         err.classList.remove('hidden');
         return;
       }
@@ -1558,9 +1558,12 @@ function cfgIA(body) {
     } else {
       cfgSave('iaCola', (ATLAS_CONFIG.iaCola || []).concat(
         nuevos.map((x, i) => Object.assign({}, x, { id: 'ia' + Date.now() + '_' + i }))), false);
-      iaAviso = '⚠️ No se han podido guardar en la nube (' +
-        (guardado.texto || guardado.reason || 'sin conexión') +
-        '). Están en este equipo: vuelve a entrar aquí con conexión y se subirán.';
+      /* El motivo lo da ahora `cloudCrearRetos`, que antes se lo tragaba y
+         dejaba que aquí se dijera «sin conexión» aunque hubiera de sobra. */
+      iaAviso = '⚠️ No se han podido guardar en la nube: ' +
+        (guardado.texto || guardado.reason || 'Appwrite no ha dicho por qué') +
+        '. Están guardados en este equipo y no se pierden. Mira «Acceso y nube → ¿Está bien puesto?», ' +
+        'que ahora prueba a escribir un reto de verdad y dice qué falta.';
     }
     iaDescartados = r.descartados || [];
     /* `corte` = se paró a mitad. Lo escrito hasta ahí está pagado y se guarda,
@@ -1585,7 +1588,7 @@ function cfgIA(body) {
     const question = String(texto).trim();
     if (c.$id && typeof cloudActualizarReto === 'function') {
       const r = await cloudActualizarReto(c.$id, { question: question.slice(0, 600) });
-      if (!r.ok) { iaEstado = '⚠️ No se ha podido guardar el cambio: ' + (r.detail || r.reason || 'sin conexión') + '.'; }
+      if (!r.ok) { iaEstado = '⚠️ No se ha podido guardar el cambio: ' + (r.detail || r.reason || 'Appwrite no ha dicho por qué') + '.'; }
       else await cloudTraerRetos();
       renderTeacherConfig(); return;
     }
@@ -1618,7 +1621,7 @@ async function descartarReto(id) {
   if (c.$id && typeof cloudBorrarReto === 'function') {
     const r = await cloudBorrarReto(c.$id);
     if (!r.ok) {
-      iaEstado = '⚠️ No se ha podido descartar: ' + (r.detail || r.reason || 'sin conexión') + '.';
+      iaEstado = '⚠️ No se ha podido descartar: ' + (r.detail || r.reason || 'Appwrite no ha dicho por qué') + '.';
       renderTeacherConfig(); return;
     }
     await cloudTraerRetos();
@@ -1646,7 +1649,7 @@ async function aprobarReto(id) {
   if (c.$id && typeof cloudActualizarReto === 'function') {
     const r = await cloudActualizarReto(c.$id, { estado: 'banco' });
     if (!r.ok) {
-      iaEstado = '⚠️ No se ha podido aprobar: ' + (r.detail || r.reason || 'sin conexión') +
+      iaEstado = '⚠️ No se ha podido aprobar: ' + (r.detail || r.reason || 'Appwrite no ha dicho por qué') +
                  '. Sigue en la cola; inténtalo con conexión.';
       renderTeacherConfig(); return;
     }
