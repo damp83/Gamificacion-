@@ -241,10 +241,14 @@ function retosOn() {
 }
 
 function permisosDeReto() {
+  /* El equipo se nombra por su ID, no por su etiqueta, y no tiene por qué
+     ser «docentes»: por eso es configurable, igual que en la configuración
+     compartida. */
+  const equipo = ATLAS_CONFIG.teacherTeam || 'docentes';
   return [
     Appwrite.Permission.read(Appwrite.Role.users()),
-    Appwrite.Permission.update(Appwrite.Role.team('docentes')),
-    Appwrite.Permission.delete(Appwrite.Role.team('docentes'))
+    Appwrite.Permission.update(Appwrite.Role.team(equipo)),
+    Appwrite.Permission.delete(Appwrite.Role.team(equipo))
   ];
 }
 
@@ -287,12 +291,24 @@ async function cloudCrearRetos(lista, estado) {
   const c = ATLAS_CONFIG.appwrite;
   const creados = [], fallidos = [];
   for (const r of lista) {
+    const fila = filaDeReto(r, aulaId, estado);
     try {
       const doc = await CLOUD.db.createDocument(
-        c.databaseId, c.retosCollectionId, 'unique()',
-        filaDeReto(r, aulaId, estado), permisosDeReto());
+        c.databaseId, c.retosCollectionId, 'unique()', fila, permisosDeReto());
       creados.push(doc);
-    } catch (e) { fallidos.push({ reto: r, error: errorNube(e) }); }
+    } catch (e) {
+      /* ── Segundo intento, sin permisos por fila ──
+         Nombran un equipo por su ID, y ese ID no tiene por qué existir. Con
+         el «Row level security» apagado —que es como está montada la tabla—
+         esos permisos se ignoran de todas formas, así que mandarlos solo
+         puede estorbar. Antes de dar el reto por perdido, se prueba sin
+         ellos: si entra así, el problema estaba ahí y no en la tabla. */
+      try {
+        const doc = await CLOUD.db.createDocument(
+          c.databaseId, c.retosCollectionId, 'unique()', fila);
+        creados.push(doc);
+      } catch (e2) { fallidos.push({ reto: r, error: errorNube(e2) }); }
+    }
   }
   /* El motivo del PRIMER fallo sube con el resultado. Sin esto, quien llama
      no encontraba ni `reason` ni `texto` y acababa enseñando «sin conexión»
@@ -313,18 +329,37 @@ async function cloudCrearRetos(lista, estado) {
    dónde se arregla. */
 function textoDeFalloAlCrear(err) {
   const d = err.detail || '';
+  /* El mensaje CRUDO de Appwrite va siempre al final, pase lo que pase.
+     Mi traducción ayuda cuando acierto y estorba cuando no: sin el original
+     no hay forma de averiguar qué pasa desde fuera, y eso ya costó una
+     noche. Appwrite nombra la columna que sobra o falta, y esa palabra es
+     justo la que hace falta para arreglarlo. */
+  const crudo = d ? ' — Appwrite dice: «' + d + '»' : '';
   if (err.reason === 'sin-permiso' || /not authorized|missing scope|permission/i.test(d)) {
     return 'tu cuenta no puede escribir en la tabla «retos». Comprueba dos cosas en Appwrite: '
-         + 'que estés dentro del equipo «docentes» (Auth → Teams), y que ese equipo tenga CREATE '
-         + 'en la pestaña Security de la tabla';
+         + 'que estés dentro del equipo «docentes» (Auth → Teams → docentes → Members), y que ese '
+         + 'equipo tenga CREATE en la pestaña Security de la tabla' + crudo;
   }
   if (err.reason === 'no-existe' || /could not be found/i.test(d)) {
-    return 'no existe ninguna tabla con ese identificador en esta base de datos';
+    return 'no existe ninguna tabla con ese identificador en esta base de datos' + crudo;
   }
-  if (/unknown attribute|invalid document structure|attribute/i.test(d)) {
-    return 'a la tabla le falta alguna columna, o su tipo no coincide. Appwrite dice: «' + d + '»';
+  if (/unknown attribute|invalid document structure|attribute|required/i.test(d)) {
+    return 'a la tabla le falta alguna columna, le sobra, o su tipo no coincide' + crudo;
   }
-  return d || 'Appwrite ha rechazado la escritura sin decir por qué';
+  return 'Appwrite ha rechazado la escritura' + (crudo || ' sin decir por qué');
+}
+
+/* Los nombres y tipos que la app manda, para poder compararlos de un vistazo
+   con las columnas de la consola. Se enseña en el diagnóstico cuando falla:
+   son diecinueve columnas y encontrar la que baila a ojo es un suplicio. */
+function columnasQueSeMandan() {
+  const ejemplo = filaDeReto({ options: ['a', 'b', 'c', 'd'], answer: 0 }, 'aula', 'cola');
+  return Object.keys(ejemplo).map(k => {
+    const v = ejemplo[k];
+    const tipo = Array.isArray(v) ? 'String[]' : typeof v === 'number' ? 'Integer'
+      : typeof v === 'boolean' ? 'Boolean' : 'String';
+    return k + ' (' + tipo + ')';
+  }).join(', ');
 }
 
 async function cloudActualizarReto(docId, campos) {
@@ -1176,7 +1211,8 @@ async function cloudProbarEscrituraRetos() {
     doc = await CLOUD.db.createDocument(c.databaseId, c.retosCollectionId, 'unique()',
       filaDeReto(prueba, aulaActiva(), 'cola'), permisosDeReto());
   } catch (e) {
-    return { ok: false, texto: textoDeFalloAlCrear(errorNube(e)) };
+    return { ok: false, texto: textoDeFalloAlCrear(errorNube(e)) +
+      ' · La app manda estas columnas: ' + columnasQueSeMandan() };
   }
   try { await CLOUD.db.deleteDocument(c.databaseId, c.retosCollectionId, doc.$id); }
   catch (e) {

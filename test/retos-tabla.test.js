@@ -88,8 +88,10 @@ test('cada fila se crea con los permisos correctos', () => {
   const i = cloud.indexOf('function permisosDeReto()');
   const cuerpo = cloud.slice(i, cloud.indexOf('\n}', i));
   assert.match(cuerpo, /Permission\.read\(Appwrite\.Role\.users\(\)\)/);
-  assert.match(cuerpo, /Permission\.update\(Appwrite\.Role\.team\('docentes'\)\)/);
-  assert.match(cuerpo, /Permission\.delete\(Appwrite\.Role\.team\('docentes'\)\)/);
+  assert.match(cuerpo, /Permission\.update\(Appwrite\.Role\.team\(equipo\)\)/);
+  assert.match(cuerpo, /Permission\.delete\(Appwrite\.Role\.team\(equipo\)\)/);
+  assert.match(cuerpo, /ATLAS_CONFIG\.teacherTeam \|\| 'docentes'/,
+    'el equipo se nombra por su ID y no tiene por qué llamarse «docentes»');
   assert.ok(!/Role\.any\(\)/.test(cuerpo), 'nunca «any»: eso es internet entero');
 });
 
@@ -248,4 +250,42 @@ test('el diagnóstico prueba a ESCRIBIR, no solo a leer', () => {
   assert.match(cuerpo, /createDocument/, 'crea');
   assert.match(cuerpo, /deleteDocument/, 'y borra, para no dejar basura');
   assert.match(cuerpo, /Se puede crear, pero NO borrar/, 'y distingue los dos permisos');
+});
+
+test('si los permisos por fila estorban, se crea sin ellos antes de rendirse', () => {
+  /* Nombran un equipo por su ID, y ese ID no tiene por qué existir. Con el
+     «Row level security» apagado se ignoran igualmente, así que mandarlos
+     solo puede estorbar: perder un reto por eso sería absurdo. */
+  const cloud = leer('js/cloud.js');
+  const i = cloud.indexOf('async function cloudCrearRetos(');
+  const cuerpo = cloud.slice(i, cloud.indexOf('\nasync function cloudActualizarReto', i));
+  const conPermisos = cuerpo.indexOf("'unique()', fila, permisosDeReto()");
+  const sinPermisos = cuerpo.indexOf("'unique()', fila);");
+  assert.ok(conPermisos > 0 && sinPermisos > conPermisos, 'primero con, después sin');
+  assert.match(cuerpo, /catch \(e2\) \{ fallidos\.push/, 'y solo entonces se da por fallido');
+});
+
+test('el mensaje de Appwrite se enseña LITERAL, pase lo que pase', () => {
+  /* Mi traducción ayuda cuando acierto y estorba cuando no. Sin el original
+     no hay forma de averiguar qué pasa desde fuera: Appwrite nombra la
+     columna que sobra o falta, y esa palabra es la que arregla el problema. */
+  const cloud = leer('js/cloud.js');
+  const i = cloud.indexOf('function textoDeFalloAlCrear(err)');
+  const cuerpo = cloud.slice(i, cloud.indexOf('\n}', i));
+  assert.match(cuerpo, /const crudo = d \? ' — Appwrite dice: «' \+ d \+ '»' : '';/);
+  const ramas = cuerpo.split('return ').slice(1);
+  assert.ok(ramas.length >= 4, 'hay varias salidas');
+  for (const r of ramas) assert.match(r, /crudo/, 'todas llevan el mensaje original');
+});
+
+test('el diagnóstico enseña qué columnas manda la app', () => {
+  /* Son diecinueve. Encontrar a ojo la que baila entre la consola y el
+     código es un suplicio; verlas en fila al lado del error, no. */
+  const c = cargarApp();
+  c.ev('CLOUD').user = { $id: 'd1' };
+  const cols = c.ev('columnasQueSeMandan')();
+  assert.match(cols, /options \(String\[\]\)/, 'dice cuál es un array');
+  assert.match(cols, /answer \(Integer\)/);
+  assert.match(cols, /comprobado \(Boolean\)/);
+  assert.equal(cols.split(',').length, 19);
 });
