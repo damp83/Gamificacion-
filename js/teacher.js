@@ -678,8 +678,10 @@ function cfgYacimientos(body) {
     <p class="cfg-intro">Puedes crear <strong>yacimientos</strong> nuevos (Lengua, Naturales,
     Sociales…), añadirles <strong>pozos</strong> y escribir tú los retos de cada estrato.
     Los pozos de fábrica —cinco de Matemáticas y tres de Lengua— generan retos infinitos
-    solos y se ajustan al curso de cada alumno: se pueden renombrar, limitar a ciertos
-    cursos y ocultar, pero sus retos no se editan.</p>
+    solos, ajustados al curso de cada alumno. Eso no quita que puedas <strong>escribirles
+    los tuyos</strong>, a mano o con la IA: los escritos se sirven primero y, cuando se
+    acaban, el pozo sigue generando. Es la forma de poner tus retos en un pozo sin
+    quedarte nunca sin material.</p>
 
     <div class="cfg-list">
       ${sites.map((site, si) => {
@@ -718,7 +720,14 @@ function cfgYacimientos(body) {
                   <label class="cfg-switch">Activo
                     <input type="checkbox" class="cfg-b2-on" data-si="${si}" data-bi="${bi}"${b.enabled !== false ? ' checked' : ''}></label>
                   ${b.source === 'builtin'
-                    ? '<span class="cfg-tag">Retos automáticos · infinitos</span>'
+                    /* Los pozos de fábrica TAMBIÉN tienen banco. Antes solo
+                       enseñaban «retos automáticos» y ninguna puerta para
+                       abrirlo, pero el generador de IA los ofrece como
+                       destino y lo que se aprueba entra aquí: quedaban
+                       guardados donde el docente no podía verlos ni
+                       corregirlos. */
+                    ? `<button class="btn btn-secondary btn-small" data-bank="${site.id}:${b.id}">✏️ Retos escritos (${total})</button>
+                       <span class="cfg-tag">+ automáticos, infinitos</span>`
                     : `<button class="btn btn-secondary btn-small" data-bank="${site.id}:${b.id}">✏️ Retos (${total})</button>
                        <span class="cfg-tag${listos ? '' : ' cfg-tag-warn'}">${listos}/4 estratos listos</span>`}
                 </div>
@@ -850,8 +859,11 @@ function cfgBancoRetos(body) {
     <h3 class="cfg-bank-title">${esc(branch.icon)} ${esc(branch.name)}</h3>
     <p class="cfg-intro">Escribe los retos de cada estrato. Los estratos van de menos a más
     profundos: <strong>Recordar</strong> es reconocer, <strong>Analizar</strong> es encontrar el
-    error. Un estrato sin retos aparece al alumno como «todavía no preparado», nunca como
-    bloqueado sin explicación.</p>
+    error. ${branch.source === 'builtin'
+      ? 'En un pozo de fábrica, lo que escribas aquí se sirve <strong>antes</strong> que los retos '
+        + 'automáticos; cuando se agotan, el pozo sigue generando solo. Un estrato vacío no se '
+        + 'queda en blanco: se rellena con los automáticos.'
+      : 'Un estrato sin retos aparece al alumno como «todavía no preparado», nunca como bloqueado sin explicación.'}</p>
 
     <div class="cfg-strata-tabs">
       ${STRATA_ORDER.map(sId => {

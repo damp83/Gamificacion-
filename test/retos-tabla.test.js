@@ -313,3 +313,26 @@ test('sin sesión no se inventa un permiso de nadie', () => {
   };
   assert.deepEqual(c.ev('permisosDeReto')(), ['read:users']);
 });
+
+test('los pozos de fábrica también dejan abrir su banco', () => {
+  /* Enseñaban «Retos automáticos · infinitos» y ninguna puerta para entrar.
+     Pero el generador de IA los ofrece como destino y lo aprobado entra ahí:
+     los retos quedaban guardados donde el docente no podía verlos, ni
+     corregir una pregunta, ni saber cuántos había. Contradicción mía, no
+     del docente que no los encontraba. */
+  const t = leer('js/teacher.js');
+  const i = t.indexOf("b.source === 'builtin'");
+  const cuerpo = t.slice(i, i + 900);
+  assert.match(cuerpo, /data-bank="\$\{site\.id\}:\$\{b\.id\}"/,
+    'un pozo de fábrica también lleva el botón de su banco');
+  assert.match(cuerpo, /Retos escritos \(\$\{total\}\)/, 'y dice cuántos hay escritos');
+  assert.match(cuerpo, /\+ automáticos, infinitos/, 'sin dejar de decir que además genera solo');
+});
+
+test('el editor explica que en un pozo de fábrica los escritos van primero', () => {
+  /* Es la regla que decide qué ve el niño, y sin decirla el docente no sabe
+     si sus tres retos se usan o se pierden entre los automáticos. */
+  const t = leer('js/teacher.js');
+  assert.match(t, /se sirve <strong>antes<\/strong> que los retos/);
+  assert.match(t, /cuando se agotan, el pozo sigue generando solo/);
+});

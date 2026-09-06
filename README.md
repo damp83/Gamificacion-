@@ -712,7 +712,7 @@ scroll—. El panel abre por **Alumnado**.
 |---|---|
 | 👥 Alumnado | Tu nombre y el de la clase, la lista de alumnos, y **crear sus cuentas de golpe** |
 | 🏅 Comportamientos, tareas y actividades | Crear, editar y retirar reconocimientos: icono, nombre, Doblones, tope diario y categoría |
-| 🏛️ Yacimientos y pozos | **Crear yacimientos y pozos nuevos y escribir los retos de cada estrato**, además de renombrar y ocultar |
+| 🏛️ Yacimientos y pozos | **Crear yacimientos y pozos nuevos y escribir los retos de cada estrato**, además de renombrar y ocultar. Los pozos **de fábrica** también tienen banco: lo que escribas ahí se sirve antes que sus retos automáticos, y cuando se agota el pozo sigue generando solo |
 | 🤖 Retos con IA | Tu clave de la API, el currículo de tu área, y la **cola de revisión**: nada escrito por IA entra en el banco sin que lo apruebes |
 | ✍️ Taller de Cartografía | Los acertijos que escriben los niños, esperando a que alguien los lea |
 
