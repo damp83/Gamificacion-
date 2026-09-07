@@ -263,6 +263,17 @@ puede ejecutar mil veces: lo que ya está en la tabla no se vuelve a subir.
 
 ### 4. Colección de aulas (para varios docentes)
 
+> **Los permisos de cada clase.** El documento de una clase lo **lee cualquier
+> cuenta con sesión** y lo **escribe solo su docente**. La lectura abierta no
+> es un descuido: dentro de ese documento viajan los yacimientos, los pozos,
+> los méritos, la economía y las cuadrillas, y sin ella los alumnos jugarían
+> siempre con la configuración de fábrica por mucho que el docente prepare su
+> clase. Lo que se guarda ahí no incluye contraseñas del alumnado, PIN, datos
+> de Appwrite ni la clave de la API; y una tablet de alumno se deja además la
+> lista de clase al adoptarlo, que el juego no la necesita. Los permisos se
+> refrescan en cada guardado, así que las clases creadas antes de esto se
+> abren solas.
+
 Sirve para que **un claustro entero comparta el despliegue** y cada docente
 trabaje con sus clases sin ver las de los demás. Si te la saltas, la plataforma
 funciona con una sola clase guardada en el equipo, como hasta ahora.

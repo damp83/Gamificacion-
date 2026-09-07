@@ -599,16 +599,25 @@ function miAula() {
        o escribió. Si no, cada arranque pisaría los cambios locales con una
        copia vieja. */
 async function traerAjustesDeAula() {
-  if (!aulasOn() || !aulaActiva() || !CLOUD.user) return { ok: false, reason: 'sin-aula' };
+  /* `miAula()` sirve a los dos: al docente le da la clase que tiene abierta,
+     y a un alumno la que dice su diario. Antes exigía clase ABIERTA, que es
+     cosa del panel del docente, así que una tablet de alumno no bajaba nada
+     nunca. */
+  const id = miAula();
+  if (!aulasOn() || !id || !CLOUD.user) return { ok: false, reason: 'sin-aula' };
   if (ajustesPendientes) return { ok: false, reason: 'hay-pendientes' };
   const c = ATLAS_CONFIG.appwrite;
   try {
-    const doc = await CLOUD.db.getDocument(c.databaseId, c.aulasCollectionId, aulaActiva());
+    const doc = await CLOUD.db.getDocument(c.databaseId, c.aulasCollectionId, id);
     const marca = Number(doc.updated_at) || 0;
     if (marca <= (ATLAS_CONFIG_META.sharedAt || 0)) return { ok: true, adoptado: false };
     let ajustes = null;
     try { ajustes = JSON.parse(doc.config || '{}'); } catch (e) { return { ok: false, reason: 'ilegible' }; }
     if (!ajustes || typeof ajustes !== 'object') return { ok: true, adoptado: false };
+    /* La lista de clase no baja a la tablet de un niño: la usan el panel y
+       la clase dirigida, ninguno de los dos vive ahí, y son nombres de
+       menores. Menos datos donde no hacen falta. */
+    if (!aulaActiva()) delete ajustes.roster;
     adoptSharedConfig({ overlay: ajustes, updated_at: marca, by: doc.teacher || '' });
     return { ok: true, adoptado: true };
   } catch (e) { return errorNube(e); }
@@ -822,9 +831,23 @@ function aulasOn() {
 }
 
 /* Permisos de todo lo que pertenece a una clase: solo su docente. */
+/* ── Quién puede leer una clase ──
+   Leen TODAS las cuentas con sesión, y escribe solo su docente.
+
+   Estuvo cerrada a su dueño, y eso dejaba a los alumnos sin nada: los
+   yacimientos, los méritos, la economía y las cuadrillas que configura el
+   docente viajan dentro de este documento, así que los niños jugaban
+   siempre con lo de fábrica por mucho que el docente preparase su clase. Es
+   el mismo fallo que tenían los retos: guardado en un sitio que solo puede
+   abrir quien lo escribió.
+
+   Lo que se guarda ahí es `configParaCompartir()`, o sea SIN contraseñas del
+   alumnado, sin PIN, sin datos de Appwrite y sin la clave de la API. Y al
+   adoptarlo, una tablet de alumno se deja además la lista de clase, que es
+   cosa del docente y el juego no necesita. */
 function permisosDeAula(ownerId) {
   return [
-    Appwrite.Permission.read(Appwrite.Role.user(ownerId)),
+    Appwrite.Permission.read(Appwrite.Role.users()),
     Appwrite.Permission.update(Appwrite.Role.user(ownerId)),
     Appwrite.Permission.delete(Appwrite.Role.user(ownerId))
   ];
@@ -947,7 +970,11 @@ async function cloudSaveAulaConfig() {
   if (nombre) data.name = nombre;
 
   try {
-    await CLOUD.db.updateDocument(c.databaseId, c.aulasCollectionId, aulaActiva(), data);
+    /* Los permisos van en cada guardado, no solo al crear: es lo que abre la
+       lectura a las clases que se crearon antes de este cambio, sin que
+       nadie tenga que tocar nada en la consola. */
+    await CLOUD.db.updateDocument(c.databaseId, c.aulasCollectionId, aulaActiva(), data,
+      permisosDeAula(CLOUD.user.$id));
     /* Se anota la marca que se acaba de escribir. Sin esto, al arrancar este
        mismo equipo vería una versión «más nueva» en la nube —la suya— y se
        la volvería a tragar, pisando lo que hubiera tocado desde entonces. */

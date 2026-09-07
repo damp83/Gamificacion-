@@ -54,3 +54,47 @@ test('lo que baja respeta lo que nunca viaja', () => {
   assert.match(cuerpo, /adoptSharedConfig\(/);
   assert.ok(!/applyOverlay\(/.test(cuerpo), 'nunca se aplica el paquete crudo');
 });
+
+test('la clase la puede LEER cualquier cuenta con sesión', () => {
+  /* Estuvo cerrada a su dueño, y eso dejaba a los alumnos sin nada: los
+     yacimientos, los méritos, la economía y las cuadrillas viajan dentro de
+     ese documento. Los niños jugaban siempre con lo de fábrica por mucho que
+     el docente preparase su clase. Mismo fallo que tenían los retos. */
+  const cloud = leer('js/cloud.js');
+  const i = cloud.indexOf('function permisosDeAula(ownerId)');
+  const cuerpo = cloud.slice(i, cloud.indexOf('\n}', i));
+  assert.match(cuerpo, /Permission\.read\(Appwrite\.Role\.users\(\)\)/, 'leen todas las cuentas');
+  assert.match(cuerpo, /Permission\.update\(Appwrite\.Role\.user\(ownerId\)\)/, 'escribe solo su docente');
+  assert.match(cuerpo, /Permission\.delete\(Appwrite\.Role\.user\(ownerId\)\)/);
+});
+
+test('los permisos se refrescan en cada guardado, no solo al crear', () => {
+  /* Es lo que abre la lectura a las clases creadas antes del cambio, sin que
+     nadie toque nada en la consola de Appwrite. */
+  const cloud = leer('js/cloud.js');
+  const i = cloud.indexOf('async function cloudSaveAulaConfig()');
+  const cuerpo = cloud.slice(i, cloud.indexOf('\n}\n', i));
+  assert.match(cuerpo, /updateDocument\([\s\S]*permisosDeAula\(CLOUD\.user\.\$id\)\)/);
+});
+
+test('un alumno baja los ajustes por la clase de su diario', () => {
+  /* Exigía clase ABIERTA, que es cosa del panel del docente: una tablet de
+     alumno no bajaba nada nunca. */
+  const cloud = leer('js/cloud.js');
+  const i = cloud.indexOf('async function traerAjustesDeAula()');
+  const cuerpo = cloud.slice(i, cloud.indexOf('\n}\n', i));
+  assert.match(cuerpo, /const id = miAula\(\);/);
+  assert.ok(!/!aulaActiva\(\) \|\| !CLOUD\.user/.test(cuerpo), 'ya no exige clase abierta para bajar');
+});
+
+test('la lista de clase no baja a la tablet de un niño', () => {
+  /* La usan el panel y la clase dirigida, ninguno de los dos vive en una
+     tablet de alumno, y son nombres de menores. */
+  const cloud = leer('js/cloud.js');
+  const i = cloud.indexOf('async function traerAjustesDeAula()');
+  const cuerpo = cloud.slice(i, cloud.indexOf('\n}\n', i));
+  assert.match(cuerpo, /if \(!aulaActiva\(\)\) delete ajustes\.roster;/);
+  const iBorra = cuerpo.indexOf('delete ajustes.roster');
+  const iAdopta = cuerpo.indexOf('adoptSharedConfig(');
+  assert.ok(iBorra < iAdopta, 'se quita ANTES de adoptarlo, no después');
+});
