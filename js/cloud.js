@@ -71,10 +71,17 @@ async function cloudGenerarRetos(peticion, onProgreso) {
      Sale casi igual de caro porque el currículo va cacheado: la primera
      llamada lo paga y las demás lo leen a una fracción del precio. */
   const evitar = [];
+  /* Los conceptos que ya están trabajados: los que trae el pozo de antes más
+     los de esta tanda. Sin esto, diez llamadas con el mismo currículo caen
+     casi todas en el mismo concepto y sale un pozo de diez retos correctos
+     que miden una sola cosa. */
+  const evitarConceptos = Array.isArray(peticion.conceptosYaEnElPozo)
+    ? peticion.conceptosYaEnElPozo.slice() : [];
   let corte = null;
   for (let i = 0; i < cuantos; i++) {
     avisar(i, 'escribiendo');
-    const r = await ejecutarConReintento(id, Object.assign({}, peticion, { paso: 'generar', n: 1, evitar }),
+    const r = await ejecutarConReintento(id,
+      Object.assign({}, peticion, { paso: 'generar', n: 1, evitar, evitarConceptos }),
       (n, de) => avisar(i, `reintentando (${n} de ${de})`));
     if (!r.ok) {
       /* Si ya hay retos escritos, no se tiran: están pagados. Se sigue con lo
@@ -84,7 +91,11 @@ async function cloudGenerarRetos(peticion, onProgreso) {
       break;
     }
     suma(r.usados);
-    for (const x of (r.retos || [])) { buenos.push(x); evitar.push(x.question); }
+    for (const x of (r.retos || [])) {
+      buenos.push(x);
+      evitar.push(x.question);
+      if (x.skill && !evitarConceptos.includes(x.skill)) evitarConceptos.push(x.skill);
+    }
     for (const d of (r.descartados || [])) descartados.push(d);
   }
 

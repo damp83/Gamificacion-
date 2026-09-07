@@ -685,3 +685,70 @@ test('un reintento se ve en el botón, no se queda en «Escribiendo el 3 de 10»
   assert.match(t, /fase === 'escribiendo' \?/, 'la fase se compara explícitamente');
   assert.match(t, /: String\(fase\);/, 'cualquier otro aviso se enseña tal cual');
 });
+
+/* ── Que no salgan diez maneras de preguntar lo mismo ──
+   Los retos se piden de uno en uno, y con el mismo currículo cada llamada
+   tiende al mismo concepto: en las dos primeras tandas reales casi todo cayó
+   en «valor posicional». Veinte retos correctos del mismo concepto son un
+   pozo aburrido, y además solo miden una cosa. */
+
+test('el encargo pide variar de concepto, con salida cuando no se puede', () => {
+  /* La salida importa: sin ella, en un curso donde el currículo da para dos
+     conceptos, el modelo forzaría un tercero que ese niño no ha dado. */
+  const p = ctx.ev('promptGenerador')({ materia: 'matematicas', curso: 4, estrato: 'recordar', curriculo: 'x' });
+  assert.match(p.sistema, /VARÍA el concepto/);
+  assert.match(p.sistema, /no dan para otro, repite concepto pero cambia el enfoque/);
+});
+
+test('se le dice qué conceptos ya están trabajados, por su nombre', () => {
+  const sin = ctx.ev('promptGenerador')({ materia: 'matematicas', curso: 4, estrato: 'recordar', curriculo: 'x' });
+  assert.ok(!/YA están trabajados/.test(sin.usuario), 'sin nada trabajado, no se le cuenta nada');
+
+  const con = ctx.ev('promptGenerador')({ materia: 'matematicas', curso: 4, estrato: 'recordar',
+    curriculo: 'x', evitarConceptos: ['valor_posicional'] });
+  assert.match(con.usuario, /YA están trabajados/);
+  assert.match(con.usuario, /valor_posicional/);
+  assert.match(con.usuario, /Valor posicional/, 'con su etiqueta, no solo el identificador');
+});
+
+test('no se fuerza un concepto concreto: el modelo sabe qué toca en cada curso', () => {
+  /* El catálogo no dice a qué curso pertenece cada concepto. Elegirlo desde
+     el código le pediría fracciones a un niño de 1.º; el modelo tiene el
+     currículo y el curso delante y eso sí lo sabe. */
+  const c = cargarApp(['content', 'generador']);
+  const CONCEPTOS = c.ev('CONCEPTOS');
+  const alguno = Object.keys(CONCEPTOS)[0];
+  assert.ok(!('grades' in CONCEPTOS[alguno]) && !('curso' in CONCEPTOS[alguno]),
+    'si algún día el catálogo dijera el curso, se podría elegir desde aquí');
+  const cloud = leer('js/cloud.js');
+  assert.ok(!/concepto: conceptos\[/.test(cloud), 'el cliente no asigna el concepto');
+});
+
+test('la lista de conceptos crece con cada reto de la tanda', () => {
+  /* Sin esto, la lista sería siempre la del pozo y las diez llamadas de una
+     tanda volverían a caer juntas. */
+  const cloud = leer('js/cloud.js');
+  assert.match(cloud, /if \(x\.skill && !evitarConceptos\.includes\(x\.skill\)\) evitarConceptos\.push\(x\.skill\)/);
+  assert.match(cloud, /peticion\.conceptosYaEnElPozo/, 'y arranca de lo que ya hay en el pozo');
+});
+
+test('cuenta lo que ya hay en el pozo, banco y cola', () => {
+  /* Lo que aburre a un niño es el pozo entero, no la tanda de hoy. Y la cola
+     cuenta porque se va a aprobar. */
+  const t = leer('js/teacher.js');
+  const i = t.indexOf('function conceptosDelPozo(');
+  const cuerpo = t.slice(i, t.indexOf('\n}', i));
+  assert.match(cuerpo, /\(\(\(br \|\| \{\}\)\.bank \|\| \{\}\)\[estrato\] \|\| \[\]\)/, 'el banco');
+  assert.match(cuerpo, /for \(const c of iaCola\(\)\)/, 'y la cola');
+  assert.match(cuerpo, /c\.estrato === estrato/, 'del mismo estrato, no de todo el pozo');
+});
+
+test('al acabar se dice cuántos conceptos distintos han salido', () => {
+  /* Es lo único que dice de un vistazo si la tanda salió variada. */
+  const c = cargarApp(['content', 'generador', 'config', 'cloud', 'state', 'game', 'classview', 'ui', 'play', 'aula', 'teacher']);
+  const r = c.ev('resumenDeConceptos')([
+    { skill: 'valor_posicional' }, { skill: 'valor_posicional' }, { skill: 'orto_bv' }
+  ]);
+  assert.equal(r.distintos, 2);
+  assert.match(r.texto, /×2/, 'y se ve cuál se repite');
+});

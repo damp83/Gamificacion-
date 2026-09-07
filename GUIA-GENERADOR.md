@@ -211,7 +211,14 @@ se queda solo en ese equipo.
    once llamadas seguidas.
 
 Deberías ver los retos en la cola y, debajo, los que se hayan tirado con el
-motivo.
+motivo. El aviso dice además **cuántos conceptos distintos** han salido:
+«3 en la cola · 3 conceptos: Valor posicional, Suma con llevada, Fracciones».
+Si sale un solo concepto repetido tres veces, el currículo que has pegado da
+para poco y conviene ampliarlo.
+
+El generador ya sabe qué conceptos tiene ese pozo —del banco y de la cola— y
+se le pide que elija otros, sin salirse del curso ni del currículo. Por eso
+la segunda tanda sobre el mismo pozo sale distinta de la primera.
 
 ---
 

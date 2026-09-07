@@ -1371,6 +1371,35 @@ function iaHayParaTodos(materia) {
 }
 
 /* Los pozos donde se puede meter un reto: los del docente y los de fábrica. */
+/* Los conceptos que ya tiene escritos un pozo en un estrato: los del banco
+   más los que esperan en la cola. La cola cuenta porque se va a aprobar. */
+function conceptosDelPozo(siteId, branchId, estrato) {
+  const fuera = new Set();
+  const site = (ATLAS_CONFIG.sites || []).find(s => s.id === siteId);
+  const br = site && (site.branches || []).find(b => b.id === branchId);
+  for (const r of (((br || {}).bank || {})[estrato] || [])) {
+    if (r && r.skill) fuera.add(r.skill);
+  }
+  for (const c of iaCola()) {
+    if (c.siteId === siteId && c.branchId === branchId && c.estrato === estrato && c.skill) fuera.add(c.skill);
+  }
+  return [...fuera];
+}
+
+/* «3 conceptos distintos: Valor posicional, Suma con llevada…». Es lo único
+   que dice de un vistazo si la tanda ha salido variada o son diez maneras de
+   preguntar lo mismo. */
+function resumenDeConceptos(retos) {
+  const cuenta = new Map();
+  for (const r of retos) {
+    const k = r.skill || '(sin concepto)';
+    cuenta.set(k, (cuenta.get(k) || 0) + 1);
+  }
+  const nombres = [...cuenta.keys()].map(k =>
+    ((CONCEPTOS[k] || {}).label || k) + (cuenta.get(k) > 1 ? ` ×${cuenta.get(k)}` : ''));
+  return { distintos: cuenta.size, texto: nombres.join(', ') };
+}
+
 function iaPozos() {
   const out = [];
   for (const site of sitesAll()) {
@@ -1661,8 +1690,14 @@ function cfgIA(body) {
        a mitad, Safari aborta la petición en curso y la tanda se corta con un
        «Load failed» que no es culpa de nadie. Esto lo evita mientras dura. */
     await pantallaDespierta();
+    /* Qué conceptos trae ya ese pozo en ese estrato. Se le pasan al generador
+       para que no vuelva a escribir de lo mismo: lo que aburre a un niño es
+       el pozo entero, no la tanda de hoy. */
+    const yaEnElPozo = conceptosDelPozo(pozo[0], pozo[1], estrato);
+
     const r = await cloudGenerarRetos(
-      { materia, curso, estrato, n: cuantos, curriculo: iaCurriculo(materia, curso) },
+      { materia, curso, estrato, n: cuantos, curriculo: iaCurriculo(materia, curso),
+        conceptosYaEnElPozo: yaEnElPozo },
       (hechos, total, fase) => {
         iaProgreso = fase === 'comprobando' ? 'Comprobando las respuestas…'
           : fase === 'escribiendo' ? `Escribiendo el ${hechos + 1} de ${total}…`
@@ -1707,7 +1742,9 @@ function cfgIA(body) {
        pero hay que decir que la tanda no llegó al final: si no, el docente
        pide diez, recibe cuatro y no sabe si es que se tiraron seis. */
     const sinComprobar = nuevos.filter(x => x.sinComprobar).length;
+    const rep = resumenDeConceptos(nuevos);
     iaEstado = `${iaAviso ? iaAviso + ' ' : ''}${nuevos.length} en la cola${
+      nuevos.length ? ` · ${rep.distintos} concepto${rep.distintos === 1 ? '' : 's'}: ${rep.texto}` : ''}${
       iaDescartados.length ? `, ${iaDescartados.length} tirados por las comprobaciones` : ''}.${
       sinComprobar ? ` ⚠️ ${sinComprobar} sin comprobar: léelos con más cuidado.` : ''}${
       r.corte ? ` ⚠️ Se paró antes de acabar: ${r.corte}` : ''}${

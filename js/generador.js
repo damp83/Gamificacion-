@@ -220,6 +220,11 @@ function promptGenerador(p) {
     '4. Dos pistas que ESCALAN: la primera orienta sin resolver, la segunda casi lo da.',
     '5. La explicación dice POR QUÉ, no repite la respuesta.',
     '6. Nada de contextos de violencia, marcas comerciales ni nombres de personas reales.',
+    '7. VARÍA el concepto. Un pozo con veinte retos buenos del mismo concepto es un pozo',
+    '   aburrido, y además solo mide una cosa. Si se te dice qué conceptos ya están',
+    '   trabajados, elige OTRO —siempre que el curso y el currículo lo permitan—. Si de',
+    '   verdad no dan para otro, repite concepto pero cambia el enfoque: de calcular a',
+    '   encontrar el error, de un número a un problema con contexto.',
     '',
     'El concepto (`skill`) se elige de esta lista y de ninguna otra:',
     conceptos,
@@ -245,6 +250,17 @@ function promptGenerador(p) {
     Array.isArray(p.evitar) && p.evitar.length
       ? 'Ya has escrito estos retos. Escribe uno DISTINTO, de otro aspecto del concepto:\n' +
         p.evitar.slice(-12).map(q => '  · ' + textoLimpio(q, 200)).join('\n')
+      : '',
+    /* Y de qué VAN los que ya hay, que es distinto de qué preguntan. Sin
+       esto, diez llamadas seguidas con el mismo currículo caen casi todas en
+       el mismo concepto: salen diez retos correctos que miden una sola cosa.
+       Cuenta también lo que ya hubiera en el pozo, no solo esta tanda: lo que
+       aburre a un niño es el pozo entero, no la sesión de generación. */
+    Array.isArray(p.evitarConceptos) && p.evitarConceptos.length
+      ? 'Estos conceptos YA están trabajados en este pozo. Elige uno distinto, salvo que el ' +
+        'curso o el currículo no den para más:\n' +
+        p.evitarConceptos.slice(0, 20).map(id =>
+          '  · ' + id + (CONCEPTOS[id] ? ' — ' + CONCEPTOS[id].label : '')).join('\n')
       : '',
     '',
     `Escribe ${cuantos} ${cuantos === 1 ? 'reto' : 'retos distintos entre sí'}.`
