@@ -1447,6 +1447,14 @@ body.en-mision #main { padding-bottom: var(--s-5); }
 
 .cfg-nav-grupo:hover { color: var(--ink); }
 
+/* «Esto no lo ve nadie todavía». Va con el mismo tono que el resto de avisos
+   del panel, no en rojo: no es un error, es algo a medio preparar. */
+.cfg-invisible {
+  background: var(--brass-tint); border-left: 4px solid var(--brass);
+  border-radius: var(--r-md); padding: .6rem .8rem; margin: .5rem 0 0;
+  font-size: var(--t-sm); line-height: 1.5; color: var(--ink);
+}
+
 /* La línea de estado de los ajustes, cuando hay algo sin subir. */
 .cfg-top-warn {
   background: var(--brass-tint); border-left: 4px solid var(--brass);

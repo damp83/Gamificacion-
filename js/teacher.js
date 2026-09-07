@@ -686,7 +686,17 @@ function cfgYacimientos(body) {
     <div class="cfg-list">
       ${sites.map((site, si) => {
         const open = cfgOpenSite === site.id;
+        /* Un yacimiento sin ningún pozo visible no sale en el mapa de nadie.
+           Decirlo aquí evita la pregunta «he creado un yacimiento y mis
+           alumnos no lo ven», que no es un fallo de sincronización sino esta
+           regla, que no estaba escrita en ninguna parte. */
+        const visibles = branchesOf(site).filter(b => b.enabled !== false && branchPlayable(b)).length;
+        const mudo = site.enabled !== false && !visibles;
         return `<div class="cfg-card cfg-site${site.enabled === false ? ' cfg-off' : ''}">
+          ${mudo ? `<p class="cfg-warn cfg-invisible">👁️ <strong>Este yacimiento no le aparece a nadie
+            todavía.</strong> ${branchesOf(site).length
+              ? 'Sus pozos no tienen retos en el primer estrato. Escribe uno en cualquiera de ellos.'
+              : 'No tiene pozos. Añádele al menos uno y escríbele un reto.'}</p>` : ''}
           <div class="cfg-row">
             <input type="text" class="cfg-si-icon" data-si="${si}" value="${esc(site.icon)}" maxlength="4">
             <input type="text" class="cfg-si-name" data-si="${si}" value="${esc(site.name)}">
@@ -731,6 +741,10 @@ function cfgYacimientos(body) {
                     : `<button class="btn btn-secondary btn-small" data-bank="${site.id}:${b.id}">✏️ Retos (${total})</button>
                        <span class="cfg-tag${listos ? '' : ' cfg-tag-warn'}">${listos}/4 estratos listos</span>`}
                 </div>
+                ${b.source !== 'builtin' && !branchPlayable(b) ? `<p class="cfg-warn cfg-invisible">
+                  👁️ <strong>Tus alumnos todavía no ven este pozo.</strong> Un pozo aparece en el
+                  mapa cuando tiene al menos un reto en <strong>${esc(STRATA_META[STRATA_ORDER[0]].label)}</strong>,
+                  el primer estrato. Escríbele uno y aparecerá solo.</p>` : ''}
               </div>`;
             }).join('') || '<p class="cfg-hint">Este yacimiento aún no tiene pozos.</p>'}
             <button class="btn btn-secondary btn-small" data-addbranch="${si}">➕ Nuevo pozo</button>

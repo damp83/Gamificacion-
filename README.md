@@ -745,6 +745,13 @@ no con lo de preparar el curso.
 
 Los cambios se aplican **al instante**: renombras un pozo y el mapa ya lo muestra así.
 
+> **Un pozo aparece en el mapa cuando tiene al menos un reto en su primer
+> estrato** (Recordar), y un yacimiento cuyos pozos están todos así no le sale
+> a nadie. Es a propósito: un pozo que se abre y no tiene nada dentro es peor
+> que no verlo. El panel lo avisa en el propio yacimiento y en el pozo, con
+> qué hacer para que aparezca. Los pozos de fábrica siempre son jugables,
+> porque generan retos solos.
+
 > Los diálogos de PIN y de confirmación son propios de la app, no del navegador: dentro de un iframe con `sandbox` sin `allow-modals` (como el visor de Artifacts) `prompt()` devuelve `null` y `confirm()` devuelve `false`, así que el panel no llegaba a abrirse y los borrados se cancelaban solos.
 
 Tres cosas que conviene saber:
