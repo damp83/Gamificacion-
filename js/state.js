@@ -459,6 +459,44 @@ function saveRetosCache(aula, retos) {
   catch (e) { /* almacenamiento lleno: se seguirá leyendo de la nube */ }
 }
 function retosEnCache() { return loadRetosCache().retos; }
+
+/* ── Tocar UNA fila de la caché ──
+   Cada acción sobre un reto —aprobar, descartar, corregir una palabra— se
+   bajaba la tabla entera detrás. Con diez retos en la cola, aprobarlos uno a
+   uno eran diez escrituras y diez descargas completas; y con trescientos en
+   el banco, aprobar uno se bajaba los trescientos.
+
+   El dato ya se tiene: si acabo de poner `estado: banco` en una fila y
+   Appwrite ha dicho que sí, no hace falta preguntárselo otra vez. */
+function actualizarRetoEnCache(docId, campos) {
+  const c = loadRetosCache();
+  let tocado = false;
+  const retos = c.retos.map(r => {
+    if (r.$id !== docId) return r;
+    tocado = true;
+    return Object.assign({}, r, campos);
+  });
+  if (!tocado) return false;
+  saveRetosCache(c.aula, retos);
+  if (typeof applyOverlay === 'function') applyOverlay(ATLAS_OVERLAY);  /* recoloca en los pozos */
+  return true;
+}
+function quitarRetoDeCache(docId) {
+  const c = loadRetosCache();
+  const retos = c.retos.filter(r => r.$id !== docId);
+  if (retos.length === c.retos.length) return false;
+  saveRetosCache(c.aula, retos);
+  if (typeof applyOverlay === 'function') applyOverlay(ATLAS_OVERLAY);
+  return true;
+}
+function añadirRetosACache(docs) {
+  const c = loadRetosCache();
+  const nuevos = (docs || []).filter(d => d && d.$id && !c.retos.some(r => r.$id === d.$id));
+  if (!nuevos.length) return 0;
+  saveRetosCache(c.aula, c.retos.concat(nuevos));
+  if (typeof applyOverlay === 'function') applyOverlay(ATLAS_OVERLAY);
+  return nuevos.length;
+}
 function retosDeLaCola() { return retosEnCache().filter(r => r.estado === 'cola'); }
 function retosDelBanco() { return retosEnCache().filter(r => r.estado === 'banco'); }
 

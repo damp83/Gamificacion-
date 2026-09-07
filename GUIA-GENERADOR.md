@@ -216,6 +216,16 @@ motivo. El aviso dice además **cuántos conceptos distintos** han salido:
 Si sale un solo concepto repetido tres veces, el currículo que has pegado da
 para poco y conviene ampliarlo.
 
+**Para revisar diez sin morir en el intento:** marca la casilla de cada reto
+—o «Marcar todos»— y usa **✓ Aprobar los marcados**. Van seguidos, el botón
+dice por dónde va, y lo que falle sigue en la cola en vez de perderse.
+
+**Si un reto ha ido al pozo equivocado**, no lo descartes: en su ficha hay dos
+desplegables, «Va a: pozo / estrato». Cambiar el pozo lo mueve de sitio y ya
+está. Cambiar el estrato no cambia el reto —un enunciado escrito para
+reconocer no se convierte en uno de analizar por ponerle otra etiqueta—, así
+que úsalo si estaba mal clasificado, no para rellenar un estrato vacío.
+
 El generador ya sabe qué conceptos tiene ese pozo —del banco y de la cola— y
 se le pide que elija otros, sin salirse del curso ni del currículo. Por eso
 la segunda tanda sobre el mismo pozo sale distinta de la primera.

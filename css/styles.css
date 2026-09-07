@@ -1458,6 +1458,15 @@ body.en-mision #main { padding-bottom: var(--s-5); }
 }
 .curr-chip.on.curr-lleno::after { background: var(--gold); }
 
+/* La barra de acciones en bloque de la cola de revisión. */
+.ia-bloque { align-items: center; gap: .6rem; flex-wrap: wrap; margin-bottom: .6rem; }
+.ia-marca { display: inline-flex; align-items: center; }
+.ia-marca input { width: 20px; height: 20px; accent-color: var(--jungle); margin-right: .4rem; }
+.taller-revision.ia-marcado { border-left: 4px solid var(--jungle); background: var(--jungle-tint); }
+/* «Va a: pozo / estrato» */
+.ia-mover { align-items: center; gap: .5rem; flex-wrap: wrap; }
+.ia-mover select { min-height: 44px; }
+
 .cfg-invisible {
   background: var(--brass-tint); border-left: 4px solid var(--brass);
   border-radius: var(--r-md); padding: .6rem .8rem; margin: .5rem 0 0;

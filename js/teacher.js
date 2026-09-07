@@ -956,7 +956,7 @@ function cfgBancoRetos(body) {
     if (q && q.docId && typeof cloudActualizarReto === 'function') {
       const r = await cloudActualizarReto(q.docId, campos);
       if (!r.ok) { toast('⚠️ No se ha podido guardar: ' + (r.detail || r.reason || 'Appwrite no ha dicho por qué')); return; }
-      await cloudTraerRetos();
+      actualizarRetoEnCache(q.docId, campos);
       renderTeacherConfig();
       if (msg) toast(msg);
       return;
@@ -985,7 +985,7 @@ function cfgBancoRetos(body) {
     if (q && q.docId && typeof cloudBorrarReto === 'function') {
       const r = await cloudBorrarReto(q.docId);
       if (!r.ok) { toast('⚠️ No se ha podido eliminar: ' + (r.detail || r.reason || 'Appwrite no ha dicho por qué')); return; }
-      await cloudTraerRetos();
+      quitarRetoDeCache(q.docId);
       renderTeacherConfig();
       toast('Reto eliminado ✓');
       return;
@@ -999,7 +999,7 @@ function cfgBancoRetos(body) {
     if (typeof cloudCrearRetos === 'function' && retosOn() && aulaActiva()) {
       const r = await cloudCrearRetos([vacio], 'banco');
       if (!r.ok) { toast('⚠️ No se ha podido añadir: ' + ((r.fallidos && r.fallidos[0] && r.fallidos[0].error.detail) || r.texto || 'Appwrite no ha dicho por qué')); return; }
-      await cloudTraerRetos();
+      añadirRetosACache((r.creados || []).map(limpiarFila));
       renderTeacherConfig();
       toast('Reto añadido: complétalo ✓');
       return;
@@ -1043,7 +1043,7 @@ function cfgBancoRetos(body) {
         err.classList.remove('hidden');
         return;
       }
-      await cloudTraerRetos();
+      añadirRetosACache((r.creados || []).map(limpiarFila));
       $('#cfg-bulk').value = '';
       renderTeacherConfig();
       toast(`${r.creados.length} reto(s) añadidos${
@@ -1321,6 +1321,10 @@ let iaGenerando = false;
 let iaProgreso = '';
 /* Aviso que sobrevive al repintado: lo que no se pudo subir a la nube. */
 let iaAviso = '';
+/* Los retos marcados en la cola. Es un Set y no un campo de los ajustes: no
+   sobrevive a un cierre de la app a propósito, porque una selección vieja al
+   volver mañana es peor que ninguna. */
+let iaMarcados = new Set();
 let iaDescartados = [];     /* lo que se tiró en la última tanda, con el motivo */
 
 /* Lo justo para reconocer cuál es sin enseñarla: nadie tiene que leer una
@@ -1439,6 +1443,7 @@ function cfgIA(body) {
   const cursoCurr = Number(ATLAS_CONFIG.iaCurso) || ATLAS_CONFIG.defaultGrade || 4;
   const paraTodos = ATLAS_CONFIG.iaCurrTodos === true;
   const conCurriculo = iaCursosConCurriculo(materia);
+  const marcados = iaMarcados;
   const curr = paraTodos
     ? ((ATLAS_CONFIG.curriculo || {})[materia] || {}).todos || ''
     : (((ATLAS_CONFIG.curriculo || {})[materia] || {})[cursoCurr] || '');
@@ -1542,9 +1547,21 @@ function cfgIA(body) {
     ${iaEstado ? `<div class="cfg-equipo ${iaEstado.startsWith('⚠️') ? '' : 'cfg-equipo-ok'}">${iaEstado}</div>` : ''}
 
     <h4 class="cfg-h4">4. Por revisar <span class="cfg-tag">${cola.length}</span></h4>
-    ${cola.length ? `<div class="cfg-list">${cola.map(c => `
-      <div class="cfg-card taller-revision">
-        <div class="taller-rev-autor">${esc(conceptoLabel(c.skill))} · ${esc(c.pozoNombre || '')} · ${
+    ${cola.length ? `
+    <div class="cfg-row cfg-row-actions ia-bloque">
+      <label class="cfg-switch">Marcar todos
+        <input type="checkbox" id="ia-marcar-todos"${marcados.size && marcados.size === cola.length ? ' checked' : ''}></label>
+      <button class="btn btn-primary btn-small" id="ia-aprobar-marcados"${marcados.size ? '' : ' disabled'}>
+        ✓ Aprobar los marcados${marcados.size ? ` (${marcados.size})` : ''}</button>
+      <button class="btn btn-quit btn-small" id="ia-descartar-marcados"${marcados.size ? '' : ' disabled'}>
+        🗑️ Descartar los marcados${marcados.size ? ` (${marcados.size})` : ''}</button>
+    </div>
+    <div class="cfg-list">${cola.map(c => `
+      <div class="cfg-card taller-revision${marcados.has(c.id) ? ' ia-marcado' : ''}">
+        <div class="taller-rev-autor">
+          <label class="ia-marca"><input type="checkbox" data-ia-marca="${esc(c.id)}"${
+            marcados.has(c.id) ? ' checked' : ''}> </label>
+          ${esc(conceptoLabel(c.skill))} · ${esc(c.pozoNombre || '')} · ${
           esc((STRATA_META[c.estrato] || {}).label || c.estrato)}</div>
         <p class="taller-rev-q">${esc(c.question)}</p>
         <ol class="taller-rev-ops">
@@ -1554,6 +1571,18 @@ function cfgIA(body) {
         <p class="taller-rev-exp">«${esc(c.explanation)}»</p>
         <p class="cfg-hint">Pistas: ${esc(c.hint1)} → ${esc(c.hint2)}</p>
         ${c.criterio ? `<p class="cfg-hint ia-criterio">Dice trabajar: «${esc(c.criterio)}»</p>` : ''}
+        ${c.$id ? `<div class="cfg-row cfg-row-actions ia-mover">
+          <span class="cfg-label">Va a:</span>
+          <select data-ia-pozo="${esc(c.id)}">${pozos.map(pz =>
+            `<option value="${esc(pz.id)}"${pz.id === c.siteId + '/' + c.branchId ? ' selected' : ''}>${esc(pz.name)}</option>`).join('')}</select>
+          <select data-ia-estrato="${esc(c.id)}">${STRATA_ORDER.map(sId =>
+            `<option value="${esc(sId)}"${sId === c.estrato ? ' selected' : ''}>${
+              esc(STRATA_META[sId].icon + ' ' + STRATA_META[sId].label)}</option>`).join('')}</select>
+        </div>
+        <p class="cfg-hint">Cambiar el <strong>pozo</strong> es mover el reto de sitio, sin más. Cambiar
+        el <strong>estrato</strong> no cambia el reto: un enunciado escrito para reconocer no se convierte
+        en uno de encontrar el error por ponerle otra etiqueta. Muévelo si crees que estaba mal
+        clasificado, no para rellenar un estrato vacío.</p>` : ''}
         <div class="cfg-row cfg-row-actions">
           <button class="btn btn-primary btn-small" data-ia-ok="${esc(c.id)}">✓ Al banco</button>
           <button class="btn btn-secondary btn-small" data-ia-edit="${esc(c.id)}">✏️ Cambiar la pregunta</button>
@@ -1726,7 +1755,7 @@ function cfgIA(body) {
     let guardado = { ok: false };
     if (typeof cloudCrearRetos === 'function') guardado = await cloudCrearRetos(nuevos, 'cola');
     if (guardado.ok) {
-      await cloudTraerRetos();
+      añadirRetosACache((guardado.creados || []).map(limpiarFila));
     } else {
       cfgSave('iaCola', (ATLAS_CONFIG.iaCola || []).concat(
         nuevos.map((x, i) => Object.assign({}, x, { id: 'ia' + Date.now() + '_' + i }))), false);
@@ -1753,6 +1782,68 @@ function cfgIA(body) {
   });
 
   $$('[data-ia-ok]').forEach(b => b.addEventListener('click', () => aprobarReto(b.dataset.iaOk)));
+
+  /* ── Marcar ── */
+  $$('[data-ia-marca]').forEach(b => b.addEventListener('change', () => {
+    const id = b.dataset.iaMarca;
+    if (b.checked) iaMarcados.add(id); else iaMarcados.delete(id);
+    renderTeacherConfig();
+  }));
+  const todos = $('#ia-marcar-todos');
+  if (todos) todos.addEventListener('change', () => {
+    iaMarcados = todos.checked ? new Set(iaCola().map(c => c.id)) : new Set();
+    renderTeacherConfig();
+  });
+
+  /* ── Mover de pozo o de estrato ──
+     Se guarda al soltar el desplegable. Los tres campos son de la fila, así
+     que es una escritura y un retoque de la caché: no hay que traer nada. */
+  const mover = async (id, campos) => {
+    const c = iaCola().find(x => x.id === id);
+    if (!c || !c.$id) return;
+    const r = await cloudActualizarReto(c.$id, campos);
+    if (!r.ok) {
+      iaEstado = '⚠️ No se ha podido mover: ' + (r.detail || r.reason || 'Appwrite no ha dicho por qué') + '.';
+    } else {
+      actualizarRetoEnCache(c.$id, campos);
+      iaEstado = 'Reto movido.';
+    }
+    renderTeacherConfig();
+  };
+  $$('[data-ia-pozo]').forEach(sel => sel.addEventListener('change', e => {
+    const [siteId, branchId] = String(e.target.value).split('/');
+    mover(e.target.dataset.iaPozo, { siteId, branchId });
+  }));
+  $$('[data-ia-estrato]').forEach(sel => sel.addEventListener('change', e =>
+    mover(e.target.dataset.iaEstrato, { estrato: e.target.value })));
+
+  /* ── En bloque ──
+     Diez retos revisados de uno en uno son diez idas y venidas. Aquí van
+     seguidos, y la pantalla dice por dónde va: si falla el séptimo, los seis
+     de antes están hechos y se dice cuántos quedaron. */
+  const enBloque = async (accion, verbo) => {
+    const ids = [...iaMarcados];
+    if (!ids.length) return;
+    iaGenerando = true; iaProgreso = `${verbo} 1 de ${ids.length}…`; renderTeacherConfig();
+    let hechos = 0, fallos = 0;
+    for (let i = 0; i < ids.length; i++) {
+      iaProgreso = `${verbo} ${i + 1} de ${ids.length}…`; renderTeacherConfig();
+      const ok = await accion(ids[i]);
+      if (ok) { hechos++; iaMarcados.delete(ids[i]); } else fallos++;
+    }
+    iaGenerando = false; iaProgreso = '';
+    iaEstado = `${hechos} ${verbo === 'Aprobando' ? 'al banco' : 'descartados'}${
+      fallos ? ` · ⚠️ ${fallos} sin poder: siguen en la cola` : ''}.`;
+    renderTeacherConfig();
+  };
+
+  const aprobarM = $('#ia-aprobar-marcados');
+  if (aprobarM) aprobarM.addEventListener('click', () => enBloque(aprobarRetoCallado, 'Aprobando'));
+  const descartarM = $('#ia-descartar-marcados');
+  if (descartarM) descartarM.addEventListener('click', async () => {
+    if (!(await askConfirm(`¿Descartar los ${iaMarcados.size} retos marcados?`, 'Descartar'))) return;
+    enBloque(descartarRetoCallado, 'Descartando');
+  });
   $$('[data-ia-no]').forEach(b => b.addEventListener('click', () => descartarReto(b.dataset.iaNo)));
   $$('[data-ia-edit]').forEach(b => b.addEventListener('click', async () => {
     const c = iaCola().find(x => x.id === b.dataset.iaEdit);
@@ -1763,7 +1854,7 @@ function cfgIA(body) {
     if (c.$id && typeof cloudActualizarReto === 'function') {
       const r = await cloudActualizarReto(c.$id, { question: question.slice(0, 600) });
       if (!r.ok) { iaEstado = '⚠️ No se ha podido guardar el cambio: ' + (r.detail || r.reason || 'Appwrite no ha dicho por qué') + '.'; }
-      else await cloudTraerRetos();
+      else actualizarRetoEnCache(c.$id, { question: question.slice(0, 600) });
       renderTeacherConfig(); return;
     }
     cfgSave('iaCola', (ATLAS_CONFIG.iaCola || []).map(x => x.id === c.id ? Object.assign({}, x, { question }) : x), false);
@@ -1777,13 +1868,36 @@ function cfgIA(body) {
     for (const c of cola) {
       if (!c.$id) continue;
       const r = await cloudBorrarReto(c.$id);
-      if (!r.ok) fallos++;
+      if (r.ok) quitarRetoDeCache(c.$id); else fallos++;
     }
     cfgSave('iaCola', [], false);
-    if (typeof cloudTraerRetos === 'function') await cloudTraerRetos();
+    iaMarcados = new Set();
     iaEstado = fallos ? `Cola vaciada, menos ${fallos} que no se han podido borrar.` : 'Cola vaciada.';
     renderTeacherConfig();
   });
+}
+
+/* ── Las mismas acciones, sin pintar ──
+   Las usa el modo en bloque: repintar el panel entero después de cada uno de
+   los diez sería tirar el trabajo que se acaba de ahorrar. Devuelven si salió
+   bien, y quien las llama decide qué contar. */
+async function aprobarRetoCallado(id) {
+  const c = iaCola().find(x => x.id === id);
+  if (!c) return false;
+  if (!validarRetoIA(c, { materia: c.materia }).ok) return false;
+  if (!c.$id) return false;
+  const r = await cloudActualizarReto(c.$id, { estado: 'banco' });
+  if (!r.ok) return false;
+  actualizarRetoEnCache(c.$id, { estado: 'banco' });
+  return true;
+}
+async function descartarRetoCallado(id) {
+  const c = iaCola().find(x => x.id === id);
+  if (!c || !c.$id) return false;
+  const r = await cloudBorrarReto(c.$id);
+  if (!r.ok) return false;
+  quitarRetoDeCache(c.$id);
+  return true;
 }
 
 /* Descartar es borrar la fila. No hay papelera a propósito: la cola es un
@@ -1798,7 +1912,7 @@ async function descartarReto(id) {
       iaEstado = '⚠️ No se ha podido descartar: ' + (r.detail || r.reason || 'Appwrite no ha dicho por qué') + '.';
       renderTeacherConfig(); return;
     }
-    await cloudTraerRetos();
+    quitarRetoDeCache(c.$id);
     renderTeacherConfig(); return;
   }
   cfgSave('iaCola', (ATLAS_CONFIG.iaCola || []).filter(x => x.id !== id), false);
@@ -1827,7 +1941,7 @@ async function aprobarReto(id) {
                  '. Sigue en la cola; inténtalo con conexión.';
       renderTeacherConfig(); return;
     }
-    await cloudTraerRetos();
+    actualizarRetoEnCache(c.$id, { estado: 'banco' });
     iaEstado = `Al banco: ${br.name} · ${(STRATA_META[c.estrato] || {}).label || c.estrato}.`;
     renderTeacherConfig(); return;
   }
