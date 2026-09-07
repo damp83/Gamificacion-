@@ -1344,7 +1344,31 @@ function iaCola() {
   const viejos = Array.isArray(ATLAS_CONFIG.iaCola) ? ATLAS_CONFIG.iaCola : [];
   return nube.concat(viejos);
 }
-function iaCurriculo(materia) { return (ATLAS_CONFIG.curriculo || {})[materia] || ''; }
+/* ── El currículo que toca ──
+   Por materia Y curso. El de 2.º no vale para 6.º, y darle al modelo el que
+   no toca es peor que no darle ninguno: escribe con aplomo cosas que ese
+   niño no ha dado.
+
+   `todos` es la red de seguridad: lo que hubiera pegado antes de separar por
+   cursos, y lo que pegue quien prefiera un solo texto para todo el ciclo. */
+function iaCurriculo(materia, curso) {
+  const bloque = (ATLAS_CONFIG.curriculo || {})[materia];
+  if (!bloque) return '';
+  if (typeof bloque === 'string') return bloque;          /* ajustes sin migrar */
+  return bloque[curso] || bloque.todos || '';
+}
+
+/* En qué cursos hay currículo puesto, para poder verlo de un vistazo. */
+function iaCursosConCurriculo(materia) {
+  const bloque = (ATLAS_CONFIG.curriculo || {})[materia];
+  if (!bloque || typeof bloque !== 'object') return [];
+  return Object.keys(bloque).filter(k => k !== 'todos' && (bloque[k] || '').trim());
+}
+function iaHayParaTodos(materia) {
+  const bloque = (ATLAS_CONFIG.curriculo || {})[materia];
+  if (typeof bloque === 'string') return !!bloque.trim();
+  return !!(bloque && (bloque.todos || '').trim());
+}
 
 /* Los pozos donde se puede meter un reto: los del docente y los de fábrica. */
 function iaPozos() {
@@ -1380,7 +1404,15 @@ function soltarPantallaDespierta() {
 function cfgIA(body) {
   const materia = ATLAS_CONFIG.iaMateria || 'matematicas';
   const cola = iaCola();
-  const curr = iaCurriculo(materia);
+  /* Qué bloque de currículo se está editando: un curso concreto o el que
+     vale para todos. Se comparte con el selector de «Qué generar», para que
+     no puedan decir cosas distintas. */
+  const cursoCurr = Number(ATLAS_CONFIG.iaCurso) || ATLAS_CONFIG.defaultGrade || 4;
+  const paraTodos = ATLAS_CONFIG.iaCurrTodos === true;
+  const conCurriculo = iaCursosConCurriculo(materia);
+  const curr = paraTodos
+    ? ((ATLAS_CONFIG.curriculo || {})[materia] || {}).todos || ''
+    : (((ATLAS_CONFIG.curriculo || {})[materia] || {})[cursoCurr] || '');
   const pozos = iaPozos();
   const nube = cloudConfigured() && cloudEnabled();
   const conFuncion = !!(ATLAS_CONFIG.appwrite.generadorFunctionId || '').trim();
@@ -1418,20 +1450,46 @@ function cfgIA(body) {
       'console.anthropic.com → Settings → Workspaces. Con una clave de las de siempre, no hace falta.')}
 
     <h4 class="cfg-h4">2. El currículo</h4>
-    <p class="cfg-hint">Pega los saberes básicos de tu área y ciclo, o sube el fichero. Es de lo único
-    que el modelo puede tirar: si lo que ibas a preguntar no está en este texto, se le pide que no lo
-    pregunte. Se queda en este equipo y no viaja a las tablets.</p>
+    <p class="cfg-hint">Pega los saberes básicos, o sube el fichero. Es de lo único que el modelo
+    puede tirar: si lo que ibas a preguntar no está en este texto, se le pide que no lo pregunte.
+    Se queda en este equipo y no viaja a las tablets.</p>
+    <p class="cfg-hint"><strong>Va por materia y curso.</strong> El de 2.º no sirve para 6.º, y darle
+    al modelo el que no toca es peor que no darle ninguno: escribe con aplomo cosas que ese niño no
+    ha dado. Si prefieres un solo texto para todos, marca «Vale para todos los cursos».</p>
     ${field('Materia', `<select id="ia-materia">
       <option value="matematicas"${materia === 'matematicas' ? ' selected' : ''}>Matemáticas</option>
       <option value="lengua"${materia === 'lengua' ? ' selected' : ''}>Lengua</option>
     </select>`)}
+
+    <div class="cfg-row cfg-grades-row">
+      <span class="cfg-label">Editando el de:</span>
+      ${GRADES.map(g => `<button class="grade-chip curr-chip${
+          !paraTodos && g.n === cursoCurr ? ' on' : ''}${
+          conCurriculo.includes(String(g.n)) ? ' curr-lleno' : ''}"
+        data-curr-grade="${g.n}" title="${conCurriculo.includes(String(g.n))
+          ? 'Tiene currículo puesto' : 'Sin currículo todavía'}">${g.label}</button>`).join('')}
+      <button class="grade-chip curr-chip${paraTodos ? ' on' : ''}${
+        iaHayParaTodos(materia) ? ' curr-lleno' : ''}" data-curr-grade="todos">Todos</button>
+    </div>
+
     <textarea id="ia-curriculo" rows="7" maxlength="20000"
-      placeholder="Saberes básicos de ${materia === 'lengua' ? 'Lengua Castellana y Literatura' : 'Matemáticas'}…">${esc(curr)}</textarea>
+      placeholder="Saberes básicos de ${materia === 'lengua' ? 'Lengua Castellana y Literatura' : 'Matemáticas'}${
+        paraTodos ? ', para todos los cursos' : ', ' + cursoCurr + '.º'}…">${esc(curr)}</textarea>
     <div class="cfg-row cfg-row-actions">
       <button class="btn btn-secondary btn-small" id="ia-subir">📄 Subir un .txt o .md</button>
       <input type="file" id="ia-fichero" accept=".txt,.md,text/plain" class="hidden">
-      <span class="cfg-hint">${curr ? `${curr.length} caracteres guardados` : 'sin currículo todavía'}</span>
+      <span class="cfg-hint">${curr ? `${curr.length} caracteres en ${
+        paraTodos ? 'el de todos los cursos' : cursoCurr + '.º'}` : 'sin currículo todavía aquí'}</span>
     </div>
+    <div class="cfg-row cfg-row-actions">
+      <button class="btn btn-secondary btn-small" id="ia-curr-exportar">💾 Guardar todos en un fichero</button>
+      <button class="btn btn-secondary btn-small" id="ia-curr-importar">📥 Traer de un fichero</button>
+      <input type="file" id="ia-curr-fichero" accept=".json,application/json" class="hidden">
+    </div>
+    <p class="cfg-hint">Pegar doce bloques de currículo una vez está bien; hacerlo en cada equipo y
+    para cada compañero, no. El fichero los lleva todos —las dos materias y los seis cursos— de un
+    sitio a otro. No viajan con los ajustes de la clase a propósito: ocuparían casi todo el espacio
+    que tiene el documento del aula.</p>
 
     <h4 class="cfg-h4">3. Qué generar</h4>
     ${field('Pozo de destino', `<select id="ia-pozo">${
@@ -1487,7 +1545,60 @@ function cfgIA(body) {
 
   /* cfgSave ya repinta el panel: el currículo que se enseña es el de la materia elegida. */
   onInput('#ia-materia', e => cfgSave('iaMateria', e.target.value, false), 'change');
-  onInput('#ia-curriculo', e => cfgSave('curriculo.' + materia, e.target.value, false));
+  /* La clave donde se guarda lo que se escribe: el curso elegido, o `todos`. */
+  const claveCurr = () => 'curriculo.' + materia + '.' + (paraTodos ? 'todos' : cursoCurr);
+  onInput('#ia-curriculo', e => cfgSave(claveCurr(), e.target.value, false));
+
+  $$('[data-curr-grade]').forEach(b => b.addEventListener('click', () => {
+    const v = b.dataset.currGrade;
+    if (v === 'todos') { cfgSave('iaCurrTodos', true, false); return; }
+    setTeacherConfig('iaCurrTodos', false);
+    /* Cambia también el curso de «Qué generar»: son el mismo, y verlos decir
+       cosas distintas es la forma más fácil de generar para el curso que no
+       era sin enterarse. */
+    cfgSave('iaCurso', Number(v), false);
+  }));
+
+  const exportar = $('#ia-curr-exportar');
+  if (exportar) exportar.addEventListener('click', async () => {
+    const datos = { tipo: 'atlas-curriculo', v: 1, fecha: new Date().toISOString(),
+      curriculo: deepClone(ATLAS_CONFIG.curriculo || {}) };
+    const r = await guardarArchivo('curriculo-atlas.json', JSON.stringify(datos, null, 2), 'application/json');
+    toast(r.ok ? 'Currículo guardado en un fichero ✓'
+      : r.motivo === 'cancelado' ? 'Guardado cancelado.'
+      : '⚠️ No se ha podido guardar el fichero.');
+  });
+  const importar = $('#ia-curr-importar');
+  const fichCurr = $('#ia-curr-fichero');
+  if (importar && fichCurr) importar.addEventListener('click', () => fichCurr.click());
+  if (fichCurr) fichCurr.addEventListener('change', async e => {
+    const f = e.target.files && e.target.files[0];
+    if (!f) return;
+    let datos = null;
+    try { datos = JSON.parse(await f.text()); } catch (err) { datos = null; }
+    if (!datos || datos.tipo !== 'atlas-curriculo' || typeof datos.curriculo !== 'object') {
+      iaEstado = '⚠️ Ese fichero no es un currículo de Atlas.';
+      renderTeacherConfig(); return;
+    }
+    /* Se FUSIONA, no se sustituye: traer el de Lengua de un compañero no
+       puede borrarte el de Matemáticas que llevas media hora pegando. */
+    const mio = deepClone(ATLAS_CONFIG.curriculo || {});
+    let bloques = 0;
+    for (const m of Object.keys(datos.curriculo)) {
+      const suyo = datos.curriculo[m];
+      if (!suyo || typeof suyo !== 'object') continue;
+      mio[m] = mio[m] && typeof mio[m] === 'object' ? mio[m] : {};
+      for (const k of Object.keys(suyo)) {
+        const texto = String(suyo[k] || '').slice(0, 20000);
+        if (!texto.trim()) continue;
+        mio[m][k] = texto;
+        bloques++;
+      }
+    }
+    cfgSave('curriculo', mio, false);
+    iaEstado = `${bloques} bloque(s) de currículo traídos del fichero.`;
+    renderTeacherConfig();
+  });
   onInput('#ia-pozo', e => cfgSave('iaPozo', e.target.value, false), 'change');
   onInput('#ia-estrato', e => cfgSave('iaEstrato', e.target.value, false), 'change');
   onInput('#ia-curso', e => cfgSave('iaCurso', +e.target.value, false), 'change');
@@ -1525,7 +1636,7 @@ function cfgIA(body) {
     const f = e.target.files && e.target.files[0];
     if (!f) return;
     const texto = await f.text();
-    cfgSave('curriculo.' + materia, texto.slice(0, 20000), false);
+    cfgSave(claveCurr(), texto.slice(0, 20000), false);
     iaEstado = `Currículo cargado: ${Math.min(texto.length, 20000)} caracteres.`;
     renderTeacherConfig();
   });
@@ -1551,7 +1662,7 @@ function cfgIA(body) {
        «Load failed» que no es culpa de nadie. Esto lo evita mientras dura. */
     await pantallaDespierta();
     const r = await cloudGenerarRetos(
-      { materia, curso, estrato, n: cuantos, curriculo: iaCurriculo(materia) },
+      { materia, curso, estrato, n: cuantos, curriculo: iaCurriculo(materia, curso) },
       (hechos, total, fase) => {
         iaProgreso = fase === 'comprobando' ? 'Comprobando las respuestas…'
           : fase === 'escribiendo' ? `Escribiendo el ${hechos + 1} de ${total}…`

@@ -11,7 +11,7 @@
    copia guardada. Sin este número, «ya está arreglado» y «a mí no me pasa» son
    indistinguibles. Va junto al nombre de la caché del service worker, y una
    prueba comprueba que no se separen. */
-const ATLAS_VERSION = 'v43';
+const ATLAS_VERSION = 'v44';
 
 const ATLAS_DEFAULTS = {
 
@@ -318,6 +318,16 @@ function applyOverlay(overlay) {
    suelto de {pozoId: {name, desc, enabled}}; ahora todo vive dentro de sites. */
 function migrateOverlay(o) {
   if (!o || typeof o !== 'object') return {};
+  /* El currículo se guardaba SOLO por materia: un mismo texto servía para
+     1.º y para 6.º. El generador tenía orden de no salirse de él, pero del
+     que no tocaba. Ahora va por materia y curso; lo que hubiera pegado antes
+     se conserva como «vale para todos los cursos», que es exactamente lo que
+     estaba haciendo sin decirlo. */
+  if (o.curriculo && typeof o.curriculo === 'object') {
+    for (const m of Object.keys(o.curriculo)) {
+      if (typeof o.curriculo[m] === 'string') o.curriculo[m] = { todos: o.curriculo[m] };
+    }
+  }
   if (o.branchOverrides && typeof o.branchOverrides === 'object') {
     const sites = o.sites ? deepClone(o.sites) : defaultSites();
     for (const site of sites) {

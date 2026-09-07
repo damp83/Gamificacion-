@@ -195,7 +195,14 @@ se queda solo en ese equipo.
 **Configuración → 🤖 Retos con IA**:
 
 1. Pega tu clave, si vas a usar la tuya.
-2. Pega el currículo de tu área y ciclo, o sube un `.txt`.
+2. Pega el currículo. **Va por materia y curso**: elige el curso en las
+   fichas y pega los saberes básicos de ese curso. Las fichas con un punto
+   verde ya tienen texto, así se ve de un vistazo lo que falta.
+   Si prefieres un solo texto para todo el ciclo, marca **«Todos»**: se usa
+   para cualquier curso que no tenga el suyo.
+   Cuando los tengas puestos, **💾 Guardar todos en un fichero**: eso te
+   ahorra volver a pegarlos en el portátil, y se lo puedes pasar a un
+   compañero. Al traerlo se fusiona con lo que ya haya, no lo borra.
 3. Elige pozo, estrato, curso y cuántos. **Empieza con 3**, no con 10: si algo
    está mal configurado, lo sabrás por seis céntimos menos.
 4. **Generar retos.** Tarda, y el botón va contando: «Escribiendo el 2 de 3…».

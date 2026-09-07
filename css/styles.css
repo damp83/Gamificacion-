@@ -1449,6 +1449,15 @@ body.en-mision #main { padding-bottom: var(--s-5); }
 
 /* «Esto no lo ve nadie todavía». Va con el mismo tono que el resto de avisos
    del panel, no en rojo: no es un error, es algo a medio preparar. */
+/* Las fichas de curso del currículo: la que se edita va marcada, y las que
+   ya tienen texto llevan un punto. De un vistazo se ve qué falta por pegar. */
+.curr-chip { position: relative; cursor: pointer; }
+.curr-chip.curr-lleno::after {
+  content: ''; position: absolute; top: 4px; right: 4px;
+  width: 7px; height: 7px; border-radius: 50%; background: var(--jungle);
+}
+.curr-chip.on.curr-lleno::after { background: var(--gold); }
+
 .cfg-invisible {
   background: var(--brass-tint); border-left: 4px solid var(--brass);
   border-radius: var(--r-md); padding: .6rem .8rem; margin: .5rem 0 0;
