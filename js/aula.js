@@ -306,8 +306,8 @@ function renderAula() {
 
     const bolsa = document.createElement('button');
     bolsa.className = 'aula-card-bolsa';
-    bolsa.title = `Comprar o donar por ${a.name}`;
-    bolsa.setAttribute('aria-label', `Bolsa de ${a.name}: comprar o donar`);
+    bolsa.title = `Méritos, almacén y fondo de ${a.name}`;
+    bolsa.setAttribute('aria-label', `${a.name}: dar un mérito, comprar o donar`);
     bolsa.innerHTML = ico('coin');
     bolsa.addEventListener('click', () => abrirBolsa(a, false));
     card.appendChild(bolsa);
@@ -532,6 +532,40 @@ function renderBolsa() {
   $('#bolsa-avatar').textContent = avatarEmoji();
   $('#bolsa-nombre').textContent = bolsaAlumno.name;
   $('#bolsa-detalle').innerHTML = `${esc(gradeInfo(S.profile.grade).label)} · <strong>${saldo}</strong> ${ico('coin')} en su bolsa`;
+
+  /* ── Méritos ──
+     Los mismos que salen en la tablet del niño, con el mismo tope diario. Se
+     conceden desde aquí porque en clase el momento de reconocer algo es
+     justo cuando pasa, y pedirle la tablet al niño para dárselo rompe la
+     clase: para cuando la ha desbloqueado, el momento se ha ido. */
+  const meritos = $('#bolsa-meritos');
+  meritos.innerHTML = '';
+  for (const b of (ATLAS_CONFIG.behaviors || [])) {
+    const usados = behaviorCountToday(b.id);
+    const lleno = usados >= b.perDay;
+    const btn = document.createElement('button');
+    btn.className = 'award-btn' + (lleno ? ' award-full' : '');
+    btn.disabled = lleno;
+    btn.innerHTML = `<span class="award-icon">${esc(b.icon)}</span>
+      <span class="award-name">${esc(b.name)}</span>
+      <span class="award-meta">+${b.coins} ${ico('coin')} · ${usados}/${b.perDay}</span>`;
+    btn.addEventListener('click', () => {
+      const r = awardBehavior(b.id);
+      if (r.ok) {
+        toast(`${b.icon} ${bolsaAlumno.name}: ¡${b.name}! +${b.coins} doblones`);
+        /* Repinta entero: el saldo de arriba y el almacén cambian, porque
+           acaba de tener más doblones para gastar. */
+        renderBolsa();
+      } else if (r.reason === 'cap') {
+        toast(`Hoy ya no quedan «${b.name}» para ${bolsaAlumno.name}.`);
+      }
+    });
+    meritos.appendChild(btn);
+  }
+  if (!(ATLAS_CONFIG.behaviors || []).length) {
+    meritos.innerHTML = '<p class="empty-note">No hay reconocimientos configurados. ' +
+      'Se crean en Configuración → Comportamientos, tareas y actividades.</p>';
+  }
 
   /* ── Almacén ──
      Lo que ya tiene sale marcado y lo que no puede pagar sale con lo que le
