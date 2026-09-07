@@ -1459,6 +1459,20 @@ body.en-mision #main { padding-bottom: var(--s-5); }
 .curr-chip.on.curr-lleno::after { background: var(--gold); }
 
 /* La barra de acciones en bloque de la cola de revisión. */
+/* El botón de borrar una clase. Va aparte del de abrirla, apagado, y solo
+   toma color al acercarse: no puede competir por la mirada con la acción
+   normal, que es entrar. */
+.aula-card-borrar {
+  flex: 0 0 auto; width: 44px; height: 44px;
+  display: flex; align-items: center; justify-content: center;
+  background: transparent; border: none; border-radius: var(--r-md);
+  font-size: 1.15rem; opacity: .5; cursor: pointer;
+  transition: opacity .15s ease, background-color .15s ease;
+}
+.aula-card-borrar:hover, .aula-card-borrar:focus-visible {
+  opacity: 1; background: var(--danger-tint);
+}
+
 .ia-bloque { align-items: center; gap: .6rem; flex-wrap: wrap; margin-bottom: .6rem; }
 .ia-marca { display: inline-flex; align-items: center; }
 .ia-marca input { width: 20px; height: 20px; accent-color: var(--jungle); margin-right: .4rem; }

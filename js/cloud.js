@@ -966,6 +966,74 @@ async function subirAjustesAhora() {
   }
 }
 
+/* ══════════ BORRAR UNA CLASE ══════════
+
+   Es lo más destructivo que hace la plataforma: una clase se lleva por
+   delante los diarios de veinticinco niños, que son un trimestre de trabajo
+   suyo. Por eso va en dos partes: primero se CUENTA lo que hay dentro para
+   poder enseñárselo al docente, y solo después se borra.
+
+   Y se borra de dentro afuera —retos, diarios, y el aula al final—. Al revés,
+   si algo fallara a mitad, quedarían filas apuntando a una clase que ya no
+   existe: invisibles desde la app y imposibles de limpiar sin entrar en la
+   consola. */
+async function cloudContarDeAula(aulaId) {
+  if (!aulasOn() || !CLOUD.user) return { ok: false, reason: 'sin-nube' };
+  const c = ATLAS_CONFIG.appwrite;
+  const contar = async (col, campo) => {
+    if (!col) return 0;
+    try {
+      const res = await CLOUD.db.listDocuments(c.databaseId, col,
+        [Appwrite.Query.equal(campo, aulaId), Appwrite.Query.limit(1)]);
+      /* `total` lo da Appwrite aunque se pida un solo documento. */
+      return typeof res.total === 'number' ? res.total : res.documents.length;
+    } catch (e) { return -1; }   /* -1 = no se ha podido contar */
+  };
+  return {
+    ok: true,
+    diarios: await contar(c.collectionId, 'aula'),
+    retos: await contar(c.retosCollectionId, 'aula')
+  };
+}
+
+/* Borra todo lo de una clase. Devuelve cuántos borró de cada cosa y qué
+   falló: un borrado a medias tiene que poder contarse, no darse por bueno. */
+async function cloudBorrarAula(aulaId, onProgreso) {
+  if (!aulasOn() || !CLOUD.user) return { ok: false, reason: 'sin-nube' };
+  const c = ATLAS_CONFIG.appwrite;
+  const cuenta = { retos: 0, diarios: 0, fallos: 0 };
+
+  const barrer = async (col, campo, nombre) => {
+    if (!col) return;
+    for (let vuelta = 0; vuelta < 60; vuelta++) {
+      let res;
+      try {
+        res = await CLOUD.db.listDocuments(c.databaseId, col,
+          [Appwrite.Query.equal(campo, aulaId), Appwrite.Query.limit(50)]);
+      } catch (e) { cuenta.fallos++; return; }
+      if (!res.documents.length) return;
+      for (const d of res.documents) {
+        try { await CLOUD.db.deleteDocument(c.databaseId, col, d.$id); cuenta[nombre]++; }
+        catch (e) { cuenta.fallos++; }
+      }
+      if (typeof onProgreso === 'function') onProgreso(nombre, cuenta[nombre]);
+      /* Si en una vuelta entera no se ha borrado nada, no hay que seguir
+         pidiendo la misma página para siempre. */
+      if (cuenta.fallos >= res.documents.length) return;
+    }
+  };
+
+  await barrer(c.retosCollectionId, 'aula', 'retos');
+  await barrer(c.collectionId, 'aula', 'diarios');
+
+  /* El aula, la última: mientras exista, lo de dentro sigue siendo
+     alcanzable y se puede reintentar. */
+  if (cuenta.fallos) return { ok: false, reason: 'parcial', ...cuenta };
+  try { await CLOUD.db.deleteDocument(c.databaseId, c.aulasCollectionId, aulaId); }
+  catch (e) { return Object.assign({ ok: false }, errorNube(e), cuenta); }
+  return { ok: true, ...cuenta };
+}
+
 /* Guarda los ajustes de la clase activa (no los diarios: van aparte) */
 async function cloudSaveAulaConfig() {
   if (!aulasOn() || !aulaActiva()) return { ok: false, reason: 'sin-nube' };

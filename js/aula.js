@@ -69,14 +69,92 @@ async function renderAulas() {
   lista.innerHTML = '';
   for (const a of res.aulas) {
     const abierta = aulaActiva() === a.id;
-    const card = document.createElement('button');
+    /* Dos acciones por clase: abrirla y borrarla. Un botón dentro de otro no
+       es HTML válido, así que la tarjeta es un contenedor. */
+    const card = document.createElement('div');
     card.className = 'aula-alumno-card' + (abierta ? ' aula-ya' : '');
-    card.innerHTML = `<span class="aula-card-avatar">${abierta ? '📂' : '🏫'}</span>
+    const abrir = document.createElement('button');
+    abrir.className = 'aula-card-turno';
+    abrir.innerHTML = `<span class="aula-card-avatar">${abierta ? '📂' : '🏫'}</span>
       <span class="aula-card-nombre">${esc(a.name)}</span>
       <span class="aula-card-meta">${abierta ? 'abierta en este equipo' : 'pulsa para abrirla'}</span>`;
-    card.addEventListener('click', () => abrirAulaUI(a));
+    abrir.addEventListener('click', () => abrirAulaUI(a));
+    card.appendChild(abrir);
+
+    const borrar = document.createElement('button');
+    borrar.className = 'aula-card-borrar';
+    borrar.title = `Borrar la clase ${a.name}`;
+    borrar.setAttribute('aria-label', `Borrar la clase ${a.name} y todo lo que contiene`);
+    borrar.textContent = '🗑️';
+    borrar.addEventListener('click', () => borrarAulaUI(a));
+    card.appendChild(borrar);
     lista.appendChild(card);
   }
+}
+
+/* ── Borrar una clase ──
+   Se lleva por delante los diarios de sus alumnos, que son un trimestre de
+   trabajo de cada niño. La barrera va en tres tramos, y ninguno sobra:
+
+     1. Se CUENTA antes lo que hay dentro y se enseña. «Borrar la clase» no
+        significa nada; «se van 24 diarios y 60 retos» sí.
+     2. Se ofrece la copia de seguridad ANTES, no después. Después no sirve.
+     3. Hay que escribir el nombre de la clase. Un «¿seguro?» se contesta que
+        sí sin leerlo; escribir «4.º B» obliga a mirar cuál se está borrando,
+        que es el error de verdad: borrar la que no era. */
+async function borrarAulaUI(a) {
+  aulasMsg('Mirando qué hay dentro de la clase…');
+  const dentro = await cloudContarDeAula(a.id);
+  aulasMsg('');
+  const nd = dentro.ok ? dentro.diarios : -1;
+  const nr = dentro.ok ? dentro.retos : -1;
+
+  const trozo = (n, uno, varios) =>
+    n < 0 ? `un número indeterminado de ${varios}` : n === 1 ? `1 ${uno}` : `${n} ${varios}`;
+  const resumen = `Se van a borrar para siempre:\n\n` +
+    `· ${trozo(nd, 'diario de alumno', 'diarios de alumno')} — su progreso, sus méritos y sus doblones\n` +
+    `· ${trozo(nr, 'reto escrito', 'retos escritos')}\n` +
+    `· Los ajustes de la clase: yacimientos, pozos, cuadrillas y economía\n\n` +
+    `Las cuentas de los alumnos NO se borran, pero se quedan sin diario.\n` +
+    `Esto no se puede deshacer.`;
+
+  if (!(await askConfirm(`«${a.name}»\n\n${resumen}\n\n¿Sigues?`, 'Sigo'))) return;
+
+  if (nd > 0) {
+    const copia = await askConfirm(
+      'Antes de borrar, ¿guardas una copia de seguridad? Es lo único que puede devolver ' +
+      'esos diarios si te equivocas de clase.', 'Guardar copia primero');
+    if (copia) {
+      cfgSection = 'copia';
+      teacherScreen('config');
+      return;   /* que vuelva cuando la tenga: borrar puede esperar */
+    }
+  }
+
+  const escrito = await askPrompt(
+    `Escribe el nombre de la clase para confirmar que es esta y no otra:`, '', 'Borrar para siempre');
+  if (escrito === null) return;
+  if (String(escrito).trim().toLowerCase() !== String(a.name).trim().toLowerCase()) {
+    aulasMsg('⚠️ El nombre no coincide. No se ha borrado nada.');
+    return;
+  }
+
+  aulasMsg('Borrando…');
+  const r = await cloudBorrarAula(a.id, (que, n) => aulasMsg(`Borrando… ${n} ${que}`));
+  if (!r.ok) {
+    aulasMsg(`⚠️ No se ha podido borrar del todo (${r.detail || r.reason}). ` +
+      `Se borraron ${r.retos || 0} reto(s) y ${r.diarios || 0} diario(s); la clase sigue ahí. ` +
+      `Vuelve a intentarlo: lo que ya se borró no se repite.`);
+    renderAulas();
+    return;
+  }
+
+  /* Si era la que estaba abierta aquí, este equipo se queda sin clase: hay
+     que soltarla y limpiar sus diarios locales, o seguiría enseñando los de
+     una clase que ya no existe. */
+  if (aulaActiva() === a.id) cerrarAula();
+  aulasMsg(`Clase «${a.name}» borrada: ${r.diarios} diario(s) y ${r.retos} reto(s).`);
+  renderAulas();
 }
 
 async function abrirAulaUI(a) {

@@ -263,6 +263,14 @@ puede ejecutar mil veces: lo que ya está en la tabla no se vuelve a subir.
 
 ### 4. Colección de aulas (para varios docentes)
 
+> **Borrar una clase** se hace desde *Mis clases*, con la papelera de su
+> tarjeta. Se lleva sus diarios, sus retos y sus ajustes, y no se puede
+> deshacer: antes se cuenta y se enseña qué hay dentro, se ofrece la copia de
+> seguridad, y hay que escribir el nombre de la clase. Se borra de dentro
+> afuera —retos, diarios, y el aula al final— para que un fallo a mitad no
+> deje filas apuntando a una clase que ya no existe. Las cuentas del
+> alumnado no se borran: se quedan sin diario.
+
 > **Los permisos de cada clase.** El documento de una clase lo **lee cualquier
 > cuenta con sesión** y lo **escribe solo su docente**. La lectura abierta no
 > es un descuido: dentro de ese documento viajan los yacimientos, los pozos,
