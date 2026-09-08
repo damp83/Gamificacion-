@@ -85,6 +85,7 @@ Cubren lo que ya se ha roto alguna vez, que es de donde salieron:
 | `usabilidad.test.js` | Que la letra grande escale de verdad, que el Taller se pueda teclear y que nada se salga de la pantalla |
 | `generador.test.js` | Que un reto escrito por IA con la cuenta mal marcada no llegue nunca a un niño |
 | `alta.test.js` | Que el panel no intente crear el diario del alumno —Appwrite no lo permite— y que vincularlo le ponga su clase y su docente |
+| `asistente-yacimientos.test.js` | Que la asistente proponga estructura y **nunca retos**, que lo que vuelve se limpie antes de tocar los ajustes, y que el inspector avise de lo que falla en silencio sin acusar a un yacimiento sano |
 | `identidad.test.js` | Que dos alumnas con el mismo nombre en cursos distintos no compartan diario, y que los diarios viejos se muden sin perderse |
 | `bolsa.test.js` | Que comprar o donar por un alumno salga de su bolsa, no toque sus PE, y vuelva a su documento |
 | `feedback.test.js` | Que el aviso de acierto/fallo no llegue a una misión que ya terminó |
@@ -735,7 +736,7 @@ scroll—. El panel abre por **Alumnado**.
 |---|---|
 | 👥 Alumnado | Tu nombre y el de la clase, la lista de alumnos, y **crear sus cuentas de golpe** |
 | 🏅 Comportamientos, tareas y actividades | Crear, editar y retirar reconocimientos: icono, nombre, Doblones, tope diario y categoría. **Se conceden desde la ficha del alumno en «Dirigir la clase»**, sin pedirle la tablet: el mismo sitio desde el que se le compra en el almacén o se dona al Fondo |
-| 🏛️ Yacimientos y pozos | **Crear yacimientos y pozos nuevos y escribir los retos de cada estrato**, además de renombrar y ocultar. Los pozos **de fábrica** también tienen banco: lo que escribas ahí se sirve antes que sus retos automáticos, y cuando se agota el pozo sigue generando solo |
+| 🏛️ Yacimientos y pozos | **Crear yacimientos y pozos nuevos y escribir los retos de cada estrato**, además de renombrar y ocultar. Con la IA configurada, una **asistente** propone el yacimiento entero desde tu currículo o completa el que ya tienes, y un **inspector** dice qué pozo no lo ve nadie, cuál se queda a medias y cuál repite concepto. Los pozos **de fábrica** también tienen banco: lo que escribas ahí se sirve antes que sus retos automáticos, y cuando se agota el pozo sigue generando solo |
 | 🤖 Retos con IA | Tu clave de la API, el currículo de tu área, y la **cola de revisión**: nada escrito por IA entra en el banco sin que lo apruebes |
 | ✍️ Taller de Cartografía | Los acertijos que escriben los niños, esperando a que alguien los lea |
 
@@ -990,6 +991,39 @@ La sección **🏛️ Yacimientos y pozos** del panel edita toda la estructura d
 1. **Yacimientos** — crea los que faltan del PRD (Valle Fósil para Naturales, Puerto de las Mil Banderas para Sociales) con su nombre, materia, icono y ambientación. Matemáticas y Lengua ya vienen de fábrica.
 2. **Pozos** — cada yacimiento tiene los pozos que quieras (una rama de contenido cada uno).
 3. **Retos por estrato** — dentro de un pozo tuyo, una pestaña por cada nivel de Bloom. Escribes la pregunta, cuatro respuestas, cuál es la correcta, la explicación que lee quien falla y las dos pistas de Kira.
+
+### 🤖 La asistente de yacimientos
+
+Los puntos 1 y 2 son un formulario en blanco, y ahí es donde una asistente ayuda de verdad: tú sabes qué quieres trabajar —lo tienes escrito en tu currículo— y lo que cuesta es inventarse ocho nombres de expedición y repartir el temario en pozos que no se solapen.
+
+Con Appwrite y tu clave de la API configuradas aparecen dos botones:
+
+- **🤖 Crear uno con ayuda** propone el yacimiento entero: nombre, materia, icono, ambientación y los pozos que reparten tu currículo, cada uno con su icono, su descripción para el niño, **los cursos a los que le sirve** y una línea que te dice a ti qué se trabaja ahí.
+- **🤖 Completar con ayuda**, dentro de un yacimiento, mira los pozos que ya tiene y propone **solo los que faltan**. Es el caso de verdad: casi nadie empieza de cero.
+
+Le puedes pedir algo a mano —«ambiéntalo en el Antiguo Egipto», «que el primer pozo sea repaso del curso anterior»— y eso manda sobre todo lo demás. Los cursos vienen marcados de tu lista de clase. Si no hay currículo escrito para esa materia y esos cursos, **te lo dice antes de gastar la llamada** en vez de inventárselo en silencio.
+
+La propuesta llega **editable**: cambias lo que quieras, quitas los pozos que no te sirvan y aceptas de una vez. Hasta ese momento no se ha guardado nada.
+
+> **No escribe ni un reto, y eso es a propósito.** Es lo que la hace segura: un pozo sin retos no le aparece a ningún niño, así que una propuesta mala se borra y no ha llegado a clase. Los retos vienen después, pozo a pozo, por la cola de revisión de siempre. Una prueba comprueba que el esquema de la propuesta no tenga siquiera dónde poner una pregunta.
+>
+> Cuesta **una sola llamada** a la API, unos veinte segundos. Nada que ver con generar retos, que es una llamada por reto.
+
+Funciona también con materias que el generador de retos no cubre —Naturales, Sociales—: el yacimiento se monta igual y sus retos los escribes tú.
+
+### 🔎 El inspector
+
+Cada yacimiento lleva una línea plegada que dice **cuántas cosas hay que revisar**. No llama a la IA ni cuesta nada: sale de mirar lo que hay, y por eso sigue sirviendo en marzo. Busca justo lo que falla en silencio:
+
+| Lo que encuentra | Por qué importa |
+|---|---|
+| Un pozo sin retos en el primer estrato | **No le aparece a nadie.** No da error: simplemente no está en el mapa |
+| Estratos vacíos | El niño llega hasta ahí y no puede seguir |
+| Un pozo puesto para cursos que no tienes en clase | Nadie lo va a abrir. Solo lo dice si hay lista de clase; sin ella, callarse es mejor que avisar de algo que no consta |
+| Un pozo donde el 60 % de los retos son del mismo concepto | Veinte retos buenos de lo mismo son un pozo de un solo concepto |
+| Dos pozos con el mismo nombre | En el mapa el niño ve dos entradas idénticas |
+
+Un yacimiento sano no dice nada: un inspector que siempre encuentra algo se deja de leer.
 
 Para cargar muchos de golpe, el **alta masiva** acepta una línea por reto:
 

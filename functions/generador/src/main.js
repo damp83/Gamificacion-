@@ -7,7 +7,7 @@
    clave ahí la lee cualquiera con ver el código fuente. Aquí vive en la
    variable de entorno de la función y no sale de este servidor.
 
-   Atiende DOS encargos distintos, y están separados por una razón de peso:
+   Atiende TRES encargos distintos, y están separados por una razón de peso:
    Appwrite corta cualquier ejecución síncrona a los 30 segundos, y en
    asíncrono el cuerpo de la respuesta llega vacío —lo dice su propio SDK—,
    así que no hay forma de leer el resultado. La única salida es que cada
@@ -20,6 +20,10 @@
      · `paso: 'verificar'` — recibe retos ya escritos y los resuelve OTRA VEZ,
        sin ver cuál está marcada. Es lo que caza el fallo que más caro cuesta:
        la respuesta correcta mal señalada.
+     · `paso: 'yacimiento'` — propone la ESTRUCTURA de un yacimiento: su
+       ambientación y sus pozos, repartiendo el currículo. Ni un reto. Una
+       sola llamada, y lo que devuelve no puede llegarle a un niño hasta que
+       el docente lo acepte y le escriba retos.
 
    Quien encadena las dos cosas es el cliente, en cloud.js. Antes se hacían
    en una sola ejecución y por eso saltaba el tope de los 30 segundos.
@@ -31,7 +35,8 @@
 import Anthropic from '@anthropic-ai/sdk';
 import {
   validarTanda, promptGenerador, esquemaRetos,
-  promptVerificacion, esquemaVerificacion, cruzarVerificacion
+  promptVerificacion, esquemaVerificacion, cruzarVerificacion,
+  promptYacimiento, esquemaYacimiento, limpiarYacimiento
 } from './generador.js';
 
 const MODELO = 'claude-opus-5';
@@ -52,7 +57,7 @@ export default async ({ req, res, log, error }) => {
   try { p = typeof req.body === 'string' ? JSON.parse(req.body || '{}') : (req.body || {}); }
   catch (e) { return res.json({ ok: false, reason: 'peticion', texto: 'La petición no se entiende.' }, 400); }
 
-  const paso = p.paso === 'verificar' ? 'verificar' : 'generar';
+  const paso = ['verificar', 'yacimiento'].includes(p.paso) ? p.paso : 'generar';
 
   /* ── Segundo encargo: resolverlos otra vez ──
      No necesita currículo ni esfuerzo alto: es resolver ejercicios de
@@ -88,6 +93,57 @@ export default async ({ req, res, log, error }) => {
       return res.json({ ok: true, retos: cruce.buenos, descartados: cruce.descartados, usados: uso(chk) });
     } catch (e) {
       return falloApi(res, error, e, clave2);
+    }
+  }
+
+  /* ── Tercer encargo: la estructura de un yacimiento ──
+     Va antes de las comprobaciones de abajo porque no son suyas: aquí el
+     currículo puede faltar si el docente ha escrito a mano lo que quiere, y
+     la materia no está limitada a las dos que tienen validador de retos. */
+  if (paso === 'yacimiento') {
+    const pistas = [p.curriculo, p.tema].map(x => String(x || '').trim()).join(' ');
+    if (pistas.length < 30) {
+      return res.json({ ok: false, reason: 'sin-curriculo',
+        texto: 'Escribe el currículo de esa materia y ese curso, o di aquí mismo qué quieres '
+             + 'trabajar. Sin nada de eso, el modelo se inventa de qué va el curso.' }, 400);
+    }
+    if (String(p.curriculo || '').length > CURRICULO_MAX) {
+      return res.json({ ok: false, reason: 'curriculo-largo',
+        texto: `El currículo pasa de ${CURRICULO_MAX} caracteres. Manda solo el área y el ciclo que toca.` }, 400);
+    }
+    const clave3 = (typeof p.clave === 'string' && p.clave.trim()) || process.env.ANTHROPIC_API_KEY;
+    if (!clave3) {
+      return res.json({ ok: false, reason: 'sin-clave',
+        texto: 'No hay clave de API. Pon la tuya en Configuración → Retos con IA.' }, 400);
+    }
+    const esp3 = (typeof p.workspace === 'string' && p.workspace.trim())
+      || process.env.ANTHROPIC_WORKSPACE_ID || '';
+    const cli3 = new Anthropic(esp3
+      ? { apiKey: clave3, defaultHeaders: { 'anthropic-workspace-id': esp3 } }
+      : { apiKey: clave3 });
+    try {
+      const enc3 = promptYacimiento(p);
+      const y = await cli3.messages.create({
+        model: MODELO,
+        max_tokens: 8000,
+        thinking: { type: 'adaptive' },
+        system: [{ type: 'text', text: enc3.sistema, cache_control: { type: 'ephemeral' } }],
+        output_config: { effort: 'medium', format: { type: 'json_schema', schema: esquemaYacimiento() } },
+        messages: [{ role: 'user', content: enc3.usuario }]
+      });
+      if (y.stop_reason === 'refusal') {
+        return res.json({ ok: false, reason: 'rechazado',
+          texto: 'El modelo no ha querido proponer esto. Revisa lo que le has pedido.' }, 200);
+      }
+      const limpio = limpiarYacimiento(leerJson(y).yacimiento, p.cursos);
+      if (!limpio) {
+        return res.json({ ok: false, reason: 'vacio',
+          texto: 'La propuesta ha venido sin pozos utilizables. Vuelve a intentarlo.' }, 200);
+      }
+      log(`yacimiento propuesto con ${limpio.pozos.length} pozo(s)`);
+      return res.json({ ok: true, yacimiento: limpio, usados: uso(y) });
+    } catch (e) {
+      return falloApi(res, error, e, clave3);
     }
   }
 

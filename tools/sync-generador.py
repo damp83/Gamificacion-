@@ -21,6 +21,7 @@ CATALOGO = RAIZ / 'functions' / 'generador' / 'src' / 'catalogo.js'
 EXPORTA = [
     'AREAS_IA', 'conceptosDe', 'normalizarReto', 'validarRetoIA', 'validarTanda',
     'comprobarAritmetica', 'promptGenerador', 'esquemaRetos',
+    'esquemaYacimiento', 'promptYacimiento', 'limpiarYacimiento',
     'promptVerificacion', 'esquemaVerificacion', 'cruzarVerificacion',
 ]
 

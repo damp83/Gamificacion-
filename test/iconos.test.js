@@ -53,11 +53,19 @@ test('TODOS los iconos de fábrica salen en el banco', () => {
   assert.deepEqual(faltan, [], 'iconos de fábrica que no se pueden volver a elegir');
 });
 
-test('se engancha a TODOS los campos de icono, no a seis a mano', () => {
-  /* Enchufarlo campo a campo garantiza que el séptimo que se añada se quede
-     sin él. Se marcan con una clase común y se montan de una vez. */
+test('se engancha a TODOS los campos de icono, no uno a uno', () => {
+  /* Enchufarlo campo a campo garantiza que el siguiente que se añada se quede
+     sin él. Se marcan con una clase común y se montan de una vez.
+
+     Contar cuántos hay envejecía mal —cada campo nuevo rompía la prueba sin
+     que nada estuviera mal—, así que se comprueba lo que de verdad importa:
+     que TODO campo de icono (los que llevan maxlength="4", que es la firma de
+     uno) lleve la clase. Ese sí es el fallo que se cuela. */
   const t = leer('js/teacher.js');
-  assert.equal((t.match(/cfg-icono"/g) || []).length, 6, 'los seis campos llevan la marca');
+  const campos = t.match(/<input[^>]*maxlength="4"/g) || [];
+  assert.ok(campos.length >= 6, `solo encuentro ${campos.length} campos de icono`);
+  const sinMarca = campos.filter(c => !c.includes('cfg-icono'));
+  assert.deepEqual(sinMarca, [], 'hay un campo de icono sin el selector enganchado');
   assert.match(t, /\$\$\('#cfg-body input\.cfg-icono'\)/);
   assert.match(t, /renderers\[cfgSection\]\(body\);\n  montarSelectoresDeIcono\(\);/,
     'se monta tras cada pintado, sea la sección que sea');

@@ -167,7 +167,11 @@ async function ejecutarGenerador(id, cuerpo) {
     }
 
     if (!datos.ok) return { ok: false, reason: datos.reason || 'error', texto: datos.texto || 'No se han podido generar.' };
-    return { ok: true, retos: datos.retos || [], descartados: datos.descartados || [], usados: datos.usados };
+    /* `yacimiento` solo viene en el encargo de estructura; en los otros dos es
+       undefined y no estorba. Se pasa aquí para no tener dos funciones que
+       hablan con la misma función de Appwrite. */
+    return { ok: true, retos: datos.retos || [], descartados: datos.descartados || [],
+             yacimiento: datos.yacimiento, usados: datos.usados };
 
   } catch (e) {
     const m = (e && e.message) || '';
@@ -228,6 +232,44 @@ async function ejecutarConReintento(id, cuerpo, avisar) {
   return Object.assign({}, ultimo, {
     texto: 'Se cortó la conexión y no se ha recuperado tras tres intentos. '
          + 'Si estás en un iPad, deja la pantalla encendida y la app delante mientras genera.' });
+}
+
+/* ── La estructura de un yacimiento, propuesta ──
+   Una sola llamada y ni un reto: lo que vuelve es la ambientación y el reparto
+   de pozos. Va aparte de cloudGenerarRetos porque no comparte casi nada con
+   ella —ni tandas, ni cola de aprobación, ni segunda pasada— y mezclarlas
+   habría convertido una función que ya es larga en una función con dos modos. */
+async function cloudProponerYacimiento(peticion) {
+  if (!CLOUD.enabled) return { ok: false, reason: 'sin-nube', texto: 'No hay conexión con Appwrite.' };
+  if (!CLOUD.functions) {
+    return { ok: false, reason: 'sdk-viejo',
+      texto: 'El SDK de Appwrite que ha cargado no trae Functions. Recarga forzando la página.' };
+  }
+  if (!CLOUD.user) {
+    return { ok: false, reason: 'sin-sesion',
+      texto: 'Entra con tu cuenta de docente en «Mis clases» antes de pedir una propuesta.' };
+  }
+  const id = (ATLAS_CONFIG.appwrite.generadorFunctionId || '').trim();
+  if (!id) {
+    return { ok: false, reason: 'sin-funcion',
+      texto: 'Falta el ID de la función en Acceso y nube. Está en Appwrite → Functions.' };
+  }
+  const r = await ejecutarConReintento(id, {
+    paso: 'yacimiento',
+    materia: peticion.materia,
+    cursos: peticion.cursos,
+    cuantos: peticion.cuantos,
+    curriculo: peticion.curriculo,
+    tema: peticion.tema,
+    existente: peticion.existente,
+    clave: ATLAS_CONFIG.iaClave || '',
+    workspace: ATLAS_CONFIG.iaWorkspace || ''
+  });
+  if (!r.ok) return r;
+  if (!r.yacimiento) {
+    return { ok: false, reason: 'vacio', texto: 'La propuesta ha venido vacía. Vuelve a intentarlo.' };
+  }
+  return { ok: true, yacimiento: r.yacimiento, usados: r.usados };
 }
 
 /* ══════════ LA TABLA DE RETOS ══════════

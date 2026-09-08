@@ -902,10 +902,356 @@ function sinRetosDeLaNube(sites) {
 }
 function sitesCopy() { return deepClone(ATLAS_CONFIG.sites || []); }
 
+/* ══════════ EL INSPECTOR DEL YACIMIENTO ══════════
+
+   No llama a la IA: todo lo que dice sale de mirar lo que hay. Y es
+   precisamente por eso por lo que sirve todo el curso —es instantáneo y no
+   cuesta nada— mientras que la propuesta se pide una vez y ya está.
+
+   Lo que busca es lo que falla en silencio: un pozo que nadie ve, un estrato
+   vacío, un pozo puesto para cursos en los que no hay ningún alumno, y una
+   tanda que ha salido toda del mismo concepto. Nada de esto da error en
+   ninguna parte; simplemente no pasa nada, que es peor. */
+function revisarYacimiento(site) {
+  const avisos = [];
+  const pozos = branchesOf(site);
+  const primero = STRATA_ORDER[0];
+
+  if (!pozos.length) {
+    avisos.push({ que: 'Sin pozos', como: 'No tiene ningún pozo, así que no le aparece a nadie.' });
+    return avisos;
+  }
+
+  /* Los cursos que de verdad hay en clase. Sin lista no se puede saber, y
+     entonces callarse es mejor que avisar de algo que no consta. */
+  const cursosDeClase = new Set((ATLAS_CONFIG.roster || [])
+    .map(r => r.grade || ATLAS_CONFIG.defaultGrade).filter(Boolean));
+
+  const nombres = {};
+  for (const b of pozos) {
+    const clave = String(b.name || '').trim().toLowerCase();
+    if (clave) nombres[clave] = (nombres[clave] || 0) + 1;
+  }
+  for (const clave in nombres) {
+    if (nombres[clave] > 1) {
+      avisos.push({ que: 'Dos pozos con el mismo nombre',
+        como: `Hay ${nombres[clave]} pozos llamados igual. En el mapa el niño ve dos entradas idénticas.` });
+    }
+  }
+
+  for (const b of pozos) {
+    const nombre = b.name || '(sin nombre)';
+    if (b.enabled === false) continue;
+    const banco = b.bank || {};
+    const cuenta = sId => (banco[sId] || []).length;
+    const total = STRATA_ORDER.reduce((n, sId) => n + cuenta(sId), 0);
+
+    if (b.source !== 'builtin' && !cuenta(primero)) {
+      avisos.push({ que: `«${nombre}» no lo ve nadie`,
+        como: `Un pozo aparece en el mapa cuando tiene al menos un reto en ${
+          STRATA_META[primero].label}. Escríbele uno, o genéralo.` });
+    } else if (b.source !== 'builtin') {
+      const vacios = STRATA_ORDER.filter(sId => !cuenta(sId)).map(sId => STRATA_META[sId].label);
+      if (vacios.length) {
+        avisos.push({ que: `«${nombre}» se queda a medias`,
+          como: `Sin retos en ${vacios.join(' ni ')}. El niño llega hasta ahí y no puede seguir.` });
+      }
+    }
+
+    if (cursosDeClase.size && b.grades && b.grades.length &&
+        !b.grades.some(g => cursosDeClase.has(g))) {
+      avisos.push({ que: `«${nombre}» está fuera de tus cursos`,
+        como: `Es para ${b.grades.join(', ')}.º y en tu lista de clase no hay nadie de esos cursos.` });
+    }
+
+    /* Veinte retos buenos del mismo concepto son un pozo de un solo concepto.
+       Solo se dice con material suficiente para que el reparto signifique algo. */
+    if (total >= 6) {
+      const porConcepto = {};
+      for (const sId of STRATA_ORDER) {
+        for (const r of (banco[sId] || [])) {
+          const c = (r && r.skill) || '(sin concepto)';
+          porConcepto[c] = (porConcepto[c] || 0) + 1;
+        }
+      }
+      let mayor = '', n = 0;
+      for (const c in porConcepto) if (porConcepto[c] > n) { mayor = c; n = porConcepto[c]; }
+      if (n / total >= 0.6 && Object.keys(porConcepto).length > 0) {
+        avisos.push({ que: `«${nombre}» repite mucho`,
+          como: `${n} de sus ${total} retos son de «${mayor}». Al generar más, el panel evita ` +
+                'los conceptos que ya hay: pide otra tanda y saldrá variada.' });
+      }
+    }
+  }
+  return avisos;
+}
+
+/* ══════════ LA ASISTENTE DE YACIMIENTOS ══════════
+   Dos fases en la misma pantalla: se pide, y se revisa lo que ha venido. La
+   propuesta vive AQUÍ, en memoria, y no toca los ajustes hasta que el docente
+   la acepta: si no le gusta, no ha pasado nada. */
+let cfgAsistente = null;
+
+function abrirAsistente(siteId) {
+  const site = siteId ? (ATLAS_CONFIG.sites || []).find(s => s.id === siteId) : null;
+  cfgAsistente = {
+    siteId: siteId || '',
+    materia: site ? materiaDeSitio(site) : (ATLAS_CONFIG.iaMateria || 'matematicas'),
+    materiaNombre: site ? (site.subject || '') : '',
+    cursos: cursosDeLaClase(),
+    cuantos: site ? 3 : 5,
+    tema: '',
+    propuesta: null,
+    cargando: false,
+    error: ''
+  };
+  renderTeacherConfig();
+}
+
+/* Los cursos que tiene el docente delante. Con lista de clase, los suyos; sin
+   ella, el de la clase, que es lo único que se sabe. */
+function cursosDeLaClase() {
+  const de = new Set((ATLAS_CONFIG.roster || [])
+    .map(r => r.grade || ATLAS_CONFIG.defaultGrade).filter(Boolean));
+  if (!de.size) de.add(ATLAS_CONFIG.defaultGrade);
+  return [...de].sort((a, b) => a - b);
+}
+
+/* La materia de un yacimiento, para el desplegable: se mira lo que el docente
+   escribió en «Materia», no el id del sitio, que es un slug cualquiera. */
+function materiaDeSitio(site) {
+  const t = String((site && site.subject) || '').toLowerCase();
+  if (/lengua|lectur|ortograf/.test(t)) return 'lengua';
+  if (/mate|c[áa]lculo|n[úu]mer/.test(t)) return 'matematicas';
+  return 'otra';
+}
+
+function cfgAsistenteYacimiento(body) {
+  const a = cfgAsistente;
+  const site = a.siteId ? (ATLAS_CONFIG.sites || []).find(s => s.id === a.siteId) : null;
+  const nombreMateria = a.materia === 'otra'
+    ? (a.materiaNombre || 'esa materia')
+    : (AREAS_IA[a.materia] || {}).nombre || 'Matemáticas';
+  /* El currículo que el docente ya escribió, del primer curso que tenga
+     puesto. Es la razón de que esto valga la pena: no hay que contarle nada
+     que ya esté en el panel. */
+  const curriculo = a.materia === 'otra' ? '' :
+    (a.cursos.map(c => iaCurriculo(a.materia, c)).find(t => t && t.trim()) || '');
+
+  if (a.propuesta) return propuestaDeYacimiento(body, a, site);
+
+  body.innerHTML = `
+    <button class="btn btn-secondary btn-small" id="asis-volver">← Volver a los yacimientos</button>
+    <h4 class="cfg-h4">${site ? `🤖 Completar «${esc(site.name)}»` : '🤖 Crear un yacimiento con ayuda'}</h4>
+    <p class="cfg-intro">${site
+      ? `Mira los pozos que ya tiene y propone <strong>solo los que faltan</strong>, sin repetir
+         lo que ya está. Tú decides qué te quedas.`
+      : `Propone el yacimiento entero —ambientación, icono y sus pozos repartiendo el
+         currículo— para que lo corrijas, no para que lo aceptes a ciegas.`}
+      <strong>No escribe ni un reto</strong>: eso viene después, pozo a pozo, con la cola de
+      revisión de siempre.</p>
+
+    ${field('Materia', `<select id="asis-materia">
+      <option value="matematicas"${a.materia === 'matematicas' ? ' selected' : ''}>Matemáticas</option>
+      <option value="lengua"${a.materia === 'lengua' ? ' selected' : ''}>Lengua</option>
+      <option value="otra"${a.materia === 'otra' ? ' selected' : ''}>Otra (Naturales, Sociales…)</option>
+    </select>`)}
+    ${a.materia === 'otra' ? field('¿Cuál?',
+      `<input type="text" id="asis-materia-nombre" value="${esc(a.materiaNombre)}" placeholder="Ciencias Naturales">`,
+      'Los retos con IA solo saben de Matemáticas y Lengua, que son las que tienen validador. ' +
+      'El yacimiento se monta igual y sus retos los escribes tú.') : ''}
+
+    <label class="cfg-label">Cursos</label>
+    <div class="cfg-row cfg-grades-row">
+      ${GRADES.map(g => `<label class="grade-chip${a.cursos.includes(g.n) ? ' on' : ''}">
+        <input type="checkbox" class="asis-curso" data-g="${g.n}"${a.cursos.includes(g.n) ? ' checked' : ''}>${g.label}</label>`).join('')}
+    </div>
+    <small class="cfg-hint">Vienen marcados los de tu lista de clase. Cada pozo se repartirá
+      entre estos: no todos van a todos.</small>
+
+    ${field('Cuántos pozos', `<input type="number" id="asis-cuantos" min="2" max="10" value="${a.cuantos}">`,
+      site ? 'Además de los que ya tiene.' : 'Cinco o seis suele ser un curso entero.')}
+
+    <label class="cfg-label">¿Algo que quieras pedirle?</label>
+    <textarea id="asis-tema" rows="3" placeholder="Ambiéntalo en el Antiguo Egipto. Que el primer pozo sea de repaso del curso anterior.">${esc(a.tema)}</textarea>
+    <small class="cfg-hint">Opcional. Lo que escribas aquí manda sobre todo lo demás.</small>
+
+    <div class="cfg-nota-curriculo">
+      ${curriculo
+        ? `📗 <strong>Va a usar tu currículo</strong> de ${esc(nombreMateria)}
+           (${esc(String(curriculo).trim().slice(0, 120))}${String(curriculo).trim().length > 120 ? '…' : ''}).`
+        : `⚠️ <strong>No tienes currículo escrito</strong> para ${esc(nombreMateria)} en esos cursos.
+           Puedes ponerlo en «Retos con IA», o decirle aquí arriba qué quieres trabajar. Sin una
+           cosa ni la otra, se lo inventa.`}
+    </div>
+
+    ${a.error ? `<p class="cfg-warn">${a.error}</p>` : ''}
+    <button class="btn btn-primary btn-small" id="asis-pedir"${a.cargando ? ' disabled' : ''}>
+      ${a.cargando ? '⏳ Pensando el yacimiento…' : '🤖 Pedir la propuesta'}</button>
+    ${a.cargando ? '<p class="cfg-hint">Una sola llamada, unos veinte segundos. No cierres la pantalla.</p>' : ''}`;
+
+  $('#asis-volver').addEventListener('click', () => { cfgAsistente = null; renderTeacherConfig(); });
+  onInput('#asis-materia', e => { a.materia = e.target.value; renderTeacherConfig(); }, 'change');
+  const mn = $('#asis-materia-nombre');
+  if (mn) onInput(mn, e => { a.materiaNombre = e.target.value; });
+  onInput('#asis-cuantos', e => { a.cuantos = Math.max(2, Math.min(10, +e.target.value || 5)); });
+  onInput('#asis-tema', e => { a.tema = e.target.value; });
+  $$('.asis-curso').forEach(el => el.addEventListener('change', e => {
+    const g = +e.target.dataset.g;
+    a.cursos = e.target.checked
+      ? Array.from(new Set(a.cursos.concat([g]))).sort((x, y) => x - y)
+      : a.cursos.filter(x => x !== g);
+    renderTeacherConfig();
+  }));
+
+  $('#asis-pedir').addEventListener('click', async () => {
+    if (!a.cursos.length) { a.error = 'Marca al menos un curso.'; return renderTeacherConfig(); }
+    a.cargando = true; a.error = '';
+    renderTeacherConfig();
+    const r = await cloudProponerYacimiento({
+      materia: a.materia === 'otra' ? '' : a.materia,
+      materiaNombre: a.materia === 'otra' ? a.materiaNombre : '',
+      cursos: a.cursos,
+      cuantos: a.cuantos,
+      curriculo,
+      tema: a.tema,
+      /* Al completar se le manda lo que ya hay para que no lo repita: es la
+         diferencia entre ampliar un yacimiento y proponer otro parecido. */
+      existente: site ? {
+        name: site.name, subject: site.subject,
+        pozos: branchesOf(site).map(b => ({
+          name: b.name, contenido: b.contenido || b.desc || '', grades: b.grades || [] }))
+      } : null
+    });
+    a.cargando = false;
+    if (!r.ok) { a.error = esc(r.texto || 'No se ha podido pedir la propuesta.'); }
+    else { a.propuesta = r.yacimiento; a.usados = r.usados; }
+    renderTeacherConfig();
+  });
+}
+
+/* ── La propuesta, ya editable ──
+   Todo lo que se ve aquí se puede corregir antes de aceptar, y nada de esto
+   ha tocado los ajustes todavía. Aceptar es un solo botón porque corregir
+   campo a campo ya se ha hecho aquí: lo que no vale se borra o se cambia. */
+function propuestaDeYacimiento(body, a, site) {
+  const y = a.propuesta;
+  body.innerHTML = `
+    <button class="btn btn-secondary btn-small" id="asis-atras">← Cambiar lo que le pedí</button>
+    <h4 class="cfg-h4">La propuesta</h4>
+    <p class="cfg-intro">Corrige lo que quieras aquí mismo. <strong>Todavía no se ha guardado
+    nada.</strong> Al aceptar, los pozos se crean vacíos: no le aparecerán a ningún niño hasta
+    que tengan retos, así que puedes aceptar sin miedo y escribirlos con calma.</p>
+
+    ${site ? `<p class="cfg-hint">Se añadirán a «${esc(site.name)}», que ya tiene
+      ${branchesOf(site).length} pozo(s).</p>` : `
+      <div class="cfg-card">
+        <div class="cfg-row">
+          <input type="text" class="cfg-icono" id="prop-icon" value="${esc(y.icon)}" maxlength="4">
+          <input type="text" id="prop-name" value="${esc(y.name)}">
+        </div>
+        <div class="cfg-row">
+          <label>Materia <input type="text" id="prop-subject" value="${esc(y.subject)}"></label>
+        </div>
+        <textarea id="prop-desc" rows="2">${esc(y.desc)}</textarea>
+      </div>`}
+
+    <div class="cfg-list">
+      ${y.pozos.map((b, i) => `
+        <div class="cfg-card">
+          <div class="cfg-row">
+            <input type="text" class="cfg-icono prop-b-icon" data-i="${i}" value="${esc(b.icon)}" maxlength="4">
+            <input type="text" class="prop-b-name" data-i="${i}" value="${esc(b.name)}">
+            <button class="cfg-del" data-propdel="${i}" title="Quitar este pozo">🗑️</button>
+          </div>
+          <textarea class="prop-b-desc" data-i="${i}" rows="2">${esc(b.desc)}</textarea>
+          <p class="cfg-hint prop-contenido">📗 ${esc(b.contenido)}</p>
+          <div class="cfg-row cfg-grades-row">
+            <span class="cfg-label">Cursos:</span>
+            ${GRADES.map(g => `<label class="grade-chip${b.grades.includes(g.n) ? ' on' : ''}">
+              <input type="checkbox" class="prop-b-grade" data-i="${i}" data-g="${g.n}"
+                ${b.grades.includes(g.n) ? 'checked' : ''}>${g.label}</label>`).join('')}
+          </div>
+        </div>`).join('') || '<p class="cfg-hint">Los has quitado todos.</p>'}
+    </div>
+
+    <div class="cfg-acciones">
+      <button class="btn btn-primary btn-small" id="prop-ok"${y.pozos.length ? '' : ' disabled'}>
+        ✅ ${site ? `Añadir ${y.pozos.length} pozo(s)` : 'Crear el yacimiento'}</button>
+      <button class="btn btn-secondary btn-small" id="prop-otra">🔄 Otra propuesta</button>
+      <button class="btn btn-quit" id="prop-no">Descartar</button>
+    </div>
+    ${a.usados ? `<p class="cfg-hint">Ha costado ${a.usados.entrada + a.usados.cacheados}
+      tokens de entrada y ${a.usados.salida} de salida.</p>` : ''}`;
+
+  $('#asis-atras').addEventListener('click', () => { a.propuesta = null; renderTeacherConfig(); });
+  $('#prop-no').addEventListener('click', () => { cfgAsistente = null; renderTeacherConfig(); });
+  $('#prop-otra').addEventListener('click', () => { a.propuesta = null; renderTeacherConfig(); });
+
+  const bind = (sel, fn) => { const el = $(sel); if (el) onInput(el, fn); };
+  bind('#prop-icon', e => { y.icon = e.target.value || '🏛️'; });
+  bind('#prop-name', e => { y.name = e.target.value; });
+  bind('#prop-subject', e => { y.subject = e.target.value; });
+  bind('#prop-desc', e => { y.desc = e.target.value; });
+  $$('.prop-b-icon').forEach(el => onInput(el, e => { y.pozos[+e.target.dataset.i].icon = e.target.value || '⛏️'; }));
+  $$('.prop-b-name').forEach(el => onInput(el, e => { y.pozos[+e.target.dataset.i].name = e.target.value; }));
+  $$('.prop-b-desc').forEach(el => onInput(el, e => { y.pozos[+e.target.dataset.i].desc = e.target.value; }));
+  $$('.prop-b-grade').forEach(el => el.addEventListener('change', e => {
+    const b = y.pozos[+e.target.dataset.i], g = +e.target.dataset.g;
+    b.grades = e.target.checked
+      ? Array.from(new Set(b.grades.concat([g]))).sort((x, z) => x - z)
+      : b.grades.filter(x => x !== g);
+    renderTeacherConfig();
+  }));
+  $$('[data-propdel]').forEach(el => el.addEventListener('click', () => {
+    y.pozos.splice(+el.dataset.propdel, 1);
+    renderTeacherConfig();
+  }));
+
+  $('#prop-ok').addEventListener('click', () => {
+    const l = sitesCopy();
+    /* Sin cursos no lo vería nadie: se le dan todos los que se pidieron, que
+       es lo que el docente tenía en mente al pedir la propuesta. */
+    const nuevos = y.pozos.filter(b => (b.name || '').trim()).map(b => ({
+      id: slugify(b.name, 'branch'),
+      name: b.name.trim(),
+      icon: b.icon || '⛏️',
+      desc: b.desc || '',
+      contenido: b.contenido || '',
+      grades: b.grades.length ? b.grades.slice() : a.cursos.slice(),
+      enabled: true,
+      source: 'docente',
+      bank: {}
+    }));
+    if (!nuevos.length) return;
+    if (site) {
+      const dest = l.find(s => s.id === site.id);
+      if (!dest) { cfgAsistente = null; return renderTeacherConfig(); }
+      dest.branches = (dest.branches || []).concat(nuevos);
+      cfgOpenSite = dest.id;
+      cfgAsistente = null;
+      writeSites(l, `${nuevos.length} pozo(s) añadidos ✓ Escríbeles retos y aparecerán`);
+    } else {
+      const id = slugify(y.name, 'site');
+      l.push({ id, name: y.name.trim() || 'Yacimiento nuevo', subject: y.subject || '',
+               icon: y.icon || '🏛️', desc: y.desc || '', enabled: true, branches: nuevos });
+      cfgOpenSite = id;
+      cfgAsistente = null;
+      writeSites(l, 'Yacimiento creado ✓ Ahora escríbele retos a sus pozos');
+    }
+  });
+}
+
 function cfgYacimientos(body) {
   if (cfgEditBranch) return cfgBancoRetos(body);
+  if (cfgAsistente) return cfgAsistenteYacimiento(body);
 
   const sites = ATLAS_CONFIG.sites || [];
+  /* La asistente solo se ofrece si puede funcionar: sin función de Appwrite o
+     sin clave, el botón llevaría a un error en vez de a una propuesta. */
+  const nubeIA = cloudConfigured() && cloudEnabled()
+    && !!(ATLAS_CONFIG.appwrite.generadorFunctionId || '').trim()
+    && !!(ATLAS_CONFIG.iaClave || '').trim();
   body.innerHTML = `
     <p class="cfg-intro">Puedes crear <strong>yacimientos</strong> nuevos (Lengua, Naturales,
     Sociales…), añadirles <strong>pozos</strong> y escribir tú los retos de cada estrato.
@@ -940,7 +1286,18 @@ function cfgYacimientos(body) {
               <input type="checkbox" class="cfg-si-on" data-si="${si}"${site.enabled !== false ? ' checked' : ''}></label>
           </div>
           <textarea class="cfg-si-desc" data-si="${si}" rows="2" placeholder="Ambientación del yacimiento">${esc(site.desc || '')}</textarea>
-          <button class="cfg-toggle" data-open="${site.id}">${open ? '▾' : '▸'} ${branchesOf(site).length} pozo(s)</button>
+          ${(() => {
+            const avisos = revisarYacimiento(site);
+            if (!avisos.length) return '';
+            return `<details class="cfg-inspector"${open ? ' open' : ''}>
+              <summary>🔎 ${avisos.length} cosa(s) que revisar</summary>
+              <ul>${avisos.map(x => `<li><strong>${esc(x.que)}.</strong> ${esc(x.como)}</li>`).join('')}</ul>
+            </details>`;
+          })()}
+          <div class="cfg-acciones">
+            <button class="cfg-toggle" data-open="${site.id}">${open ? '▾' : '▸'} ${branchesOf(site).length} pozo(s)</button>
+            ${nubeIA ? `<button class="btn btn-secondary btn-small" data-asis="${site.id}">🤖 Completar con ayuda</button>` : ''}
+          </div>
           ${open ? `<div class="cfg-sublist">
             ${branchesOf(site).map((b, bi) => {
               const total = STRATA_ORDER.reduce((n, sId) => n + (((b.bank || {})[sId]) || []).length, 0);
@@ -984,7 +1341,13 @@ function cfgYacimientos(body) {
         </div>`;
       }).join('')}
     </div>
-    <button class="btn btn-secondary btn-small" id="cfg-add-site">➕ Nuevo yacimiento</button>`;
+    <div class="cfg-acciones">
+      <button class="btn btn-secondary btn-small" id="cfg-add-site">➕ Nuevo yacimiento</button>
+      ${nubeIA ? `<button class="btn btn-primary btn-small" id="cfg-asis-site">🤖 Crear uno con ayuda</button>` : ''}
+    </div>
+    ${nubeIA ? '' : `<p class="cfg-hint">Con Appwrite y tu clave de la API configurados en
+      «Retos con IA» aparece aquí un asistente que propone el yacimiento entero —ambientación y
+      pozos— a partir de tu currículo.</p>`}`;
 
   /* ── yacimientos ── */
   const wSite = (si, key, val) => { const l = sitesCopy(); l[si][key] = val; writeSites(l, false); };
@@ -1009,6 +1372,9 @@ function cfgYacimientos(body) {
     if (!l.length) { toast('No puedes quedarte sin ningún yacimiento.'); return; }
     writeSites(l, 'Yacimiento eliminado ✓');
   }));
+  const asisNuevo = $('#cfg-asis-site');
+  if (asisNuevo) asisNuevo.addEventListener('click', () => abrirAsistente(''));
+  $$('[data-asis]').forEach(el => el.addEventListener('click', () => abrirAsistente(el.dataset.asis)));
   $('#cfg-add-site').addEventListener('click', () => {
     const l = sitesCopy();
     const id = slugify('yacimiento', 'site');

@@ -316,6 +316,153 @@ function esquemaRetos() {
   };
 }
 
+/* ══════════ EL YACIMIENTO PROPUESTO ══════════
+
+   Crear un yacimiento es hoy un formulario en blanco: nombre, ambientación,
+   icono, y luego otro formulario por cada pozo con sus cursos. El docente
+   sabe perfectamente QUÉ quiere trabajar —lo tiene escrito en su currículo—
+   y lo que le cuesta es lo otro: inventarse ocho nombres de expedición y
+   repartir el temario en pozos que no se solapen.
+
+   Esto propone la ESTRUCTURA, nunca los retos. Es una diferencia importante:
+   un yacimiento propuesto no puede hacerle daño a nadie porque sin retos no
+   le aparece a ningún niño, así que se puede revisar con calma en pantalla
+   en vez de pasar por la cola de aprobación reto a reto. */
+function esquemaYacimiento() {
+  return {
+    type: 'object',
+    additionalProperties: false,
+    required: ['yacimiento'],
+    properties: {
+      yacimiento: {
+        type: 'object',
+        additionalProperties: false,
+        required: ['name', 'subject', 'icon', 'desc', 'pozos'],
+        properties: {
+          name: { type: 'string' },
+          subject: { type: 'string' },
+          icon: { type: 'string' },
+          desc: { type: 'string' },
+          pozos: {
+            type: 'array',
+            items: {
+              type: 'object',
+              additionalProperties: false,
+              required: ['name', 'icon', 'desc', 'grades', 'contenido'],
+              properties: {
+                name: { type: 'string' },
+                icon: { type: 'string' },
+                desc: { type: 'string' },
+                grades: { type: 'array', items: { type: 'integer' } },
+                /* Qué se trabaja ahí, en román paladino. No es adorno: es lo
+                   que el docente lee para decidir si el reparto le sirve, y
+                   lo que luego orienta la generación de retos de ese pozo. */
+                contenido: { type: 'string' }
+              }
+            }
+          }
+        }
+      }
+    }
+  };
+}
+
+function promptYacimiento(p) {
+  /* El generador de retos solo sabe de Matemáticas y Lengua, porque son las
+     que tienen validador. Un yacimiento, en cambio, se puede montar de
+     Naturales o de Sociales: aquí no se escribe ni un reto, así que basta con
+     saber cómo se llama la materia. */
+  const nombreMateria = String(p.materiaNombre || '').trim()
+    || (AREAS_IA[p.materia] || {}).nombre || 'Matemáticas';
+  const materia = { nombre: nombreMateria };
+  const cursos = (Array.isArray(p.cursos) && p.cursos.length ? p.cursos : [3, 4])
+    .map(Number).filter(n => n >= 1 && n <= 6).sort((a, b) => a - b);
+  const cuantos = Math.max(2, Math.min(10, Number(p.cuantos) || 5));
+  const ya = p.existente || null;
+
+  const sistema = [
+    'Diseñas yacimientos arqueológicos para «Expedición Atlas», una plataforma de',
+    'Primaria en español de España. La ficción es una expedición arqueológica: los',
+    'alumnos son exploradores, cada MATERIA es un yacimiento, y dentro de él cada',
+    'BLOQUE DE CONTENIDO es un «pozo» que se excava por estratos.',
+    '',
+    'Reglas que no se negocian:',
+    '1. Los pozos reparten el temario SIN SOLAPARSE. Dos pozos que trabajan lo mismo',
+    '   con otro nombre son un pozo mal partido, no dos pozos.',
+    '2. Cada pozo va de menos a más: los primeros, lo que se aprende antes.',
+    '3. `grades` son los cursos a los que le sirve ESE pozo, elegidos de entre los que',
+    '   se piden. Un pozo de iniciación no es para los mayores y uno avanzado no es',
+    '   para los pequeños: repartir bien esto es media propuesta.',
+    '4. El nombre es de expedición, evocador, pero un niño tiene que saber qué va a',
+    '   hacer ahí: «La Bóveda de los Números», no «El Enigma Ancestral».',
+    '5. `icon` es UN emoji, ninguna palabra.',
+    '6. `desc` son una o dos frases, en la ficción, dirigidas al niño.',
+    '7. `contenido` NO es ficción: dice al docente qué se trabaja ahí, con las palabras',
+    '   del currículo, para que decida de un vistazo si le sirve.',
+    '8. Nada de violencia, marcas comerciales ni nombres de personas reales. La',
+    '   arqueología de Atlas es de exploración y cuidado del hallazgo, no de saqueo.',
+    '',
+    `Currículo de ${materia.nombre} que hay que cubrir:`,
+    String(p.curriculo || '').trim() || '(no se ha dado: usa el currículo oficial de Primaria)'
+  ].join('\n');
+
+  const usuario = [
+    ya
+      ? `Ya existe el yacimiento «${ya.name}» (${ya.subject || materia.nombre}). AMPLÍALO.`
+      : `Propón un yacimiento de ${materia.nombre}.`,
+    `Cursos: ${cursos.map(c => c + '.º').join(', ')}.`,
+    ya && (ya.pozos || []).length
+      ? 'Pozos que YA tiene, y que NO debes repetir ni con otro nombre:\n' +
+        ya.pozos.map(b => `  · ${b.name} — ${b.contenido || b.desc || ''}` +
+          (b.grades && b.grades.length ? ` (${b.grades.join(', ')}.º)` : '')).join('\n') +
+        `\n\nPropón ${cuantos} pozos NUEVOS que cubran lo que falta del currículo. ` +
+        'Repite el nombre, la materia, el icono y la ambientación del yacimiento tal y como están.'
+      : `Propón ${cuantos} pozos que repartan ese currículo entero.`,
+    String(p.tema || '').trim()
+      ? `Lo que el docente pide además, y manda sobre lo anterior:\n${String(p.tema).trim()}`
+      : ''
+  ].filter(Boolean).join('\n\n');
+
+  return { sistema, usuario };
+}
+
+/* Lo que llega de la API no se mete en los ajustes tal cual: un icono de tres
+   emojis, un curso 9 o un pozo sin nombre pasarían al panel y de ahí al mapa
+   de un niño. Se limpia aquí, que es el sitio por el que pasa todo. */
+function limpiarYacimiento(y, cursosPedidos) {
+  const permitidos = (Array.isArray(cursosPedidos) && cursosPedidos.length
+    ? cursosPedidos : [1, 2, 3, 4, 5, 6]).map(Number);
+  const texto = (v, max) => String(v == null ? '' : v).trim().slice(0, max);
+  /* Un emoji puede ocupar varias unidades de código (familia, bandera, tono de
+     piel), así que se corta por caracteres de verdad, no por índices. */
+  const unEmoji = (v, porDefecto) => {
+    const t = texto(v, 16);
+    const trozos = Array.from(t);
+    return trozos.length ? trozos.slice(0, 3).join('') : porDefecto;
+  };
+  if (!y || typeof y !== 'object') return null;
+  const pozos = (Array.isArray(y.pozos) ? y.pozos : []).map(b => {
+    const grades = Array.from(new Set((Array.isArray(b.grades) ? b.grades : [])
+      .map(Number).filter(n => permitidos.includes(n)))).sort((a, c) => a - c);
+    return {
+      name: texto(b && b.name, 60),
+      icon: unEmoji(b && b.icon, '⛏️'),
+      desc: texto(b && b.desc, 300),
+      contenido: texto(b && b.contenido, 300),
+      /* Sin cursos válidos no lo vería nadie: se le dan todos los pedidos. */
+      grades: grades.length ? grades : permitidos.slice()
+    };
+  }).filter(b => b.name);
+  if (!pozos.length) return null;
+  return {
+    name: texto(y.name, 60) || 'Yacimiento nuevo',
+    subject: texto(y.subject, 40),
+    icon: unEmoji(y.icon, '🏛️'),
+    desc: texto(y.desc, 400),
+    pozos
+  };
+}
+
 /* ── La segunda pasada ──
    Se le da el reto ya escrito y se le pide que lo resuelva SIN ver cuál está
    marcada. Es lo que caza el fallo que más caro cuesta —la respuesta correcta
@@ -390,6 +537,9 @@ export {
   comprobarAritmetica,
   promptGenerador,
   esquemaRetos,
+  esquemaYacimiento,
+  promptYacimiento,
+  limpiarYacimiento,
   promptVerificacion,
   esquemaVerificacion,
   cruzarVerificacion

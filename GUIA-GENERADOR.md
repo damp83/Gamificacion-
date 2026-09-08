@@ -232,6 +232,44 @@ la segunda tanda sobre el mismo pozo sale distinta de la primera.
 
 ---
 
+## 9. La asistente de yacimientos
+
+La misma función atiende un tercer encargo, y este **no escribe retos**: propone
+la ESTRUCTURA de un yacimiento. Está en **Configuración → 🏛️ Yacimientos y
+pozos**, y aparece en cuanto hay función y clave puestas.
+
+- **🤖 Crear uno con ayuda** — el yacimiento entero: nombre, materia, icono,
+  ambientación y los pozos que reparten tu currículo, con sus cursos.
+- **🤖 Completar con ayuda**, dentro de un yacimiento — solo los pozos que
+  faltan, sin repetir los que ya tiene.
+
+Usa **el currículo que ya pegaste** en «Retos con IA», así que no hay que
+contarle nada dos veces. Si no lo hay para esa materia y esos cursos, te lo
+dice antes de gastar la llamada. Puedes pedirle algo a mano y eso manda sobre
+lo demás.
+
+**Es una sola llamada, unos veinte segundos.** Nada que ver con generar retos,
+que es una llamada por reto.
+
+La propuesta llega editable: corriges, quitas los pozos que no te sirvan y
+aceptas de una vez. Hasta ahí no se ha guardado nada. Al aceptar, los pozos se
+crean **vacíos**, y un pozo vacío no le aparece a ningún niño: por eso se puede
+aceptar sin miedo y escribir los retos con calma después.
+
+> Funciona también con Naturales o Sociales, que el generador de retos no
+> cubre: el yacimiento se monta igual y sus retos los escribes tú.
+
+### El inspector
+
+Debajo de cada yacimiento hay una línea plegada con **lo que hay que revisar**.
+No llama a la IA ni cuesta nada. Encuentra lo que falla en silencio: el pozo
+que no ve nadie por no tener retos en el primer estrato, los estratos vacíos,
+un pozo puesto para cursos que no tienes en clase, un pozo donde el 60 % de
+los retos son del mismo concepto, y dos pozos con el mismo nombre. Un
+yacimiento sano no dice nada.
+
+---
+
 ## Si algo no va
 
 | Lo que ves | Lo que pasa |
@@ -260,6 +298,7 @@ Para ver qué pasó de verdad: en Appwrite, la función → pestaña **Execution
 |---|---|
 | Una tanda de 10 retos | ~6 céntimos |
 | El banco de un curso entero (~1 600 retos) | ~9 €, una vez |
+| Una propuesta de yacimiento | Una sola llamada: menos que un reto |
 
 El currículo se cachea, así que la segunda tanda de la misma área cuesta menos
 que la primera. En el panel te sale el gasto en tokens de cada generación.

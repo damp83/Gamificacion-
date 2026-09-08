@@ -554,7 +554,7 @@ test('el esquema de salida no lleva nada que la API rechace', () => {
     }
   };
 
-  for (const nombre of ['esquemaRetos', 'esquemaVerificacion']) {
+  for (const nombre of ['esquemaRetos', 'esquemaVerificacion', 'esquemaYacimiento']) {
     const fallos = [];
     recorrer(c.ev(nombre)(), nombre, fallos);
     assert.deepEqual(fallos, [], `${nombre} lleva algo que la API no admite`);
@@ -596,7 +596,8 @@ test('la comprobación es otra llamada, y en tandas', () => {
   assert.match(cloud, /paso: 'verificar'/);
   assert.match(cloud, /i \+= 4/, 'se parte por si el docente pidió muchos');
   const main = leer('functions/generador/src/main.js');
-  assert.match(main, /const paso = p\.paso === 'verificar'/, 'la función atiende los dos encargos');
+  assert.match(main, /const paso = \['verificar', 'yacimiento'\]\.includes\(p\.paso\)/,
+    'la función reparte los encargos por «paso»');
 });
 
 test('la llamada se hace síncrona a propósito', () => {
@@ -664,10 +665,17 @@ test('los reintentos esperan cada vez más, y son pocos', () => {
   assert.match(cloud, /const ESPERAS = \[2000, 5000\]/);
 });
 
-test('las dos fases usan el reintento, no solo la de escribir', () => {
+test('nadie llama a la función saltándose el reintento', () => {
+  /* Escribir, comprobar y proponer un yacimiento pasan todas por el mismo
+     sitio. Contar cuántas son envejecía mal; lo que importa es que la llamada
+     cruda solo se haga desde dentro del reintento. */
   const cloud = leer('js/cloud.js');
-  const usos = (cloud.match(/await ejecutarConReintento\(/g) || []).length;
-  assert.equal(usos, 2, 'escribir y comprobar');
+  const i = cloud.indexOf('async function ejecutarConReintento');
+  const fin = cloud.indexOf('\n}\n', i);
+  const fuera = cloud.slice(0, i) + cloud.slice(fin);
+  assert.ok(!/await ejecutarGenerador\(/.test(fuera),
+    'hay una llamada directa a la función, sin reintento por corte de red');
+  assert.ok((cloud.match(/await ejecutarConReintento\(/g) || []).length >= 2);
 });
 
 test('la pantalla se mantiene encendida mientras genera', () => {

@@ -1624,6 +1624,24 @@ body.en-mision #main { padding-bottom: var(--s-5); }
 .cfg-body textarea { resize: vertical; line-height: 1.5; }
 .cfg-list { display: flex; flex-direction: column; gap: .5rem; }
 .cfg-acciones { display: flex; flex-wrap: wrap; gap: .5rem; margin-top: var(--s-3); }
+
+/* El inspector del yacimiento: cerrado ocupa una línea, y esa línea ya dice
+   cuántas cosas hay que mirar. */
+.cfg-inspector {
+  border: var(--line); border-left: 4px solid var(--brass);
+  border-radius: var(--r-md); background: var(--surface);
+  padding: .5rem .8rem; margin-top: var(--s-3); font-size: var(--t-sm);
+}
+.cfg-inspector summary { cursor: pointer; font-weight: 700; }
+.cfg-inspector ul { margin: .5rem 0 0; padding-left: 1.1rem; }
+.cfg-inspector li { margin-bottom: .35rem; line-height: 1.45; }
+
+/* Lo que la asistente va a usar, dicho antes de gastar la llamada */
+.cfg-nota-curriculo {
+  border: var(--line); border-radius: var(--r-md); background: var(--surface);
+  padding: .6rem .9rem; margin: var(--s-4) 0; font-size: var(--t-sm); line-height: 1.5;
+}
+.prop-contenido { margin: .35rem 0; }
 .cfg-card {
   background: var(--surface); border-radius: var(--r-lg); box-shadow: var(--e-1);
   border: var(--line);
