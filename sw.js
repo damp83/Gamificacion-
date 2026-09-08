@@ -1,5 +1,5 @@
 /* Expedición Atlas — service worker: caché de la app shell para uso sin conexión */
-const CACHE = 'atlas-shell-v52';
+const CACHE = 'atlas-shell-v53';
 const ASSETS = [
   './',
   './index.html',
@@ -18,6 +18,9 @@ const ASSETS = [
   './js/teacher.js',
   './js/app.js',
   './icons/icon.svg',
+  /* Los retratos de los roles: el niño los ve en su pantalla de Cuadrilla y
+     el docente en la lista de clase, red o no. */
+  './img/roles/maya.png',
   /* Las tipografías forman parte de la app shell: sin ellas, en un aula sin
      red la plataforma se vería con la fuente del sistema. */
   './fonts/nunito-latin.woff2',

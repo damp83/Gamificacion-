@@ -1028,10 +1028,26 @@ El alumno ve el suyo destacado al abrir **Tu Cuadrilla**, y el de cada compañer
 junto a su nombre. La lista de **Dirigir la clase** también muestra el personaje
 de cada uno, así que el docente sabe a quién pedirle qué sin abrir el panel.
 
-> **Ilustraciones.** Cada rol se pinta hoy con su emoji. En cuanto haya dibujos,
-> se dejan en `img/roles/` y se escribe la ruta en el campo `img` de
-> `ROLES_CUADRILLA` (`js/content.js`): la app pasa sola de emoji a `<img>`
-> —`avatarDeRol()` decide— sin tocar ninguna pantalla.
+#### Los retratos
+
+**Maya ya tiene el suyo** (`img/roles/maya.png`); los demás se pintan con su
+emoji hasta que lleguen sus dibujos. Para añadir uno:
+
+1. Se recorta **cuadrado**, centrado en la cara y en lo que identifica al
+   personaje —a Maya se le deja la lupa—, con el **fondo transparente**: el
+   retrato se ve sobre pergamino, y un rectángulo blanco cantaría.
+2. Se guarda como **PNG de 400×400** en `img/roles/`, por debajo de 120 KB.
+   Se ve como máximo a 5,5 rem, así que 400 px sobran incluso en pantallas
+   retina, y seis retratos pesados son media app.
+3. Se escribe la ruta en el campo `img` de `ROLES_CUADRILLA` (`js/content.js`)
+   y se añade el archivo a `ASSETS` en `sw.js` — sin eso no se vería en un aula
+   sin red.
+
+No hay que tocar ninguna pantalla: `avatarDeRol()` (`js/ui.js`) es el único
+sitio donde se pinta un rol y pasa solo de emoji a `<img>`. La versión de un
+solo archivo (`tools/build-standalone.py`) incrusta los retratos que encuentre
+en la carpeta, así que tampoco hay que tocarla. Tres pruebas vigilan lo que
+falla en silencio: que la ruta exista, que esté cacheada y que no pese de más.
 
 ## Estructura
 

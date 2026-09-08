@@ -1427,9 +1427,15 @@ body.en-mision #main { padding-bottom: var(--s-5); }
 
 /* Avatar de un rol: emoji mientras no haya ilustración, <img> en cuanto la haya */
 .rol-emoji { font-size: 1.5rem; line-height: 1; }
-.rol-img { width: 2.2rem; height: 2.2rem; border-radius: 50%; object-fit: cover; }
+/* Un retrato aguanta —y pide— más tamaño que un emoji: es un dibujo con cara,
+   y a 2 rem deja de reconocerse quién es. */
+.rol-img { width: 2.5rem; height: 2.5rem; border-radius: 50%; object-fit: cover; }
 .rol-emoji.rol-grande { font-size: 3rem; }
-.rol-img.rol-grande { width: 4.5rem; height: 4.5rem; }
+.rol-img.rol-grande {
+  width: 5.5rem; height: 5.5rem;
+  box-shadow: 0 0 0 3px var(--brass-tint), var(--e-1);
+}
+.aula-card-avatar .rol-img { width: 3.4rem; height: 3.4rem; }
 
 /* Reparto de roles en el panel del docente */
 .cfg-rol-fila {

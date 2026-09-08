@@ -1172,7 +1172,7 @@ const ROLES_CUADRILLA = [
     personaje: 'Leo, el Cartógrafo',
     rol: 'Coordinador · Guía de ruta',
     desc: 'Lee el objetivo, guía al equipo y recuerda en qué punto del mapa o del estrato están.' },
-  { id: 'descodificadora', icon: '🪲', img: '',
+  { id: 'descodificadora', icon: '🪲', img: 'img/roles/maya.png',
     personaje: 'Maya, la Descodificadora',
     rol: 'Investigadora de pistas · Portavoz',
     desc: 'Busca las respuestas ocultas, analiza los fallos con Kira y comunica la respuesta final.' },

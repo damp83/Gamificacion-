@@ -232,3 +232,41 @@ test('rotar pregunta antes: cambia el reparto de toda la clase', () => {
   const i = t.indexOf("cfg-rotar-roles'");
   assert.match(t.slice(i, i + 500), /await askConfirm\(/);
 });
+
+/* ── Los retratos ── */
+
+test('cada retrato del catálogo existe en el disco', () => {
+  /* Una ruta mal escrita no da error en ningún sitio: el niño ve el hueco de
+     una imagen rota donde debería estar su personaje. */
+  const c = cargarApp();
+  for (const r of c.ev('ROLES_CUADRILLA')) {
+    if (!r.img) continue;
+    assert.ok(fs.existsSync(path.join(__dirname, '..', r.img)), `${r.id} apunta a ${r.img}, que no está`);
+  }
+});
+
+test('los retratos van en la app shell, o no se ven sin red', () => {
+  /* La Cuadrilla se abre en clase, y en un aula la red falla. */
+  const c = cargarApp();
+  const sw = leer('sw.js');
+  for (const r of c.ev('ROLES_CUADRILLA')) {
+    if (!r.img) continue;
+    assert.ok(sw.includes(`'./${r.img}'`), `${r.img} no está en ASSETS del service worker`);
+  }
+});
+
+test('ningún retrato pesa tanto que estorbe en una tablet', () => {
+  const c = cargarApp();
+  for (const r of c.ev('ROLES_CUADRILLA')) {
+    if (!r.img) continue;
+    const kb = fs.statSync(path.join(__dirname, '..', r.img)).size / 1024;
+    assert.ok(kb < 120, `${r.img} pesa ${Math.round(kb)} KB; con seis roles eso es media app`);
+  }
+});
+
+test('la versión de un solo archivo se lleva los retratos dentro', () => {
+  /* Un HTML suelto no tiene carpeta img/ al lado. */
+  const b = leer('tools/build-standalone.py');
+  assert.match(b, /RAIZ \/ 'img' \/ 'roles'/);
+  assert.match(b, /data:image\/png;base64,/);
+});
