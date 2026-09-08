@@ -86,6 +86,7 @@ Cubren lo que ya se ha roto alguna vez, que es de donde salieron:
 | `generador.test.js` | Que un reto escrito por IA con la cuenta mal marcada no llegue nunca a un niño |
 | `alta.test.js` | Que el panel no intente crear el diario del alumno —Appwrite no lo permite— y que vincularlo le ponga su clase y su docente |
 | `asistente-yacimientos.test.js` | Que la asistente proponga estructura y **nunca retos**, que lo que vuelve se limpie antes de tocar los ajustes, y que el inspector avise de lo que falla en silencio sin acusar a un yacimiento sano |
+| `pozo-tema.test.js` | Que los retos generados vayan de lo que dice el pozo, y que los ocho pozos de fábrica lo digan |
 | `identidad.test.js` | Que dos alumnas con el mismo nombre en cursos distintos no compartan diario, y que los diarios viejos se muden sin perderse |
 | `bolsa.test.js` | Que comprar o donar por un alumno salga de su bolsa, no toque sus PE, y vuelva a su documento |
 | `feedback.test.js` | Que el aviso de acierto/fallo no llegue a una misión que ya terminó |

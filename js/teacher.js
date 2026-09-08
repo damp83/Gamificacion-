@@ -1308,7 +1308,13 @@ function cfgYacimientos(body) {
                   <input type="text" class="cfg-b2-name" data-si="${si}" data-bi="${bi}" value="${esc(b.name)}">
                   <button class="cfg-del" data-delbranch="${si}:${bi}" title="Eliminar pozo">🗑️</button>
                 </div>
-                <textarea class="cfg-b2-desc" data-si="${si}" data-bi="${bi}" rows="2">${esc(b.desc || '')}</textarea>
+                <textarea class="cfg-b2-desc" data-si="${si}" data-bi="${bi}" rows="2"
+                  placeholder="Ambientación: lo que lee el niño">${esc(b.desc || '')}</textarea>
+                <label class="cfg-label">Qué se trabaja aquí</label>
+                <textarea class="cfg-b2-cont" data-si="${si}" data-bi="${bi}" rows="2"
+                  placeholder="Fracciones: leerlas, comparar, equivalentes…">${esc(b.contenido || '')}</textarea>
+                <small class="cfg-hint">Para ti y para la IA, no para el niño. Es lo que hace que
+                  los retos generados vayan de ESTO y no de cualquier cosa del currículo.</small>
                 <div class="cfg-row cfg-grades-row">
                   <span class="cfg-label">Cursos:</span>
                   ${GRADES.map(g => `<label class="grade-chip${(!b.grades || b.grades.includes(g.n)) ? ' on' : ''}">
@@ -1392,6 +1398,7 @@ function cfgYacimientos(body) {
   $$('.cfg-b2-icon').forEach(el => onInput(el, e => wBranch(+e.target.dataset.si, +e.target.dataset.bi, 'icon', e.target.value || '⛏️')));
   $$('.cfg-b2-name').forEach(el => onInput(el, e => wBranch(+e.target.dataset.si, +e.target.dataset.bi, 'name', e.target.value || 'Pozo')));
   $$('.cfg-b2-desc').forEach(el => onInput(el, e => wBranch(+e.target.dataset.si, +e.target.dataset.bi, 'desc', e.target.value)));
+  $$('.cfg-b2-cont').forEach(el => onInput(el, e => wBranch(+e.target.dataset.si, +e.target.dataset.bi, 'contenido', e.target.value)));
   $$('.cfg-b2-grade').forEach(el => el.addEventListener('change', e => {
     const si = +e.target.dataset.si, bi = +e.target.dataset.bi, g = +e.target.dataset.g;
     const l = sitesCopy();
@@ -1975,6 +1982,22 @@ function iaHayParaTodos(materia) {
 /* Los pozos donde se puede meter un reto: los del docente y los de fábrica. */
 /* Los conceptos que ya tiene escritos un pozo en un estrato: los del banco
    más los que esperan en la cola. La cola cuenta porque se va a aprobar. */
+/* De qué va un pozo, dicho para el generador: su nombre, lo que se trabaja
+   dentro y su ambientación. `contenido` lo escriben la asistente de
+   yacimientos y los pozos de fábrica; en uno hecho a mano puede no estar, y
+   entonces queda la ambientación, que dice de qué va mejor que nada. */
+function temaDelPozo(siteId, branchId) {
+  const site = (ATLAS_CONFIG.sites || []).find(s => s.id === siteId);
+  const br = site && (site.branches || []).find(b => b.id === branchId);
+  if (!br) return null;
+  return {
+    name: br.name || '',
+    contenido: br.contenido || '',
+    desc: br.desc || '',
+    yacimiento: (site && site.name) || ''
+  };
+}
+
 function conceptosDelPozo(siteId, branchId, estrato) {
   const fuera = new Set();
   const site = (ATLAS_CONFIG.sites || []).find(s => s.id === siteId);
@@ -2127,7 +2150,17 @@ function cfgIA(body) {
     ${field('Pozo de destino', `<select id="ia-pozo">${
       pozos.map((p, i) => `<option value="${esc(p.id)}"${
         (ATLAS_CONFIG.iaPozo || (pozos[0] || {}).id) === p.id ? ' selected' : ''}>${esc(p.name)}</option>`).join('')
-    }</select>`)}
+    }</select>`, (() => {
+      /* Lo que el generador va a leer para escribir los retos, dicho aquí
+         antes de gastar la tanda: si el pozo no dice de qué va, salen de
+         cualquier cosa del currículo del curso. */
+      const elegido = String(ATLAS_CONFIG.iaPozo || (pozos[0] || {}).id || '').split('/');
+      const tema = temaDelPozo(elegido[0], elegido[1]);
+      if (!tema) return '';
+      if (tema.contenido) return `📗 Se generarán retos de: ${esc(tema.contenido)}`;
+      return '⚠️ Este pozo no dice qué se trabaja en él, así que los retos saldrán de todo el '
+           + 'currículo del curso. Escríbelo en «Qué se trabaja aquí», en la ficha del pozo.';
+    })())}
     ${field('Estrato', `<select id="ia-estrato">${
       STRATA_ORDER.map(sId => `<option value="${sId}"${(ATLAS_CONFIG.iaEstrato || 'recordar') === sId ? ' selected' : ''}>${
         esc(STRATA_META[sId].icon)} ${esc(STRATA_META[sId].label)}</option>`).join('')
@@ -2322,9 +2355,13 @@ function cfgIA(body) {
        el pozo entero, no la tanda de hoy. */
     const yaEnElPozo = conceptosDelPozo(pozo[0], pozo[1], estrato);
 
+    /* De qué va el pozo al que van estos retos. Sin esto el modelo elegía
+       concepto de todo el catálogo de la materia: se pedían diez para «La
+       Balanza del Mercader» y salían de numeración, bien escritos y en el
+       sitio equivocado, y el docente los movía uno a uno. */
     const r = await cloudGenerarRetos(
       { materia, curso, estrato, n: cuantos, curriculo: iaCurriculo(materia, curso),
-        conceptosYaEnElPozo: yaEnElPozo },
+        conceptosYaEnElPozo: yaEnElPozo, pozo: temaDelPozo(pozo[0], pozo[1]) },
       (hechos, total, fase) => {
         iaProgreso = fase === 'comprobando' ? 'Comprobando las respuestas…'
           : fase === 'escribiendo' ? `Escribiendo el ${hechos + 1} de ${total}…`

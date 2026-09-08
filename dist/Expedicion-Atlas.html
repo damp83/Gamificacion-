@@ -4748,19 +4748,24 @@ function defaultSites() {
     branches: [
       { id: 'sendero', name: 'El Sendero de las Huellas', icon: '🐾', source: 'builtin', enabled: true,
         grades: [1, 2],
-        desc: 'Contar, seguir huellas y repartir gemas. El primer camino de todo explorador.' },
+        desc: 'Contar, seguir huellas y repartir gemas. El primer camino de todo explorador.',
+        contenido: 'Contar hasta 99, series, comparar cantidades, sumas y restas sencillas sin llevar.' },
       { id: 'numeracion', name: 'La Bóveda de los Números', icon: '🔢', source: 'builtin', enabled: true,
         grades: [1, 2, 3, 4, 5, 6],
-        desc: 'Una cámara llena de cerraduras numéricas. Domina los números para abrirlas todas.' },
+        desc: 'Una cámara llena de cerraduras numéricas. Domina los números para abrirlas todas.',
+        contenido: 'Numeración: valor posicional, leer y escribir números, ordenar y comparar, descomponer.' },
       { id: 'sumas_llevando', name: 'El Reloj de Engranajes', icon: '⚙️', source: 'builtin', enabled: true,
         grades: [1, 2, 3, 4, 5, 6],
-        desc: 'Un reloj gigante que solo gira con cuentas exactas. ¡Cuidado con las llevadas!' },
+        desc: 'Un reloj gigante que solo gira con cuentas exactas. ¡Cuidado con las llevadas!',
+        contenido: 'Cálculo: sumas y restas con llevadas, multiplicación, división y problemas de operaciones.' },
       { id: 'fracciones', name: 'La Balanza del Mercader', icon: '⚖️', source: 'builtin', enabled: true,
         grades: [3, 4, 5, 6],
-        desc: 'Repartos, raciones y vasijas partidas. Aquí el tesoro se divide en partes iguales.' },
+        desc: 'Repartos, raciones y vasijas partidas. Aquí el tesoro se divide en partes iguales.',
+        contenido: 'Fracciones: leerlas, representarlas, comparar, equivalentes y fracción de una cantidad.' },
       { id: 'decimales', name: 'La Cámara Decimal', icon: '🔬', source: 'builtin', enabled: true,
         grades: [5, 6],
-        desc: 'Comas, porcentajes y medidas precisas. La cámara más profunda de Kaldros.' }
+        desc: 'Comas, porcentajes y medidas precisas. La cámara más profunda de Kaldros.',
+        contenido: 'Decimales y porcentajes: valor posicional con coma, operar con decimales, medidas y equivalencias.' }
     ]
   }, {
     id: 'biblioteca',
@@ -4772,13 +4777,16 @@ function defaultSites() {
     branches: [
       { id: 'vocabulario', name: 'El Escriba de Arena', icon: '🖋️', source: 'builtin', enabled: true,
         grades: [1, 2, 3, 4, 5, 6],
-        desc: 'Sinónimos, contrarios, familias de palabras y clases de palabras.' },
+        desc: 'Sinónimos, contrarios, familias de palabras y clases de palabras.',
+        contenido: 'Vocabulario: sinónimos y antónimos, familias léxicas, campo semántico y clases de palabras.' },
       { id: 'ortografia', name: 'Las Tablillas Rotas', icon: '🪨', source: 'builtin', enabled: true,
         grades: [1, 2, 3, 4, 5, 6],
-        desc: 'Copias mal escritas de un mismo texto. Encuentra la buena y sabrás por qué.' },
+        desc: 'Copias mal escritas de un mismo texto. Encuentra la buena y sabrás por qué.',
+        contenido: 'Ortografía: reglas de escritura, acentuación, signos de puntuación y palabras que se confunden.' },
       { id: 'comprension', name: 'El Papiro de Ossian', icon: '📖', source: 'builtin', enabled: true,
         grades: [1, 2, 3, 4, 5, 6],
-        desc: 'Textos del diario perdido: qué dicen, qué insinúan y qué callan.' }
+        desc: 'Textos del diario perdido: qué dicen, qué insinúan y qué callan.',
+        contenido: 'Comprensión lectora: idea principal, detalles, inferencias y sentido de una palabra en su texto.' }
     ]
   }, {
     /* ── Taller de Cartografía (Bloom 5-6) ──
@@ -5219,6 +5227,10 @@ function promptGenerador(p) {
     '   trabajados, elige OTRO —siempre que el curso y el currículo lo permitan—. Si de',
     '   verdad no dan para otro, repite concepto pero cambia el enfoque: de calcular a',
     '   encontrar el error, de un número a un problema con contexto.',
+    '8. El reto va a UN POZO CONCRETO, y el pozo tiene un tema. Si se te dice cuál, el',
+    '   reto tiene que ser DE ESO: un reto de fracciones en «La Bóveda de los Números»',
+    '   está bien escrito y mal puesto, y el docente tiene que moverlo a mano. Manda el',
+    '   tema del pozo sobre la variedad: dentro de ese tema, varía todo lo que puedas.',
     '',
     'El concepto (`skill`) se elige de esta lista y de ninguna otra:',
     conceptos,
@@ -5227,9 +5239,28 @@ function promptGenerador(p) {
     'Si el currículo que se te da no cubre lo que ibas a preguntar, no lo preguntes.'
   ].join('\n');
 
+  /* ── A qué pozo van ──
+     Sin esto el modelo elegía concepto de todo el catálogo de la materia: se
+     pedían diez retos para «La Balanza del Mercader» y salían de numeración,
+     correctos y en el sitio equivocado. El docente los movía uno a uno. */
+  const pozo = p.pozo || null;
+  const temaDelPozo = pozo
+    ? [pozo.name, pozo.contenido || '', pozo.desc || ''].filter(x => String(x).trim())
+    : [];
+
   const usuario = [
     `Materia: ${materia.nombre}. Curso: ${curso}.º de Primaria.`,
     `Nivel cognitivo: ${estrato.label}${estrato.name ? ' (' + estrato.name + ')' : ''}.`,
+    temaDelPozo.length
+      ? `Pozo al que va: «${textoLimpio(temaDelPozo[0], 80)}»` +
+        (pozo.yacimiento ? `, del yacimiento «${textoLimpio(pozo.yacimiento, 80)}»` : '') + '.\n' +
+        (pozo.contenido
+          ? `Lo que se trabaja en ese pozo, y de lo que tiene que ir el reto:\n  ${textoLimpio(pozo.contenido, 400)}`
+          /* Sin contenido escrito queda la ambientación, que es ficción para
+             el niño pero dice de qué va el pozo mejor que nada. */
+          : `Ese pozo se presenta así a los niños: «${textoLimpio(pozo.desc || '', 300)}». El reto ` +
+            'tiene que encajar con eso.')
+      : '',
     p.concepto ? `Concepto pedido: ${p.concepto} — ${(CONCEPTOS[p.concepto] || {}).label || ''}.` : '',
     p.foco ? `Interesa especialmente porque la clase falla en: ${p.foco}.` : '',
     '',
@@ -5528,7 +5559,7 @@ function cruzarVerificacion(retos, respuestas) {
    copia guardada. Sin este número, «ya está arreglado» y «a mí no me pasa» son
    indistinguibles. Va junto al nombre de la caché del service worker, y una
    prueba comprueba que no se separen. */
-const ATLAS_VERSION = 'v57';
+const ATLAS_VERSION = 'v58';
 
 const ATLAS_DEFAULTS = {
 
@@ -14041,7 +14072,13 @@ function cfgYacimientos(body) {
                   <input type="text" class="cfg-b2-name" data-si="${si}" data-bi="${bi}" value="${esc(b.name)}">
                   <button class="cfg-del" data-delbranch="${si}:${bi}" title="Eliminar pozo">🗑️</button>
                 </div>
-                <textarea class="cfg-b2-desc" data-si="${si}" data-bi="${bi}" rows="2">${esc(b.desc || '')}</textarea>
+                <textarea class="cfg-b2-desc" data-si="${si}" data-bi="${bi}" rows="2"
+                  placeholder="Ambientación: lo que lee el niño">${esc(b.desc || '')}</textarea>
+                <label class="cfg-label">Qué se trabaja aquí</label>
+                <textarea class="cfg-b2-cont" data-si="${si}" data-bi="${bi}" rows="2"
+                  placeholder="Fracciones: leerlas, comparar, equivalentes…">${esc(b.contenido || '')}</textarea>
+                <small class="cfg-hint">Para ti y para la IA, no para el niño. Es lo que hace que
+                  los retos generados vayan de ESTO y no de cualquier cosa del currículo.</small>
                 <div class="cfg-row cfg-grades-row">
                   <span class="cfg-label">Cursos:</span>
                   ${GRADES.map(g => `<label class="grade-chip${(!b.grades || b.grades.includes(g.n)) ? ' on' : ''}">
@@ -14125,6 +14162,7 @@ function cfgYacimientos(body) {
   $$('.cfg-b2-icon').forEach(el => onInput(el, e => wBranch(+e.target.dataset.si, +e.target.dataset.bi, 'icon', e.target.value || '⛏️')));
   $$('.cfg-b2-name').forEach(el => onInput(el, e => wBranch(+e.target.dataset.si, +e.target.dataset.bi, 'name', e.target.value || 'Pozo')));
   $$('.cfg-b2-desc').forEach(el => onInput(el, e => wBranch(+e.target.dataset.si, +e.target.dataset.bi, 'desc', e.target.value)));
+  $$('.cfg-b2-cont').forEach(el => onInput(el, e => wBranch(+e.target.dataset.si, +e.target.dataset.bi, 'contenido', e.target.value)));
   $$('.cfg-b2-grade').forEach(el => el.addEventListener('change', e => {
     const si = +e.target.dataset.si, bi = +e.target.dataset.bi, g = +e.target.dataset.g;
     const l = sitesCopy();
@@ -14708,6 +14746,22 @@ function iaHayParaTodos(materia) {
 /* Los pozos donde se puede meter un reto: los del docente y los de fábrica. */
 /* Los conceptos que ya tiene escritos un pozo en un estrato: los del banco
    más los que esperan en la cola. La cola cuenta porque se va a aprobar. */
+/* De qué va un pozo, dicho para el generador: su nombre, lo que se trabaja
+   dentro y su ambientación. `contenido` lo escriben la asistente de
+   yacimientos y los pozos de fábrica; en uno hecho a mano puede no estar, y
+   entonces queda la ambientación, que dice de qué va mejor que nada. */
+function temaDelPozo(siteId, branchId) {
+  const site = (ATLAS_CONFIG.sites || []).find(s => s.id === siteId);
+  const br = site && (site.branches || []).find(b => b.id === branchId);
+  if (!br) return null;
+  return {
+    name: br.name || '',
+    contenido: br.contenido || '',
+    desc: br.desc || '',
+    yacimiento: (site && site.name) || ''
+  };
+}
+
 function conceptosDelPozo(siteId, branchId, estrato) {
   const fuera = new Set();
   const site = (ATLAS_CONFIG.sites || []).find(s => s.id === siteId);
@@ -14860,7 +14914,17 @@ function cfgIA(body) {
     ${field('Pozo de destino', `<select id="ia-pozo">${
       pozos.map((p, i) => `<option value="${esc(p.id)}"${
         (ATLAS_CONFIG.iaPozo || (pozos[0] || {}).id) === p.id ? ' selected' : ''}>${esc(p.name)}</option>`).join('')
-    }</select>`)}
+    }</select>`, (() => {
+      /* Lo que el generador va a leer para escribir los retos, dicho aquí
+         antes de gastar la tanda: si el pozo no dice de qué va, salen de
+         cualquier cosa del currículo del curso. */
+      const elegido = String(ATLAS_CONFIG.iaPozo || (pozos[0] || {}).id || '').split('/');
+      const tema = temaDelPozo(elegido[0], elegido[1]);
+      if (!tema) return '';
+      if (tema.contenido) return `📗 Se generarán retos de: ${esc(tema.contenido)}`;
+      return '⚠️ Este pozo no dice qué se trabaja en él, así que los retos saldrán de todo el '
+           + 'currículo del curso. Escríbelo en «Qué se trabaja aquí», en la ficha del pozo.';
+    })())}
     ${field('Estrato', `<select id="ia-estrato">${
       STRATA_ORDER.map(sId => `<option value="${sId}"${(ATLAS_CONFIG.iaEstrato || 'recordar') === sId ? ' selected' : ''}>${
         esc(STRATA_META[sId].icon)} ${esc(STRATA_META[sId].label)}</option>`).join('')
@@ -15055,9 +15119,13 @@ function cfgIA(body) {
        el pozo entero, no la tanda de hoy. */
     const yaEnElPozo = conceptosDelPozo(pozo[0], pozo[1], estrato);
 
+    /* De qué va el pozo al que van estos retos. Sin esto el modelo elegía
+       concepto de todo el catálogo de la materia: se pedían diez para «La
+       Balanza del Mercader» y salían de numeración, bien escritos y en el
+       sitio equivocado, y el docente los movía uno a uno. */
     const r = await cloudGenerarRetos(
       { materia, curso, estrato, n: cuantos, curriculo: iaCurriculo(materia, curso),
-        conceptosYaEnElPozo: yaEnElPozo },
+        conceptosYaEnElPozo: yaEnElPozo, pozo: temaDelPozo(pozo[0], pozo[1]) },
       (hechos, total, fase) => {
         iaProgreso = fase === 'comprobando' ? 'Comprobando las respuestas…'
           : fase === 'escribiendo' ? `Escribiendo el ${hechos + 1} de ${total}…`

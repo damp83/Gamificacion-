@@ -1102,19 +1102,24 @@ function defaultSites() {
     branches: [
       { id: 'sendero', name: 'El Sendero de las Huellas', icon: '🐾', source: 'builtin', enabled: true,
         grades: [1, 2],
-        desc: 'Contar, seguir huellas y repartir gemas. El primer camino de todo explorador.' },
+        desc: 'Contar, seguir huellas y repartir gemas. El primer camino de todo explorador.',
+        contenido: 'Contar hasta 99, series, comparar cantidades, sumas y restas sencillas sin llevar.' },
       { id: 'numeracion', name: 'La Bóveda de los Números', icon: '🔢', source: 'builtin', enabled: true,
         grades: [1, 2, 3, 4, 5, 6],
-        desc: 'Una cámara llena de cerraduras numéricas. Domina los números para abrirlas todas.' },
+        desc: 'Una cámara llena de cerraduras numéricas. Domina los números para abrirlas todas.',
+        contenido: 'Numeración: valor posicional, leer y escribir números, ordenar y comparar, descomponer.' },
       { id: 'sumas_llevando', name: 'El Reloj de Engranajes', icon: '⚙️', source: 'builtin', enabled: true,
         grades: [1, 2, 3, 4, 5, 6],
-        desc: 'Un reloj gigante que solo gira con cuentas exactas. ¡Cuidado con las llevadas!' },
+        desc: 'Un reloj gigante que solo gira con cuentas exactas. ¡Cuidado con las llevadas!',
+        contenido: 'Cálculo: sumas y restas con llevadas, multiplicación, división y problemas de operaciones.' },
       { id: 'fracciones', name: 'La Balanza del Mercader', icon: '⚖️', source: 'builtin', enabled: true,
         grades: [3, 4, 5, 6],
-        desc: 'Repartos, raciones y vasijas partidas. Aquí el tesoro se divide en partes iguales.' },
+        desc: 'Repartos, raciones y vasijas partidas. Aquí el tesoro se divide en partes iguales.',
+        contenido: 'Fracciones: leerlas, representarlas, comparar, equivalentes y fracción de una cantidad.' },
       { id: 'decimales', name: 'La Cámara Decimal', icon: '🔬', source: 'builtin', enabled: true,
         grades: [5, 6],
-        desc: 'Comas, porcentajes y medidas precisas. La cámara más profunda de Kaldros.' }
+        desc: 'Comas, porcentajes y medidas precisas. La cámara más profunda de Kaldros.',
+        contenido: 'Decimales y porcentajes: valor posicional con coma, operar con decimales, medidas y equivalencias.' }
     ]
   }, {
     id: 'biblioteca',
@@ -1126,13 +1131,16 @@ function defaultSites() {
     branches: [
       { id: 'vocabulario', name: 'El Escriba de Arena', icon: '🖋️', source: 'builtin', enabled: true,
         grades: [1, 2, 3, 4, 5, 6],
-        desc: 'Sinónimos, contrarios, familias de palabras y clases de palabras.' },
+        desc: 'Sinónimos, contrarios, familias de palabras y clases de palabras.',
+        contenido: 'Vocabulario: sinónimos y antónimos, familias léxicas, campo semántico y clases de palabras.' },
       { id: 'ortografia', name: 'Las Tablillas Rotas', icon: '🪨', source: 'builtin', enabled: true,
         grades: [1, 2, 3, 4, 5, 6],
-        desc: 'Copias mal escritas de un mismo texto. Encuentra la buena y sabrás por qué.' },
+        desc: 'Copias mal escritas de un mismo texto. Encuentra la buena y sabrás por qué.',
+        contenido: 'Ortografía: reglas de escritura, acentuación, signos de puntuación y palabras que se confunden.' },
       { id: 'comprension', name: 'El Papiro de Ossian', icon: '📖', source: 'builtin', enabled: true,
         grades: [1, 2, 3, 4, 5, 6],
-        desc: 'Textos del diario perdido: qué dicen, qué insinúan y qué callan.' }
+        desc: 'Textos del diario perdido: qué dicen, qué insinúan y qué callan.',
+        contenido: 'Comprensión lectora: idea principal, detalles, inferencias y sentido de una palabra en su texto.' }
     ]
   }, {
     /* ── Taller de Cartografía (Bloom 5-6) ──

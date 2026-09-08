@@ -230,6 +230,25 @@ El generador ya sabe qué conceptos tiene ese pozo —del banco y de la cola— 
 se le pide que elija otros, sin salirse del curso ni del currículo. Por eso
 la segunda tanda sobre el mismo pozo sale distinta de la primera.
 
+### Los retos van de lo que dice el pozo
+
+Al elegir el pozo, debajo te sale **📗 Se generarán retos de: …**. Eso es lo que
+el generador va a leer, y sale del campo **«Qué se trabaja aquí»** de la ficha
+del pozo. Los ocho pozos de fábrica ya lo traen escrito; los que crea la
+asistente de yacimientos también.
+
+Si el pozo no lo tiene, el aviso te lo dice **antes de gastar la tanda**: sin
+esa línea, los retos salen de cualquier cosa del currículo del curso. Era lo
+que pasaba antes con todos: se pedían diez para «La Balanza del Mercader» y
+salían de numeración, bien escritos y en el sitio equivocado.
+
+> Es un campo para ti y para la IA, no para el niño; el niño lee la
+> ambientación. Escríbelo con las palabras del currículo —«Fracciones: leerlas,
+> comparar, equivalentes»— y no con la ficción.
+
+El tema del pozo **manda sobre la variedad**: dentro de él se sigue pidiendo
+que varíe el concepto, pero no se sale.
+
 ---
 
 ## 9. La asistente de yacimientos

@@ -232,6 +232,10 @@ function promptGenerador(p) {
     '   trabajados, elige OTRO —siempre que el curso y el currículo lo permitan—. Si de',
     '   verdad no dan para otro, repite concepto pero cambia el enfoque: de calcular a',
     '   encontrar el error, de un número a un problema con contexto.',
+    '8. El reto va a UN POZO CONCRETO, y el pozo tiene un tema. Si se te dice cuál, el',
+    '   reto tiene que ser DE ESO: un reto de fracciones en «La Bóveda de los Números»',
+    '   está bien escrito y mal puesto, y el docente tiene que moverlo a mano. Manda el',
+    '   tema del pozo sobre la variedad: dentro de ese tema, varía todo lo que puedas.',
     '',
     'El concepto (`skill`) se elige de esta lista y de ninguna otra:',
     conceptos,
@@ -240,9 +244,28 @@ function promptGenerador(p) {
     'Si el currículo que se te da no cubre lo que ibas a preguntar, no lo preguntes.'
   ].join('\n');
 
+  /* ── A qué pozo van ──
+     Sin esto el modelo elegía concepto de todo el catálogo de la materia: se
+     pedían diez retos para «La Balanza del Mercader» y salían de numeración,
+     correctos y en el sitio equivocado. El docente los movía uno a uno. */
+  const pozo = p.pozo || null;
+  const temaDelPozo = pozo
+    ? [pozo.name, pozo.contenido || '', pozo.desc || ''].filter(x => String(x).trim())
+    : [];
+
   const usuario = [
     `Materia: ${materia.nombre}. Curso: ${curso}.º de Primaria.`,
     `Nivel cognitivo: ${estrato.label}${estrato.name ? ' (' + estrato.name + ')' : ''}.`,
+    temaDelPozo.length
+      ? `Pozo al que va: «${textoLimpio(temaDelPozo[0], 80)}»` +
+        (pozo.yacimiento ? `, del yacimiento «${textoLimpio(pozo.yacimiento, 80)}»` : '') + '.\n' +
+        (pozo.contenido
+          ? `Lo que se trabaja en ese pozo, y de lo que tiene que ir el reto:\n  ${textoLimpio(pozo.contenido, 400)}`
+          /* Sin contenido escrito queda la ambientación, que es ficción para
+             el niño pero dice de qué va el pozo mejor que nada. */
+          : `Ese pozo se presenta así a los niños: «${textoLimpio(pozo.desc || '', 300)}». El reto ` +
+            'tiene que encajar con eso.')
+      : '',
     p.concepto ? `Concepto pedido: ${p.concepto} — ${(CONCEPTOS[p.concepto] || {}).label || ''}.` : '',
     p.foco ? `Interesa especialmente porque la clase falla en: ${p.foco}.` : '',
     '',
