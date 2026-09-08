@@ -58,6 +58,9 @@ function cargarApp(ficheros) {
     setTimeout, clearTimeout, setInterval, clearInterval,
     navigator: { onLine: true },
     crypto: require('node:crypto').webcrypto,
+    /* Navegar entre pantallas sube la página arriba. En las pruebas no hay
+       nada que subir, pero sin esto la llamada revienta la prueba entera. */
+    scrollTo: () => {},
     Uint32Array,
     fetch: async () => { throw new Error('sin red en las pruebas'); }
   };

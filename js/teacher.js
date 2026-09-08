@@ -392,6 +392,9 @@ function cfgAlumnado(body) {
   /* Las fichas escritas a mano —o traídas de una copia antigua— llegan sin
      usuario o sin contraseña, y sin eso no hay cuenta que crear. */
   const incompletos = roster.filter(r => r.name && (!r.username || !r.password)).length;
+  /* Cuentas creadas antes de que el alta guardara el id: no se pueden vincular
+     directamente, hay que buscar su diario por el nombre. */
+  const huerfanos = roster.filter(r => r.account && !r.authId).length;
   /* Un nombre que aparece dos veces no es un error: son dos cursos. Pero hay
      que decirlo, o el docente cree que se ha colado una fila repetida. */
   const repes = new Set();
@@ -493,6 +496,8 @@ function cfgAlumnado(body) {
           🎒 Crear ${roster.length - conCuenta} cuenta(s)</button>
         ${porVincular ? `<button class="btn btn-secondary btn-small" id="ros-link">
           🔗 Vincular ${porVincular} diario(s) a esta clase</button>` : ''}
+        ${huerfanos ? `<button class="btn btn-secondary btn-small" id="ros-buscar">
+          🔍 Buscar el diario de ${huerfanos} alumno(s)</button>` : ''}
       </div>
       <p class="cfg-hint">El diario de cada niño <strong>nace cuando entra por primera vez</strong>,
       con permiso solo para él: es lo correcto y es lo único que Appwrite permite. «Vincular» le
@@ -653,6 +658,61 @@ function cfgAlumnado(body) {
      y sin docente: el panel no puede crearlo por él (ver cloudVincularDiario).
      Esto le pone la clase a los que ya existan; a los demás dice que todavía
      no han entrado, que es información útil por sí sola. */
+  /* ── Emparejar por nombre los diarios sueltos ──
+     Solo para las fichas que se quedaron sin id de cuenta, que son las de
+     antes de que el alta lo guardara. Se propone y lo confirma el docente:
+     emparejar por nombre a ciegas es justo lo que se quitó del resto de la
+     app, y aquí escribe en el diario de un niño. */
+  function normalizarNombre(t) {
+    return String(t || '').normalize('NFD').replace(/[\u0300-\u036f]/g, '')
+      .toLowerCase().replace(/\s+/g, ' ').trim();
+  }
+
+  const buscarBtn = $('#ros-buscar');
+  if (buscarBtn) buscarBtn.addEventListener('click', async () => {
+    const log = $('#ros-create-log');
+    log.classList.remove('hidden');
+    log.innerHTML = '<div>⏳ Buscando los diarios…</div>';
+    buscarBtn.disabled = true;
+    const r = await cloudDiariosParaVincular();
+    buscarBtn.disabled = false;
+    if (!r.ok) {
+      rosterLog = [`⚠️ No se han podido leer los diarios: ${esc(r.detail || r.reason || 'error')}`];
+      return renderTeacherConfig();
+    }
+    /* Un nombre que sale dos veces entre los diarios no se propone: elegir
+       uno al azar sería escribir en el diario del niño equivocado. */
+    const porNombre = {};
+    for (const d of r.diarios) {
+      const k = normalizarNombre(d.name);
+      if (!k) continue;
+      (porNombre[k] = porNombre[k] || []).push(d);
+    }
+    const l = rosterCopy();
+    const lineas = [];
+    let listos = 0, dudosos = 0, sinDiario = 0;
+    for (const f of l) {
+      if (f.authId || !f.name) continue;
+      const cand = porNombre[normalizarNombre(f.name)] || [];
+      if (cand.length === 1) { f.authId = cand[0].id; listos++; }
+      else if (cand.length > 1) {
+        dudosos++;
+        lineas.push(`❓ ${esc(f.name)} — hay ${cand.length} diarios con ese nombre. No se toca
+          ninguno: dime tú cuál es o cámbiale el nombre a uno.`);
+      } else { sinDiario++; }
+    }
+    if (!listos && !dudosos) {
+      rosterLog = [`No he encontrado ningún diario suelto que emparejar${
+        sinDiario ? `. ${sinDiario} de tu lista aún no han entrado nunca` : ''}.`];
+      return renderTeacherConfig();
+    }
+    rosterLog = lineas.concat([`<span class="ros-log-sum">${listos} emparejado(s) por el nombre${
+      dudosos ? `, ${dudosos} sin decidir` : ''}${
+      sinDiario ? `, ${sinDiario} sin estrenar` : ''}. Ahora pulsa «Vincular».</span>`]);
+    cfgSave('roster', l, false);
+    renderTeacherConfig();
+  });
+
   const linkBtn = $('#ros-link');
   if (linkBtn) linkBtn.addEventListener('click', async () => {
     const log = $('#ros-create-log');
@@ -688,9 +748,9 @@ function cfgAlumnado(body) {
       esperando ? `, ${esperando} sin estrenar todavía (aún no han entrado)` : ''}${
       fallos ? `, ${fallos} con problema` : ''}.</span>`);
     if (sinCuenta) {
-      lineas.push(`<span class="ros-log-sum">${sinCuenta} con la cuenta creada antes de esta
-        versión: de esos no se guardó el identificador. Sus diarios aparecen igual en la vista de
-        clase, pero para atarlos hay que volver a crearles la cuenta o hacerlo a mano.</span>`);
+      lineas.push(`<span class="ros-log-sum">${sinCuenta} con la cuenta creada antes de que se
+        guardara el identificador. Pulsa <strong>🔍 Buscar el diario</strong>: los empareja por el
+        nombre y luego ya se pueden vincular.</span>`);
     }
     rosterLog = lineas;
     linkBtn.disabled = false;
@@ -2025,6 +2085,64 @@ function resumenDeConceptos(retos) {
   return { distintos: cuenta.size, texto: nombres.join(', ') };
 }
 
+/* ── De un concepto flojo al pozo donde arreglarlo ──
+   La vista de clase dice «nueve alumnos fallan la resta llevando» y hasta
+   ahora ahí se acababa: el docente tenía que traducir eso a materia, pozo y
+   estrato a mano. Se adivina aquí, y se puede corregir en los desplegables.
+
+   El emparejado usa lo que cada pozo dice que trabaja, que es lo mismo que
+   lee el generador: si un pozo habla de fracciones, el concepto de fracciones
+   va ahí. Sin acierto claro, el primero de la materia, que al menos acota. */
+const AREA_A_MATERIA = {
+  'Numeración': 'matematicas', 'Cálculo': 'matematicas',
+  'Fracciones': 'matematicas', 'Decimales': 'matematicas',
+  'Vocabulario': 'lengua', 'Ortografía': 'lengua', 'Comprensión': 'lengua'
+};
+
+function materiaDeConcepto(id) {
+  return AREA_A_MATERIA[(conceptoInfo(id) || {}).area] || '';
+}
+
+function pozoParaConcepto(id) {
+  const info = conceptoInfo(id) || {};
+  const materia = materiaDeConcepto(id);
+  const palabras = [info.area, info.label].join(' ').toLowerCase()
+    .normalize('NFD').replace(/[\u0300-\u036f]/g, '')
+    .split(/[^a-z0-9]+/).filter(w => w.length > 4);
+
+  let mejor = null, mejorPuntos = 0, primeroDeLaMateria = null;
+  for (const site of sitesAll()) {
+    const suMateria = materiaDeSitio(site);
+    for (const b of branchesOf(site)) {
+      if (b.id === 'acertijos') continue;
+      const clave = `${site.id}/${b.id}`;
+      if (materia && suMateria === materia && !primeroDeLaMateria) primeroDeLaMateria = clave;
+      const texto = `${b.name} ${b.contenido || ''} ${b.desc || ''}`.toLowerCase()
+        .normalize('NFD').replace(/[\u0300-\u036f]/g, '');
+      let puntos = 0;
+      for (const w of palabras) if (texto.includes(w)) puntos++;
+      if (puntos > mejorPuntos) { mejorPuntos = puntos; mejor = clave; }
+    }
+  }
+  return mejor || primeroDeLaMateria || ((iaPozos()[0] || {}).id || '');
+}
+
+/* Deja el generador preparado para ese concepto y lleva al docente allí. */
+function generarParaConcepto(id, cuantosAlumnos) {
+  const info = conceptoInfo(id) || {};
+  const materia = materiaDeConcepto(id);
+  if (materia) setTeacherConfig('iaMateria', materia);
+  const pozo = pozoParaConcepto(id);
+  if (pozo) setTeacherConfig('iaPozo', pozo);
+  setTeacherConfig('iaConcepto', id);
+  setTeacherConfig('iaFoco', `${info.label || id}` +
+    (cuantosAlumnos ? ` (lo fallan ${cuantosAlumnos} alumno${cuantosAlumnos === 1 ? '' : 's'})` : ''));
+  cfgSection = 'ia';
+  teacherScreen('config');
+  renderTeacherConfig();
+  toast(`Generador preparado para «${info.label || id}» ✓`, 2600);
+}
+
 function iaPozos() {
   const out = [];
   for (const site of sitesAll()) {
@@ -2147,6 +2265,13 @@ function cfgIA(body) {
     que tiene el documento del aula.</p>
 
     <h4 class="cfg-h4">3. Qué generar</h4>
+    ${ATLAS_CONFIG.iaFoco ? `<div class="cfg-nota-curriculo">
+      🎯 <strong>Vienes de «Lo que conviene repasar»</strong>: estos retos se pedirán de
+      <strong>${esc(conceptoInfo(ATLAS_CONFIG.iaConcepto).label || ATLAS_CONFIG.iaConcepto)}</strong>
+      ${esc(String(ATLAS_CONFIG.iaFoco).replace(/^[^(]*/, '').trim())}.
+      Comprueba que el pozo y el estrato son los que quieres.
+      <button class="btn btn-secondary btn-small" id="ia-sin-foco">Quitar el foco</button>
+    </div>` : ''}
     ${field('Pozo de destino', `<select id="ia-pozo">${
       pozos.map((p, i) => `<option value="${esc(p.id)}"${
         (ATLAS_CONFIG.iaPozo || (pozos[0] || {}).id) === p.id ? ' selected' : ''}>${esc(p.name)}</option>`).join('')
@@ -2233,6 +2358,11 @@ function cfgIA(body) {
         </div>`).join('')}</div>` : ''}`;
 
   /* cfgSave ya repinta el panel: el currículo que se enseña es el de la materia elegida. */
+  const sinFoco = $('#ia-sin-foco');
+  if (sinFoco) sinFoco.addEventListener('click', () => {
+    setTeacherConfig('iaConcepto', '');
+    cfgSave('iaFoco', '', 'Se generará de todo el pozo ✓');
+  });
   onInput('#ia-materia', e => cfgSave('iaMateria', e.target.value, false), 'change');
   /* La clave donde se guarda lo que se escribe: el curso elegido, o `todos`. */
   const claveCurr = () => 'curriculo.' + materia + '.' + (paraTodos ? 'todos' : cursoCurr);
@@ -2361,7 +2491,11 @@ function cfgIA(body) {
        sitio equivocado, y el docente los movía uno a uno. */
     const r = await cloudGenerarRetos(
       { materia, curso, estrato, n: cuantos, curriculo: iaCurriculo(materia, curso),
-        conceptosYaEnElPozo: yaEnElPozo, pozo: temaDelPozo(pozo[0], pozo[1]) },
+        conceptosYaEnElPozo: yaEnElPozo, pozo: temaDelPozo(pozo[0], pozo[1]),
+        /* Vienen de «Lo que conviene repasar»: el concepto que la clase falla
+           y por qué interesa. El prompt los admitía desde el principio y no
+           se los mandaba nadie. */
+        concepto: ATLAS_CONFIG.iaConcepto || '', foco: ATLAS_CONFIG.iaFoco || '' },
       (hechos, total, fase) => {
         iaProgreso = fase === 'comprobando' ? 'Comprobando las respuestas…'
           : fase === 'escribiendo' ? `Escribiendo el ${hechos + 1} de ${total}…`

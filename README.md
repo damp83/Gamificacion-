@@ -86,6 +86,8 @@ Cubren lo que ya se ha roto alguna vez, que es de donde salieron:
 | `generador.test.js` | Que un reto escrito por IA con la cuenta mal marcada no llegue nunca a un niño |
 | `alta.test.js` | Que el panel no intente crear el diario del alumno —Appwrite no lo permite— y que vincularlo le ponga su clase y su docente |
 | `asistente-yacimientos.test.js` | Que la asistente proponga estructura y **nunca retos**, que lo que vuelve se limpie antes de tocar los ajustes, y que el inspector avise de lo que falla en silencio sin acusar a un yacimiento sano |
+| `repaso-genera.test.js` | Que cada concepto flojo caiga en el pozo que habla de eso y deje el generador preparado |
+| `vincular-por-nombre.test.js` | Que el rescate de diarios sueltos no toque el de otro docente ni empareje un nombre repetido |
 | `pozo-tema.test.js` | Que los retos generados vayan de lo que dice el pozo, y que los ocho pozos de fábrica lo digan |
 | `identidad.test.js` | Que dos alumnas con el mismo nombre en cursos distintos no compartan diario, y que los diarios viejos se muden sin perderse |
 | `bolsa.test.js` | Que comprar o donar por un alumno salga de su bolsa, no toque sus PE, y vuelva a su documento |
@@ -812,6 +814,18 @@ Son dos momentos, y conviene saberlo porque explica lo que se ve en pantalla:
 
 Se puede pulsar «Vincular» las veces que haga falta, según vayan entrando; de quien todavía no ha entrado dice justo eso, y no cuenta como fallo.
 
+#### Las cuentas creadas antes de que se guardara el identificador
+
+A esas fichas les falta el id de la cuenta y **no hay forma de recuperarlo**: dar de alta un correo que ya existe contesta «already exists» sin devolver el id, y «Crear las cuentas» salta a quien ya está marcado como creado. Queda un camino, y es el único: **el id del documento de un diario es el id de la cuenta de ese niño**, y tu cuenta puede leer la colección.
+
+**🔍 Buscar el diario de N alumno(s)** hace eso: lista los diarios, los empareja por el nombre y rellena el identificador que falta. Después ya se pueden vincular como los demás.
+
+Emparejar por nombre es justo lo que se quitó del resto de la app, así que aquí se hace con cuidado:
+
+- **Nunca toca el diario de otro docente.** Un diario con dueño distinto del tuyo, o de otra clase, ni siquiera se enseña: proponerlo sería invitar a pisarlo.
+- **Un nombre que aparece dos veces entre los diarios no se empareja.** Te lo dice y no toca ninguno; elegir uno al azar sería escribir en el diario del niño equivocado.
+- El nombre se compara sin tildes ni dobles espacios.
+
 > **Por qué el panel no crea el diario él mismo.** Lo intentaba, y Appwrite lo rechaza: **solo se pueden repartir permisos que uno tiene**, y tú no eres tu alumno, así que no puedes darle a él permiso de lectura sobre nada. El error salía como `Permissions must be one of: (any, users, user:<tu id>, team:<docentes>…)`, que parece un problema de configuración y no lo es.
 >
 > Crearlo con tus permisos a secas habría sido peor que no crearlo: el niño no podría **ni leer ni escribir su propio diario**, su app lo daría por inexistente, intentaría crear uno con el mismo identificador, chocaría, y se quedaría sin sincronizar en silencio todo el curso.
@@ -1029,6 +1043,16 @@ Cada yacimiento lleva una línea plegada que dice **cuántas cosas hay que revis
 | Dos pozos con el mismo nombre | En el mapa el niño ve dos entradas idénticas |
 
 Un yacimiento sano no dice nada: un inspector que siempre encuentra algo se deja de leer.
+
+### De «esto se falla» a una tanda de retos
+
+La vista de clase ya decía *«nueve alumnos fallan la fracción de una cantidad»*, y ahí se acababa: para hacer algo con esa frase había que traducirla a materia, pozo y estrato a mano, en otra pantalla.
+
+Cada fila de **Lo que conviene repasar** lleva ahora **🤖 Generar retos de esto**. Deja el generador preparado: la materia del concepto, el pozo que habla de eso —emparejado con lo que cada pozo dice que trabaja, lo mismo que lee el generador— y el concepto pedido. Tú compruebas el pozo y el estrato, y generas.
+
+Además le manda **por qué interesa**: «Interesa especialmente porque la clase falla en: Fracción de una cantidad (lo fallan 9 alumnos)». Ese parámetro estaba en el prompt desde el primer día y no se lo mandaba nadie.
+
+> El foco se queda guardado, así que hay un botón para quitarlo. Sin él, la siguiente tanda de otro pozo saldría con el concepto de la semana pasada.
 
 Para cargar muchos de golpe, el **alta masiva** acepta una línea por reto:
 

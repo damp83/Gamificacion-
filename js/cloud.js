@@ -234,6 +234,58 @@ async function ejecutarConReintento(id, cuerpo, avisar) {
          + 'Si estás en un iPad, deja la pantalla encendida y la app delante mientras genera.' });
 }
 
+/* ── Los diarios que se quedaron sueltos ──
+
+   Desde que el panel guarda el id de la cuenta al darla de alta, vincular un
+   diario es ir directo a su documento. Pero las cuentas creadas ANTES de eso
+   no lo tienen, y no hay forma de recuperarlo: `account.create` sobre un
+   correo que ya existe contesta «already exists» y no devuelve el id.
+
+   Sí hay otro camino, y es el único: el id del documento de un diario ES el
+   id de la cuenta de ese niño. Como el equipo docente puede leer la
+   colección, se pueden listar los diarios y emparejarlos por nombre.
+
+   Emparejar por nombre es exactamente lo que se quitó del resto de la app,
+   así que aquí NO se hace solo: se proponen y las confirma el docente. Y se
+   descarta de entrada lo que podría hacer daño —el diario de un alumno de
+   otro docente—, porque vincularlo le pondría a él nuestra clase encima. */
+async function cloudDiariosParaVincular() {
+  if (!CLOUD.enabled || !CLOUD.user) return { ok: false, reason: 'sin-nube' };
+  const c = ATLAS_CONFIG.appwrite;
+  const yo = CLOUD.user.$id;
+  const aula = aulaActiva() || '';
+  const CAMPOS = ['$id', 'name', 'aula', 'owner'];
+  const fuera = [];
+  try {
+    let cursor = null;
+    for (let pagina = 0; pagina < 20; pagina++) {          /* tope de seguridad */
+      const q = [Appwrite.Query.limit(100)];
+      if (Appwrite.Query.select) q.push(Appwrite.Query.select(CAMPOS));
+      if (cursor) q.push(Appwrite.Query.cursorAfter(cursor));
+      const r = await CLOUD.db.listDocuments(c.databaseId, c.collectionId, q);
+      for (const d of r.documents) {
+        /* Solo lo que es mío o de nadie. El diario de otro docente no se
+           toca ni se enseña: proponerlo ya sería invitar a pisarlo. */
+        const dueno = d.owner || '';
+        const suAula = d.aula || '';
+        if (dueno && dueno !== yo) continue;
+        if (suAula && aula && suAula !== aula) continue;
+        fuera.push({ id: d.$id, name: d.name || '', aula: suAula, owner: dueno });
+      }
+      if (r.documents.length < 100) break;
+      cursor = r.documents[r.documents.length - 1].$id;
+    }
+    return { ok: true, diarios: fuera };
+  } catch (e) {
+    const msg = (e && e.message) || '';
+    /* Una colección sin las columnas nuevas no puede seleccionarlas. */
+    if (/select|attribute|unknown/i.test(msg)) {
+      return { ok: false, reason: 'falta-columna', detail: msg };
+    }
+    return errorNube(e);
+  }
+}
+
 /* ── La estructura de un yacimiento, propuesta ──
    Una sola llamada y ni un reto: lo que vuelve es la ambientación y el reparto
    de pozos. Va aparte de cloudGenerarRetos porque no comparte casi nada con

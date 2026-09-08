@@ -1293,6 +1293,11 @@ function pintarRepaso(d) {
     return;
   }
   caja.classList.remove('hidden');
+  /* El botón solo si la generación puede funcionar: sin clave y sin función
+     llevaría a una pantalla que no hace nada. */
+  const puedeGenerar = cloudConfigured() && cloudEnabled()
+    && !!(ATLAS_CONFIG.appwrite.generadorFunctionId || '').trim()
+    && !!(ATLAS_CONFIG.iaClave || '').trim();
   caja.innerHTML = `
     <h3>${ico('target')} Lo que conviene repasar</h3>
     <p class="class-repasar-intro">Conceptos que se fallan más de un tercio de las veces, ordenados
@@ -1313,12 +1318,19 @@ function pintarRepaso(d) {
           </div>
           <small class="repaso-quien">${esc(c.alumnos.slice(0, 8).join(', '))}${
             c.alumnos.length > 8 ? ` y ${c.alumnos.length - 8} más` : ''}</small>
+          ${puedeGenerar ? `<button class="btn btn-secondary btn-small repaso-gen"
+            data-concepto="${esc(c.id)}" data-cuantos="${n}">🤖 Generar retos de esto</button>` : ''}
         </div>`;
       }).join('')}
     </div>
     ${lista.some(c => c.alumnos.length >= REPASO_ES_DE_CLASE)
       ? '<p class="class-repasar-nota">Lo resaltado lo falla media clase o más: eso se lleva a la pizarra. El resto se resuelve mejor de uno en uno.</p>'
       : '<p class="class-repasar-nota">Nada que afecte a tres o más alumnos: de momento son conversaciones sueltas, no una clase.</p>'}`;
+
+  /* De «nueve alumnos fallan la resta llevando» a una tanda de retos de eso,
+     sin tener que traducirlo a materia, pozo y estrato a mano. */
+  $$('#class-repasar .repaso-gen').forEach(b => b.addEventListener('click', () =>
+    generarParaConcepto(b.dataset.concepto, +b.dataset.cuantos || 0)));
 }
 
 /* ── Cuadrillas ──

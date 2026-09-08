@@ -1645,6 +1645,9 @@ body.en-mision #main { padding-bottom: var(--s-5); }
   padding: .6rem .9rem; margin: var(--s-4) 0; font-size: var(--t-sm); line-height: 1.5;
 }
 .prop-contenido { margin: .35rem 0; }
+
+/* El paso de «esto se falla» a «genero retos de esto» */
+.repaso-fila .repaso-gen { margin-top: .5rem; }
 .cfg-card {
   background: var(--surface); border-radius: var(--r-lg); box-shadow: var(--e-1);
   border: var(--line);
@@ -5559,7 +5562,7 @@ function cruzarVerificacion(retos, respuestas) {
    copia guardada. Sin este número, «ya está arreglado» y «a mí no me pasa» son
    indistinguibles. Va junto al nombre de la caché del service worker, y una
    prueba comprueba que no se separen. */
-const ATLAS_VERSION = 'v58';
+const ATLAS_VERSION = 'v59';
 
 const ATLAS_DEFAULTS = {
 
@@ -6271,6 +6274,58 @@ async function ejecutarConReintento(id, cuerpo, avisar) {
   return Object.assign({}, ultimo, {
     texto: 'Se cortó la conexión y no se ha recuperado tras tres intentos. '
          + 'Si estás en un iPad, deja la pantalla encendida y la app delante mientras genera.' });
+}
+
+/* ── Los diarios que se quedaron sueltos ──
+
+   Desde que el panel guarda el id de la cuenta al darla de alta, vincular un
+   diario es ir directo a su documento. Pero las cuentas creadas ANTES de eso
+   no lo tienen, y no hay forma de recuperarlo: `account.create` sobre un
+   correo que ya existe contesta «already exists» y no devuelve el id.
+
+   Sí hay otro camino, y es el único: el id del documento de un diario ES el
+   id de la cuenta de ese niño. Como el equipo docente puede leer la
+   colección, se pueden listar los diarios y emparejarlos por nombre.
+
+   Emparejar por nombre es exactamente lo que se quitó del resto de la app,
+   así que aquí NO se hace solo: se proponen y las confirma el docente. Y se
+   descarta de entrada lo que podría hacer daño —el diario de un alumno de
+   otro docente—, porque vincularlo le pondría a él nuestra clase encima. */
+async function cloudDiariosParaVincular() {
+  if (!CLOUD.enabled || !CLOUD.user) return { ok: false, reason: 'sin-nube' };
+  const c = ATLAS_CONFIG.appwrite;
+  const yo = CLOUD.user.$id;
+  const aula = aulaActiva() || '';
+  const CAMPOS = ['$id', 'name', 'aula', 'owner'];
+  const fuera = [];
+  try {
+    let cursor = null;
+    for (let pagina = 0; pagina < 20; pagina++) {          /* tope de seguridad */
+      const q = [Appwrite.Query.limit(100)];
+      if (Appwrite.Query.select) q.push(Appwrite.Query.select(CAMPOS));
+      if (cursor) q.push(Appwrite.Query.cursorAfter(cursor));
+      const r = await CLOUD.db.listDocuments(c.databaseId, c.collectionId, q);
+      for (const d of r.documents) {
+        /* Solo lo que es mío o de nadie. El diario de otro docente no se
+           toca ni se enseña: proponerlo ya sería invitar a pisarlo. */
+        const dueno = d.owner || '';
+        const suAula = d.aula || '';
+        if (dueno && dueno !== yo) continue;
+        if (suAula && aula && suAula !== aula) continue;
+        fuera.push({ id: d.$id, name: d.name || '', aula: suAula, owner: dueno });
+      }
+      if (r.documents.length < 100) break;
+      cursor = r.documents[r.documents.length - 1].$id;
+    }
+    return { ok: true, diarios: fuera };
+  } catch (e) {
+    const msg = (e && e.message) || '';
+    /* Una colección sin las columnas nuevas no puede seleccionarlas. */
+    if (/select|attribute|unknown/i.test(msg)) {
+      return { ok: false, reason: 'falta-columna', detail: msg };
+    }
+    return errorNube(e);
+  }
 }
 
 /* ── La estructura de un yacimiento, propuesta ──
@@ -12641,6 +12696,11 @@ function pintarRepaso(d) {
     return;
   }
   caja.classList.remove('hidden');
+  /* El botón solo si la generación puede funcionar: sin clave y sin función
+     llevaría a una pantalla que no hace nada. */
+  const puedeGenerar = cloudConfigured() && cloudEnabled()
+    && !!(ATLAS_CONFIG.appwrite.generadorFunctionId || '').trim()
+    && !!(ATLAS_CONFIG.iaClave || '').trim();
   caja.innerHTML = `
     <h3>${ico('target')} Lo que conviene repasar</h3>
     <p class="class-repasar-intro">Conceptos que se fallan más de un tercio de las veces, ordenados
@@ -12661,12 +12721,19 @@ function pintarRepaso(d) {
           </div>
           <small class="repaso-quien">${esc(c.alumnos.slice(0, 8).join(', '))}${
             c.alumnos.length > 8 ? ` y ${c.alumnos.length - 8} más` : ''}</small>
+          ${puedeGenerar ? `<button class="btn btn-secondary btn-small repaso-gen"
+            data-concepto="${esc(c.id)}" data-cuantos="${n}">🤖 Generar retos de esto</button>` : ''}
         </div>`;
       }).join('')}
     </div>
     ${lista.some(c => c.alumnos.length >= REPASO_ES_DE_CLASE)
       ? '<p class="class-repasar-nota">Lo resaltado lo falla media clase o más: eso se lleva a la pizarra. El resto se resuelve mejor de uno en uno.</p>'
       : '<p class="class-repasar-nota">Nada que afecte a tres o más alumnos: de momento son conversaciones sueltas, no una clase.</p>'}`;
+
+  /* De «nueve alumnos fallan la resta llevando» a una tanda de retos de eso,
+     sin tener que traducirlo a materia, pozo y estrato a mano. */
+  $$('#class-repasar .repaso-gen').forEach(b => b.addEventListener('click', () =>
+    generarParaConcepto(b.dataset.concepto, +b.dataset.cuantos || 0)));
 }
 
 /* ── Cuadrillas ──
@@ -13156,6 +13223,9 @@ function cfgAlumnado(body) {
   /* Las fichas escritas a mano —o traídas de una copia antigua— llegan sin
      usuario o sin contraseña, y sin eso no hay cuenta que crear. */
   const incompletos = roster.filter(r => r.name && (!r.username || !r.password)).length;
+  /* Cuentas creadas antes de que el alta guardara el id: no se pueden vincular
+     directamente, hay que buscar su diario por el nombre. */
+  const huerfanos = roster.filter(r => r.account && !r.authId).length;
   /* Un nombre que aparece dos veces no es un error: son dos cursos. Pero hay
      que decirlo, o el docente cree que se ha colado una fila repetida. */
   const repes = new Set();
@@ -13257,6 +13327,8 @@ function cfgAlumnado(body) {
           🎒 Crear ${roster.length - conCuenta} cuenta(s)</button>
         ${porVincular ? `<button class="btn btn-secondary btn-small" id="ros-link">
           🔗 Vincular ${porVincular} diario(s) a esta clase</button>` : ''}
+        ${huerfanos ? `<button class="btn btn-secondary btn-small" id="ros-buscar">
+          🔍 Buscar el diario de ${huerfanos} alumno(s)</button>` : ''}
       </div>
       <p class="cfg-hint">El diario de cada niño <strong>nace cuando entra por primera vez</strong>,
       con permiso solo para él: es lo correcto y es lo único que Appwrite permite. «Vincular» le
@@ -13417,6 +13489,61 @@ function cfgAlumnado(body) {
      y sin docente: el panel no puede crearlo por él (ver cloudVincularDiario).
      Esto le pone la clase a los que ya existan; a los demás dice que todavía
      no han entrado, que es información útil por sí sola. */
+  /* ── Emparejar por nombre los diarios sueltos ──
+     Solo para las fichas que se quedaron sin id de cuenta, que son las de
+     antes de que el alta lo guardara. Se propone y lo confirma el docente:
+     emparejar por nombre a ciegas es justo lo que se quitó del resto de la
+     app, y aquí escribe en el diario de un niño. */
+  function normalizarNombre(t) {
+    return String(t || '').normalize('NFD').replace(/[\u0300-\u036f]/g, '')
+      .toLowerCase().replace(/\s+/g, ' ').trim();
+  }
+
+  const buscarBtn = $('#ros-buscar');
+  if (buscarBtn) buscarBtn.addEventListener('click', async () => {
+    const log = $('#ros-create-log');
+    log.classList.remove('hidden');
+    log.innerHTML = '<div>⏳ Buscando los diarios…</div>';
+    buscarBtn.disabled = true;
+    const r = await cloudDiariosParaVincular();
+    buscarBtn.disabled = false;
+    if (!r.ok) {
+      rosterLog = [`⚠️ No se han podido leer los diarios: ${esc(r.detail || r.reason || 'error')}`];
+      return renderTeacherConfig();
+    }
+    /* Un nombre que sale dos veces entre los diarios no se propone: elegir
+       uno al azar sería escribir en el diario del niño equivocado. */
+    const porNombre = {};
+    for (const d of r.diarios) {
+      const k = normalizarNombre(d.name);
+      if (!k) continue;
+      (porNombre[k] = porNombre[k] || []).push(d);
+    }
+    const l = rosterCopy();
+    const lineas = [];
+    let listos = 0, dudosos = 0, sinDiario = 0;
+    for (const f of l) {
+      if (f.authId || !f.name) continue;
+      const cand = porNombre[normalizarNombre(f.name)] || [];
+      if (cand.length === 1) { f.authId = cand[0].id; listos++; }
+      else if (cand.length > 1) {
+        dudosos++;
+        lineas.push(`❓ ${esc(f.name)} — hay ${cand.length} diarios con ese nombre. No se toca
+          ninguno: dime tú cuál es o cámbiale el nombre a uno.`);
+      } else { sinDiario++; }
+    }
+    if (!listos && !dudosos) {
+      rosterLog = [`No he encontrado ningún diario suelto que emparejar${
+        sinDiario ? `. ${sinDiario} de tu lista aún no han entrado nunca` : ''}.`];
+      return renderTeacherConfig();
+    }
+    rosterLog = lineas.concat([`<span class="ros-log-sum">${listos} emparejado(s) por el nombre${
+      dudosos ? `, ${dudosos} sin decidir` : ''}${
+      sinDiario ? `, ${sinDiario} sin estrenar` : ''}. Ahora pulsa «Vincular».</span>`]);
+    cfgSave('roster', l, false);
+    renderTeacherConfig();
+  });
+
   const linkBtn = $('#ros-link');
   if (linkBtn) linkBtn.addEventListener('click', async () => {
     const log = $('#ros-create-log');
@@ -13452,9 +13579,9 @@ function cfgAlumnado(body) {
       esperando ? `, ${esperando} sin estrenar todavía (aún no han entrado)` : ''}${
       fallos ? `, ${fallos} con problema` : ''}.</span>`);
     if (sinCuenta) {
-      lineas.push(`<span class="ros-log-sum">${sinCuenta} con la cuenta creada antes de esta
-        versión: de esos no se guardó el identificador. Sus diarios aparecen igual en la vista de
-        clase, pero para atarlos hay que volver a crearles la cuenta o hacerlo a mano.</span>`);
+      lineas.push(`<span class="ros-log-sum">${sinCuenta} con la cuenta creada antes de que se
+        guardara el identificador. Pulsa <strong>🔍 Buscar el diario</strong>: los empareja por el
+        nombre y luego ya se pueden vincular.</span>`);
     }
     rosterLog = lineas;
     linkBtn.disabled = false;
@@ -14789,6 +14916,64 @@ function resumenDeConceptos(retos) {
   return { distintos: cuenta.size, texto: nombres.join(', ') };
 }
 
+/* ── De un concepto flojo al pozo donde arreglarlo ──
+   La vista de clase dice «nueve alumnos fallan la resta llevando» y hasta
+   ahora ahí se acababa: el docente tenía que traducir eso a materia, pozo y
+   estrato a mano. Se adivina aquí, y se puede corregir en los desplegables.
+
+   El emparejado usa lo que cada pozo dice que trabaja, que es lo mismo que
+   lee el generador: si un pozo habla de fracciones, el concepto de fracciones
+   va ahí. Sin acierto claro, el primero de la materia, que al menos acota. */
+const AREA_A_MATERIA = {
+  'Numeración': 'matematicas', 'Cálculo': 'matematicas',
+  'Fracciones': 'matematicas', 'Decimales': 'matematicas',
+  'Vocabulario': 'lengua', 'Ortografía': 'lengua', 'Comprensión': 'lengua'
+};
+
+function materiaDeConcepto(id) {
+  return AREA_A_MATERIA[(conceptoInfo(id) || {}).area] || '';
+}
+
+function pozoParaConcepto(id) {
+  const info = conceptoInfo(id) || {};
+  const materia = materiaDeConcepto(id);
+  const palabras = [info.area, info.label].join(' ').toLowerCase()
+    .normalize('NFD').replace(/[\u0300-\u036f]/g, '')
+    .split(/[^a-z0-9]+/).filter(w => w.length > 4);
+
+  let mejor = null, mejorPuntos = 0, primeroDeLaMateria = null;
+  for (const site of sitesAll()) {
+    const suMateria = materiaDeSitio(site);
+    for (const b of branchesOf(site)) {
+      if (b.id === 'acertijos') continue;
+      const clave = `${site.id}/${b.id}`;
+      if (materia && suMateria === materia && !primeroDeLaMateria) primeroDeLaMateria = clave;
+      const texto = `${b.name} ${b.contenido || ''} ${b.desc || ''}`.toLowerCase()
+        .normalize('NFD').replace(/[\u0300-\u036f]/g, '');
+      let puntos = 0;
+      for (const w of palabras) if (texto.includes(w)) puntos++;
+      if (puntos > mejorPuntos) { mejorPuntos = puntos; mejor = clave; }
+    }
+  }
+  return mejor || primeroDeLaMateria || ((iaPozos()[0] || {}).id || '');
+}
+
+/* Deja el generador preparado para ese concepto y lleva al docente allí. */
+function generarParaConcepto(id, cuantosAlumnos) {
+  const info = conceptoInfo(id) || {};
+  const materia = materiaDeConcepto(id);
+  if (materia) setTeacherConfig('iaMateria', materia);
+  const pozo = pozoParaConcepto(id);
+  if (pozo) setTeacherConfig('iaPozo', pozo);
+  setTeacherConfig('iaConcepto', id);
+  setTeacherConfig('iaFoco', `${info.label || id}` +
+    (cuantosAlumnos ? ` (lo fallan ${cuantosAlumnos} alumno${cuantosAlumnos === 1 ? '' : 's'})` : ''));
+  cfgSection = 'ia';
+  teacherScreen('config');
+  renderTeacherConfig();
+  toast(`Generador preparado para «${info.label || id}» ✓`, 2600);
+}
+
 function iaPozos() {
   const out = [];
   for (const site of sitesAll()) {
@@ -14911,6 +15096,13 @@ function cfgIA(body) {
     que tiene el documento del aula.</p>
 
     <h4 class="cfg-h4">3. Qué generar</h4>
+    ${ATLAS_CONFIG.iaFoco ? `<div class="cfg-nota-curriculo">
+      🎯 <strong>Vienes de «Lo que conviene repasar»</strong>: estos retos se pedirán de
+      <strong>${esc(conceptoInfo(ATLAS_CONFIG.iaConcepto).label || ATLAS_CONFIG.iaConcepto)}</strong>
+      ${esc(String(ATLAS_CONFIG.iaFoco).replace(/^[^(]*/, '').trim())}.
+      Comprueba que el pozo y el estrato son los que quieres.
+      <button class="btn btn-secondary btn-small" id="ia-sin-foco">Quitar el foco</button>
+    </div>` : ''}
     ${field('Pozo de destino', `<select id="ia-pozo">${
       pozos.map((p, i) => `<option value="${esc(p.id)}"${
         (ATLAS_CONFIG.iaPozo || (pozos[0] || {}).id) === p.id ? ' selected' : ''}>${esc(p.name)}</option>`).join('')
@@ -14997,6 +15189,11 @@ function cfgIA(body) {
         </div>`).join('')}</div>` : ''}`;
 
   /* cfgSave ya repinta el panel: el currículo que se enseña es el de la materia elegida. */
+  const sinFoco = $('#ia-sin-foco');
+  if (sinFoco) sinFoco.addEventListener('click', () => {
+    setTeacherConfig('iaConcepto', '');
+    cfgSave('iaFoco', '', 'Se generará de todo el pozo ✓');
+  });
   onInput('#ia-materia', e => cfgSave('iaMateria', e.target.value, false), 'change');
   /* La clave donde se guarda lo que se escribe: el curso elegido, o `todos`. */
   const claveCurr = () => 'curriculo.' + materia + '.' + (paraTodos ? 'todos' : cursoCurr);
@@ -15125,7 +15322,11 @@ function cfgIA(body) {
        sitio equivocado, y el docente los movía uno a uno. */
     const r = await cloudGenerarRetos(
       { materia, curso, estrato, n: cuantos, curriculo: iaCurriculo(materia, curso),
-        conceptosYaEnElPozo: yaEnElPozo, pozo: temaDelPozo(pozo[0], pozo[1]) },
+        conceptosYaEnElPozo: yaEnElPozo, pozo: temaDelPozo(pozo[0], pozo[1]),
+        /* Vienen de «Lo que conviene repasar»: el concepto que la clase falla
+           y por qué interesa. El prompt los admitía desde el principio y no
+           se los mandaba nadie. */
+        concepto: ATLAS_CONFIG.iaConcepto || '', foco: ATLAS_CONFIG.iaFoco || '' },
       (hechos, total, fase) => {
         iaProgreso = fase === 'comprobando' ? 'Comprobando las respuestas…'
           : fase === 'escribiendo' ? `Escribiendo el ${hechos + 1} de ${total}…`

@@ -1642,6 +1642,9 @@ body.en-mision #main { padding-bottom: var(--s-5); }
   padding: .6rem .9rem; margin: var(--s-4) 0; font-size: var(--t-sm); line-height: 1.5;
 }
 .prop-contenido { margin: .35rem 0; }
+
+/* El paso de «esto se falla» a «genero retos de esto» */
+.repaso-fila .repaso-gen { margin-top: .5rem; }
 .cfg-card {
   background: var(--surface); border-radius: var(--r-lg); box-shadow: var(--e-1);
   border: var(--line);
