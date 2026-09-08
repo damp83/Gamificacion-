@@ -273,7 +273,75 @@ let diarioActivo = null;
 
 /* La clave es el nombre normalizado: así casa con la lista de clase aunque
    se escriba con mayúsculas o espacios de más. */
-function diaryKey(nombre) { return String(nombre || '').trim().toLowerCase(); }
+/* ── Quién es quién ──
+   La clave de un diario era el nombre, y eso da por hecho que en una clase no
+   se repite ninguno. En un colegio con varios cursos sí se repite: dos niñas
+   llamadas igual, una en 2.º y otra en 4.º, compartían diario, cuadrilla y
+   rol, y lo que hacía una se lo encontraba la otra. Un nombre además se
+   corrige —una tilde, un apellido que faltaba— y al corregirlo el diario se
+   quedaba huérfano bajo la clave vieja.
+
+   Lo que no se repite ni cambia es el USUARIO con el que entra, que la lista
+   de clase genera distinto para cada uno. Así que la clave es su usuario
+   cuando se sabe cuál es, y el nombre cuando no —un niño que escribió su
+   nombre en una tablet compartida y no está en ninguna lista.
+
+   Admite el nombre suelto o la ficha entera de la lista. Con la ficha acierta
+   siempre; con el nombre suelto no puede decidir entre dos que se llaman
+   igual, y entonces deja la clave antigua a propósito: es la de quien ya la
+   tuviera, y nadie pierde su diario por una ambigüedad. */
+function diaryKey(quien) {
+  if (quien && typeof quien === 'object') {
+    const u = String(quien.username || '').trim().toLowerCase();
+    if (u) return 'u:' + u;
+    return String(quien.name || '').trim().toLowerCase();
+  }
+  const nombre = String(quien || '').trim().toLowerCase();
+  if (!nombre) return '';
+  const iguales = (ATLAS_CONFIG.roster || []).filter(
+    r => String(r.name || '').trim().toLowerCase() === nombre);
+  return (iguales.length === 1 && iguales[0].username)
+    ? 'u:' + String(iguales[0].username).trim().toLowerCase()
+    : nombre;
+}
+
+/* La clave con la que este alumno tiene diario AHORA MISMO. Cambiar de clave
+   no puede hacer desaparecer un diario: si el de su usuario todavía no existe
+   pero el de su nombre sí, manda el que existe. Pasa con quien entró antes de
+   estar en la lista, y con quien se borró de la lista y volvió. */
+function diaryKeyExistente(quien) {
+  const map = loadDiaries();
+  const k = diaryKey(quien);
+  if (map[k]) return k;
+  const nombre = String((quien && typeof quien === 'object' ? quien.name : quien) || '')
+    .trim().toLowerCase();
+  return (nombre && map[nombre]) ? nombre : k;
+}
+
+/* ── Mudanza de las claves viejas ──
+   Los diarios guardados antes de esto están bajo el nombre. Se mudan a la
+   clave del usuario UNA vez, y solo cuando el destino está libre: si ya hay
+   algo ahí, se deja todo como está antes que pisar el diario de nadie. */
+function migrarClavesDeDiarios() {
+  const map = loadDiaries();
+  let tocado = false;
+  for (const r of (ATLAS_CONFIG.roster || [])) {
+    const u = String(r.username || '').trim().toLowerCase();
+    const nombre = String(r.name || '').trim().toLowerCase();
+    if (!u || !nombre) continue;
+    if (map[nombre] && !map['u:' + u]) {
+      map['u:' + u] = map[nombre];
+      delete map[nombre];
+      if (typeof recordarDocId === 'function' && typeof docIdConocido === 'function') {
+        const id = docIdConocido(nombre);
+        if (id) recordarDocId('u:' + u, id);
+      }
+      tocado = true;
+    }
+  }
+  if (tocado) saveDiaries(map);
+  return tocado;
+}
 
 function loadDiaries() {
   try {
@@ -298,11 +366,14 @@ function allDiaries() {
   }
   return out;
 }
-function diaryExists(nombre) { return !!loadDiaries()[diaryKey(nombre)]; }
+function diaryExists(quien) { return !!loadDiaries()[diaryKeyExistente(quien)]; }
 
-/* Abre (o crea) el diario de un alumno y lo deja como estado vivo */
-function openDiary(nombre, grade) {
-  const k = diaryKey(nombre);
+/* Abre (o crea) el diario de un alumno y lo deja como estado vivo.
+   Acepta el nombre suelto o la ficha de la lista; con la ficha distingue a dos
+   que se llamen igual, que con el nombre es imposible. */
+function openDiary(quien, grade) {
+  const nombre = (quien && typeof quien === 'object') ? (quien.name || '') : quien;
+  const k = diaryKeyExistente(quien);
   if (!k) return null;
   const map = loadDiaries();
   if (map[k]) {
@@ -312,6 +383,7 @@ function openDiary(nombre, grade) {
   } else {
     S = defaultState(nombre);
     if (grade) S.profile.grade = grade;
+    else if (quien && typeof quien === 'object' && quien.grade) S.profile.grade = quien.grade;
   }
   diarioActivo = k;
   saveState();

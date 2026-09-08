@@ -5363,7 +5363,7 @@ function cruzarVerificacion(retos, respuestas) {
    copia guardada. Sin este número, «ya está arreglado» y «a mí no me pasa» son
    indistinguibles. Va junto al nombre de la caché del service worker, y una
    prueba comprueba que no se separen. */
-const ATLAS_VERSION = 'v54';
+const ATLAS_VERSION = 'v55';
 
 const ATLAS_DEFAULTS = {
 
@@ -6347,48 +6347,57 @@ async function cloudCreateStudent(name, username, password) {
   }
 }
 
-/* ── El diario nace dentro de su clase ──
-   Un diario que crea el propio alumno desde su casa no puede saber de qué
-   clase es ni de quién: nace con permiso solo para él y con `aula` vacío, y
-   entonces el docente no lo ve —Appwrite no da error, simplemente no se lo
-   devuelve— ni la clase lo reconoce como suyo.
+/* ── Atar el diario de un alumno a esta clase ──
 
-   Aquí sí se sabe todo, porque lo llama el panel justo después de dar de alta
-   la cuenta: quién es el docente (la sesión), cuál es la clase (la activa) y
-   qué cuenta se acaba de crear (el id que devuelve el alta).
+   Esto lo hacía el panel al dar de alta la cuenta: creaba el diario ya con su
+   clase y su dueño. NO SE PUEDE, y el error tardó en entenderse porque parecía
+   un problema de configuración: «Permissions must be one of: (any, users,
+   user:<el docente>, team:<docentes>…)». Appwrite solo deja repartir permisos
+   que uno mismo tiene, y el docente no es el alumno, así que
+   `Permission.read(Role.user(<alumno>))` es un permiso que no puede dar.
 
-   El id del documento es el del ALUMNO, que es donde su propia app va a
-   guardar después (cloudPush usa CLOUD.user.$id). Así el diario que el niño
-   estrena es este mismo, con su clase ya puesta, y no uno nuevo suelto. */
-async function cloudCrearDiarioDe(alumnoId, nombre, grado) {
+   Y crearlo con los permisos del docente a secas habría sido peor que no
+   crearlo: el niño no podría leer NI ESCRIBIR su propio diario, su app lo
+   tomaría por inexistente, intentaría crearlo, chocaría con un id ya usado y
+   se quedaría sin sincronizar en silencio durante todo el curso.
+
+   Así que el diario lo crea el niño la primera vez que entra —con permiso para
+   él, que es lo correcto— y el panel lo ADOPTA después: le pone `aula` y
+   `owner`. Para adoptarlo, el equipo `docentes` necesita permiso de UPDATE en
+   la colección de diarios; es el mismo que ya hace falta para anotarle un
+   mérito a un niño que se registró por su cuenta. */
+async function cloudVincularDiario(alumnoId) {
   if (!CLOUD.enabled || !CLOUD.user) return { ok: false, reason: 'sin-nube' };
   if (!alumnoId) return { ok: false, reason: 'sin-id' };
   const c = ATLAS_CONFIG.appwrite;
   const docente = CLOUD.user.$id;
   const aula = aulaActiva() || '';
+  let doc;
   try {
-    const estado = diarioSinEstrenar(nombre, grado);
-    const data = { state: JSON.stringify(estado), name: nombre, owner: docente };
-    try { data.summary = JSON.stringify(buildSummaryOf(estado)); } catch (e) { /* opcional */ }
-    if (aula) data.aula = aula;
-    await CLOUD.db.createDocument(c.databaseId, c.collectionId, alumnoId, data, [
-      /* El niño manda sobre su diario: lo lee y lo escribe. Borrarlo no, que
-         un despiste suyo no puede costarle el curso. */
-      Appwrite.Permission.read(Appwrite.Role.user(alumnoId)),
-      Appwrite.Permission.update(Appwrite.Role.user(alumnoId)),
-      /* Y su docente lo ve sin depender de ningún permiso de colección. */
-      Appwrite.Permission.read(Appwrite.Role.user(docente)),
-      Appwrite.Permission.update(Appwrite.Role.user(docente)),
-      Appwrite.Permission.delete(Appwrite.Role.user(docente))
-    ]);
-    /* Para que lo que el docente le compre a este niño vaya a ESTE documento
-       y no a uno derivado del nombre, que su app nunca leería. */
-    recordarDocId(diaryKey(nombre), alumnoId);
-    return { ok: true, aula };
+    doc = await CLOUD.db.getDocument(c.databaseId, c.collectionId, alumnoId);
   } catch (e) {
     const msg = (e && e.message) || '';
-    if (/already exists/i.test(msg)) return { ok: false, reason: 'existe' };
+    /* Que no exista no es un fallo: es que ese niño todavía no ha entrado. */
+    if (/not be found|404|Document with the requested ID could not/i.test(msg)) {
+      return { ok: false, reason: 'sin-estrenar' };
+    }
+    return errorNube(e);
+  }
+  /* Ya está en su sitio: no se gasta una escritura ni se toca la fecha. */
+  if ((doc.aula || '') === aula && (doc.owner || '') === docente) {
+    return { ok: true, cambiado: false };
+  }
+  const data = { owner: docente };
+  if (aula) data.aula = aula;
+  try {
+    await CLOUD.db.updateDocument(c.databaseId, c.collectionId, alumnoId, data);
+    return { ok: true, cambiado: true };
+  } catch (e) {
+    const msg = (e && e.message) || '';
     if (/Unknown attribute/i.test(msg)) return { ok: false, reason: 'falta-columna', detail: msg };
+    if (/not authorized|missing scop|permission/i.test(msg)) {
+      return { ok: false, reason: 'sin-permiso', detail: msg };
+    }
     return { ok: false, reason: 'error', detail: msg };
   }
 }
@@ -7508,7 +7517,75 @@ let diarioActivo = null;
 
 /* La clave es el nombre normalizado: así casa con la lista de clase aunque
    se escriba con mayúsculas o espacios de más. */
-function diaryKey(nombre) { return String(nombre || '').trim().toLowerCase(); }
+/* ── Quién es quién ──
+   La clave de un diario era el nombre, y eso da por hecho que en una clase no
+   se repite ninguno. En un colegio con varios cursos sí se repite: dos niñas
+   llamadas igual, una en 2.º y otra en 4.º, compartían diario, cuadrilla y
+   rol, y lo que hacía una se lo encontraba la otra. Un nombre además se
+   corrige —una tilde, un apellido que faltaba— y al corregirlo el diario se
+   quedaba huérfano bajo la clave vieja.
+
+   Lo que no se repite ni cambia es el USUARIO con el que entra, que la lista
+   de clase genera distinto para cada uno. Así que la clave es su usuario
+   cuando se sabe cuál es, y el nombre cuando no —un niño que escribió su
+   nombre en una tablet compartida y no está en ninguna lista.
+
+   Admite el nombre suelto o la ficha entera de la lista. Con la ficha acierta
+   siempre; con el nombre suelto no puede decidir entre dos que se llaman
+   igual, y entonces deja la clave antigua a propósito: es la de quien ya la
+   tuviera, y nadie pierde su diario por una ambigüedad. */
+function diaryKey(quien) {
+  if (quien && typeof quien === 'object') {
+    const u = String(quien.username || '').trim().toLowerCase();
+    if (u) return 'u:' + u;
+    return String(quien.name || '').trim().toLowerCase();
+  }
+  const nombre = String(quien || '').trim().toLowerCase();
+  if (!nombre) return '';
+  const iguales = (ATLAS_CONFIG.roster || []).filter(
+    r => String(r.name || '').trim().toLowerCase() === nombre);
+  return (iguales.length === 1 && iguales[0].username)
+    ? 'u:' + String(iguales[0].username).trim().toLowerCase()
+    : nombre;
+}
+
+/* La clave con la que este alumno tiene diario AHORA MISMO. Cambiar de clave
+   no puede hacer desaparecer un diario: si el de su usuario todavía no existe
+   pero el de su nombre sí, manda el que existe. Pasa con quien entró antes de
+   estar en la lista, y con quien se borró de la lista y volvió. */
+function diaryKeyExistente(quien) {
+  const map = loadDiaries();
+  const k = diaryKey(quien);
+  if (map[k]) return k;
+  const nombre = String((quien && typeof quien === 'object' ? quien.name : quien) || '')
+    .trim().toLowerCase();
+  return (nombre && map[nombre]) ? nombre : k;
+}
+
+/* ── Mudanza de las claves viejas ──
+   Los diarios guardados antes de esto están bajo el nombre. Se mudan a la
+   clave del usuario UNA vez, y solo cuando el destino está libre: si ya hay
+   algo ahí, se deja todo como está antes que pisar el diario de nadie. */
+function migrarClavesDeDiarios() {
+  const map = loadDiaries();
+  let tocado = false;
+  for (const r of (ATLAS_CONFIG.roster || [])) {
+    const u = String(r.username || '').trim().toLowerCase();
+    const nombre = String(r.name || '').trim().toLowerCase();
+    if (!u || !nombre) continue;
+    if (map[nombre] && !map['u:' + u]) {
+      map['u:' + u] = map[nombre];
+      delete map[nombre];
+      if (typeof recordarDocId === 'function' && typeof docIdConocido === 'function') {
+        const id = docIdConocido(nombre);
+        if (id) recordarDocId('u:' + u, id);
+      }
+      tocado = true;
+    }
+  }
+  if (tocado) saveDiaries(map);
+  return tocado;
+}
 
 function loadDiaries() {
   try {
@@ -7533,11 +7610,14 @@ function allDiaries() {
   }
   return out;
 }
-function diaryExists(nombre) { return !!loadDiaries()[diaryKey(nombre)]; }
+function diaryExists(quien) { return !!loadDiaries()[diaryKeyExistente(quien)]; }
 
-/* Abre (o crea) el diario de un alumno y lo deja como estado vivo */
-function openDiary(nombre, grade) {
-  const k = diaryKey(nombre);
+/* Abre (o crea) el diario de un alumno y lo deja como estado vivo.
+   Acepta el nombre suelto o la ficha de la lista; con la ficha distingue a dos
+   que se llamen igual, que con el nombre es imposible. */
+function openDiary(quien, grade) {
+  const nombre = (quien && typeof quien === 'object') ? (quien.name || '') : quien;
+  const k = diaryKeyExistente(quien);
   if (!k) return null;
   const map = loadDiaries();
   if (map[k]) {
@@ -7547,6 +7627,7 @@ function openDiary(nombre, grade) {
   } else {
     S = defaultState(nombre);
     if (grade) S.profile.grade = grade;
+    else if (quien && typeof quien === 'object' && quien.grade) S.profile.grade = quien.grade;
   }
   diarioActivo = k;
   saveState();
@@ -8984,8 +9065,8 @@ function siguienteReto(grade) {
 /* Abre el turno de un alumno: carga su diario y arranca la ronda.
    `branchId`/`stratumId` son opcionales: si el docente no elige, decide el
    propio motor con siguienteReto(). */
-function startClassTurn(nombre, grade, branchId, stratumId) {
-  if (!openDiary(nombre, grade)) return { ok: false, reason: 'sin-nombre' };
+function startClassTurn(alumno, branchId, stratumId) {
+  if (!openDiary(alumno)) return { ok: false, reason: 'sin-nombre' };
   rolloverIfNeeded();          /* su racha y su bitácora, como si entrara él */
 
   let destino = (branchId && stratumId) ? { branchId, stratumId } : siguienteReto();
@@ -9019,7 +9100,7 @@ function aQuienLeToca(lista) {
   const turnos = turnosDeHoy();
   let mejor = null;
   for (const alumno of lista) {
-    const k = diaryKey(alumno.name);
+    const k = diaryKey(alumno);
     const t = turnos[k] || { rondas: 0, minutos: 0 };
     const cand = { alumno, rondas: t.rondas, minutos: t.minutos };
     if (!mejor || cand.rondas < mejor.rondas ||
@@ -11339,15 +11420,19 @@ function aulaAlumnos() {
   const vistos = new Set();
   const out = [];
   for (const r of (ATLAS_CONFIG.roster || [])) {
-    const k = diaryKey(r.name);
+    /* El usuario viaja con cada alumno: es lo que distingue a dos que se
+       llaman igual en cursos distintos. Sin él, aquí se fundían en uno y el
+       docente veía una sola ficha para las dos niñas. */
+    const k = diaryKey(r);
     if (!k || vistos.has(k)) continue;
     vistos.add(k);
-    out.push({ name: r.name, grade: r.grade || ATLAS_CONFIG.defaultGrade, enLista: true });
+    out.push({ name: r.name, username: r.username || '', authId: r.authId || '',
+               grade: r.grade || ATLAS_CONFIG.defaultGrade, enLista: true });
   }
   for (const d of allDiaries()) {
     if (vistos.has(d.key)) continue;
     vistos.add(d.key);
-    out.push({ name: d.name, grade: d.state.profile.grade, enLista: false });
+    out.push({ name: d.name, grade: d.state.profile.grade, enLista: false, clave: d.key });
   }
   return out;
 }
@@ -11373,7 +11458,7 @@ function renderAula() {
 
   const alumnos = aulaAlumnos();
   const turnos = turnosDeHoy();
-  const conRonda = alumnos.filter(a => (turnos[diaryKey(a.name)] || {}).rondas).length;
+  const conRonda = alumnos.filter(a => (turnos[diaryKey(a)] || {}).rondas).length;
 
   $('#aula-resumen').textContent = alumnos.length
     ? `${conRonda} de ${alumnos.length} han salido hoy`
@@ -11404,8 +11489,8 @@ function renderAula() {
   const agrupar = hayCuadrillas && ATLAS_CONFIG.aulaAgrupar !== false;
 
   const pintarAlumno = (a, donde) => {
-    const t = turnos[diaryKey(a.name)] || { rondas: 0, minutos: 0 };
-    const tiene = diaryExists(a.name);
+    const t = turnos[diaryKey(a)] || { rondas: 0, minutos: 0 };
+    const tiene = diaryExists(a);
     /* Dos acciones por alumno, no una: darle turno y abrir su bolsa. Un botón
        dentro de otro botón no es HTML válido, así que la tarjeta es un
        contenedor y el turno es el botón grande de dentro. */
@@ -11459,7 +11544,7 @@ function renderAula() {
   }
 
   const grupo = (titulo, icono, gente) => {
-    const salidos = gente.filter(a => (turnos[diaryKey(a.name)] || {}).rondas).length;
+    const salidos = gente.filter(a => (turnos[diaryKey(a)] || {}).rondas).length;
     const cab = document.createElement('div');
     cab.className = 'aula-grupo-cab';
     cab.innerHTML = `<span class="aula-grupo-icono">${esc(icono)}</span>
@@ -11503,7 +11588,7 @@ function empezarTurno(alumno) {
   if (tema) {
     /* Con un pozo elegido, el estrato lo sigue decidiendo el motor: el
        docente marca el tema, no la dificultad. */
-    openDiary(alumno.name, alumno.grade);
+    openDiary(alumno);
     const def = branchDef(tema);
     const abierto = STRATA_ORDER.filter(sId => stratumHasContent(def, sId) &&
       getStratum(tema, sId).status !== 'locked');
@@ -11513,7 +11598,7 @@ function empezarTurno(alumno) {
     destino = { branchId: tema, stratumId: peor };
   }
 
-  const r = startClassTurn(alumno.name, alumno.grade, destino && destino.branchId, destino && destino.stratumId);
+  const r = startClassTurn(alumno, destino && destino.branchId, destino && destino.stratumId);
   if (!r.ok) {
     toast(r.reason === 'sin-contenido'
       ? 'No hay ningún pozo disponible para su curso.'
@@ -11686,7 +11771,7 @@ function abrirBolsa(alumno, desdeTurno) {
   bolsaDesdeTurno = !!desdeTurno;
   /* Durante un turno, S YA es el diario de ese niño y hay una misión viva:
      volver a abrirlo la tiraría. Fuera del turno hay que abrirlo. */
-  if (!desdeTurno) openDiary(alumno.name, alumno.grade);
+  if (!desdeTurno) openDiary(alumno);
   $('#aula-turnos').classList.add('hidden');
   $('#aula-turno').classList.add('hidden');
   $('#aula-bolsa').classList.remove('hidden');
@@ -12606,6 +12691,10 @@ function renderTeacherConfig() {
 /* Guarda y repinta, avisando de que el cambio ya está aplicado */
 function cfgSave(path, value, msg) {
   setTeacherConfig(path, value);
+  /* Apuntar a alguien en la lista le da usuario, y con usuario su diario
+     cambia de clave. La mudanza va aquí, pegada al guardado, porque es el
+     único momento en que se sabe que la lista ha cambiado. */
+  if (path === 'roster') migrarClavesDeDiarios();
   renderTeacherConfig();
   if (msg !== false) toast(msg || 'Cambio guardado ✓', 1600);
 }
@@ -12744,6 +12833,19 @@ function azarSeguro(n) {
   return v % n;
 }
 
+/* Una línea del cuadro de altas. Admite «Nombre» a secas —va al curso de la
+   clase— y «Nombre, 4» o «Nombre (4.º)», que es lo que hace falta cuando la
+   lista mezcla cursos y hay dos niñas con el mismo nombre. */
+function leerLineaDeAlta(linea) {
+  const bruto = String(linea || '').trim();
+  if (!bruto) return { name: '', grade: ATLAS_CONFIG.defaultGrade };
+  const m = bruto.match(/^(.*?)[\s,;(]+([1-6])\.?[ºo°]?\)?$/);
+  if (m && m[1].trim()) {
+    return { name: m[1].trim().replace(/[,;(]+$/, '').trim(), grade: +m[2] };
+  }
+  return { name: bruto, grade: ATLAS_CONFIG.defaultGrade };
+}
+
 function makePassword() {
   return PASS_WORDS[azarSeguro(PASS_WORDS.length)] + String(1000 + azarSeguro(9000));
 }
@@ -12782,6 +12884,20 @@ function pegaDeLaCuenta(r) {
 function cfgAlumnado(body) {
   const roster = ATLAS_CONFIG.roster || [];
   const conCuenta = roster.filter(r => r.account).length;
+  const porVincular = roster.filter(r => r.authId).length;
+  /* Las fichas escritas a mano —o traídas de una copia antigua— llegan sin
+     usuario o sin contraseña, y sin eso no hay cuenta que crear. */
+  const incompletos = roster.filter(r => r.name && (!r.username || !r.password)).length;
+  /* Un nombre que aparece dos veces no es un error: son dos cursos. Pero hay
+     que decirlo, o el docente cree que se ha colado una fila repetida. */
+  const repes = new Set();
+  const cuenta = {};
+  for (const r of roster) {
+    const k = String(r.name || '').trim().toLowerCase();
+    if (!k) continue;
+    cuenta[k] = (cuenta[k] || 0) + 1;
+    if (cuenta[k] > 1) repes.add(k);
+  }
   const nube = cloudConfigured() && cloudEnabled();
 
   body.innerHTML = `
@@ -12829,6 +12945,12 @@ function cfgAlumnado(body) {
             </select></label>
             <span class="cfg-tag${r.account ? ' cfg-tag-ok' : ''}">${r.account ? '✓ cuenta creada' : 'sin cuenta todavía'}</span>
           </div>
+          ${repes.has(String(r.name || '').trim().toLowerCase())
+            ? `<p class="cfg-hint">👥 Hay otro alumno con este nombre en la lista. No pasa nada:
+               son dos personas distintas y cada una tiene su usuario, su diario y su cuadrilla.
+               <strong>Lo que los separa es el usuario</strong> (${esc(r.username || 'sin usuario')}),
+               así que asegúrate de que el curso de cada uno es el suyo.</p>`
+            : ''}
           ${(() => {
             /* Lo que impide que este alumno entre, dicho en su propia ficha.
                Antes había que deducirlo: se escribía una contraseña de tres
@@ -12844,13 +12966,17 @@ function cfgAlumnado(body) {
 
     <div class="cfg-row cfg-row-actions">
       <button class="btn btn-secondary btn-small" id="ros-add">➕ Añadir alumno</button>
+      ${incompletos ? `<button class="btn btn-secondary btn-small" id="ros-fill">🔑 Completar
+        ${incompletos} ficha(s) sin credenciales</button>` : ''}
       ${roster.length ? `<button class="btn btn-quit" id="ros-clear">Vaciar la lista</button>` : ''}
     </div>
 
     <h4 class="cfg-h4">Añadir toda la clase de golpe</h4>
     <p class="cfg-hint">Un nombre por línea. El usuario y la contraseña se generan solos
-    (podrás cambiarlos después).</p>
-    <textarea id="ros-bulk" rows="4" placeholder="Vega Serrano&#10;Nilo Ferrer&#10;Mara Ibáñez"></textarea>
+    (podrás cambiarlos después). Si la lista mezcla cursos, escribe el curso detrás:
+    <code>Mara Ibáñez, 4</code>. Así <strong>dos alumnas con el mismo nombre en cursos
+    distintos son dos alumnas</strong>, cada una con su usuario y su diario.</p>
+    <textarea id="ros-bulk" rows="4" placeholder="Vega Serrano&#10;Nilo Ferrer, 3&#10;Mara Ibáñez (4.º)"></textarea>
     <button class="btn btn-secondary btn-small" id="ros-bulk-go">📥 Añadir a la lista</button>
     <p id="ros-bulk-err" class="cfg-warn hidden"></p>
 
@@ -12858,8 +12984,16 @@ function cfgAlumnado(body) {
       <h4 class="cfg-h4">Crear las cuentas</h4>
       <p class="cfg-hint">Se dan de alta en Appwrite las que aún no existan. Tu sesión no se
       toca. Si alguna falla, se dice cuál y por qué.</p>
-      <button class="btn btn-primary btn-small" id="ros-create"${roster.length === conCuenta ? ' disabled' : ''}>
-        🎒 Crear ${roster.length - conCuenta} cuenta(s)</button>
+      <div class="cfg-acciones">
+        <button class="btn btn-primary btn-small" id="ros-create"${roster.length === conCuenta ? ' disabled' : ''}>
+          🎒 Crear ${roster.length - conCuenta} cuenta(s)</button>
+        ${porVincular ? `<button class="btn btn-secondary btn-small" id="ros-link">
+          🔗 Vincular ${porVincular} diario(s) a esta clase</button>` : ''}
+      </div>
+      <p class="cfg-hint">El diario de cada niño <strong>nace cuando entra por primera vez</strong>,
+      con permiso solo para él: es lo correcto y es lo único que Appwrite permite. «Vincular» le
+      pone entonces esta clase y tu nombre, que es lo que hace que aparezca en la vista de clase.
+      Se puede pulsar las veces que haga falta, según vayan entrando.</p>
       <div id="ros-create-log" class="ros-log${rosterLog.length ? '' : ' hidden'}">${
         rosterLog.map(x => `<div>${x}</div>`).join('')}</div>` : ''}
 
@@ -12867,7 +13001,11 @@ function cfgAlumnado(body) {
       <h4 class="cfg-h4">Hoja de credenciales</h4>
       <p class="cfg-hint">Para repartir en clase. Cada alumno solo necesita su línea.</p>
       <textarea id="ros-sheet" rows="6" readonly>${roster.map(r =>
-        `${esc(r.name)}  →  usuario: ${esc(r.username)}   contraseña: ${esc(r.password)}`).join('\n')}</textarea>
+        /* Con dos niñas del mismo nombre, una hoja sin el curso es una hoja
+           que se reparte mal. Solo se pone donde hace falta. */
+        `${esc(r.name)}${repes.has(String(r.name || '').trim().toLowerCase())
+          ? ` (${esc(gradeInfo(r.grade || ATLAS_CONFIG.defaultGrade).label)})` : ''
+        }  →  usuario: ${esc(r.username)}   contraseña: ${esc(r.password)}`).join('\n')}</textarea>
       <button class="btn btn-secondary btn-small" id="ros-copy">📋 Copiar</button>` : ''}`;
 
   onInput('#cfg-read-aloud', e => cfgSave('readAloud', e.target.value, 'Lectura en voz alta guardada ✓'));
@@ -12894,6 +13032,19 @@ function cfgAlumnado(body) {
     cfgSave('roster', l, 'Quitado de la lista ✓');
   }));
 
+  const fill = $('#ros-fill');
+  if (fill) fill.addEventListener('click', () => {
+    const l = rosterCopy();
+    const taken = l.map(r => r.username).filter(Boolean);
+    let n = 0;
+    for (const r of l) {
+      if (!r.name) continue;
+      if (!r.username) { r.username = makeUsername(r.name, taken); taken.push(r.username); n++; }
+      if (!r.password) { r.password = makePassword(); n++; }
+    }
+    cfgSave('roster', l, `${n} dato(s) generados ✓ Míralos en la hoja de credenciales.`);
+  });
+
   $('#ros-add').addEventListener('click', () => {
     const l = rosterCopy();
     const taken = l.map(r => r.username);
@@ -12915,16 +13066,23 @@ function cfgAlumnado(body) {
     const taken = l.map(r => r.username);
     let added = 0, dup = [];
     for (const line of raw.split('\n')) {
-      const name = line.trim();
+      const { name, grade } = leerLineaDeAlta(line);
       if (!name) continue;
-      if (l.some(r => (r.name || '').trim().toLowerCase() === name.toLowerCase())) { dup.push(name); continue; }
+      /* Dos alumnas que se llaman igual pero van a cursos distintos NO son la
+         misma: en un colegio pasa, y antes la segunda se rechazaba como
+         repetida. Se repite quien coincide en nombre Y curso. */
+      if (l.some(r => (r.name || '').trim().toLowerCase() === name.toLowerCase()
+                   && (r.grade || ATLAS_CONFIG.defaultGrade) === grade)) { dup.push(name); continue; }
       const username = makeUsername(name, taken);
       taken.push(username);
-      l.push({ name, username, password: makePassword(), account: false, grade: ATLAS_CONFIG.defaultGrade });
+      l.push({ name, username, password: makePassword(), account: false, grade });
       added++;
     }
     if (!added) {
-      err.textContent = dup.length ? `Ya estaban en la lista: ${dup.join(', ')}.` : 'No se ha podido leer ningún nombre.';
+      err.textContent = dup.length
+        ? `Ya estaban en la lista, con ese mismo curso: ${dup.join(', ')}. Si es otro alumno`
+          + ' distinto, escribe su curso detrás del nombre.'
+        : 'No se ha podido leer ningún nombre.';
       err.classList.remove('hidden');
       return;
     }
@@ -12957,23 +13115,12 @@ function cfgAlumnado(body) {
       const res = await cloudCreateStudent(r.name, r.username, r.password);
       if (res.ok) {
         l[i].account = true; ok++;
-        /* La cuenta sola no basta: si el diario lo crea después el niño desde
-           su casa, nace sin clase y sin docente, y ya no hay forma de saber
-           de quién era. Se crea aquí, que es donde se sabe. */
-        const diario = await cloudCrearDiarioDe(res.id, r.name, r.grade);
-        if (diario.ok) {
-          lineas.push(`✓ ${esc(r.name)} — cuenta y diario creados${
-            diario.aula ? ', ya en esta clase' : ''}`);
-        } else if (diario.reason === 'existe') {
-          lineas.push(`✓ ${esc(r.name)} — cuenta creada (ya tenía diario)`);
-        } else if (diario.reason === 'falta-columna') {
-          lineas.push(`⚠️ ${esc(r.name)} — cuenta creada, pero el diario no: a la colección de
-            diarios le falta una columna (${esc(diario.detail || '')}). Revisa que estén «aula» y
-            «owner», escritas exactamente así.`);
-        } else {
-          lineas.push(`⚠️ ${esc(r.name)} — cuenta creada, pero su diario no ha podido asociarse a
-            la clase: ${esc(diario.detail || diario.reason || 'error')}`);
-        }
+        /* El id de su cuenta es lo único que identifica a este niño sin lugar
+           a dudas —dos pueden llamarse igual— y es el id de su diario. Se
+           guarda ahora, que es el único momento en que se conoce: con él, el
+           panel adopta su diario en cuanto entre por primera vez. */
+        if (res.id) l[i].authId = res.id;
+        lineas.push(`✓ ${esc(r.name)} — cuenta creada`);
       }
       else if (res.reason === 'existe') { l[i].account = true; lineas.push(`✓ ${esc(r.name)} — ya existía, se marca como creada`); ok++; }
       else {
@@ -12987,8 +13134,62 @@ function cfgAlumnado(body) {
       }
     }
     lineas.push(`<span class="ros-log-sum">${ok} creada(s)${fallos ? `, ${fallos} con problema` : ''}.</span>`);
+    if (ok) {
+      lineas.push(`<span class="ros-log-sum">Reparte la hoja de credenciales. El diario de cada
+        uno nace cuando entra por primera vez; luego pulsa «Vincular los diarios» y quedarán
+        dentro de esta clase.</span>`);
+    }
     rosterLog = lineas;          /* se conserva para el repintado */
     cfgSave('roster', l, false);
+    renderTeacherConfig();
+  });
+
+  /* ── Adoptar los diarios que ya han nacido ──
+     El diario lo crea el niño al entrar, con permiso para él, y nace sin clase
+     y sin docente: el panel no puede crearlo por él (ver cloudVincularDiario).
+     Esto le pone la clase a los que ya existan; a los demás dice que todavía
+     no han entrado, que es información útil por sí sola. */
+  const linkBtn = $('#ros-link');
+  if (linkBtn) linkBtn.addEventListener('click', async () => {
+    const log = $('#ros-create-log');
+    log.classList.remove('hidden');
+    linkBtn.disabled = true;
+    const l = rosterCopy();
+    const lineas = [];
+    let atados = 0, esperando = 0, fallos = 0;
+    for (const r of l) {
+      if (!r.authId) continue;
+      log.innerHTML = lineas.concat([`⏳ ${esc(r.name)}…`]).map(x => `<div>${x}</div>`).join('');
+      const v = await cloudVincularDiario(r.authId);
+      if (v.ok && v.cambiado) { atados++; lineas.push(`🔗 ${esc(r.name)} — su diario ya está en esta clase`); }
+      else if (v.ok) { atados++; lineas.push(`✓ ${esc(r.name)} — ya estaba`); }
+      else if (v.reason === 'sin-estrenar') { esperando++; }
+      else if (v.reason === 'sin-permiso') {
+        fallos++;
+        lineas.push(`⚠️ ${esc(r.name)} — tu cuenta no puede escribir en su diario. En la consola de
+          Appwrite, colección de diarios → <strong>Settings → Permissions → Team «docentes» →
+          Update</strong>. Es el mismo permiso que hace falta para anotarle un mérito.`);
+        break;      /* le pasará a todos: no se repite veinte veces */
+      }
+      else if (v.reason === 'falta-columna') {
+        fallos++;
+        lineas.push(`⚠️ ${esc(r.name)} — a la colección de diarios le falta una columna
+          (${esc(v.detail || '')}). Revisa que estén «aula» y «owner», escritas exactamente así.`);
+        break;
+      }
+      else { fallos++; lineas.push(`✘ ${esc(r.name)} — ${esc(v.detail || v.reason || 'error')}`); }
+    }
+    const sinCuenta = l.filter(r => r.account && !r.authId).length;
+    lineas.push(`<span class="ros-log-sum">${atados} diario(s) en esta clase${
+      esperando ? `, ${esperando} sin estrenar todavía (aún no han entrado)` : ''}${
+      fallos ? `, ${fallos} con problema` : ''}.</span>`);
+    if (sinCuenta) {
+      lineas.push(`<span class="ros-log-sum">${sinCuenta} con la cuenta creada antes de esta
+        versión: de esos no se guardó el identificador. Sus diarios aparecen igual en la vista de
+        clase, pero para atarlos hay que volver a crearles la cuenta o hacerlo a mano.</span>`);
+    }
+    rosterLog = lineas;
+    linkBtn.disabled = false;
     renderTeacherConfig();
   });
 
@@ -15164,6 +15365,9 @@ async function boot() {
   loadTeacherConfig();   /* ajustes del docente sobre los valores de fábrica */
   loadConfigMeta();
   loadAula();
+  /* Los diarios guardados antes de que la clave fuera el usuario están bajo el
+     nombre. Se mudan una vez, al arrancar, antes de que nadie los busque. */
+  migrarClavesDeDiarios();
   vozInit();
   prepararDescargas();
   wireGlobalListeners();

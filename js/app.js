@@ -276,6 +276,9 @@ async function boot() {
   loadTeacherConfig();   /* ajustes del docente sobre los valores de fábrica */
   loadConfigMeta();
   loadAula();
+  /* Los diarios guardados antes de que la clave fuera el usuario están bajo el
+     nombre. Se mudan una vez, al arrancar, antes de que nadie los busque. */
+  migrarClavesDeDiarios();
   vozInit();
   prepararDescargas();
   wireGlobalListeners();

@@ -84,7 +84,8 @@ Cubren lo que ya se ha roto alguna vez, que es de donde salieron:
 | `version.test.js` | Que el número de versión que lee el docente no se separe del de la caché |
 | `usabilidad.test.js` | Que la letra grande escale de verdad, que el Taller se pueda teclear y que nada se salga de la pantalla |
 | `generador.test.js` | Que un reto escrito por IA con la cuenta mal marcada no llegue nunca a un niño |
-| `alta.test.js` | Que el diario de un alumno nazca ya dentro de su clase y con su docente |
+| `alta.test.js` | Que el panel no intente crear el diario del alumno —Appwrite no lo permite— y que vincularlo le ponga su clase y su docente |
+| `identidad.test.js` | Que dos alumnas con el mismo nombre en cursos distintos no compartan diario, y que los diarios viejos se muden sin perderse |
 | `bolsa.test.js` | Que comprar o donar por un alumno salga de su bolsa, no toque sus PE, y vuelva a su documento |
 | `feedback.test.js` | Que el aviso de acierto/fallo no llegue a una misión que ya terminó |
 
@@ -160,9 +161,12 @@ Sin configurar nada, la app funciona en **modo local**: cada tablet guarda su pr
 
    > **Cópialos con cuidado.** Si el nombre no coincide exactamente —`ower` en vez de `owner`, por ejemplo— Appwrite rechaza el documento con *Unknown attribute*. El panel lo dice ahora con todas las letras al crear las cuentas, pero es un rato perdido que se ahorra mirando dos veces.
 
-7. Crea un **equipo** llamado `docentes` (Auth → Teams), añádete a él, y en **Permissions** de esta colección dale **Read**. Hace falta para ver los diarios que **no** creó tu panel: los de quien se registró por su cuenta con «Soy nuevo», o los de antes de dar este paso. Los que crea el panel ya nacen con permiso de lectura para su docente.
+7. Crea un **equipo** llamado `docentes` (Auth → Teams), añádete a él, y en **Permissions** de esta colección dale **Read** y **Update**.
 
-   > Es el paso que más se olvida, y falla en silencio: un diario que tu cuenta no puede leer **no da error**. Appwrite responde con la lista vacía, exactamente igual que si no existiera ninguno, así que la pantalla dice «aún no ha empezado nadie» cuando lo que pasa es otra cosa.
+   - **Read** es lo que te deja ver los diarios. Cada uno nace con permiso solo para su dueño —eso es lo correcto, así ningún alumno lee el de otro— y tu cuenta necesita el suyo aparte.
+   - **Update** es lo que te deja **vincular** el diario de un alumno a tu clase y anotarle un mérito. Sin él, «Vincular los diarios» dice *«tu cuenta no puede escribir en su diario»* y la vista de clase se queda vacía aunque los niños hayan entrado.
+
+   > Es el paso que más se olvida, y el de lectura falla en silencio: un diario que tu cuenta no puede leer **no da error**. Appwrite responde con la lista vacía, exactamente igual que si no existiera ninguno, así que la pantalla dice «aún no ha empezado nadie» cuando lo que pasa es otra cosa.
    >
    > Los alumnos siguen sin poder leerse entre ellos: el permiso de lectura de la colección es solo para el equipo docente; ellos únicamente tienen el de su propio documento.
    >
@@ -410,7 +414,7 @@ Los niños escriben **usuario**, no email (más fácil a los 8–10 años). Inte
 
 > **Escribir la contraseña en la lista de clase NO crea la cuenta.** La lista vive en el equipo; la cuenta hay que darla de alta en Appwrite con **Crear las cuentas**. Hasta que no se pulsa, ese alumno no puede entrar, y Appwrite responderá lo mismo que si la contraseña estuviera mal —lo hace a propósito, para que no se pueda averiguar quién tiene cuenta probando—. Por eso cada ficha dice lo que le falta.
 
-> **«Crear las cuentas» crea dos cosas, no una.** La cuenta de Appwrite y, con ella, el diario de ese alumno —ya dentro de la clase activa, con el docente como dueño y con permiso de lectura para él—. Es el único momento en que esa información está junta: el niño, desde su casa, no sabe de qué clase es ni de quién, así que un diario que se cree allí nace suelto y el docente no llega a verlo. Por eso conviene dar de alta desde el panel en vez de dejar que cada uno se registre con **Soy nuevo**.
+> **«Crear las cuentas» crea la cuenta, no el diario.** El diario nace cuando el niño entra por primera vez, con permiso solo para él —es lo único que Appwrite permite—, y nace suelto: sin clase y sin docente. **🔗 Vincular los diarios a esta clase** se lo pone después, y es lo que hace que aparezca en la vista de clase. Aun así conviene dar de alta desde el panel en vez de dejar que cada uno se registre con **Soy nuevo**: así la lista guarda el identificador de su cuenta, que es lo que permite vincularlo sin confundir a dos alumnos con el mismo nombre.
 
 Las contraseñas que genera el panel son una palabra del mundo del juego más cuatro cifras (`brujula8845`), para que las pueda teclear un niño de ocho años en una tablet. Salen del generador criptográfico del navegador, no de `Math.random()`: el docente da de alta la clase entera de una tacada, y de unas pocas salidas seguidas de `Math.random()` se puede reconstruir su estado y predecir las demás — y la hoja de credenciales se reparte en clase. Lo que impide adivinarlas probando no es su tamaño, es el límite de intentos de Appwrite: igual que el PIN, esto es una barrera de aula.
 
@@ -790,10 +794,36 @@ Para cargarla entera, pega los nombres —uno por línea— y se generan solos e
 
 Con Appwrite configurado aparece **🎒 Crear cuentas**: da de alta en Appwrite las que aún no existan, **sin tocar tu sesión**. El registro te dice qué pasó con cada alumno; si Appwrite pide bajar el ritmo, se detiene ahí y te lo explica en castellano en lugar de seguir martilleando el servidor. Al terminar tienes una **hoja de credenciales** lista para repartir: cada niño solo necesita su línea.
 
-Dos detalles:
+Si alguna ficha llegó sin usuario o sin contraseña —escrita a mano, o traída de una copia antigua— **🔑 Completar fichas sin credenciales** rellena lo que falte de una vez, sin tocar lo que ya esté puesto.
 
-- **El diario lo crea el alumno al entrar por primera vez.** Crear la cuenta no crea su progreso; eso nace con su primera expedición.
+### El diario nace cuando el niño entra, y luego se vincula
+
+Son dos momentos, y conviene saberlo porque explica lo que se ve en pantalla:
+
+1. **Crear las cuentas** da de alta la cuenta de cada alumno. Nada más.
+2. El niño entra con su línea de la hoja y **ahí nace su diario**, con permiso solo para él.
+3. **🔗 Vincular los diarios a esta clase** les pone tu clase y tu nombre. Hasta ese momento son diarios sueltos: existen, pero la vista de clase no sabe que son tuyos.
+
+Se puede pulsar «Vincular» las veces que haga falta, según vayan entrando; de quien todavía no ha entrado dice justo eso, y no cuenta como fallo.
+
+> **Por qué el panel no crea el diario él mismo.** Lo intentaba, y Appwrite lo rechaza: **solo se pueden repartir permisos que uno tiene**, y tú no eres tu alumno, así que no puedes darle a él permiso de lectura sobre nada. El error salía como `Permissions must be one of: (any, users, user:<tu id>, team:<docentes>…)`, que parece un problema de configuración y no lo es.
+>
+> Crearlo con tus permisos a secas habría sido peor que no crearlo: el niño no podría **ni leer ni escribir su propio diario**, su app lo daría por inexistente, intentaría crear uno con el mismo identificador, chocaría, y se quedaría sin sincronizar en silencio todo el curso.
+
+Y dos detalles más:
+
 - **Quitar a alguien de la lista no borra su cuenta ni su diario.** Sale de tu lista y de las cuadrillas, pero puede seguir entrando. La app te lo recuerda antes de hacerlo.
+- **Dos alumnos pueden llamarse igual.** Ver abajo.
+
+### Dos alumnas con el mismo nombre
+
+Pasa en cuanto la lista mezcla cursos: una Sarah en 2.º y otra en 4.º. Antes la segunda se rechazaba al añadirla («ya está en la lista») y, si entraba de otra forma, las dos **compartían diario, cuadrilla y rol**: lo que hacía una se lo encontraba la otra.
+
+Lo que identifica a un alumno es su **usuario**, no su nombre. El usuario no se repite —la lista lo genera distinto para cada uno: `sarah`, `sarah2`— y no cambia cuando corriges un nombre.
+
+- Al añadir de golpe, escribe el curso detrás: `Mara Ibáñez, 4` (vale también `Mara Ibáñez (4.º)`). Sin curso va al de la clase. Solo se rechaza como repetido quien coincide **en nombre y en curso**.
+- La ficha de un nombre repetido lo dice, y **la hoja de credenciales añade el curso** en esas líneas: `Sarah (2.º) → usuario: sarah`. Una hoja con dos líneas «Sarah» es una hoja que se reparte mal.
+- Los diarios guardados antes de esto están bajo el nombre y **se mudan solos** a la clave del usuario, una vez, al arrancar. La mudanza nunca pisa un diario que ya esté en el destino, y quien entró antes de estar en la lista conserva el suyo.
 
 ### Comprar y donar sin que el alumno entre
 

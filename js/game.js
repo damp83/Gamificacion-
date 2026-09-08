@@ -267,8 +267,8 @@ function siguienteReto(grade) {
 /* Abre el turno de un alumno: carga su diario y arranca la ronda.
    `branchId`/`stratumId` son opcionales: si el docente no elige, decide el
    propio motor con siguienteReto(). */
-function startClassTurn(nombre, grade, branchId, stratumId) {
-  if (!openDiary(nombre, grade)) return { ok: false, reason: 'sin-nombre' };
+function startClassTurn(alumno, branchId, stratumId) {
+  if (!openDiary(alumno)) return { ok: false, reason: 'sin-nombre' };
   rolloverIfNeeded();          /* su racha y su bitácora, como si entrara él */
 
   let destino = (branchId && stratumId) ? { branchId, stratumId } : siguienteReto();
@@ -302,7 +302,7 @@ function aQuienLeToca(lista) {
   const turnos = turnosDeHoy();
   let mejor = null;
   for (const alumno of lista) {
-    const k = diaryKey(alumno.name);
+    const k = diaryKey(alumno);
     const t = turnos[k] || { rondas: 0, minutos: 0 };
     const cand = { alumno, rondas: t.rondas, minutos: t.minutos };
     if (!mejor || cand.rondas < mejor.rondas ||

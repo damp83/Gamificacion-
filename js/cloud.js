@@ -504,48 +504,57 @@ async function cloudCreateStudent(name, username, password) {
   }
 }
 
-/* ── El diario nace dentro de su clase ──
-   Un diario que crea el propio alumno desde su casa no puede saber de qué
-   clase es ni de quién: nace con permiso solo para él y con `aula` vacío, y
-   entonces el docente no lo ve —Appwrite no da error, simplemente no se lo
-   devuelve— ni la clase lo reconoce como suyo.
+/* ── Atar el diario de un alumno a esta clase ──
 
-   Aquí sí se sabe todo, porque lo llama el panel justo después de dar de alta
-   la cuenta: quién es el docente (la sesión), cuál es la clase (la activa) y
-   qué cuenta se acaba de crear (el id que devuelve el alta).
+   Esto lo hacía el panel al dar de alta la cuenta: creaba el diario ya con su
+   clase y su dueño. NO SE PUEDE, y el error tardó en entenderse porque parecía
+   un problema de configuración: «Permissions must be one of: (any, users,
+   user:<el docente>, team:<docentes>…)». Appwrite solo deja repartir permisos
+   que uno mismo tiene, y el docente no es el alumno, así que
+   `Permission.read(Role.user(<alumno>))` es un permiso que no puede dar.
 
-   El id del documento es el del ALUMNO, que es donde su propia app va a
-   guardar después (cloudPush usa CLOUD.user.$id). Así el diario que el niño
-   estrena es este mismo, con su clase ya puesta, y no uno nuevo suelto. */
-async function cloudCrearDiarioDe(alumnoId, nombre, grado) {
+   Y crearlo con los permisos del docente a secas habría sido peor que no
+   crearlo: el niño no podría leer NI ESCRIBIR su propio diario, su app lo
+   tomaría por inexistente, intentaría crearlo, chocaría con un id ya usado y
+   se quedaría sin sincronizar en silencio durante todo el curso.
+
+   Así que el diario lo crea el niño la primera vez que entra —con permiso para
+   él, que es lo correcto— y el panel lo ADOPTA después: le pone `aula` y
+   `owner`. Para adoptarlo, el equipo `docentes` necesita permiso de UPDATE en
+   la colección de diarios; es el mismo que ya hace falta para anotarle un
+   mérito a un niño que se registró por su cuenta. */
+async function cloudVincularDiario(alumnoId) {
   if (!CLOUD.enabled || !CLOUD.user) return { ok: false, reason: 'sin-nube' };
   if (!alumnoId) return { ok: false, reason: 'sin-id' };
   const c = ATLAS_CONFIG.appwrite;
   const docente = CLOUD.user.$id;
   const aula = aulaActiva() || '';
+  let doc;
   try {
-    const estado = diarioSinEstrenar(nombre, grado);
-    const data = { state: JSON.stringify(estado), name: nombre, owner: docente };
-    try { data.summary = JSON.stringify(buildSummaryOf(estado)); } catch (e) { /* opcional */ }
-    if (aula) data.aula = aula;
-    await CLOUD.db.createDocument(c.databaseId, c.collectionId, alumnoId, data, [
-      /* El niño manda sobre su diario: lo lee y lo escribe. Borrarlo no, que
-         un despiste suyo no puede costarle el curso. */
-      Appwrite.Permission.read(Appwrite.Role.user(alumnoId)),
-      Appwrite.Permission.update(Appwrite.Role.user(alumnoId)),
-      /* Y su docente lo ve sin depender de ningún permiso de colección. */
-      Appwrite.Permission.read(Appwrite.Role.user(docente)),
-      Appwrite.Permission.update(Appwrite.Role.user(docente)),
-      Appwrite.Permission.delete(Appwrite.Role.user(docente))
-    ]);
-    /* Para que lo que el docente le compre a este niño vaya a ESTE documento
-       y no a uno derivado del nombre, que su app nunca leería. */
-    recordarDocId(diaryKey(nombre), alumnoId);
-    return { ok: true, aula };
+    doc = await CLOUD.db.getDocument(c.databaseId, c.collectionId, alumnoId);
   } catch (e) {
     const msg = (e && e.message) || '';
-    if (/already exists/i.test(msg)) return { ok: false, reason: 'existe' };
+    /* Que no exista no es un fallo: es que ese niño todavía no ha entrado. */
+    if (/not be found|404|Document with the requested ID could not/i.test(msg)) {
+      return { ok: false, reason: 'sin-estrenar' };
+    }
+    return errorNube(e);
+  }
+  /* Ya está en su sitio: no se gasta una escritura ni se toca la fecha. */
+  if ((doc.aula || '') === aula && (doc.owner || '') === docente) {
+    return { ok: true, cambiado: false };
+  }
+  const data = { owner: docente };
+  if (aula) data.aula = aula;
+  try {
+    await CLOUD.db.updateDocument(c.databaseId, c.collectionId, alumnoId, data);
+    return { ok: true, cambiado: true };
+  } catch (e) {
+    const msg = (e && e.message) || '';
     if (/Unknown attribute/i.test(msg)) return { ok: false, reason: 'falta-columna', detail: msg };
+    if (/not authorized|missing scop|permission/i.test(msg)) {
+      return { ok: false, reason: 'sin-permiso', detail: msg };
+    }
     return { ok: false, reason: 'error', detail: msg };
   }
 }

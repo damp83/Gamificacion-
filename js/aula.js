@@ -310,15 +310,19 @@ function aulaAlumnos() {
   const vistos = new Set();
   const out = [];
   for (const r of (ATLAS_CONFIG.roster || [])) {
-    const k = diaryKey(r.name);
+    /* El usuario viaja con cada alumno: es lo que distingue a dos que se
+       llaman igual en cursos distintos. Sin él, aquí se fundían en uno y el
+       docente veía una sola ficha para las dos niñas. */
+    const k = diaryKey(r);
     if (!k || vistos.has(k)) continue;
     vistos.add(k);
-    out.push({ name: r.name, grade: r.grade || ATLAS_CONFIG.defaultGrade, enLista: true });
+    out.push({ name: r.name, username: r.username || '', authId: r.authId || '',
+               grade: r.grade || ATLAS_CONFIG.defaultGrade, enLista: true });
   }
   for (const d of allDiaries()) {
     if (vistos.has(d.key)) continue;
     vistos.add(d.key);
-    out.push({ name: d.name, grade: d.state.profile.grade, enLista: false });
+    out.push({ name: d.name, grade: d.state.profile.grade, enLista: false, clave: d.key });
   }
   return out;
 }
@@ -344,7 +348,7 @@ function renderAula() {
 
   const alumnos = aulaAlumnos();
   const turnos = turnosDeHoy();
-  const conRonda = alumnos.filter(a => (turnos[diaryKey(a.name)] || {}).rondas).length;
+  const conRonda = alumnos.filter(a => (turnos[diaryKey(a)] || {}).rondas).length;
 
   $('#aula-resumen').textContent = alumnos.length
     ? `${conRonda} de ${alumnos.length} han salido hoy`
@@ -375,8 +379,8 @@ function renderAula() {
   const agrupar = hayCuadrillas && ATLAS_CONFIG.aulaAgrupar !== false;
 
   const pintarAlumno = (a, donde) => {
-    const t = turnos[diaryKey(a.name)] || { rondas: 0, minutos: 0 };
-    const tiene = diaryExists(a.name);
+    const t = turnos[diaryKey(a)] || { rondas: 0, minutos: 0 };
+    const tiene = diaryExists(a);
     /* Dos acciones por alumno, no una: darle turno y abrir su bolsa. Un botón
        dentro de otro botón no es HTML válido, así que la tarjeta es un
        contenedor y el turno es el botón grande de dentro. */
@@ -430,7 +434,7 @@ function renderAula() {
   }
 
   const grupo = (titulo, icono, gente) => {
-    const salidos = gente.filter(a => (turnos[diaryKey(a.name)] || {}).rondas).length;
+    const salidos = gente.filter(a => (turnos[diaryKey(a)] || {}).rondas).length;
     const cab = document.createElement('div');
     cab.className = 'aula-grupo-cab';
     cab.innerHTML = `<span class="aula-grupo-icono">${esc(icono)}</span>
@@ -474,7 +478,7 @@ function empezarTurno(alumno) {
   if (tema) {
     /* Con un pozo elegido, el estrato lo sigue decidiendo el motor: el
        docente marca el tema, no la dificultad. */
-    openDiary(alumno.name, alumno.grade);
+    openDiary(alumno);
     const def = branchDef(tema);
     const abierto = STRATA_ORDER.filter(sId => stratumHasContent(def, sId) &&
       getStratum(tema, sId).status !== 'locked');
@@ -484,7 +488,7 @@ function empezarTurno(alumno) {
     destino = { branchId: tema, stratumId: peor };
   }
 
-  const r = startClassTurn(alumno.name, alumno.grade, destino && destino.branchId, destino && destino.stratumId);
+  const r = startClassTurn(alumno, destino && destino.branchId, destino && destino.stratumId);
   if (!r.ok) {
     toast(r.reason === 'sin-contenido'
       ? 'No hay ningún pozo disponible para su curso.'
@@ -657,7 +661,7 @@ function abrirBolsa(alumno, desdeTurno) {
   bolsaDesdeTurno = !!desdeTurno;
   /* Durante un turno, S YA es el diario de ese niño y hay una misión viva:
      volver a abrirlo la tiraría. Fuera del turno hay que abrirlo. */
-  if (!desdeTurno) openDiary(alumno.name, alumno.grade);
+  if (!desdeTurno) openDiary(alumno);
   $('#aula-turnos').classList.add('hidden');
   $('#aula-turno').classList.add('hidden');
   $('#aula-bolsa').classList.remove('hidden');

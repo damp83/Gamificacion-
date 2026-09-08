@@ -1,15 +1,19 @@
-/* Dar de alta a un alumno son DOS cosas, y hasta ahora era una. La cuenta se
-   creaba desde el panel y el diario lo creaba después el niño desde su casa,
-   donde no puede saber de qué clase es ni de quién: nacía con `aula` vacío,
-   sin dueño y con permiso solo para él. El docente no lo veía y la clase no lo
-   reconocía como suyo. */
+/* Dar de alta a un alumno son DOS cosas y ocurren en dos momentos: el panel
+   crea la CUENTA, y el diario lo crea el niño la primera vez que entra.
+
+   No puede ser de otra forma. El panel intentaba crear también el diario, ya
+   con su clase y su dueño, y Appwrite lo rechazaba: solo deja repartir
+   permisos que uno mismo tiene, y el docente no es el alumno. Crearlo con los
+   permisos del docente a secas habría sido peor —el niño no podría ni leer su
+   propio diario—, así que el panel lo ADOPTA después: le pone `aula` y
+   `owner` al que ya existe. */
 const { test } = require('node:test');
 const assert = require('node:assert');
 const { cargarApp } = require('./cargar.js');
 
-function panelDeDocente({ falla } = {}) {
+function panelDeDocente({ diario, fallaEscritura } = {}) {
   const ctx = cargarApp();
-  const creados = [];
+  const escritos = [];
   ctx.Appwrite = {
     Query: { equal: () => ({}), limit: () => ({}), cursorAfter: () => ({}) },
     Permission: {
@@ -25,71 +29,103 @@ function panelDeDocente({ falla } = {}) {
   CLOUD.enabled = true;
   CLOUD.user = { $id: 'docente1', name: 'Diego' };
   CLOUD.db = {
-    createDocument: async (db, col, id, data, permisos) => {
-      if (falla) throw new Error(falla);
-      creados.push({ id, data, permisos });
+    createDocument: async (db, col, id, data, permisos) => { escritos.push({ id, data, permisos, creado: true }); return { $id: id }; },
+    updateDocument: async (db, col, id, data) => {
+      if (fallaEscritura) throw new Error(fallaEscritura);
+      escritos.push({ id, data });
       return { $id: id };
     },
-    updateDocument: async () => ({}),
-    getDocument: async () => { throw new Error('no'); },
+    getDocument: async (db, col, id) => {
+      if (!diario) throw new Error('Document with the requested ID could not be found.');
+      return Object.assign({ $id: id }, diario);
+    },
     listDocuments: async () => ({ documents: [], total: 0 })
   };
   ctx.ev('setAulaActiva')('aula-A', '4.º B');
-  return { ctx, creados };
+  return { ctx, escritos };
 }
 
-test('el diario nace con su clase y con su docente', async () => {
-  const { ctx, creados } = panelDeDocente();
-  const r = await ctx.ev('cloudCrearDiarioDe')('alu9', 'Gero Prats', 3);
+test('vincular le pone a su diario esta clase y este docente', async () => {
+  const { ctx, escritos } = panelDeDocente({ diario: { $id: 'alu9', name: 'Gero Prats' } });
+  const r = await ctx.ev('cloudVincularDiario')('alu9');
 
   assert.equal(r.ok, true);
-  assert.equal(creados.length, 1);
-  assert.equal(creados[0].id, 'alu9', 'el id es el del alumno: es donde su app guardará luego');
-  assert.equal(creados[0].data.aula, 'aula-A');
-  assert.equal(creados[0].data.owner, 'docente1');
-  assert.equal(creados[0].data.name, 'Gero Prats');
-  assert.equal(JSON.parse(creados[0].data.state).profile.grade, 3, 'y con su curso');
+  assert.equal(r.cambiado, true);
+  assert.equal(escritos.length, 1);
+  assert.equal(escritos[0].id, 'alu9', 'el documento del alumno es el de su cuenta');
+  assert.equal(escritos[0].data.aula, 'aula-A');
+  assert.equal(escritos[0].data.owner, 'docente1');
+  assert.ok(!('state' in escritos[0].data), 'no se toca lo que el niño lleve jugado');
 });
 
-test('lo lee y lo escribe el niño; lo ve su docente; borrarlo, solo el docente', () => {
-  /* Un despiste de un crío no puede costarle el curso, y el docente tiene que
-     poder verlo sin depender de ningún permiso de colección. */
-  const { ctx, creados } = panelDeDocente();
-  return ctx.ev('cloudCrearDiarioDe')('alu9', 'Gero Prats', 3).then(() => {
-    const p = creados[0].permisos.map(x => `${x.p}:${x.r}`);
-    assert.deepEqual(p.sort(), [
-      'delete:user:docente1', 'read:user:alu9', 'read:user:docente1',
-      'update:user:alu9', 'update:user:docente1'
-    ]);
-    assert.ok(!p.includes('delete:user:alu9'), 'el niño no puede borrarse el diario');
+test('el que ya estaba en su sitio no se vuelve a escribir', async () => {
+  /* Se pulsa cada vez que entra alguien nuevo: reescribir los veinte diarios
+     cada vez sería gastar la red del centro y mover la fecha de todos. */
+  const { ctx, escritos } = panelDeDocente({
+    diario: { $id: 'alu9', aula: 'aula-A', owner: 'docente1' }
   });
+  const r = await ctx.ev('cloudVincularDiario')('alu9');
+  assert.equal(r.ok, true);
+  assert.equal(r.cambiado, false);
+  assert.equal(escritos.length, 0);
 });
 
-test('sin clase abierta se crea igual, con su docente', async () => {
-  /* Un solo docente sin la colección de aulas: el aislamiento no hace falta,
-     pero verlo sí. */
-  const { ctx, creados } = panelDeDocente();
-  ctx.ev('setAulaActiva')('', '');
-  const r = await ctx.ev('cloudCrearDiarioDe')('alu9', 'Gero Prats', 3);
-  assert.equal(r.ok, true);
-  assert.ok(!('aula' in creados[0].data));
-  assert.equal(creados[0].data.owner, 'docente1');
+test('quien no ha entrado todavía no es un error', async () => {
+  /* Es lo normal el día que se crean las cuentas: se reparte la hoja y aún no
+     ha entrado nadie. Decirlo como fallo mandaría a buscar un problema. */
+  const { ctx } = panelDeDocente();          /* sin diario: getDocument falla */
+  const r = await ctx.ev('cloudVincularDiario')('alu9');
+  assert.equal(r.ok, false);
+  assert.equal(r.reason, 'sin-estrenar');
+});
+
+test('sin permiso de escritura se dice cuál falta, no «error»', async () => {
+  /* Es el paso que se olvida al montar Appwrite: el equipo docentes con Read
+     pero sin Update. Sin este aviso, «vincular» falla sin decir qué mirar. */
+  const { ctx } = panelDeDocente({
+    diario: { $id: 'alu9' },
+    fallaEscritura: 'The current user is not authorized to perform the requested action.'
+  });
+  const r = await ctx.ev('cloudVincularDiario')('alu9');
+  assert.equal(r.ok, false);
+  assert.equal(r.reason, 'sin-permiso');
 });
 
 test('una columna que falta se nombra, no se traga', async () => {
-  /* Pasó de verdad: la columna estaba escrita «ower» en la consola. Sin este
-     aviso, el alta parecía ir bien y el diario no se creaba nunca. */
-  const { ctx } = panelDeDocente({ falla: 'Invalid document structure: Unknown attribute: "owner"' });
-  const r = await ctx.ev('cloudCrearDiarioDe')('alu9', 'Gero', 3);
+  /* Pasó de verdad: la columna estaba escrita «ower» en la consola. */
+  const { ctx } = panelDeDocente({
+    diario: { $id: 'alu9' },
+    fallaEscritura: 'Invalid document structure: Unknown attribute: "owner"'
+  });
+  const r = await ctx.ev('cloudVincularDiario')('alu9');
   assert.equal(r.ok, false);
   assert.equal(r.reason, 'falta-columna');
   assert.match(r.detail, /owner/);
 });
 
-test('si ya tiene diario no se pisa', async () => {
-  const { ctx } = panelDeDocente({ falla: 'Document with the requested ID already exists' });
-  const r = await ctx.ev('cloudCrearDiarioDe')('alu9', 'Gero', 3);
-  assert.equal(r.reason, 'existe');
+test('sin clase abierta se ata igual al docente', async () => {
+  /* Un solo docente sin la colección de aulas: el aislamiento no hace falta,
+     pero saber de quién es cada diario sí. */
+  const { ctx, escritos } = panelDeDocente({ diario: { $id: 'alu9' } });
+  ctx.ev('setAulaActiva')('', '');
+  const r = await ctx.ev('cloudVincularDiario')('alu9');
+  assert.equal(r.ok, true);
+  assert.equal(escritos[0].data.owner, 'docente1');
+  assert.ok(!('aula' in escritos[0].data));
+});
+
+test('el panel no intenta crear el diario del alumno', async () => {
+  /* Es el fallo que costó entender: Appwrite responde «Permissions must be
+     one of: (any, users, user:<el docente>…)» porque nadie puede dar un
+     permiso que no tiene. Si alguien vuelve a escribir esa llamada, esto lo
+     para antes de que llegue a un aula. */
+  const fs = require('node:fs');
+  const path = require('node:path');
+  const cloud = fs.readFileSync(path.join(__dirname, '..', 'js', 'cloud.js'), 'utf8');
+  const teacher = fs.readFileSync(path.join(__dirname, '..', 'js', 'teacher.js'), 'utf8');
+  assert.ok(!/cloudCrearDiarioDe/.test(cloud + teacher), 'la creación desde el panel no vuelve');
+  const i = cloud.indexOf('async function cloudVincularDiario');
+  assert.ok(!/createDocument/.test(cloud.slice(i, i + 2000)), 'vincular solo actualiza');
 });
 
 test('el alta devuelve el id de la cuenta, que es lo único que lo hace posible', async () => {
@@ -154,14 +190,15 @@ test('cuando el niño guarda, su clase y su docente siguen ahí', async () => {
   ctx.ev('S = __st');
 
   assert.equal(await ctx.ev('cloudPush()'), true);
-  assert.equal(enviados[0].id, 'alu9', 'guarda en SU documento, el que creó el panel');
+  assert.equal(enviados[0].id, 'alu9', 'guarda en SU documento, el mismo que el panel vincula');
   assert.deepEqual(Object.keys(enviados[0].data).sort(), ['name', 'state', 'summary'],
     'no manda «aula» ni «owner»: lo que no se manda, no se pisa');
 });
 
 test('tener diario y haber empezado dejan de contarse igual', () => {
-  /* Desde que el panel crea el diario con la cuenta, contar documentos decía
-     «2 de 2 han empezado» de dos niños que no habían abierto la app nunca. */
+  /* Un diario existe desde que el niño entra, pero también puede existir sin
+     estrenar —restaurado de una copia, o creado y abandonado—, y contar
+     documentos decía «2 de 2 han empezado» de quien no había jugado nunca. */
   const ctx = cargarApp();
   ctx.ev('setTeacherConfig')('roster', [{ name: 'Gero Prats' }, { name: 'Vega Serrano' }]);
   const sinEstrenar = ctx.ev('buildSummaryOf')(ctx.ev('diarioSinEstrenar')('Gero Prats', 3));
