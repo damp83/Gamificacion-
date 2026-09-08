@@ -110,6 +110,52 @@ function pintarEstadoAjustes() {
   el.classList.toggle('cfg-top-warn', s.estado === 'pendiente');
 }
 
+/* ── El banco de iconos ──
+   Se engancha DESPUÉS de pintar, buscando los campos marcados con
+   `cfg-icono`. Así vale para los seis que hay y para los que se añadan
+   mañana, sin tocar seis bloques de render ni sus manejadores.
+
+   Elegir un icono escribe en el campo de siempre y dispara su `change`: el
+   manejador que ya existía se encarga de guardarlo. No hay una segunda vía
+   de guardado que pueda desincronizarse de la primera. */
+let cfgIconoAbierto = '';
+
+function montarSelectoresDeIcono() {
+  const campos = $$('#cfg-body input.cfg-icono');
+  campos.forEach((inp, n) => {
+    const clave = 'ico' + n;
+    const boton = document.createElement('button');
+    boton.type = 'button';
+    boton.className = 'cfg-icono-btn';
+    boton.textContent = '🎨';
+    boton.title = 'Elegir un icono del banco';
+    boton.setAttribute('aria-label', 'Elegir un icono del banco');
+    boton.setAttribute('aria-expanded', cfgIconoAbierto === clave ? 'true' : 'false');
+    boton.addEventListener('click', () => {
+      cfgIconoAbierto = cfgIconoAbierto === clave ? '' : clave;
+      montarSelectoresDeIcono();
+    });
+    inp.insertAdjacentElement('afterend', boton);
+
+    if (cfgIconoAbierto !== clave) return;
+    const panel = document.createElement('div');
+    panel.className = 'cfg-icono-panel';
+    panel.innerHTML = ICONOS.map(g => `<div class="cfg-icono-grupo">
+        <p class="cfg-icono-titulo">${esc(g.grupo)}</p>
+        <div class="cfg-icono-rejilla">${g.lista.map(i =>
+          `<button type="button" class="cfg-icono-uno${i === inp.value ? ' on' : ''}" data-ico="${esc(i)}"
+            aria-label="${esc(i)}">${esc(i)}</button>`).join('')}</div>
+      </div>`).join('');
+    panel.querySelectorAll('[data-ico]').forEach(b => b.addEventListener('click', () => {
+      inp.value = b.dataset.ico;
+      cfgIconoAbierto = '';
+      /* El manejador de siempre guarda y repinta el panel entero. */
+      inp.dispatchEvent(new Event('change'));
+    }));
+    boton.insertAdjacentElement('afterend', panel);
+  });
+}
+
 /* ── Chasis ── */
 function renderTeacherConfig() {
   pintarEstadoAjustes();
@@ -143,6 +189,7 @@ function renderTeacherConfig() {
   };
   body.innerHTML = '';
   renderers[cfgSection](body);
+  montarSelectoresDeIcono();
 }
 
 /* Guarda y repinta, avisando de que el cambio ya está aplicado */
@@ -211,7 +258,7 @@ function cfgPremios(body) {
       ${list.map((b, i) => `
         <div class="cfg-card cfg-premio">
           <div class="cfg-row">
-            <input type="text" class="cfg-b-icon" data-i="${i}" value="${esc(b.icon)}" maxlength="4" title="Icono">
+            <input type="text" class="cfg-b-icon cfg-icono" data-i="${i}" value="${esc(b.icon)}" maxlength="4" title="Icono">
             <input type="text" class="cfg-b-name" data-i="${i}" value="${esc(b.name)}" placeholder="Nombre">
           </div>
           <div class="cfg-row">
@@ -561,7 +608,7 @@ function cfgEquipos(body) {
       ${t.list.map((team, i) => `
         <div class="cfg-card">
           <div class="cfg-row">
-            <input type="text" class="cfg-t-icon" data-i="${i}" value="${esc(team.icon)}" maxlength="4">
+            <input type="text" class="cfg-t-icon cfg-icono" data-i="${i}" value="${esc(team.icon)}" maxlength="4">
             <input type="text" class="cfg-t-name" data-i="${i}" value="${esc(team.name)}">
             <button class="cfg-del" data-delteam="${i}" title="Eliminar">🗑️</button>
           </div>
@@ -698,7 +745,7 @@ function cfgYacimientos(body) {
               ? 'Sus pozos no tienen retos en el primer estrato. Escribe uno en cualquiera de ellos.'
               : 'No tiene pozos. Añádele al menos uno y escríbele un reto.'}</p>` : ''}
           <div class="cfg-row">
-            <input type="text" class="cfg-si-icon" data-si="${si}" value="${esc(site.icon)}" maxlength="4">
+            <input type="text" class="cfg-si-icon cfg-icono" data-si="${si}" value="${esc(site.icon)}" maxlength="4">
             <input type="text" class="cfg-si-name" data-si="${si}" value="${esc(site.name)}">
             <button class="cfg-del" data-delsite="${si}" title="Eliminar yacimiento">🗑️</button>
           </div>
@@ -715,7 +762,7 @@ function cfgYacimientos(body) {
               const listos = STRATA_ORDER.filter(sId => stratumHasContent(b, sId)).length;
               return `<div class="cfg-branch">
                 <div class="cfg-row">
-                  <input type="text" class="cfg-b2-icon" data-si="${si}" data-bi="${bi}" value="${esc(b.icon)}" maxlength="4">
+                  <input type="text" class="cfg-b2-icon cfg-icono" data-si="${si}" data-bi="${bi}" value="${esc(b.icon)}" maxlength="4">
                   <input type="text" class="cfg-b2-name" data-si="${si}" data-bi="${bi}" value="${esc(b.name)}">
                   <button class="cfg-del" data-delbranch="${si}:${bi}" title="Eliminar pozo">🗑️</button>
                 </div>
@@ -1180,7 +1227,7 @@ function cfgAlmacen(body) {
       ${list.map((it, i) => `
         <div class="cfg-card">
           <div class="cfg-row">
-            <input type="text" class="cfg-s-icon" data-i="${i}" value="${esc(it.icon)}" maxlength="4">
+            <input type="text" class="cfg-s-icon cfg-icono" data-i="${i}" value="${esc(it.icon)}" maxlength="4">
             <input type="text" class="cfg-s-name" data-i="${i}" value="${esc(it.name)}">
             <button class="cfg-del" data-delshop="${i}" title="Eliminar">🗑️</button>
           </div>
@@ -1987,7 +2034,7 @@ function cfgFondo(body) {
       ${ms.map((m, i) => `
         <div class="cfg-card">
           <div class="cfg-row">
-            <input type="text" class="cfg-f-icon" data-i="${i}" value="${esc(m.icon)}" maxlength="4">
+            <input type="text" class="cfg-f-icon cfg-icono" data-i="${i}" value="${esc(m.icon)}" maxlength="4">
             <input type="text" class="cfg-f-name" data-i="${i}" value="${esc(m.name)}">
             <button class="cfg-del" data-delfund="${i}" title="Eliminar">🗑️</button>
           </div>

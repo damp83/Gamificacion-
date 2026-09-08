@@ -1156,6 +1156,37 @@ function defaultSites() {
 
 /* ── Consultas sobre la estructura configurada ── */
 function sitesAll()     { return ATLAS_CONFIG.sites || []; }
+/* ══════════ EL BANCO DE ICONOS ══════════
+
+   Escribir un emoji a mano es fácil en un portátil y un suplicio en una
+   tablet: abrir el teclado de emojis, buscar entre miles y acertar. Y el
+   icono es de lo primero que se toca al crear un yacimiento.
+
+   La lista es CORTA y elegida, no el catálogo de Unicode: agrupada por para
+   qué sirve aquí, con lo que de verdad se usa en un colegio. Quien quiera
+   otro sigue pudiendo escribirlo: el campo de texto no desaparece. */
+const ICONOS = [
+  { grupo: 'Excavación', lista: ['🏛️','⛏️','🗿','🏺','🪨','🦴','🗺️','🧭','🔦','🪜','🧱','🏕️','🐾','🕳️','⚱️','📜','⚙️'] },
+  { grupo: 'Matemáticas', lista: ['🔢','➕','➖','✖️','➗','📐','📏','🧮','💯','⏱️','⚖️','🍕','📊','🎲','🪙','📈'] },
+  { grupo: 'Lengua', lista: ['✏️','📚','📖','✍️','🔤','💬','📝','🗣️','🎭','📰','🔡','🧩','📓','🖋️','🗨️','📃'] },
+  { grupo: 'Naturales y Sociales', lista: ['🌿','🌍','🔬','🦋','🌱','🐢','🌦️','🦎','🌋','🧪','🦕','🌳','🐝','🏔️','💧','🔭'] },
+  { grupo: 'Comportamiento', lista: ['🤝','🧹','🤫','🙋','❤️','👂','🧘','🫱','🪥','🎒','⏰','🚶','🙂','👏','🧑‍🤝‍🧑','🫶'] },
+  { grupo: 'Premios y logros', lista: ['🏅','🏆','⭐','🌟','🎖️','👑','💎','🥇','🎉','✨','🔥','🎯','🚀','💪','🦸','🎁'] },
+  /* Los siete primeros son los que trae el almacén de fábrica: si no
+     estuvieran, cambiar uno por error dejaría al docente sin forma de
+     recuperarlo sin buscar ese emoji en el teclado. */
+  { grupo: 'Almacén', lista: ['👒','⛑️','🧥','🥾','🫙','⛺','🚙','🎩','👓','🧢','🎨','🖌️','🧣','🥽','🪄','🧸','🎫','🍪','🍭','🧃'] },
+  { grupo: 'Hitos y metas', lista: ['🌉','🚢','🗼','🏰','🚂','🏗️','🧗','🏁','🌅','🎪','🪁','🎈','🗻','🛶','🏜️','🌠'] },
+  { grupo: 'Cuadrillas', lista: ['🛖','🦅','🐺','🦉','🐬','🦁','🐉','🦊','🐴','🦌','🐆','🦈','🐘','🦩','🐙','🦔'] }
+];
+
+/* Todos en una lista, para comprobar si uno viene del banco. */
+function iconosTodos() {
+  const fuera = [];
+  for (const g of ICONOS) for (const i of g.lista) fuera.push(i);
+  return fuera;
+}
+
 function sitesEnabled() { return sitesAll().filter(s => s.enabled !== false); }
 function siteById(id)   { return sitesAll().find(s => s.id === id) || null; }
 function branchesOf(site)        { return (site.branches || []); }

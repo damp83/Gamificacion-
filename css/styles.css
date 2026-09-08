@@ -1462,6 +1462,36 @@ body.en-mision #main { padding-bottom: var(--s-5); }
 /* El botón de borrar una clase. Va aparte del de abrirla, apagado, y solo
    toma color al acercarse: no puede competir por la mirada con la acción
    normal, que es entrar. */
+/* ── El banco de iconos ── */
+.cfg-icono-btn {
+  flex: 0 0 auto; min-width: 44px; min-height: 44px;
+  background: var(--surface-sunken); border: var(--line); border-radius: var(--r-md);
+  font-size: 1.1rem; cursor: pointer;
+}
+.cfg-icono-btn:hover { background: var(--paper-deep); }
+.cfg-icono-panel {
+  flex: 1 0 100%; margin-top: .5rem;
+  background: var(--surface); border: var(--line); border-radius: var(--r-md);
+  padding: .7rem; box-shadow: var(--e-2);
+  max-height: 20rem; overflow-y: auto;
+}
+.cfg-icono-grupo + .cfg-icono-grupo { margin-top: .7rem; }
+.cfg-icono-titulo {
+  margin: 0 0 .35rem; font-size: var(--t-xs); font-weight: 800;
+  letter-spacing: .04em; text-transform: uppercase; color: var(--ink-faint);
+}
+.cfg-icono-rejilla {
+  display: grid; gap: .25rem;
+  grid-template-columns: repeat(auto-fill, minmax(44px, 1fr));
+}
+.cfg-icono-uno {
+  min-width: 44px; min-height: 44px; font-size: 1.4rem;
+  background: transparent; border: 1px solid transparent; border-radius: var(--r-md);
+  cursor: pointer;
+}
+.cfg-icono-uno:hover { background: var(--paper-deep); }
+.cfg-icono-uno.on { border-color: var(--brass); background: var(--brass-tint); }
+
 .aula-card-borrar {
   flex: 0 0 auto; width: 44px; height: 44px;
   display: flex; align-items: center; justify-content: center;

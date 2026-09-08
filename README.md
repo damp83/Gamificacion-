@@ -753,6 +753,14 @@ no con lo de preparar el curso.
 
 Los cambios se aplican **al instante**: renombras un pozo y el mapa ya lo muestra así.
 
+> **El icono se elige de un banco.** Junto a cada campo de icono —yacimientos,
+> pozos, reconocimientos, cuadrillas, almacén e hitos del Fondo— hay un botón
+> 🎨 que abre 149 emojis agrupados por para qué sirven aquí: Excavación,
+> Matemáticas, Lengua, Comportamiento… Escribir un emoji a mano sigue
+> valiendo; el banco es para no pelearse con el teclado de emojis de una
+> tablet. Todos los iconos que la app trae de fábrica están dentro, así que
+> cambiar uno por error siempre se puede deshacer.
+
 > **Un pozo aparece en el mapa cuando tiene al menos un reto en su primer
 > estrato** (Recordar), y un yacimiento cuyos pozos están todos así no le sale
 > a nadie. Es a propósito: un pozo que se abre y no tiene nada dentro es peor
