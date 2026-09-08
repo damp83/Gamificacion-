@@ -1073,7 +1073,7 @@ function myTeam() {
 function cuadrillaDe(nombre) {
   const t = ATLAS_CONFIG.teams;
   if (!t || !t.enabled || !Array.isArray(t.list)) return null;
-  const quien = String(nombre || '').trim().toLowerCase();
+  const quien = nombreDeAlumno(nombre);
   if (!quien) return null;
   return t.list.find(team =>
     (team.members || []).some(m => String(m).trim().toLowerCase() === quien)) || null;
@@ -1087,8 +1087,16 @@ function cuadrillaDe(nombre) {
 function rolDe(nombre, cuadrilla) {
   const cu = cuadrilla || cuadrillaDe(nombre);
   if (!cu) return null;
-  const clave = String(nombre || '').trim().toLowerCase();
-  return rolPorId((cu.roles || {})[clave]);
+  return rolPorId((cu.roles || {})[nombreDeAlumno(nombre)]);
+}
+
+/* El nombre de un alumno, venga como cadena o como su ficha de la lista, ya en
+   la forma con la que se guardan las cuadrillas y los roles. Existe porque
+   media app pasa la ficha entera y la otra media solo el nombre: sin esto,
+   `cuadrillaDe(ficha)` devolvía null en silencio y el niño perdía su rol. */
+function nombreDeAlumno(quien) {
+  const t = (quien && typeof quien === 'object') ? (quien.name || '') : quien;
+  return String(t || '').trim().toLowerCase();
 }
 
 /* Quién lleva un rol en TODA la clase, no dentro de una cuadrilla. Lo usan el

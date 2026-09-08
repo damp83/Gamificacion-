@@ -319,6 +319,7 @@ body.en-mision::after { opacity: .35; }
 }
 .hud-left { display: flex; align-items: center; gap: .65rem; min-width: 0; }
 .hud-avatar {
+  position: relative;
   font-size: 1.45rem; line-height: 1;
   width: 2.5rem; height: 2.5rem; flex-shrink: 0;
   display: grid; place-items: center;
@@ -1027,6 +1028,7 @@ body.en-mision #main { padding-bottom: var(--s-5); }
 .camp-gear-equipped { flex: 1; justify-content: flex-start; }
 .camp-gear-equipped small { color: var(--ink-soft); font-size: var(--t-sm); }
 .camp-avatar {
+  position: relative;
   font-size: 2.8rem; line-height: 1; flex-shrink: 0;
   width: 4.4rem; height: 4.4rem; display: grid; place-items: center;
   background: var(--brass-tint); border-radius: var(--r-pill);
@@ -1430,6 +1432,18 @@ body.en-mision #main { padding-bottom: var(--s-5); }
 
 /* Avatar de un rol: emoji mientras no haya ilustración, <img> en cuanto la haya */
 .rol-emoji { font-size: 1.5rem; line-height: 1; }
+
+/* El retrato dentro de un medallón que ya tiene tamaño: lo llena entero. Y el
+   gorro comprado se queda de chapa en la esquina, que un premio que deja de
+   verse deja de ser un premio. */
+.rol-medallon.rol-img { width: 100%; height: 100%; }
+.rol-medallon.rol-emoji { font-size: inherit; }
+.avatar-gorro {
+  position: absolute; right: -3px; bottom: -3px;
+  font-size: .5em; line-height: 1;
+  background: var(--surface); border-radius: 50%;
+  padding: .1em; box-shadow: var(--e-1);
+}
 /* Un retrato aguanta —y pide— más tamaño que un emoji: es un dibujo con cara,
    y a 2 rem deja de reconocerse quién es. */
 .rol-img { width: 2.5rem; height: 2.5rem; border-radius: 50%; object-fit: cover; }
@@ -2270,6 +2284,7 @@ input[type="checkbox"]::after, input[type="radio"]::after {
   padding: .8rem 1.1rem; margin-bottom: var(--s-4); box-shadow: var(--e-2);
 }
 .aula-alumno-avatar {
+  position: relative;
   font-size: 1.7rem; line-height: 1;
   width: 3rem; height: 3rem; flex-shrink: 0; display: grid; place-items: center;
   background: rgba(255,255,255,.12); border-radius: var(--r-pill);
@@ -5562,7 +5577,7 @@ function cruzarVerificacion(retos, respuestas) {
    copia guardada. Sin este número, «ya está arreglado» y «a mí no me pasa» son
    indistinguibles. Va junto al nombre de la caché del service worker, y una
    prueba comprueba que no se separen. */
-const ATLAS_VERSION = 'v59';
+const ATLAS_VERSION = 'v60';
 
 const ATLAS_DEFAULTS = {
 
@@ -8610,7 +8625,7 @@ function myTeam() {
 function cuadrillaDe(nombre) {
   const t = ATLAS_CONFIG.teams;
   if (!t || !t.enabled || !Array.isArray(t.list)) return null;
-  const quien = String(nombre || '').trim().toLowerCase();
+  const quien = nombreDeAlumno(nombre);
   if (!quien) return null;
   return t.list.find(team =>
     (team.members || []).some(m => String(m).trim().toLowerCase() === quien)) || null;
@@ -8624,8 +8639,16 @@ function cuadrillaDe(nombre) {
 function rolDe(nombre, cuadrilla) {
   const cu = cuadrilla || cuadrillaDe(nombre);
   if (!cu) return null;
-  const clave = String(nombre || '').trim().toLowerCase();
-  return rolPorId((cu.roles || {})[clave]);
+  return rolPorId((cu.roles || {})[nombreDeAlumno(nombre)]);
+}
+
+/* El nombre de un alumno, venga como cadena o como su ficha de la lista, ya en
+   la forma con la que se guardan las cuadrillas y los roles. Existe porque
+   media app pasa la ficha entera y la otra media solo el nombre: sin esto,
+   `cuadrillaDe(ficha)` devolvía null en silencio y el niño perdía su rol. */
+function nombreDeAlumno(quien) {
+  const t = (quien && typeof quien === 'object') ? (quien.name || '') : quien;
+  return String(t || '').trim().toLowerCase();
 }
 
 /* Quién lleva un rol en TODA la clase, no dentro de una cuadrilla. Lo usan el
@@ -10246,12 +10269,33 @@ function renderHud() {
     stat.classList.remove('lvl-up'); void stat.offsetWidth; stat.classList.add('lvl-up');
   }
   num.dataset.visto = '1';
-  $('#hud-avatar').textContent = avatarEmoji();
+  $('#hud-avatar').innerHTML = avatarDelExplorador();
 }
-function avatarEmoji() {
-  if (S.inventory.gear_equipped.includes('salacot')) return '🧑‍🌾';
-  if (S.inventory.gear_equipped.includes('sombrero_ala_ancha')) return '🤠';
-  return '🧒';
+/* El sombrero que se ha comprado, si se ha comprado alguno. Se separa porque
+   un gorro comprado y un rol repartido son dos cosas distintas y ninguna
+   puede borrar a la otra: la una es lo que ha ganado, la otra es quién es. */
+function gorroEquipado() {
+  const g = (S && S.inventory && S.inventory.gear_equipped) || [];
+  if (g.includes('salacot')) return '🧑‍🌾';
+  if (g.includes('sombrero_ala_ancha')) return '🤠';
+  return '';
+}
+
+/* ── El avatar de un explorador ──
+   Con rol repartido, su retrato; sin él, el gorro o el niño de siempre. El
+   gorro no desaparece cuando hay retrato: se queda como chapa en la esquina,
+   porque comprarlo tiene que seguir viéndose.
+
+   Antes esto era un emoji a secas en cuatro pantallas, así que el retrato que
+   el niño veía en su Cuadrilla se le esfumaba al entrar en un reto. */
+function avatarDelExplorador(quien) {
+  const nombre = (quien && typeof quien === 'object')
+    ? quien : (quien || (S && S.profile && S.profile.explorer_name) || '');
+  const rol = (typeof rolDe === 'function') ? rolDe(nombre) : null;
+  const gorro = gorroEquipado();
+  if (!rol) return esc(gorro || '🧒');
+  return avatarDeRol(rol, 'rol-medallon') +
+    (gorro ? `<span class="avatar-gorro" aria-hidden="true">${esc(gorro)}</span>` : '');
 }
 
 /* ══════════ LECTURA EN VOZ ALTA (DUA) ══════════
@@ -10894,7 +10938,7 @@ function renderCamp() {
   renderTaller();
   renderHud();
   applyTextSize();
-  $('#camp-avatar').textContent = avatarEmoji();
+  $('#camp-avatar').innerHTML = avatarDelExplorador();
   const equipped = $('#camp-gear-equipped');
   equipped.innerHTML = S.inventory.gear_equipped.length
     ? S.inventory.gear_equipped.map(id => {
@@ -11939,7 +11983,7 @@ function renderAulaPregunta() {
   const b = branchDef(mission.branchId);
   const meta = STRATA_META[mission.stratumId];
 
-  $('#aula-avatar').textContent = avatarEmoji();
+  $('#aula-avatar').innerHTML = avatarDelExplorador(aulaAlumno);
   $('#aula-nombre').textContent = aulaAlumno.name;
   $('#aula-detalle').textContent =
     `${gradeInfo(S.profile.grade).label} · ${b.icon} ${b.name} · ${meta.label} · Nv. ${levelFromXp(S.progression.xp_total)}`;
@@ -12119,7 +12163,7 @@ function cerrarBolsa() {
 function renderBolsa() {
   if (!bolsaAlumno || !S) return;
   const saldo = S.progression.doubloons_balance;
-  $('#bolsa-avatar').textContent = avatarEmoji();
+  $('#bolsa-avatar').innerHTML = avatarDelExplorador(bolsaAlumno);
   $('#bolsa-nombre').textContent = bolsaAlumno.name;
   $('#bolsa-detalle').innerHTML = `${esc(gradeInfo(S.profile.grade).label)} · <strong>${saldo}</strong> ${ico('coin')} en su bolsa`;
 

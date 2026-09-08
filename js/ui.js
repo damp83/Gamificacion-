@@ -208,12 +208,33 @@ function renderHud() {
     stat.classList.remove('lvl-up'); void stat.offsetWidth; stat.classList.add('lvl-up');
   }
   num.dataset.visto = '1';
-  $('#hud-avatar').textContent = avatarEmoji();
+  $('#hud-avatar').innerHTML = avatarDelExplorador();
 }
-function avatarEmoji() {
-  if (S.inventory.gear_equipped.includes('salacot')) return '🧑‍🌾';
-  if (S.inventory.gear_equipped.includes('sombrero_ala_ancha')) return '🤠';
-  return '🧒';
+/* El sombrero que se ha comprado, si se ha comprado alguno. Se separa porque
+   un gorro comprado y un rol repartido son dos cosas distintas y ninguna
+   puede borrar a la otra: la una es lo que ha ganado, la otra es quién es. */
+function gorroEquipado() {
+  const g = (S && S.inventory && S.inventory.gear_equipped) || [];
+  if (g.includes('salacot')) return '🧑‍🌾';
+  if (g.includes('sombrero_ala_ancha')) return '🤠';
+  return '';
+}
+
+/* ── El avatar de un explorador ──
+   Con rol repartido, su retrato; sin él, el gorro o el niño de siempre. El
+   gorro no desaparece cuando hay retrato: se queda como chapa en la esquina,
+   porque comprarlo tiene que seguir viéndose.
+
+   Antes esto era un emoji a secas en cuatro pantallas, así que el retrato que
+   el niño veía en su Cuadrilla se le esfumaba al entrar en un reto. */
+function avatarDelExplorador(quien) {
+  const nombre = (quien && typeof quien === 'object')
+    ? quien : (quien || (S && S.profile && S.profile.explorer_name) || '');
+  const rol = (typeof rolDe === 'function') ? rolDe(nombre) : null;
+  const gorro = gorroEquipado();
+  if (!rol) return esc(gorro || '🧒');
+  return avatarDeRol(rol, 'rol-medallon') +
+    (gorro ? `<span class="avatar-gorro" aria-hidden="true">${esc(gorro)}</span>` : '');
 }
 
 /* ══════════ LECTURA EN VOZ ALTA (DUA) ══════════

@@ -536,7 +536,7 @@ function renderAulaPregunta() {
   const b = branchDef(mission.branchId);
   const meta = STRATA_META[mission.stratumId];
 
-  $('#aula-avatar').textContent = avatarEmoji();
+  $('#aula-avatar').innerHTML = avatarDelExplorador(aulaAlumno);
   $('#aula-nombre').textContent = aulaAlumno.name;
   $('#aula-detalle').textContent =
     `${gradeInfo(S.profile.grade).label} · ${b.icon} ${b.name} · ${meta.label} · Nv. ${levelFromXp(S.progression.xp_total)}`;
@@ -716,7 +716,7 @@ function cerrarBolsa() {
 function renderBolsa() {
   if (!bolsaAlumno || !S) return;
   const saldo = S.progression.doubloons_balance;
-  $('#bolsa-avatar').textContent = avatarEmoji();
+  $('#bolsa-avatar').innerHTML = avatarDelExplorador(bolsaAlumno);
   $('#bolsa-nombre').textContent = bolsaAlumno.name;
   $('#bolsa-detalle').innerHTML = `${esc(gradeInfo(S.profile.grade).label)} · <strong>${saldo}</strong> ${ico('coin')} en su bolsa`;
 

@@ -316,6 +316,7 @@ body.en-mision::after { opacity: .35; }
 }
 .hud-left { display: flex; align-items: center; gap: .65rem; min-width: 0; }
 .hud-avatar {
+  position: relative;
   font-size: 1.45rem; line-height: 1;
   width: 2.5rem; height: 2.5rem; flex-shrink: 0;
   display: grid; place-items: center;
@@ -1024,6 +1025,7 @@ body.en-mision #main { padding-bottom: var(--s-5); }
 .camp-gear-equipped { flex: 1; justify-content: flex-start; }
 .camp-gear-equipped small { color: var(--ink-soft); font-size: var(--t-sm); }
 .camp-avatar {
+  position: relative;
   font-size: 2.8rem; line-height: 1; flex-shrink: 0;
   width: 4.4rem; height: 4.4rem; display: grid; place-items: center;
   background: var(--brass-tint); border-radius: var(--r-pill);
@@ -1427,6 +1429,18 @@ body.en-mision #main { padding-bottom: var(--s-5); }
 
 /* Avatar de un rol: emoji mientras no haya ilustración, <img> en cuanto la haya */
 .rol-emoji { font-size: 1.5rem; line-height: 1; }
+
+/* El retrato dentro de un medallón que ya tiene tamaño: lo llena entero. Y el
+   gorro comprado se queda de chapa en la esquina, que un premio que deja de
+   verse deja de ser un premio. */
+.rol-medallon.rol-img { width: 100%; height: 100%; }
+.rol-medallon.rol-emoji { font-size: inherit; }
+.avatar-gorro {
+  position: absolute; right: -3px; bottom: -3px;
+  font-size: .5em; line-height: 1;
+  background: var(--surface); border-radius: 50%;
+  padding: .1em; box-shadow: var(--e-1);
+}
 /* Un retrato aguanta —y pide— más tamaño que un emoji: es un dibujo con cara,
    y a 2 rem deja de reconocerse quién es. */
 .rol-img { width: 2.5rem; height: 2.5rem; border-radius: 50%; object-fit: cover; }
@@ -2267,6 +2281,7 @@ input[type="checkbox"]::after, input[type="radio"]::after {
   padding: .8rem 1.1rem; margin-bottom: var(--s-4); box-shadow: var(--e-2);
 }
 .aula-alumno-avatar {
+  position: relative;
   font-size: 1.7rem; line-height: 1;
   width: 3rem; height: 3rem; flex-shrink: 0; display: grid; place-items: center;
   background: rgba(255,255,255,.12); border-radius: var(--r-pill);

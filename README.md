@@ -86,6 +86,7 @@ Cubren lo que ya se ha roto alguna vez, que es de donde salieron:
 | `generador.test.js` | Que un reto escrito por IA con la cuenta mal marcada no llegue nunca a un niño |
 | `alta.test.js` | Que el panel no intente crear el diario del alumno —Appwrite no lo permite— y que vincularlo le ponga su clase y su docente |
 | `asistente-yacimientos.test.js` | Que la asistente proponga estructura y **nunca retos**, que lo que vuelve se limpie antes de tocar los ajustes, y que el inspector avise de lo que falla en silencio sin acusar a un yacimiento sano |
+| `avatar.test.js` | Que el retrato del rol sea el avatar en las cuatro pantallas, y que el sombrero comprado no lo borre |
 | `repaso-genera.test.js` | Que cada concepto flojo caiga en el pozo que habla de eso y deje el generador preparado |
 | `vincular-por-nombre.test.js` | Que el rescate de diarios sueltos no toque el de otro docente ni empareje un nombre repetido |
 | `pozo-tema.test.js` | Que los retos generados vayan de lo que dice el pozo, y que los ocho pozos de fábrica lo digan |
@@ -1120,6 +1121,15 @@ cuadrilla no sobrevive a la rotación.
 El alumno ve el suyo destacado al abrir **Tu Cuadrilla**, y el de cada compañero
 junto a su nombre. La lista de **Dirigir la clase** también muestra el personaje
 de cada uno, así que el docente sabe a quién pedirle qué sin abrir el panel.
+
+**El retrato es su avatar en toda la app**: el HUD, el turno de clase dirigida,
+su bolsa y el Campamento Base. Antes esas cuatro pantallas pintaban un emoji
+fijo que solo miraba el sombrero comprado, así que el retrato se esfumaba justo
+al entrar en un reto.
+
+> El sombrero comprado **no borra el retrato**: se queda como chapa en la
+> esquina del medallón. Un premio que deja de verse deja de ser un premio, y un
+> rol que se pierde al comprarse un gorro tampoco vale. Caben los dos.
 
 #### Los retratos
 

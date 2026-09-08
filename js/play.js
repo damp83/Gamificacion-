@@ -479,7 +479,7 @@ function renderCamp() {
   renderTaller();
   renderHud();
   applyTextSize();
-  $('#camp-avatar').textContent = avatarEmoji();
+  $('#camp-avatar').innerHTML = avatarDelExplorador();
   const equipped = $('#camp-gear-equipped');
   equipped.innerHTML = S.inventory.gear_equipped.length
     ? S.inventory.gear_equipped.map(id => {
