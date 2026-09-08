@@ -1030,24 +1030,42 @@ de cada uno, así que el docente sabe a quién pedirle qué sin abrir el panel.
 
 #### Los retratos
 
-**Maya ya tiene el suyo** (`img/roles/maya.png`); los demás se pintan con su
-emoji hasta que lleguen sus dibujos. Para añadir uno:
+Los seis están en `img/roles/`, **nombrados como el rol** (`cartografo.png`,
+`descodificadora.png`…): el Intendente lo llevan dos niños y no tiene un nombre
+único, así que el nombre del archivo es el del papel, no el del personaje. Un
+rol sin retrato se sigue pintando con su emoji, así que añadir uno nuevo nunca
+deja un hueco.
 
-1. Se recorta **cuadrado**, centrado en la cara y en lo que identifica al
-   personaje —a Maya se le deja la lupa—, con el **fondo transparente**: el
-   retrato se ve sobre pergamino, y un rectángulo blanco cantaría.
-2. Se guarda como **PNG de 400×400** en `img/roles/`, por debajo de 120 KB.
-   Se ve como máximo a 5,5 rem, así que 400 px sobran incluso en pantallas
-   retina, y seis retratos pesados son media app.
-3. Se escribe la ruta en el campo `img` de `ROLES_CUADRILLA` (`js/content.js`)
-   y se añade el archivo a `ASSETS` en `sw.js` — sin eso no se vería en un aula
-   sin red.
+Los originales llegan como láminas apaisadas y no sirven tal cual: el avatar se
+ve **en un círculo pequeño y sobre pergamino**. `tools/preparar-retrato.py` hace
+la conversión entera:
 
-No hay que tocar ninguna pantalla: `avatarDeRol()` (`js/ui.js`) es el único
-sitio donde se pinta un rol y pasa solo de emoji a `<img>`. La versión de un
-solo archivo (`tools/build-standalone.py`) incrusta los retratos que encuentre
-en la carpeta, así que tampoco hay que tocarla. Tres pruebas vigilan lo que
-falla en silencio: que la ruta exista, que esté cacheada y que no pese de más.
+```
+python3 tools/preparar-retrato.py original.jpg img/roles/guardian.png \
+        --modo blanco --caja 450,45,920,515
+```
+
+- `--modo` dice cómo es el fondo del original: `blanco` liso, `damero` (el
+  tablero de transparencia aplastado a JPEG, que llega con marca de agua y
+  motas) o `degradado` (un color claro con viñeta).
+- El fondo **no se borra por color**: se rellena *desde el borde*, que es lo
+  único que con seguridad es fondo. Borrar «lo blanco» agujerearía el cristal de
+  la lupa de Maya, el blanco de los ojos y el papel de las libretas.
+- `--caja x1,y1,x2,y2` es el encuadre. Conviene apretarlo a **la cara más el
+  objeto que identifica al papel** —la brújula de Leo, el reloj de Sofía, el
+  cuaderno de Hugo—: la figura entera no se reconoce a 2,5 rem.
+- La salida es un PNG cuadrado de 400×400 con paleta de 96 colores, unos 40 KB.
+  Se ve como máximo a 5,5 rem, así que 400 px sobran hasta en retina, y seis
+  retratos pesados serían media app.
+
+Después quedan dos líneas: la ruta en el campo `img` de `ROLES_CUADRILLA`
+(`js/content.js`) y el archivo en `ASSETS` de `sw.js` — sin lo segundo no se
+vería en un aula sin red. Ninguna pantalla cambia: `avatarDeRol()` (`js/ui.js`)
+es el único sitio donde se pinta un rol y pasa solo de emoji a `<img>`. La
+versión de un solo archivo (`tools/build-standalone.py`) incrusta los retratos
+que encuentre en la carpeta, y avisa si hay uno que no usa nadie. Tres pruebas
+vigilan lo que falla en silencio: que la ruta exista, que esté cacheada y que no
+pese de más.
 
 ## Estructura
 

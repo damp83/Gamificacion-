@@ -76,10 +76,10 @@ test('el avatar es emoji mientras no haya ilustración, e <img> en cuanto la hay
   /* Así el docente solo tiene que dejar los dibujos en img/roles/ y ponerlos
      en el catálogo: ni una línea de pantalla cambia. */
   const c = cargarApp();
-  const rol = c.ev('rolPorId')('cartografo');
+  const rol = Object.assign({}, c.ev('rolPorId')('cartografo'), { img: '' });
   assert.match(c.ev('avatarDeRol')(rol), /rol-emoji/);
-  assert.match(c.ev('avatarDeRol')(Object.assign({}, rol, { img: 'img/roles/leo.png' })),
-    /<img class="rol-img" src="img\/roles\/leo\.png"/);
+  assert.match(c.ev('avatarDeRol')(Object.assign({}, rol, { img: 'img/roles/x.png' })),
+    /<img class="rol-img" src="img\/roles\/x\.png"/);
   assert.equal(c.ev('avatarDeRol')(null), '', 'sin rol no pinta nada');
 });
 

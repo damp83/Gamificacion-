@@ -1168,30 +1168,30 @@ function sitesAll()     { return ATLAS_CONFIG.sites || []; }
    haya una ilustración en `img/roles/`. Poner ahí la ruta es lo único que
    hace falta para que pase a verse el dibujo; nada más cambia. */
 const ROLES_CUADRILLA = [
-  { id: 'cartografo', icon: '🧭', img: '',
+  { id: 'cartografo', icon: '🧭', img: 'img/roles/cartografo.png',
     personaje: 'Leo, el Cartógrafo',
     rol: 'Coordinador · Guía de ruta',
     desc: 'Lee el objetivo, guía al equipo y recuerda en qué punto del mapa o del estrato están.' },
-  { id: 'descodificadora', icon: '🪲', img: 'img/roles/maya.png',
+  { id: 'descodificadora', icon: '🪲', img: 'img/roles/descodificadora.png',
     personaje: 'Maya, la Descodificadora',
     rol: 'Investigadora de pistas · Portavoz',
     desc: 'Busca las respuestas ocultas, analiza los fallos con Kira y comunica la respuesta final.' },
-  { id: 'guardian', icon: '🎒', img: '',
+  { id: 'guardian', icon: '🎒', img: 'img/roles/guardian.png',
     personaje: 'Nico, el Guardián del Campamento',
     rol: 'Materiales y logística',
     desc: 'Mantiene la mesa ordenada, reparte los recursos y custodia los Doblones de la cuadrilla.' },
-  { id: 'cronometradora', icon: '⏳', img: '',
+  { id: 'cronometradora', icon: '⏳', img: 'img/roles/cronometradora.png',
     personaje: 'Sofía, la Cronometradora',
     rol: 'Guardiana del tiempo y del ritmo',
     desc: 'Vigila el reloj y avisa del tiempo que queda para mantener un buen ritmo de excavación.' },
-  { id: 'ilustrador', icon: '🎨', img: '',
+  { id: 'ilustrador', icon: '🎨', img: 'img/roles/ilustrador.png',
     personaje: 'Hugo, el Ilustrador de la Bitácora',
     rol: 'Diseño creativo · Apoyo',
     desc: 'Da forma visual a los retos, propone ideas en el Taller de Cartografía y anima a los suyos.' },
   /* El Intendente no es de una cuadrilla: es de la clase. Por eso lleva tope
      —dos manos derechas y no más, o deja de ser un encargo especial— y por eso
      el tope se cuenta sobre TODAS las cuadrillas, no dentro de cada una. */
-  { id: 'intendente', icon: '🎖️', img: '', especial: true, tope: 2,
+  { id: 'intendente', icon: '🎖️', img: 'img/roles/intendente.png', especial: true, tope: 2,
     personaje: 'Gael o Sara, Intendente de Campo',
     rol: 'Ayudante principal del docente · Encargo rotativo',
     desc: 'Mano derecha del Prof. Ocaña: anota la fecha, guarda la caja del recreo, lidera la fila y echa una mano en los recados del aula.' }
