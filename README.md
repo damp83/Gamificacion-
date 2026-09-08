@@ -743,7 +743,7 @@ no con lo de preparar el curso.
 | Sección | Qué puedes cambiar |
 |---|---|
 | 📅 Curso y trimestres | Nombre del curso y las fechas de los tres trimestres |
-| 🛖 Cuadrillas de excavación | Crear equipos, **asignar alumnos marcando casillas**, fijar la meta común y la aportación |
+| 🛖 Cuadrillas de excavación | Crear equipos, **asignar alumnos marcando casillas**, fijar la meta común y la aportación. Con alumnos asignados, la lista de **Dirigir la clase** se agrupa por cuadrillas —con cuántos han salido hoy en cada una— y un interruptor vuelve a la lista de todos |
 | 🏪 Almacén | Añadir, retirar y reajustar precios de los artículos cosméticos |
 | ⚖️ Economía | Retos por misión, Doblones de cada fuente, topes diarios, minutos hasta la fatiga, bolsa inicial… |
 | 🗿 Cámara del Guardián | La prueba sumativa de cada pozo: cuántos retos, cuánto hay que acertar y cada cuánto se puede repetir |

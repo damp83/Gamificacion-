@@ -2128,6 +2128,32 @@ input[type="checkbox"]::after, input[type="radio"]::after {
   display: grid; gap: .6rem;
   grid-template-columns: repeat(auto-fill, minmax(11rem, 1fr));
 }
+/* Agrupada por cuadrillas, el contenedor deja de ser rejilla —si no, los
+   títulos entrarían como una celda más— y la rejilla pasa a cada grupo. */
+.aula-lista-grupos { display: block; }
+.aula-grupo-gente {
+  display: grid; gap: .6rem; margin-bottom: var(--s-5);
+  grid-template-columns: repeat(auto-fill, minmax(11rem, 1fr));
+}
+.aula-grupo-cab {
+  display: flex; align-items: center; gap: .5rem;
+  margin: var(--s-4) 0 .5rem; padding-bottom: .3rem;
+  border-bottom: 2px solid var(--paper-deep);
+  font-size: var(--t-md); color: var(--leather-dark);
+}
+.aula-grupo-cab:first-child { margin-top: 0; }
+.aula-grupo-icono { font-size: 1.3rem; line-height: 1; }
+.aula-grupo-meta { margin-left: auto; font-size: var(--t-xs); color: var(--ink-soft); font-weight: 400; }
+
+/* El interruptor entre las dos vistas. */
+.aula-vista { display: flex; gap: .4rem; margin-bottom: .6rem; flex-wrap: wrap; }
+.aula-vista-btn {
+  min-height: 44px; padding: .5rem .8rem;
+  background: var(--surface); border: var(--line); border-radius: var(--r-md);
+  font-family: var(--font-text); font-size: var(--t-sm); font-weight: 700;
+  color: var(--ink-soft); cursor: pointer;
+}
+.aula-vista-btn.on { background: var(--leather-dark); color: #fff6e2; border-color: var(--leather-dark); }
 /* La tarjeta lleva dos acciones —dar turno y abrir la bolsa— así que es un
    contenedor: el turno es el botón grande que la ocupa entera y la bolsa un
    botón pequeño en la esquina. */

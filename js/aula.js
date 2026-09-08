@@ -364,7 +364,17 @@ function renderAula() {
   $('#aula-siguiente').disabled = false;
 
   lista.innerHTML = '';
-  for (const a of alumnos) {
+
+  /* ── Por cuadrillas, o todos seguidos ──
+     Con veintidós nombres en una rejilla plana, encontrar a quien buscas es
+     leerlos uno a uno. Agrupados por cuadrilla se localiza por dónde está
+     antes de leer ningún nombre, y de paso se ve de un vistazo a qué
+     cuadrilla le toca salir. */
+  const hayCuadrillas = !!(ATLAS_CONFIG.teams && ATLAS_CONFIG.teams.enabled &&
+    (ATLAS_CONFIG.teams.list || []).some(t => (t.members || []).length));
+  const agrupar = hayCuadrillas && ATLAS_CONFIG.aulaAgrupar !== false;
+
+  const pintarAlumno = (a, donde) => {
     const t = turnos[diaryKey(a.name)] || { rondas: 0, minutos: 0 };
     const tiene = diaryExists(a.name);
     /* Dos acciones por alumno, no una: darle turno y abrir su bolsa. Un botón
@@ -389,8 +399,69 @@ function renderAula() {
     bolsa.innerHTML = ico('coin');
     bolsa.addEventListener('click', () => abrirBolsa(a, false));
     card.appendChild(bolsa);
-    lista.appendChild(card);
+    donde.appendChild(card);
+  };
+
+  /* La rejilla vive en el contenedor cuando van todos seguidos, y dentro de
+     cada grupo cuando van agrupados: si no, los títulos entrarían como una
+     celda más de la rejilla. */
+  lista.classList.toggle('aula-lista-grupos', agrupar);
+
+  if (!agrupar) {
+    for (const a of alumnos) pintarAlumno(a, lista);
+    pintarSelectorDeVista(hayCuadrillas, agrupar);
+    return;
   }
+
+  /* Un grupo por cuadrilla, en el orden en que las creó el docente, y al
+     final quien no está en ninguna. Una cuadrilla sin nadie de esta clase no
+     se pinta: sería un título vacío. */
+  const porCuadrilla = new Map();
+  const sueltos = [];
+  for (const a of alumnos) {
+    const cu = cuadrillaDe(a.name);
+    if (!cu) { sueltos.push(a); continue; }
+    if (!porCuadrilla.has(cu.id)) porCuadrilla.set(cu.id, { cuadrilla: cu, gente: [] });
+    porCuadrilla.get(cu.id).gente.push(a);
+  }
+
+  const grupo = (titulo, icono, gente) => {
+    const salidos = gente.filter(a => (turnos[diaryKey(a.name)] || {}).rondas).length;
+    const cab = document.createElement('div');
+    cab.className = 'aula-grupo-cab';
+    cab.innerHTML = `<span class="aula-grupo-icono">${esc(icono)}</span>
+      <strong>${esc(titulo)}</strong>
+      <span class="aula-grupo-meta">${salidos} de ${gente.length} hoy</span>`;
+    lista.appendChild(cab);
+    const caja = document.createElement('div');
+    caja.className = 'aula-grupo-gente';
+    for (const a of gente) pintarAlumno(a, caja);
+    lista.appendChild(caja);
+  };
+
+  for (const t of (ATLAS_CONFIG.teams.list || [])) {
+    const g = porCuadrilla.get(t.id);
+    if (g) grupo(g.cuadrilla.name, g.cuadrilla.icon || '🛖', g.gente);
+  }
+  if (sueltos.length) grupo('Sin cuadrilla', '👤', sueltos);
+
+  pintarSelectorDeVista(hayCuadrillas, agrupar);
+}
+
+/* El interruptor entre las dos vistas. Solo se ofrece si hay cuadrillas con
+   gente: si no, no hay nada que agrupar y sería un mando que no hace nada. */
+function pintarSelectorDeVista(hayCuadrillas, agrupar) {
+  const zona = $('#aula-vista');
+  if (!zona) return;
+  zona.classList.toggle('hidden', !hayCuadrillas);
+  if (!hayCuadrillas) return;
+  zona.innerHTML = `
+    <button class="aula-vista-btn${agrupar ? ' on' : ''}" data-vista="grupos">🛖 Por cuadrillas</button>
+    <button class="aula-vista-btn${agrupar ? '' : ' on'}" data-vista="lista">👥 Todos</button>`;
+  zona.querySelectorAll('[data-vista]').forEach(b => b.addEventListener('click', () => {
+    setTeacherConfig('aulaAgrupar', b.dataset.vista === 'grupos');
+    renderAula();
+  }));
 }
 
 function empezarTurno(alumno) {

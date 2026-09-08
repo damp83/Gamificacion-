@@ -994,6 +994,19 @@ function myTeam() {
   return t.list.find(team =>
     (team.members || []).some(m => String(m).trim().toLowerCase() === me)) || null;
 }
+/* La cuadrilla de un nombre cualquiera, no solo la del diario abierto. La usa
+   la lista de clase para agrupar. Misma regla de comparación que myTeam():
+   sin espacios de más y sin distinguir mayúsculas, porque el docente escribe
+   «Ana» en un sitio y «ana» en otro. */
+function cuadrillaDe(nombre) {
+  const t = ATLAS_CONFIG.teams;
+  if (!t || !t.enabled || !Array.isArray(t.list)) return null;
+  const quien = String(nombre || '').trim().toLowerCase();
+  if (!quien) return null;
+  return t.list.find(team =>
+    (team.members || []).some(m => String(m).trim().toLowerCase() === quien)) || null;
+}
+
 function teamGoalShare() {
   const team = myTeam();
   if (!team) return 0;
