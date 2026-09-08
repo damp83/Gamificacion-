@@ -106,7 +106,9 @@ test('el nombre de la clase se escapa en la vista general', () => {
 
 test('los miembros y la meta de la cuadrilla se escapan', () => {
   const play = LEER('play.js');
-  assert.match(play, /team-member\$\{me \? ' team-me' : ''\}">\$\{me \? '🧭 ' : '🧒 '\}\$\{esc\(m\)\}/);
+  assert.match(play, /team-member-quien">\$\{esc\(m\)\}/);
+  assert.match(play, /<small>\$\{esc\(r\.personaje\.split\(','\)\[0\]\)\}<\/small>/,
+    'el rol también sale del catálogo a la pantalla');
   assert.match(play, /<strong>\$\{esc\(t\.goalLabel\)\}<\/strong>/);
 });
 

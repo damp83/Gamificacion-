@@ -29,7 +29,7 @@ PWA sin dependencias: HTML + CSS + JavaScript vanilla, funciona offline y se ins
 | **Cuentas de alumno** | Registro y acceso con usuario y contraseña vía Appwrite; el diario se sincroniza entre clase y casa |
 | **Méritos de Campamento** | Doblones por comportamientos (ayudar, cuidar el material, participar…), concedidos por el docente con PIN y topes diarios |
 | **Panel de Configuración** | El docente edita en la propia app el curso, los reconocimientos, las cuadrillas, los pozos, el almacén, la economía y el acceso — sin tocar código |
-| **Cuadrillas de excavación** | Equipos cooperativos que suman a una meta común de clase; sin ranking entre niños salvo que se active |
+| **Cuadrillas de excavación** | Equipos cooperativos que suman a una meta común de clase, con un **rol y personaje** para cada miembro; sin ranking entre niños salvo que se active |
 | **Portada** | Primera pantalla: la historia contada para el alumnado, cómo se juega, el elenco, y las dos entradas (explorador / docente) |
 | **Vista general de la clase** | Todos los alumnos en una pantalla, con alerta de rescate, KPIs del PRD §6 y el total real de cada cuadrilla |
 
@@ -743,7 +743,7 @@ no con lo de preparar el curso.
 | Sección | Qué puedes cambiar |
 |---|---|
 | 📅 Curso y trimestres | Nombre del curso y las fechas de los tres trimestres |
-| 🛖 Cuadrillas de excavación | Crear equipos, **asignar alumnos marcando casillas**, fijar la meta común y la aportación. Con alumnos asignados, la lista de **Dirigir la clase** se agrupa por cuadrillas —con cuántos han salido hoy en cada una— y un interruptor vuelve a la lista de todos |
+| 🛖 Cuadrillas de excavación | Crear equipos, **asignar alumnos marcando casillas**, **repartir los roles** (Cartógrafo, Descodificadora, Guardián, Cronometradora, Ilustrador), fijar la meta común y la aportación. Con alumnos asignados, la lista de **Dirigir la clase** se agrupa por cuadrillas —con cuántos han salido hoy en cada una— y un interruptor vuelve a la lista de todos |
 | 🏪 Almacén | Añadir, retirar y reajustar precios de los artículos cosméticos |
 | ⚖️ Economía | Retos por misión, Doblones de cada fuente, topes diarios, minutos hasta la fatiga, bolsa inicial… |
 | 🗿 Cámara del Guardián | La prueba sumativa de cada pozo: cuántos retos, cuánto hay que acertar y cada cuánto se puede repetir |
@@ -984,6 +984,34 @@ El docente crea las cuadrillas y asigna a cada alumno escribiendo su **nombre de
 Son **cooperativas por diseño**: una fracción de cada Doblón que gana un niño se anota como aportación a la meta común de clase, y **no se le descuenta de su bolsa** — cooperar no cuesta nada. El PRD (§0.2) prohíbe rankings entre niños y canaliza la competición hacia los NPC, así que la comparación entre cuadrillas **viene desactivada**; puedes activarla en el panel si tu grupo la lleva bien.
 
 > Cada niño ve su propia aportación y su parte de la meta. El total real de una cuadrilla exigiría sumar los diarios de todos sus miembros, algo que hoy no se hace: requeriría que un dispositivo leyera el progreso ajeno.
+
+### Roles dentro de la cuadrilla
+
+Un equipo de cinco sin reparto de trabajo es un niño resolviendo y cuatro
+mirando. Por eso cada miembro puede llevar un **rol con personaje**, elegido en
+el panel (**Cuadrillas → Roles dentro de la cuadrilla**), con un desplegable por
+alumno:
+
+| | Personaje | Tarea |
+|---|---|---|
+| 🧭 | **Leo, el Cartógrafo** | Coordinador · Guía de ruta. Lee el objetivo, guía al equipo y recuerda en qué punto del mapa o del estrato están |
+| 🪲 | **Maya, la Descodificadora** | Investigadora de pistas · Portavoz. Busca las respuestas ocultas, analiza los fallos con Kira y comunica la respuesta final |
+| 🎒 | **Nico, el Guardián del Campamento** | Materiales y logística. Mantiene la mesa ordenada, reparte los recursos y custodia los Doblones de la cuadrilla |
+| ⏳ | **Sofía, la Cronometradora** | Guardiana del tiempo y del ritmo. Vigila el reloj y avisa del tiempo que queda |
+| 🎨 | **Hugo, el Ilustrador de la Bitácora** | Diseño creativo · Apoyo. Da forma visual a los retos, propone ideas en el Taller y anima a los suyos |
+
+Se puede dejar a alguien **sin rol**, y **repetir uno** si la cuadrilla es
+grande. Al desmarcar a un alumno de la cuadrilla su rol se borra con él: un rol
+solo significa algo dentro de un equipo.
+
+El alumno ve el suyo destacado al abrir **Tu Cuadrilla**, y el de cada compañero
+junto a su nombre. La lista de **Dirigir la clase** también muestra el personaje
+de cada uno, así que el docente sabe a quién pedirle qué sin abrir el panel.
+
+> **Ilustraciones.** Cada rol se pinta hoy con su emoji. En cuanto haya dibujos,
+> se dejan en `img/roles/` y se escribe la ruta en el campo `img` de
+> `ROLES_CUADRILLA` (`js/content.js`): la app pasa sola de emoji a `<img>`
+> —`avatarDeRol()` decide— sin tocar ninguna pantalla.
 
 ## Estructura
 

@@ -327,6 +327,18 @@ function leerRetoActual() {
    Dentro del visor de un Artifact eso no hace nada: la descarga la media el
    propio visor. Se resuelve una vez al arrancar y se usa lo que haya. */
 let DESCARGAS = null;
+/* ── La cara de un rol ──
+   El emoji mientras no haya ilustración, y la ilustración en cuanto la haya:
+   basta con poner la ruta en `img` del catálogo. Lo usan las tres pantallas
+   donde sale un rol, para que no haya tres formas distintas de pintarlo. */
+function avatarDeRol(rol, clase) {
+  if (!rol) return '';
+  if (rol.img) {
+    return `<img class="rol-img${clase ? ' ' + clase : ''}" src="${esc(rol.img)}" alt="${esc(rol.personaje)}">`;
+  }
+  return `<span class="rol-emoji${clase ? ' ' + clase : ''}" aria-hidden="true">${esc(rol.icon)}</span>`;
+}
+
 function prepararDescargas() {
   try {
     if (window.claude && typeof window.claude.use === 'function') {

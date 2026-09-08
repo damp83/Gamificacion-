@@ -820,6 +820,7 @@ function renderTeam() {
   const share = teamGoalShare();
   const mine = Math.round(S.progression.team_contribution);
   const pct = share ? Math.min(100, Math.round((mine / share) * 100)) : 0;
+  const miRol = rolDe(S.profile.explorer_name, team);
 
   body.innerHTML = `
     <div class="team-banner">
@@ -837,13 +838,27 @@ function renderTeam() {
         <span>Tu parte de la meta: <strong>${share} ${ico('coin')}</strong></span></div>
     </div>
 
+    ${miRol ? `<div class="team-rol-mio">
+      ${avatarDeRol(miRol, 'rol-grande')}
+      <div>
+        <span class="team-rol-eti">Tu papel en la cuadrilla</span>
+        <h3>${esc(miRol.personaje)}</h3>
+        <p class="team-rol-que">${esc(miRol.rol)}</p>
+        <p class="team-rol-desc">${esc(miRol.desc)}</p>
+      </div>
+    </div>` : ''}
+
     <h3>Tus compañeros de cuadrilla</h3>
     <div class="team-members">
       ${(team.members || []).map(m => {
         const me = m.trim().toLowerCase() === (S.profile.explorer_name || '').trim().toLowerCase();
+        const r = rolDe(m, team);
         /* El nombre sale de la lista de clase, que el docente teclea y que
            viaja con los ajustes: escapado como todo lo demás. */
-        return `<span class="team-member${me ? ' team-me' : ''}">${me ? '🧭 ' : '🧒 '}${esc(m)}${me ? ' (tú)' : ''}</span>`;
+        return `<span class="team-member${me ? ' team-me' : ''}">${
+          r ? avatarDeRol(r) : '<span class="rol-emoji" aria-hidden="true">🧒</span>'
+        }<span class="team-member-quien">${esc(m)}${me ? ' (tú)' : ''}${
+          r ? `<small>${esc(r.personaje.split(',')[0])}</small>` : ''}</span></span>`;
       }).join('')}
     </div>
 

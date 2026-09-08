@@ -384,11 +384,15 @@ function renderAula() {
     card.className = 'aula-alumno-card' + (t.rondas ? ' aula-ya' : '');
     const turno = document.createElement('button');
     turno.className = 'aula-card-turno';
+    /* El avatar es su rol si lo tiene: en clase se busca «el del reloj» antes
+       que un nombre en una rejilla de veintidós. El tic de que ya ha salido
+       manda sobre el rol, que es la información del momento. */
+    const rol = rolDe(a.name);
     turno.innerHTML = `
-      <span class="aula-card-avatar">${t.rondas ? '✅' : '🧒'}</span>
+      <span class="aula-card-avatar">${t.rondas ? '✅' : (rol ? avatarDeRol(rol) : '🧒')}</span>
       <span class="aula-card-nombre">${esc(a.name)}</span>
-      <span class="aula-card-meta">${gradeInfo(a.grade).label}${
-        tiene ? ` · ${t.rondas} ronda(s) hoy` : ' · primera vez'}</span>`;
+      <span class="aula-card-meta">${rol ? esc(rol.personaje.split(',')[0]) + ' · ' : ''}${
+        gradeInfo(a.grade).label}${tiene ? ` · ${t.rondas} ronda(s) hoy` : ''}</span>`;
     turno.addEventListener('click', () => empezarTurno(a));
     card.appendChild(turno);
 

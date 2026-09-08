@@ -1401,11 +1401,50 @@ body.en-mision #main { padding-bottom: var(--s-5); }
 .team-goal-nums strong { font-variant-numeric: tabular-nums; }
 .team-members { display: flex; flex-wrap: wrap; gap: .4rem; }
 .team-member {
+  display: inline-flex; align-items: center; gap: .45rem;
   background: var(--surface); border: var(--line);
   border-radius: var(--r-pill); padding: .4rem .9rem; font-size: var(--t-sm);
   box-shadow: var(--e-1);
 }
 .team-member.team-me { border-color: var(--brass); background: var(--brass-tint); font-weight: 800; }
+.team-member-quien { display: flex; flex-direction: column; line-height: 1.2; }
+.team-member-quien small { font-weight: 600; font-size: var(--t-xs); color: var(--ink-soft); }
+
+/* El rol propio del explorador: lo primero que quiere ver al abrir Cuadrilla */
+.team-rol-mio {
+  display: flex; align-items: center; gap: var(--s-4); flex-wrap: wrap;
+  background: var(--surface); border: var(--line); border-left: 4px solid var(--brass);
+  border-radius: var(--r-lg); padding: var(--s-4) var(--s-5);
+  box-shadow: var(--e-1); margin-bottom: var(--s-4);
+}
+.team-rol-mio h3 { margin: .1rem 0; }
+.team-rol-eti {
+  font-size: var(--t-xs); text-transform: uppercase; letter-spacing: .06em;
+  color: var(--ink-soft); font-weight: 800;
+}
+.team-rol-que { font-size: var(--t-sm); font-weight: 700; color: var(--leather-dark); margin: 0; }
+.team-rol-desc { font-size: var(--t-sm); color: var(--ink-soft); margin: .25rem 0 0; }
+
+/* Avatar de un rol: emoji mientras no haya ilustración, <img> en cuanto la haya */
+.rol-emoji { font-size: 1.5rem; line-height: 1; }
+.rol-img { width: 2.2rem; height: 2.2rem; border-radius: 50%; object-fit: cover; }
+.rol-emoji.rol-grande { font-size: 3rem; }
+.rol-img.rol-grande { width: 4.5rem; height: 4.5rem; }
+
+/* Reparto de roles en el panel del docente */
+.cfg-rol-fila {
+  display: grid; grid-template-columns: auto minmax(6rem, 1fr) minmax(10rem, 1.4fr);
+  align-items: center; gap: .5rem .7rem;
+  padding: .45rem 0; border-bottom: var(--line);
+}
+.cfg-rol-fila:last-child { border-bottom: 0; }
+.cfg-rol-icono { font-size: 1.4rem; line-height: 1; }
+.cfg-rol-quien { font-weight: 700; font-size: var(--t-sm); }
+.cfg-rol-fila .cfg-rol-desc { grid-column: 2 / -1; margin: 0; }
+@media (max-width: 30rem) {
+  .cfg-rol-fila { grid-template-columns: auto 1fr; }
+  .cfg-rol-fila .cfg-t-rol { grid-column: 1 / -1; }
+}
 .team-others { display: grid; gap: .4rem; grid-template-columns: repeat(auto-fill, minmax(17rem, 1fr)); }
 .team-other {
   background: var(--surface); border-radius: var(--r-md); padding: .6rem .85rem;

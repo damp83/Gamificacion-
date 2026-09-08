@@ -625,7 +625,29 @@ function cfgEquipos(body) {
                   ${esc(r.name || '(sin nombre)')}${otra ? ' · ya en otra' : ''}</label>`;
               }).join('')}
             </div>
-            <small class="cfg-hint">${(team.members || []).length} miembro(s). Marcados desde la lista de clase, así el nombre siempre coincide.</small>`
+            <small class="cfg-hint">${(team.members || []).length} miembro(s). Marcados desde la lista de clase, así el nombre siempre coincide.</small>
+
+            ${(team.members || []).length ? `
+            <label class="cfg-label">Roles dentro de la cuadrilla</label>
+            <p class="cfg-hint">Reparte el trabajo del grupo en tareas que un niño entiende y puede
+            cumplir. Cada uno ve el suyo en su pantalla de Cuadrilla. Se puede dejar a alguien sin
+            rol, y se puede repetir uno si la cuadrilla es grande.</p>
+            <div class="cfg-list">
+              ${(team.members || []).map(m => {
+                const asignado = ((team.roles || {})[String(m).trim().toLowerCase()]) || '';
+                const r = rolPorId(asignado);
+                return `<div class="cfg-rol-fila">
+                  <span class="cfg-rol-icono">${r ? esc(r.icon) : '🧒'}</span>
+                  <span class="cfg-rol-quien">${esc(m)}</span>
+                  <select class="cfg-t-rol" data-i="${i}" data-name="${esc(m)}">
+                    <option value=""${asignado ? '' : ' selected'}>— sin rol —</option>
+                    ${ROLES_CUADRILLA.map(x => `<option value="${esc(x.id)}"${
+                      x.id === asignado ? ' selected' : ''}>${esc(x.icon + ' ' + x.personaje)}</option>`).join('')}
+                  </select>
+                  ${r ? `<small class="cfg-hint cfg-rol-desc">${esc(r.rol)} — ${esc(r.desc)}</small>` : ''}
+                </div>`;
+              }).join('')}
+            </div>` : ''}`
           : `<textarea class="cfg-t-members" data-i="${i}" rows="4"
               placeholder="Escribe aquí un nombre por línea…">${esc((team.members || []).join('\n'))}</textarea>
             <small class="cfg-hint">${(team.members || []).length
@@ -635,6 +657,16 @@ function cfgEquipos(body) {
         </div>`).join('')}
     </div>
     <button class="btn btn-secondary btn-small" id="cfg-add-team">➕ Nueva cuadrilla</button>`;
+
+  $$('.cfg-t-rol').forEach(el => onInput(el, e => {
+    const i = +e.target.dataset.i;
+    const clave = String(e.target.dataset.name || '').trim().toLowerCase();
+    const l = deepClone(ATLAS_CONFIG.teams.list || []);
+    l[i].roles = Object.assign({}, l[i].roles || {});
+    if (e.target.value) l[i].roles[clave] = e.target.value;
+    else delete l[i].roles[clave];
+    cfgSave('teams.list', l, false);
+  }));
 
   onInput('#cfg-team-on', e => cfgSave('teams.enabled', e.target.checked));
   onInput('#cfg-team-goal', e => cfgSave('teams.goalLabel', e.target.value));
@@ -653,9 +685,14 @@ function cfgEquipos(body) {
   $$('.cfg-t-pick').forEach(el => el.addEventListener('change', e => {
     const i = +e.target.dataset.i, name = e.target.dataset.name;
     const l = deepClone(ATLAS_CONFIG.teams.list);
-    const members = (l[i].members || []).filter(m => String(m).trim().toLowerCase() !== name.trim().toLowerCase());
+    const clave = name.trim().toLowerCase();
+    const members = (l[i].members || []).filter(m => String(m).trim().toLowerCase() !== clave);
     if (e.target.checked) members.push(name);
     l[i].members = members;
+    /* Quien sale de la cuadrilla se lleva su rol: un rol solo significa algo
+       dentro de un equipo, y dejarlo puesto haría que al volver a marcarlo
+       reapareciera un papel que nadie le ha dado. */
+    if (!e.target.checked && l[i].roles) { l[i].roles = Object.assign({}, l[i].roles); delete l[i].roles[clave]; }
     cfgSave('teams.list', l, false);
   }));
   $$('.cfg-t-members').forEach(el => onInput(el, e => {

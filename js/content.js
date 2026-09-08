@@ -1156,6 +1156,42 @@ function defaultSites() {
 
 /* ── Consultas sobre la estructura configurada ── */
 function sitesAll()     { return ATLAS_CONFIG.sites || []; }
+/* ══════════ LOS ROLES DE LA CUADRILLA ══════════
+
+   Cinco papeles dentro de cada cuadrilla, cada uno con su personaje. No es
+   decoración: reparte el trabajo del grupo en tareas que un niño de ocho
+   años entiende y puede cumplir —quién lee el objetivo, quién vigila el
+   reloj, quién guarda los doblones— y le da a cada uno algo suyo que hacer
+   cuando el grupo trabaja junto.
+
+   `img` está vacío y es a propósito: cada rol enseña su emoji hasta que
+   haya una ilustración en `img/roles/`. Poner ahí la ruta es lo único que
+   hace falta para que pase a verse el dibujo; nada más cambia. */
+const ROLES_CUADRILLA = [
+  { id: 'cartografo', icon: '🧭', img: '',
+    personaje: 'Leo, el Cartógrafo',
+    rol: 'Coordinador · Guía de ruta',
+    desc: 'Lee el objetivo, guía al equipo y recuerda en qué punto del mapa o del estrato están.' },
+  { id: 'descodificadora', icon: '🪲', img: '',
+    personaje: 'Maya, la Descodificadora',
+    rol: 'Investigadora de pistas · Portavoz',
+    desc: 'Busca las respuestas ocultas, analiza los fallos con Kira y comunica la respuesta final.' },
+  { id: 'guardian', icon: '🎒', img: '',
+    personaje: 'Nico, el Guardián del Campamento',
+    rol: 'Materiales y logística',
+    desc: 'Mantiene la mesa ordenada, reparte los recursos y custodia los Doblones de la cuadrilla.' },
+  { id: 'cronometradora', icon: '⏳', img: '',
+    personaje: 'Sofía, la Cronometradora',
+    rol: 'Guardiana del tiempo y del ritmo',
+    desc: 'Vigila el reloj y avisa del tiempo que queda para mantener un buen ritmo de excavación.' },
+  { id: 'ilustrador', icon: '🎨', img: '',
+    personaje: 'Hugo, el Ilustrador de la Bitácora',
+    rol: 'Diseño creativo · Apoyo',
+    desc: 'Da forma visual a los retos, propone ideas en el Taller de Cartografía y anima a los suyos.' }
+];
+
+function rolPorId(id) { return ROLES_CUADRILLA.find(r => r.id === id) || null; }
+
 /* ══════════ EL BANCO DE ICONOS ══════════
 
    Escribir un emoji a mano es fácil en un portátil y un suplicio en una

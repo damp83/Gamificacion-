@@ -1007,6 +1007,18 @@ function cuadrillaDe(nombre) {
     (team.members || []).some(m => String(m).trim().toLowerCase() === quien)) || null;
 }
 
+/* ── El rol de alguien dentro de su cuadrilla ──
+   Se guarda en la propia cuadrilla, con la misma clave en minúsculas que la
+   pertenencia: un rol solo significa algo dentro de un equipo, así que si el
+   niño se va de la cuadrilla el rol se va con él y no queda colgando en la
+   lista de clase. */
+function rolDe(nombre, cuadrilla) {
+  const cu = cuadrilla || cuadrillaDe(nombre);
+  if (!cu) return null;
+  const clave = String(nombre || '').trim().toLowerCase();
+  return rolPorId((cu.roles || {})[clave]);
+}
+
 function teamGoalShare() {
   const team = myTeam();
   if (!team) return 0;
