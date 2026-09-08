@@ -81,6 +81,33 @@ function slugify(text, fallback) {
   return base || fallback + '_' + Date.now().toString(36);
 }
 
+/* ── Un id que no choque con los que ya hay ──
+   slugify() devolvía SIEMPRE lo mismo para un texto fijo: «cuadrilla»,
+   «pozo», «yacimiento», «articulo», «nuevo». El respaldo con la hora solo
+   entraba cuando el texto no dejaba ni una letra, que no pasaba nunca. Así
+   que la segunda cuadrilla nueva nacía con el id de la primera.
+
+   Y el id no es una etiqueta: es lo que decide de qué pozo es un reto, en qué
+   cuadrilla está un niño y qué artículo se compra. Dos cosas con el mismo id
+   son LA MISMA COSA para toda la app —findBranch() devuelve la primera que
+   encuentra, y la busca en todos los yacimientos—, así que los pozos y los
+   yacimientos tienen que ser únicos en toda la configuración, no dentro de
+   su padre. */
+function idUnico(base, fallback, usados) {
+  const raiz = slugify(base, fallback);
+  const tomados = new Set(usados || []);
+  if (!tomados.has(raiz)) return raiz;
+  for (let n = 2; n < 500; n++) if (!tomados.has(`${raiz}_${n}`)) return `${raiz}_${n}`;
+  return `${raiz}_${Date.now().toString(36)}`;
+}
+
+/* Todos los ids de pozo que hay ahora mismo, de todos los yacimientos. */
+function idsDePozos(lista) {
+  const out = [];
+  for (const s of (lista || sitesAll())) for (const b of (s.branches || [])) out.push(b.id);
+  return out;
+}
+
 /* Lo llama cloud.js cuando acaba de subir los ajustes: si el panel está
    delante, la línea de estado tiene que cambiar sola. */
 function refrescarPanelSiAbierto() {
@@ -298,7 +325,7 @@ function cfgPremios(body) {
   }));
   $('#cfg-add-premio').addEventListener('click', () => {
     const l = deepClone(ATLAS_CONFIG.behaviors);
-    l.push({ id: slugify('nuevo', 'premio'), icon: '⭐', name: 'Nuevo reconocimiento', coins: 10, perDay: 1, category: 'comportamiento' });
+    l.push({ id: idUnico('nuevo', 'premio', l.map(x => x.id)), icon: '⭐', name: 'Nuevo reconocimiento', coins: 10, perDay: 1, category: 'comportamiento' });
     cfgSave('behaviors', l, 'Añadido: ponle nombre ✓');
   });
 }
@@ -917,7 +944,7 @@ function cfgEquipos(body) {
   }));
   $('#cfg-add-team').addEventListener('click', () => {
     const l = deepClone(ATLAS_CONFIG.teams.list);
-    l.push({ id: slugify('cuadrilla', 'team'), name: 'Nueva cuadrilla', icon: '🛖', members: [] });
+    l.push({ id: idUnico('cuadrilla', 'team', l.map(x => x.id)), name: 'Nueva cuadrilla', icon: '🛖', members: [] });
     cfgSave('teams.list', l, 'Cuadrilla creada ✓');
   });
 }
@@ -1272,8 +1299,15 @@ function propuestaDeYacimiento(body, a, site) {
     const l = sitesCopy();
     /* Sin cursos no lo vería nadie: se le dan todos los que se pidieron, que
        es lo que el docente tenía en mente al pedir la propuesta. */
-    const nuevos = y.pozos.filter(b => (b.name || '').trim()).map(b => ({
-      id: slugify(b.name, 'branch'),
+    /* Dos pozos propuestos con nombres que se resumen igual —«Las Tablillas»
+       y «Las tablillas»— chocarían, y a partir de ahí serían el mismo pozo
+       para toda la app. Se van reservando según se crean. */
+    const tomados = idsDePozos(l);
+    const nuevos = y.pozos.filter(b => (b.name || '').trim()).map(b => {
+      const id = idUnico(b.name, 'branch', tomados);
+      tomados.push(id);
+      return {
+      id,
       name: b.name.trim(),
       icon: b.icon || '⛏️',
       desc: b.desc || '',
@@ -1282,7 +1316,7 @@ function propuestaDeYacimiento(body, a, site) {
       enabled: true,
       source: 'docente',
       bank: {}
-    }));
+      }; });
     if (!nuevos.length) return;
     if (site) {
       const dest = l.find(s => s.id === site.id);
@@ -1292,7 +1326,7 @@ function propuestaDeYacimiento(body, a, site) {
       cfgAsistente = null;
       writeSites(l, `${nuevos.length} pozo(s) añadidos ✓ Escríbeles retos y aparecerán`);
     } else {
-      const id = slugify(y.name, 'site');
+      const id = idUnico(y.name, 'site', l.map(x => x.id));
       l.push({ id, name: y.name.trim() || 'Yacimiento nuevo', subject: y.subject || '',
                icon: y.icon || '🏛️', desc: y.desc || '', enabled: true, branches: nuevos });
       cfgOpenSite = id;
@@ -1443,7 +1477,7 @@ function cfgYacimientos(body) {
   $$('[data-asis]').forEach(el => el.addEventListener('click', () => abrirAsistente(el.dataset.asis)));
   $('#cfg-add-site').addEventListener('click', () => {
     const l = sitesCopy();
-    const id = slugify('yacimiento', 'site');
+    const id = idUnico('yacimiento', 'site', l.map(x => x.id));
     l.push({ id, name: 'Yacimiento nuevo', subject: 'Materia', icon: '🏛️', desc: '', enabled: true, branches: [] });
     cfgOpenSite = id;
     writeSites(l, 'Yacimiento creado: añádele un pozo ✓');
@@ -1494,7 +1528,7 @@ function cfgYacimientos(body) {
     const si = +el.dataset.addbranch;
     const l = sitesCopy();
     l[si].branches.push({
-      id: slugify('pozo', 'branch'), name: 'Pozo nuevo', icon: '⛏️', desc: '',
+      id: idUnico('pozo', 'branch', idsDePozos(l)), name: 'Pozo nuevo', icon: '⛏️', desc: '',
       enabled: true, source: 'bank', grades: GRADES.map(g => g.n),
       bank: { recordar: [], comprender: [], aplicar: [], analizar: [] }
     });
@@ -1877,7 +1911,7 @@ function cfgAlmacen(body) {
   }));
   $('#cfg-add-shop').addEventListener('click', () => {
     const l = deepClone(ATLAS_CONFIG.shop);
-    l.push({ id: slugify('articulo', 'item'), name: 'Artículo nuevo', icon: '📦', cost: 100, type: 'gear' });
+    l.push({ id: idUnico('articulo', 'item', l.map(x => x.id)), name: 'Artículo nuevo', icon: '📦', cost: 100, type: 'gear' });
     cfgSave('shop', l, 'Artículo añadido ✓');
   });
 }

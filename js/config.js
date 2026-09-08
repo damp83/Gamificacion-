@@ -11,7 +11,7 @@
    copia guardada. Sin este número, «ya está arreglado» y «a mí no me pasa» son
    indistinguibles. Va junto al nombre de la caché del service worker, y una
    prueba comprueba que no se separen. */
-const ATLAS_VERSION = 'v60';
+const ATLAS_VERSION = 'v61';
 
 const ATLAS_DEFAULTS = {
 
@@ -342,13 +342,70 @@ function migrateOverlay(o) {
     o.sites = sites;
     delete o.branchOverrides;
   }
+  repararIdsRepetidos(o);
+  return o;
+}
+
+/* ── Ids repetidos, que eran los mismos ids ──
+   Crear una cuadrilla nueva le ponía siempre el id «cuadrilla»; un pozo
+   nuevo, «pozo»; un yacimiento, «yacimiento». El id no es una etiqueta: es
+   lo que decide de qué pozo es un reto y en qué cuadrilla está un niño, y la
+   app resuelve un id devolviendo el PRIMERO que encuentra. Así que la segunda
+   cuadrilla nueva era, para todos los efectos, la primera: los alumnos que se
+   le marcaban aparecían en la otra, la lista de clase pintaba dos veces el
+   mismo grupo, y dos pozos distintos compartían los retos y el progreso.
+
+   Se reparan renombrando el segundo y siguientes. El primero conserva su id,
+   y con él lo que ya se hubiera jugado: como los duplicados venían
+   compartiéndolo todo, dejar al segundo con identidad propia y vacío es lo
+   más cerca de la verdad que se puede llegar. */
+let idsReparados = false;
+function repararIdsRepetidos(o) {
+  if (!o || typeof o !== 'object') return o;
+  const unico = (id, tomados, respaldo) => {
+    let base = String(id || '').trim() || respaldo;
+    if (!tomados.has(base)) { tomados.add(base); return base; }
+    idsReparados = true;
+    for (let n = 2; n < 500; n++) {
+      const cand = `${base}_${n}`;
+      if (!tomados.has(cand)) { tomados.add(cand); return cand; }
+    }
+    const cand = `${base}_${Date.now().toString(36)}`;
+    tomados.add(cand); return cand;
+  };
+
+  for (const [clave, respaldo] of [['behaviors', 'premio'], ['shop', 'item']]) {
+    if (!Array.isArray(o[clave])) continue;
+    const vistos = new Set();
+    for (const x of o[clave]) if (x) x.id = unico(x.id, vistos, respaldo);
+  }
+  if (o.teams && Array.isArray(o.teams.list)) {
+    const vistos = new Set();
+    for (const t of o.teams.list) if (t) t.id = unico(t.id, vistos, 'team');
+  }
+  if (Array.isArray(o.sites)) {
+    const sitios = new Set();
+    /* Los pozos se buscan en TODOS los yacimientos, así que su id tiene que
+       ser único en la configuración entera y no dentro de su yacimiento. */
+    const pozos = new Set();
+    for (const s of o.sites) {
+      if (!s) continue;
+      s.id = unico(s.id, sitios, 'site');
+      for (const b of (s.branches || [])) if (b) b.id = unico(b.id, pozos, 'branch');
+    }
+  }
   return o;
 }
 
 function loadTeacherConfig() {
   try {
     const raw = localStorage.getItem(TEACHER_CONFIG_KEY);
+    idsReparados = false;
     applyOverlay(migrateOverlay(raw ? JSON.parse(raw) : {}));
+    /* Si había ids repetidos, la reparación tiene que quedar guardada Y
+       subida: si no, este equipo los vería bien y el de al lado seguiría
+       enseñando dos cuadrillas iguales hasta que alguien tocara un ajuste. */
+    if (idsReparados) saveTeacherConfig();
   } catch (e) { applyOverlay({}); }
   return ATLAS_CONFIG;
 }

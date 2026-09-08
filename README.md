@@ -86,6 +86,7 @@ Cubren lo que ya se ha roto alguna vez, que es de donde salieron:
 | `generador.test.js` | Que un reto escrito por IA con la cuenta mal marcada no llegue nunca a un niño |
 | `alta.test.js` | Que el panel no intente crear el diario del alumno —Appwrite no lo permite— y que vincularlo le ponga su clase y su docente |
 | `asistente-yacimientos.test.js` | Que la asistente proponga estructura y **nunca retos**, que lo que vuelve se limpie antes de tocar los ajustes, y que el inspector avise de lo que falla en silencio sin acusar a un yacimiento sano |
+| `ids-unicos.test.js` | Que dos cosas creadas seguidas no nazcan con el mismo id, y que una configuración ya rota se repare al cargarla |
 | `avatar.test.js` | Que el retrato del rol sea el avatar en las cuatro pantallas, y que el sombrero comprado no lo borre |
 | `repaso-genera.test.js` | Que cada concepto flojo caiga en el pozo que habla de eso y deje el generador preparado |
 | `vincular-por-nombre.test.js` | Que el rescate de diarios sueltos no toque el de otro docente ni empareje un nombre repetido |
@@ -870,6 +871,16 @@ diario puede vivir en dos sitios de la misma colección —el id derivado del
 nombre, en clase dirigida, o el de la cuenta del alumno si entró él— y sin
 recordarlo, lo que el docente le compre acabaría en un segundo documento que el
 niño no lee nunca.
+
+### El id de cada cosa es único
+
+Crear una cuadrilla nueva le ponía siempre el id `cuadrilla`; un pozo nuevo, `pozo`; un yacimiento, `yacimiento`. **El id no es una etiqueta**: es lo que decide de qué pozo es un reto, en qué cuadrilla está un niño y qué artículo se compra, y la app resuelve un id devolviendo el primero que encuentra. Dos cosas con el mismo id son *la misma cosa* para toda la plataforma.
+
+Se veía así: marcabas alumnos en la segunda cuadrilla y aparecían en la primera, la lista de clase pintaba el mismo grupo dos veces con las dos listas juntas, y dos pozos distintos compartían retos y progreso.
+
+- Al crear algo, el id se busca **libre**: `cuadrilla`, `cuadrilla_2`, `cuadrilla_3`…
+- Los **pozos y los yacimientos son únicos en toda la configuración**, no dentro de su padre: `findBranch()` los busca en todos los yacimientos.
+- Una configuración **ya rota se repara al cargarla**, y la reparación se guarda y se sube. El primero conserva su id —y con él lo que ya se hubiera jugado—; se renombran el segundo y siguientes, que venían compartiéndolo todo y pasan a tener identidad propia.
 
 ### Cuadrillas sin erratas
 
