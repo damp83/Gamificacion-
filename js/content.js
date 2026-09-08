@@ -1187,8 +1187,21 @@ const ROLES_CUADRILLA = [
   { id: 'ilustrador', icon: '🎨', img: '',
     personaje: 'Hugo, el Ilustrador de la Bitácora',
     rol: 'Diseño creativo · Apoyo',
-    desc: 'Da forma visual a los retos, propone ideas en el Taller de Cartografía y anima a los suyos.' }
+    desc: 'Da forma visual a los retos, propone ideas en el Taller de Cartografía y anima a los suyos.' },
+  /* El Intendente no es de una cuadrilla: es de la clase. Por eso lleva tope
+     —dos manos derechas y no más, o deja de ser un encargo especial— y por eso
+     el tope se cuenta sobre TODAS las cuadrillas, no dentro de cada una. */
+  { id: 'intendente', icon: '🎖️', img: '', especial: true, tope: 2,
+    personaje: 'Gael o Sara, Intendente de Campo',
+    rol: 'Ayudante principal del docente · Encargo rotativo',
+    desc: 'Mano derecha del Prof. Ocaña: anota la fecha, guarda la caja del recreo, lidera la fila y echa una mano en los recados del aula.' }
 ];
+
+/* Cuántos alumnos, en toda la clase, pueden llevar un rol a la vez. */
+function topeDeRol(id) {
+  const r = rolPorId(id);
+  return r && r.tope ? r.tope : 0;
+}
 
 function rolPorId(id) { return ROLES_CUADRILLA.find(r => r.id === id) || null; }
 

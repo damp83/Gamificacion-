@@ -743,7 +743,7 @@ no con lo de preparar el curso.
 | Sección | Qué puedes cambiar |
 |---|---|
 | 📅 Curso y trimestres | Nombre del curso y las fechas de los tres trimestres |
-| 🛖 Cuadrillas de excavación | Crear equipos, **asignar alumnos marcando casillas**, **repartir los roles** (Cartógrafo, Descodificadora, Guardián, Cronometradora, Ilustrador), fijar la meta común y la aportación. Con alumnos asignados, la lista de **Dirigir la clase** se agrupa por cuadrillas —con cuántos han salido hoy en cada una— y un interruptor vuelve a la lista de todos |
+| 🛖 Cuadrillas de excavación | Crear equipos, **asignar alumnos marcando casillas**, **repartir los roles** (Cartógrafo, Descodificadora, Guardián, Cronometradora, Ilustrador y el Intendente de Campo, con tope de dos), **rotarlos al terminar la semana**, fijar la meta común y la aportación. Con alumnos asignados, la lista de **Dirigir la clase** se agrupa por cuadrillas —con cuántos han salido hoy en cada una— y un interruptor vuelve a la lista de todos |
 | 🏪 Almacén | Añadir, retirar y reajustar precios de los artículos cosméticos |
 | ⚖️ Economía | Retos por misión, Doblones de cada fuente, topes diarios, minutos hasta la fatiga, bolsa inicial… |
 | 🗿 Cámara del Guardián | La prueba sumativa de cada pozo: cuántos retos, cuánto hay que acertar y cada cuánto se puede repetir |
@@ -999,10 +999,30 @@ alumno:
 | 🎒 | **Nico, el Guardián del Campamento** | Materiales y logística. Mantiene la mesa ordenada, reparte los recursos y custodia los Doblones de la cuadrilla |
 | ⏳ | **Sofía, la Cronometradora** | Guardiana del tiempo y del ritmo. Vigila el reloj y avisa del tiempo que queda |
 | 🎨 | **Hugo, el Ilustrador de la Bitácora** | Diseño creativo · Apoyo. Da forma visual a los retos, propone ideas en el Taller y anima a los suyos |
+| 🎖️ | **Gael o Sara, Intendente de Campo** | *Encargo especial de clase, máximo 2.* Ayudante principal del docente: anota la fecha, guarda la caja del recreo, lidera la fila y echa una mano en los recados del aula |
 
 Se puede dejar a alguien **sin rol**, y **repetir uno** si la cuadrilla es
 grande. Al desmarcar a un alumno de la cuadrilla su rol se borra con él: un rol
 solo significa algo dentro de un equipo.
+
+El **Intendente de Campo** es la excepción: no es de una cuadrilla, es de la
+clase, así que lleva **tope de dos alumnos contados sobre todas las cuadrillas**
+—dos Cartógrafos en dos equipos distintos son normales; dos Intendentes ya son
+todos los que hay—. Cuando las dos plazas están dadas, el desplegable sigue
+mostrando el encargo pero deshabilitado y diciendo quién lo lleva, en vez de
+esconderlo. El tope se comprueba otra vez al guardar: la opción bloqueada frena
+el ratón, pero no el teclado.
+
+### Rotar los roles al terminar la semana
+
+El botón **🔄 Rotar los roles** (bajo la lista de cuadrillas, solo aparece si
+hay algo repartido) pasa el rol de cada niño **al siguiente de su cuadrilla**, y
+el del último al primero. En unas semanas todos han pasado por todos.
+
+Como el reparto se mueve solo *dentro* de cada equipo, rotar nunca puede romper
+el tope del Intendente: siguen puestos los mismos roles, en otras manos. Y como
+se reconstruye desde los miembros de hoy, un nombre que ya no está en la
+cuadrilla no sobrevive a la rotación.
 
 El alumno ve el suyo destacado al abrir **Tu Cuadrilla**, y el de cada compañero
 junto a su nombre. La lista de **Dirigir la clase** también muestra el personaje

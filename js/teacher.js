@@ -592,6 +592,9 @@ function cfgAlumnado(body) {
 function cfgEquipos(body) {
   const t = ATLAS_CONFIG.teams;
   const roster = ATLAS_CONFIG.roster || [];
+  /* Rotar sin nada repartido no haría nada: el botón solo sale cuando hay algo
+     que mover. */
+  const hayRoles = (t.list || []).some(x => Object.keys(x.roles || {}).length);
   body.innerHTML = `
     <p class="cfg-intro">Las cuadrillas son <strong>cooperativas</strong>: todas suman a una meta
     común de clase. El PRD desaconseja rankings entre niños, por eso la comparación
@@ -641,10 +644,18 @@ function cfgEquipos(body) {
                   <span class="cfg-rol-quien">${esc(m)}</span>
                   <select class="cfg-t-rol" data-i="${i}" data-name="${esc(m)}">
                     <option value=""${asignado ? '' : ' selected'}>— sin rol —</option>
-                    ${ROLES_CUADRILLA.map(x => `<option value="${esc(x.id)}"${
-                      x.id === asignado ? ' selected' : ''}>${esc(x.icon + ' ' + x.personaje)}</option>`).join('')}
+                    ${ROLES_CUADRILLA.map(x => {
+                      /* Un rol con tope se ofrece deshabilitado cuando ya está
+                         dado: el docente ve que existe y por qué no puede
+                         ponerlo, en vez de buscarlo en una lista donde falta. */
+                      const lleno = !cabeOtroConRol(x.id, m);
+                      return `<option value="${esc(x.id)}"${x.id === asignado ? ' selected' : ''}${
+                        lleno ? ' disabled' : ''}>${esc(x.icon + ' ' + x.personaje)}${
+                        lleno ? esc(' · ya lo llevan ' + quienLleva(x.id).join(' y ')) : ''}</option>`;
+                    }).join('')}
                   </select>
-                  ${r ? `<small class="cfg-hint cfg-rol-desc">${esc(r.rol)} — ${esc(r.desc)}</small>` : ''}
+                  ${r ? `<small class="cfg-hint cfg-rol-desc">${esc(r.rol)} — ${esc(r.desc)}${
+                    r.tope ? ` <strong>${esc(`Encargo especial de clase: máximo ${r.tope}.`)}</strong>` : ''}</small>` : ''}
                 </div>`;
               }).join('')}
             </div>` : ''}`
@@ -656,17 +667,38 @@ function cfgEquipos(body) {
               <strong>Consejo:</strong> rellena la lista en «Alumnado» y podrás marcarlos con casillas.</small>`}
         </div>`).join('')}
     </div>
-    <button class="btn btn-secondary btn-small" id="cfg-add-team">➕ Nueva cuadrilla</button>`;
+    <div class="cfg-acciones">
+      <button class="btn btn-secondary btn-small" id="cfg-add-team">➕ Nueva cuadrilla</button>
+      ${hayRoles ? `<button class="btn btn-secondary btn-small" id="cfg-rotar-roles">🔄 Rotar los roles</button>` : ''}
+    </div>
+    ${hayRoles ? `<small class="cfg-hint">Al terminar la semana, <strong>rotar</strong> pasa el rol de
+      cada niño al siguiente de su cuadrilla, para que todos acaben pasando por todos.</small>` : ''}`;
 
   $$('.cfg-t-rol').forEach(el => onInput(el, e => {
     const i = +e.target.dataset.i;
-    const clave = String(e.target.dataset.name || '').trim().toLowerCase();
+    const nombre = String(e.target.dataset.name || '');
+    const clave = nombre.trim().toLowerCase();
+    const valor = e.target.value;
+    /* El <option> deshabilitado ya lo impide con el ratón; esto es la misma
+       regla en el sitio donde se guarda, que es el único que manda. */
+    if (valor && !cabeOtroConRol(valor, nombre)) {
+      toast(`Ese encargo ya lo llevan ${quienLleva(valor).join(' y ')} ✋`, 2600);
+      renderTeacherConfig();
+      return;
+    }
     const l = deepClone(ATLAS_CONFIG.teams.list || []);
     l[i].roles = Object.assign({}, l[i].roles || {});
-    if (e.target.value) l[i].roles[clave] = e.target.value;
+    if (valor) l[i].roles[clave] = valor;
     else delete l[i].roles[clave];
     cfgSave('teams.list', l, false);
   }));
+
+  const botonRotar = $('#cfg-rotar-roles');
+  if (botonRotar) botonRotar.addEventListener('click', async () => {
+    if (!await askConfirm('Cada niño pasará al rol del compañero anterior de su cuadrilla. ¿Rotamos?',
+      'Sí, rotar')) return;
+    cfgSave('teams.list', rotarRoles(deepClone(ATLAS_CONFIG.teams.list || [])), 'Roles rotados ✓');
+  });
 
   onInput('#cfg-team-on', e => cfgSave('teams.enabled', e.target.checked));
   onInput('#cfg-team-goal', e => cfgSave('teams.goalLabel', e.target.value));

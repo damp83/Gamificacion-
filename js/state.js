@@ -1019,6 +1019,47 @@ function rolDe(nombre, cuadrilla) {
   return rolPorId((cu.roles || {})[clave]);
 }
 
+/* Quién lleva un rol en TODA la clase, no dentro de una cuadrilla. Lo usan el
+   tope del Intendente y el aviso del panel; devuelve los nombres tal y como
+   están escritos en la cuadrilla, que es lo que el docente reconoce. */
+function quienLleva(id) {
+  const fuera = [];
+  for (const t of ((ATLAS_CONFIG.teams || {}).list || [])) {
+    const roles = t.roles || {};
+    for (const m of (t.members || [])) {
+      if (roles[String(m).trim().toLowerCase()] === id) fuera.push(m);
+    }
+  }
+  return fuera;
+}
+
+/* ¿Queda sitio para darle este rol a alguien más? Sin tope, siempre. */
+function cabeOtroConRol(id, nombre) {
+  const tope = topeDeRol(id);
+  if (!tope) return true;
+  const clave = String(nombre || '').trim().toLowerCase();
+  return quienLleva(id).filter(m => String(m).trim().toLowerCase() !== clave).length < tope;
+}
+
+/* Rota los roles dentro de cada cuadrilla: el de cada miembro pasa al
+   siguiente de la lista, y el del último vuelve al primero. Como el reparto
+   solo se mueve DENTRO del equipo, ningún tope se puede romper rotando: los
+   mismos roles siguen puestos, en otras manos. */
+function rotarRoles(lista) {
+  return (lista || []).map(t => {
+    const gente = (t.members || []).filter(Boolean);
+    if (gente.length < 2) return t;
+    const viejos = t.roles || {};
+    const nuevos = {};
+    gente.forEach((m, i) => {
+      const anterior = gente[(i - 1 + gente.length) % gente.length];
+      const r = viejos[String(anterior).trim().toLowerCase()];
+      if (r) nuevos[String(m).trim().toLowerCase()] = r;
+    });
+    return Object.assign({}, t, { roles: nuevos });
+  });
+}
+
 function teamGoalShare() {
   const team = myTeam();
   if (!team) return 0;
