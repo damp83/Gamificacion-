@@ -92,6 +92,35 @@ async function renderAulas() {
   }
 }
 
+/* ── ¿Es esta la clase? ──
+   La barrera es «demuestra que sabes cuál estás borrando», no «demuestra que
+   sabes teclear el ordinal masculino». Una clase llamada «4.º A» lleva U+00BA,
+   que NO es el grado (°) del teclado ni una o; el docente escribía su propia
+   clase, le decía que no coincidía, y no había forma de adivinar por qué.
+
+   Así que se comparan solo las letras y los números: se quitan tildes,
+   espacios, puntos y ordinales. «4.º A», «4º A», «4°A» y «4 a» son la misma
+   clase; «2.º A» sigue siendo otra, que es lo único que hay que distinguir. */
+function claveDeNombreDeClase(t) {
+  return String(t || '')
+    .normalize('NFD').replace(/[\u0300-\u036f]/g, '')
+    .toLowerCase()
+    /* El ordinal de un curso, escrito de las cuatro formas que se escribe:
+       «4.º», «4º», «4°» y «4.o». Se quita entero, así que las cuatro —y «4» a
+       secas— acaban igual. La «o» solo cuenta como ordinal detrás de un
+       número y sin más letras detrás: «4 oro» no es «4». */
+    .replace(/(\d)\s*\.?\s*[º°ª]/g, '$1')
+    .replace(/(\d)\s*\.?\s*o(?![a-z])/g, '$1')
+    .replace(/[^a-z0-9]+/g, '');
+}
+function mismoNombreDeClase(escrito, real) {
+  const a = claveDeNombreDeClase(escrito), b = claveDeNombreDeClase(real);
+  /* Un nombre que se queda en nada al limpiarlo —«···»— no puede abrir la
+     puerta a cualquier cosa: ahí se exige el texto tal cual. */
+  if (!b) return String(escrito || '').trim() === String(real || '').trim();
+  return a === b;
+}
+
 /* ── Borrar una clase ──
    Se lleva por delante los diarios de sus alumnos, que son un trimestre de
    trabajo de cada niño. La barrera va en tres tramos, y ninguno sobra:
@@ -132,10 +161,11 @@ async function borrarAulaUI(a) {
   }
 
   const escrito = await askPrompt(
-    `Escribe el nombre de la clase para confirmar que es esta y no otra:`, '', 'Borrar para siempre');
+    `Escribe «${a.name}» para confirmar que es esta clase y no otra:`, '', 'Borrar para siempre');
   if (escrito === null) return;
-  if (String(escrito).trim().toLowerCase() !== String(a.name).trim().toLowerCase()) {
-    aulasMsg('⚠️ El nombre no coincide. No se ha borrado nada.');
+  if (!mismoNombreDeClase(escrito, a.name)) {
+    aulasMsg(`⚠️ Has escrito «${esc(String(escrito).trim())}» y la clase se llama «${esc(a.name)}». ` +
+      'No se ha borrado nada.');
     return;
   }
 

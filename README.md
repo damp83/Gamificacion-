@@ -271,7 +271,11 @@ puede ejecutar mil veces: lo que ya está en la tabla no se vuelve a subir.
 > **Borrar una clase** se hace desde *Mis clases*, con la papelera de su
 > tarjeta. Se lleva sus diarios, sus retos y sus ajustes, y no se puede
 > deshacer: antes se cuenta y se enseña qué hay dentro, se ofrece la copia de
-> seguridad, y hay que escribir el nombre de la clase. Se borra de dentro
+> seguridad, y hay que escribir el nombre de la clase —la pantalla dice cuál,
+> y la comparación **ignora tildes, espacios, puntos y el ordinal**: «4.º A»,
+> «4º A», «4° A» y «4 A» valen igual, porque el `º` de la app (U+00BA) no es
+> el `°` del teclado y nadie tiene por qué saberlo; «2.º A» sigue siendo otra
+> clase, que es lo único que hay que distinguir—. Se borra de dentro
 > afuera —retos, diarios, y el aula al final— para que un fallo a mitad no
 > deje filas apuntando a una clase que ya no existe. Las cuentas del
 > alumnado no se borran: se quedan sin diario.
