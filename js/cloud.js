@@ -650,6 +650,44 @@ function createSession(email, pass) {
   return CLOUD.account.createEmailSession(email, pass); /* SDK < 14 */
 }
 
+/* ── Probar la contraseña de un alumno ──
+
+   La pregunta que deja tirada una tarde es «¿esta contraseña abre su cuenta,
+   sí o no?», y hasta ahora solo se podía contestar yendo a una tablet, con el
+   niño delante, y probando. Appwrite responde igual a «contraseña mal» y a «esa
+   cuenta no existe» —lo hace a propósito— así que desde fuera no hay forma de
+   distinguirlo: solo intentando entrar.
+
+   Y ahí está el precio, que no se puede esconder: abrir la sesión de un alumno
+   CIERRA la del docente. El navegador guarda una sesión por proyecto, no una
+   por persona. Se pregunta antes, se dice claro, y al terminar se cierra la
+   sesión del niño para no dejar su cuenta abierta en el equipo del docente. */
+async function probarClaveDeAlumno(r) {
+  if (!cloudEnabled()) return { ok: false, texto: 'Sin conexión con Appwrite.' };
+  if (!r || !r.username) return { ok: false, texto: 'Esa ficha no tiene usuario.' };
+  try {
+    try { await CLOUD.account.deleteSession('current'); } catch (e) { /* no había */ }
+    await createSession(cloudEmail(r.username), String(r.password || ''));
+    /* Entró: la contraseña es esa. No se toca su diario ni se lee nada suyo. */
+    try { await CLOUD.account.deleteSession('current'); } catch (e) { /* ya está */ }
+    CLOUD.user = null;
+    return { ok: true, texto: 'Esta contraseña SÍ abre su cuenta. Si aun así no puede entrar, es el usuario '
+      + 'o la conexión de su tablet, no la contraseña.' };
+  } catch (e) {
+    CLOUD.user = null;
+    const m = (e && e.message) || '';
+    if (typeof esFalloDeRed === 'function' && esFalloDeRed(e)) {
+      return { ok: false, texto: 'No se ha podido probar: no se llegó al servidor. Mira «Salud de la clase».' };
+    }
+    if (/Invalid credentials|Invalid `?password/i.test(m)) {
+      return { ok: false, texto: 'Esta contraseña NO abre su cuenta. O no es la suya, o esa cuenta no existe '
+        + 'todavía: Appwrite contesta lo mismo a las dos cosas, a propósito. Comprueba que la ficha dice '
+        + '«✓ cuenta creada» y, si lo dice, cámbiala en la consola de Appwrite (Auth → Update password).' };
+    }
+    return { ok: false, texto: 'No se ha podido probar: ' + m };
+  }
+}
+
 /* ¿hay sesión guardada de otro día? → devuelve el estado remoto o null */
 async function cloudResume() {
   if (!CLOUD.enabled) return null;

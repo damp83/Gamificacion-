@@ -422,7 +422,26 @@ function pegaDeLaCuenta(r) {
   if (!r.account) {
     return 'Escribir la contraseña aquí NO crea la cuenta: hay que pulsar «Crear las cuentas» más abajo.';
   }
+  /* La trampa más cara de todas, porque no se parece a un error: se cambia la
+     contraseña de una ficha que YA tiene cuenta, el panel enseña tan tranquilo
+     la nueva, y Appwrite sigue con la de antes. El alumno la escribe bien y le
+     dicen que la compruebe. Se pasa la tarde probando. */
+  if (r.account && r.claveCreada && huellaDeClave(r.password) !== r.claveCreada) {
+    return 'Esta contraseña se ha cambiado DESPUÉS de crear la cuenta, así que no es la que abre. '
+      + 'Appwrite sigue con la de antes y la app no puede cambiársela desde aquí. Dos salidas: vuelve '
+      + 'a escribir la anterior, o cámbiala en la consola de Appwrite (Auth → busca ' + (r.username || '')
+      + '@' + (ATLAS_CONFIG.usernameDomain || '') + ' → Update password) y ponla aquí igual.';
+  }
   return null;
+}
+
+/* Huella de una contraseña, solo para saber si ha cambiado. No protege nada
+   —la lista guarda la contraseña en claro a propósito, porque de ahí sale la
+   hoja que se reparte— y no hace falta que lo haga: la única pregunta que
+   contesta es «¿es la misma cadena que antes?». */
+function huellaDeClave(clave) {
+  const c = String(clave == null ? '' : clave);
+  return c ? ('h' + hash36(c)) : '';
 }
 
 /* ── Por qué ha fallado, dicho para una persona ──
@@ -965,7 +984,12 @@ function cfgAlumnado(body) {
             <label>Usuario <input type="text" class="ros-user" data-i="${i}" value="${esc(r.username || '')}"></label>
             <label>Contraseña <input type="text" class="ros-pass" data-i="${i}" minlength="${PASS_MINIMO}"
               value="${esc(r.password || '')}"></label>
+            ${r.account && nube ? `<button class="btn btn-secondary btn-small ros-probar" data-probar="${i}"
+              title="Probar si esta contraseña abre su cuenta">🔑 Probar</button>` : ''}
           </div>
+          ${r.account ? `<p class="cfg-hint">Su cuenta ya existe: <strong>cambiar la contraseña aquí no
+            la cambia en Appwrite</strong>. Lo de arriba es lo que se reparte; lo que abre la cuenta es lo
+            que se puso al crearla.</p>` : ''}
           <div class="cfg-row">
             <label>Curso <select class="ros-grade" data-i="${i}">
               ${GRADES.map(g => `<option value="${g.n}"${(r.grade || ATLAS_CONFIG.defaultGrade) === g.n ? ' selected' : ''}>${g.label} · ${g.age}</option>`).join('')}
@@ -1101,6 +1125,24 @@ function cfgAlumnado(body) {
     renderTeacherConfig();
   }));
 
+  /* Probar una contraseña es la única forma de contestar «¿abre esta cuenta,
+     sí o no?»: Appwrite responde igual a una contraseña mala y a una cuenta que
+     no existe. El precio —cierra la sesión del docente— se dice antes, no
+     después. */
+  $$('[data-probar]').forEach(el => el.addEventListener('click', async () => {
+    const r = (ATLAS_CONFIG.roster || [])[+el.dataset.probar];
+    if (!r) return;
+    if (!(await askConfirm(`Se va a intentar entrar como ${r.name || r.username} con la contraseña `
+      + 'que hay escrita, y eso CIERRA tu sesión de docente (el navegador guarda una sola). '
+      + 'Después vuelves a entrar en «Mis clases». La sesión del niño se cierra sola al terminar '
+      + 'y no se toca nada de su diario.', 'Probar'))) return;
+    el.disabled = true; el.textContent = 'Probando…';
+    const res = await probarClaveDeAlumno(r);
+    rosterLog = [`${res.ok ? '✓' : '✘'} ${esc(r.name || r.username)} — ${esc(res.texto)}`,
+      '<span class="ros-log-sum">Tu sesión de docente se ha cerrado: entra otra vez en «Mis clases».</span>'];
+    renderTeacherConfig();
+  }));
+
   $$('[data-delros]').forEach(el => el.addEventListener('click', async () => {
     const i = +el.dataset.delros;
     const l = rosterCopy();
@@ -1212,6 +1254,13 @@ function cfgAlumnado(body) {
            guarda ahora, que es el único momento en que se conoce: con él, el
            panel adopta su diario en cuanto entre por primera vez. */
         if (res.id) l[i].authId = res.id;
+        /* Con qué contraseña se creó. NO es una segunda copia del secreto —la
+           lista ya la guarda en claro, que es lo que hace la hoja de
+           credenciales— sino una huella para responder a una sola pregunta:
+           «¿sigue siendo la misma que abre la cuenta?». Cambiarla aquí después
+           no cambia nada en Appwrite, y sin esto el panel enseñaba una
+           contraseña que no le abría la puerta a nadie. */
+        l[i].claveCreada = huellaDeClave(r.password);
         lineas.push(`✓ ${esc(r.name)} — cuenta creada`);
       }
       else if (res.reason === 'existe') { l[i].account = true; lineas.push(`✓ ${esc(r.name)} — ya existía, se marca como creada`); ok++; }

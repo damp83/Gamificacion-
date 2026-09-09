@@ -1194,6 +1194,53 @@ Lo que mira:
 Cada aviso dice **qué se pierde** y **qué hacer**, y en qué pantalla se hace. Un
 panel de diagnóstico sin salida es una lista de motivos para cerrarlo.
 
+### Cambiar la contraseña en el panel no la cambia en Appwrite
+
+Es la trampa más cara de todas, porque no se parece a un error. Se le cambia la
+contraseña a una ficha que **ya tiene cuenta creada**, el panel enseña tan
+tranquilo la nueva, la hoja de credenciales la reparte, y Appwrite sigue con la
+de antes. El alumno la escribe bien y la app le dice que la compruebe. Se pasa
+la tarde probando.
+
+La app **no puede** cambiarle la contraseña a un alumno desde el navegador: eso
+necesita el servicio `users` de Appwrite, que no existe en el SDK web y no puede
+existir, porque este código se sirve a la tablet de cada niño. Así que lo único
+honrado es decirlo:
+
+- **Toda ficha con cuenta creada** lleva la advertencia debajo de la contraseña,
+  aunque no haya pasado nada. Es lo que se reparte; lo que abre la cuenta es lo
+  que se puso al crearla.
+- **Si además se detecta el desajuste**, se dice entero: al crear la cuenta se
+  guarda una huella de la contraseña usada —no una segunda copia del secreto,
+  que la lista ya lo guarda en claro para poder repartirlo— y si la de la ficha
+  deja de coincidir, la ficha lo avisa con el correo exacto que hay que buscar
+  en la consola de Appwrite y qué hacer allí.
+
+Las cuentas creadas antes de esto no tienen huella y no pueden detectar el
+desajuste. Por eso la advertencia general está siempre, y por eso existe lo de
+abajo.
+
+### 🔑 Probar una contraseña
+
+Appwrite responde **exactamente lo mismo** a «esta contraseña está mal» y a «esa
+cuenta no existe». Lo hace a propósito, para que no se pueda averiguar quién
+tiene cuenta probando. El efecto secundario es que desde el panel no había forma
+de contestar la única pregunta que importa: *¿esta contraseña abre su cuenta, sí
+o no?*
+
+El botón de cada ficha lo prueba de verdad, y luego cierra la sesión del niño
+para no dejarle la cuenta abierta en el equipo del docente. No lee ni escribe
+nada de su diario.
+
+> **Tiene un precio y se dice antes de pulsar**: el navegador guarda una sola
+> sesión, así que entrar como un alumno **cierra la sesión del docente**. Después
+> se vuelve a entrar en «Mis clases». Se avisa con un diálogo que hay que
+> aceptar; nunca se hace de callado.
+
+Si contesta que sí, el problema no es la contraseña: es el usuario o la conexión
+de esa tablet. Si contesta que no, la ficha dice cuál de las dos cosas mirar
+primero.
+
 ### «No hay conexión» casi nunca es la conexión
 
 Un alumno intenta entrar y sale *«No hay conexión con la Sociedad Geográfica.
