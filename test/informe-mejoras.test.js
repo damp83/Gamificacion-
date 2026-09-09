@@ -14,13 +14,22 @@ const leer = f => fs.readFileSync(path.join(__dirname, '..', f), 'utf8');
 const texto = html => html.replace(/<style>[\s\S]*?<\/style>/g, ' ')
   .replace(/<[^>]+>/g, ' ').replace(/\s+/g, ' ');
 
+/* Un diario con algo dentro. Uno recién creado recibe a propósito el informe
+   corto de «todavía no ha empezado», así que las pruebas del informe largo
+   tienen que darle algo que contar. */
+function diarioConAlgo(c, nombre) {
+  const s = c.ev('defaultState')(nombre || 'Vega');
+  s.metrics.questions_answered = 12;
+  return s;
+}
+
 /* ── M1 · la nota del docente ── */
 
 test('la nota del docente abre el informe, antes que ninguna cifra', () => {
   /* Es lo único de la hoja que ha escrito una persona mirando a ese niño. */
   const c = cargarApp();
   c.ev('guardarNotaDeAlumno')('u:vega', 'Ha dado un salto este trimestre.');
-  const s = c.ev('defaultState')('Vega');
+  const s = diarioConAlgo(c, 'Vega');
   const h = c.ev('informeFamilia')(s, { docente: 'Diego Moya', notas: c.ev('notasDeAlumno')('u:vega') });
   const t = texto(h);
   assert.ok(t.includes('Ha dado un salto este trimestre.'));
@@ -29,7 +38,7 @@ test('la nota del docente abre el informe, antes que ninguna cifra', () => {
 
 test('sin nota escrita, el informe sale como siempre', () => {
   const c = cargarApp();
-  const h = c.ev('informeFamilia')(c.ev('defaultState')('Vega'), {});
+  const h = c.ev('informeFamilia')(diarioConAlgo(c, 'Vega'), {});
   assert.ok(!/Lo que dice/.test(texto(h)));
 });
 
@@ -56,7 +65,7 @@ test('las anteriores se conservan con su fecha, para ver el camino', () => {
   c.ev('guardarNotaDeAlumno')('u:v', 'diciembre');
   c.ev("ATLAS_CONFIG.notasInforme['u:v'][0].fecha = '2025-12-19'");
   c.ev('guardarNotaDeAlumno')('u:v', 'marzo');
-  const h = c.ev('informeFamilia')(c.ev('defaultState')('V'), { notas: c.ev('notasDeAlumno')('u:v') });
+  const h = c.ev('informeFamilia')(diarioConAlgo(c, 'V'), { notas: c.ev('notasDeAlumno')('u:v') });
   const t = texto(h);
   assert.ok(t.includes('marzo'));
   assert.ok(t.includes('diciembre'), 'la anterior sigue estando');
@@ -115,7 +124,7 @@ test('cada concepto del catálogo dice qué hacer en casa', () => {
 
 test('y esa frase sale en el informe, junto a lo que le cuesta', () => {
   const c = cargarApp();
-  const s = c.ev('defaultState')('Vega');
+  const s = diarioConAlgo(c, 'Vega');
   s.metrics.errors_by_concept = { resta_llevada: { errors: 5, attempts: 9 } };
   const t = texto(c.ev('informeFamilia')(s, {}));
   assert.ok(t.includes('Resta llevando'));
@@ -135,13 +144,13 @@ test('las frases de casa no mandan a comprar ni a imprimir nada', () => {
 
 test('el informe dice de qué periodo habla', () => {
   const c = cargarApp();
-  const t = texto(c.ev('informeFamilia')(c.ev('defaultState')('V'), {}));
+  const t = texto(c.ev('informeFamilia')(diarioConAlgo(c, 'V'), {}));
   assert.match(t, /Este informe habla del .*trimestre/);
 });
 
 test('la constancia es la del trimestre, no la de siempre', () => {
   const c = cargarApp();
-  const s = c.ev('defaultState')('V');
+  const s = diarioConAlgo(c, 'V');
   const tri = c.ev('ATLAS_CONFIG.course.trimesters')[c.ev('currentTrimesterIndex()')];
   s.metrics.sessions_log = [
     { date: tri.start, missions: 2, minutes: 10 },
@@ -155,7 +164,7 @@ test('la constancia es la del trimestre, no la de siempre', () => {
 
 test('las pruebas de otro trimestre no salen', () => {
   const c = cargarApp();
-  const s = c.ev('defaultState')('V');
+  const s = diarioConAlgo(c, 'V');
   const tri = c.ev('ATLAS_CONFIG.course.trimesters')[c.ev('currentTrimesterIndex()')];
   s.dig_sites = { ciudad: { numeracion: { strata: {}, guardian: { cleared: true, clearedAt: tri.start,
     attempts: 2, history: [
@@ -169,7 +178,7 @@ test('las pruebas de otro trimestre no salen', () => {
 test('lo que no se acota a un trimestre se dice que no', () => {
   /* Callarlo era lo que hacía imposible comparar dos informes del mismo curso. */
   const c = cargarApp();
-  const t = texto(c.ev('informeFamilia')(c.ev('defaultState')('V'), {}));
+  const t = texto(c.ev('informeFamilia')(diarioConAlgo(c, 'V'), {}));
   assert.match(t, /Qué periodo cubre cada parte/);
 });
 
@@ -177,7 +186,7 @@ test('lo que no se acota a un trimestre se dice que no', () => {
 
 test('las pruebas se cuentan con su denominador', () => {
   const c = cargarApp();
-  const s = c.ev('defaultState')('V');
+  const s = diarioConAlgo(c, 'V');
   const tri = c.ev('ATLAS_CONFIG.course.trimesters')[c.ev('currentTrimesterIndex()')];
   const camara = (id, passed) => ({ strata: {}, guardian: { cleared: passed, attempts: 1,
     history: [{ date: tri.start, accuracy: passed ? 0.9 : 0.4, passed, masteryThen: 0.9 }] } });
@@ -188,7 +197,7 @@ test('las pruebas se cuentan con su denominador', () => {
 
 test('singular y plural, que esto se imprime y se firma', () => {
   const c = cargarApp();
-  const s = c.ev('defaultState')('V');
+  const s = diarioConAlgo(c, 'V');
   const tri = c.ev('ATLAS_CONFIG.course.trimesters')[c.ev('currentTrimesterIndex()')];
   s.metrics.sessions_log = [{ date: tri.start, missions: 1, minutes: 1 }];
   const t = texto(c.ev('informeFamilia')(s, {}));
@@ -228,8 +237,8 @@ test('a un diario antiguo, sin cuenta de días, no se le vacía el informe', () 
 
 test('los informes de la clase van en un documento, uno por página', () => {
   const c = cargarApp();
-  const uno = c.ev('datosDelInforme')(c.ev('defaultState')('Ana'), {});
-  const dos = c.ev('datosDelInforme')(c.ev('defaultState')('Leo'), {});
+  const uno = c.ev('datosDelInforme')(diarioConAlgo(c, 'Ana'), {});
+  const dos = c.ev('datosDelInforme')(diarioConAlgo(c, 'Leo'), {});
   const html = c.ev('informeDeClase')([uno, dos], { clase: '4.º B' });
   assert.equal((html.match(/<article class="informe">/g) || []).length, 2);
   assert.match(html, /page-break-after: always/, 'uno por hoja al imprimir');
@@ -245,7 +254,7 @@ test('el informe de un alumno y el de la clase comparten el estilo', () => {
 
 test('el informe declara el idioma', () => {
   const c = cargarApp();
-  assert.match(c.ev('informeFamilia')(c.ev('defaultState')('V'), {}), /<html lang="es">/);
+  assert.match(c.ev('informeFamilia')(diarioConAlgo(c, 'V'), {}), /<html lang="es">/);
 });
 
 /* ── M7 · la divergencia, a la vista ── */

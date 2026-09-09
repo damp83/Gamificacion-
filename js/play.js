@@ -766,13 +766,23 @@ function renderDashboard() {
       const errRate = err && err.attempts ? Math.round((err.errors / err.attempts) * 100) : null;
       /* El candado iba al final de la cifra y se leía como parte del dato;
          ahora acompaña a la etiqueta, que es de lo que informa. */
-      html += `<div class="dash-row">
+      /* Los dos números de esta fila NO miden lo mismo: el dominio son las
+         últimas cuatro sesiones y el error es de todo el historial del pozo.
+         Puestos juntos y sin decirlo, «90 % · err 45 %» parece una
+         contradicción. Se dice, aquí y en la leyenda de abajo. */
+      html += `<div class="dash-row" title="Dominio: últimas ${MASTERY_WINDOW} sesiones. Error: todo el historial de este estrato.">
         <span class="dash-row-label">${STRATA_META[sId].label}${st.status === 'locked' ? ' 🔒' : ''}</span>
         <div class="mastery-bar"><div class="mastery-fill${st.mastery >= 0.8 ? ' gold' : ''}" style="width:${Math.round(st.mastery * 100)}%"></div></div>
         <span class="dash-row-num">${Math.round(st.mastery * 100)}%${errRate !== null ? ` · err ${errRate}%` : ''}</span>
       </div>`;
     }
     html += '</div></div>';
+  }
+  if (html) {
+    html += `<p class="dash-leyenda">El <strong>dominio</strong> es la media de las últimas
+      ${MASTERY_WINDOW} sesiones de ese estrato: se mueve con lo reciente. El <strong>error</strong>
+      es de todo su historial en él y no baja aunque mejore, así que sirve para ver de dónde
+      viene, no cómo va hoy.</p>`;
   }
   /* ── Conceptos flojos de ESTE alumno ──
      El dominio por estrato dice cuánto; esto dice qué. Es lo que se mira
@@ -781,6 +791,8 @@ function renderDashboard() {
   if (flojos.length) {
     html += `<div class="dash-branch dash-conceptos">
       <h4>${ico('target')} Le está costando</h4>
+      <p class="dash-leyenda">De sus últimos ${CONCEPTO_VENTANA} intentos en cada concepto: lo que
+      le cuesta AHORA, no lo que le costó en octubre.</p>
       ${flojos.map(c => {
         const info = conceptoInfo(c.id);
         return `<div class="dash-row">

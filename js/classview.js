@@ -229,9 +229,10 @@ function baseDesdeDiario(s, today) {
         total++;
         masterySum += st.mastery || 0;
         if ((st.mastery || 0) >= 0.8) mastered++;
-        else if (st.status === 'in_progress' && st.last_practiced &&
-                 daysBetween(today, st.last_practiced) > 7) {
-          stuck.push(`${def ? def.name : bId} · ${STRATA_META[sId].label}`);
+        /* Por dominio y fecha, no por la etiqueta: ver buildSummaryOf(). */
+        else if (st.last_practiced && daysBetween(today, st.last_practiced) > 7) {
+          stuck.push(`${def ? def.name : bId} · ${STRATA_META[sId].label}${
+            st.ever_mastered ? ' · se le está olvidando' : ''}`);
         }
       }
     }
@@ -249,6 +250,9 @@ function baseDesdeDiario(s, today) {
   for (const k in errs) { e += errs[k].errors || 0; at += errs[k].attempts || 0; }
   const rt = (s.adaptive && s.adaptive.response_times) || [];
 
+  /* Igual que en el resumen: manda la ventana reciente si el diario la trae. */
+  const tasaReciente = typeof tasaRecienteDe === 'function' ? tasaRecienteDe(s) : null;
+
   return {
     level: levelFromXp(s.progression.xp_total || 0),
     xp: s.progression.xp_total || 0,
@@ -261,7 +265,7 @@ function baseDesdeDiario(s, today) {
     activeDays: ((s.logbook && s.logbook.active_days_this_week) || []).length,
     stamps: (s.logbook && s.logbook.stamps_lifetime) || 0,
     accuracy: arr.length ? arr.reduce((a, b) => a + b, 0) / arr.length : null,
-    errorRate: at ? e / at : null,
+    errorRate: tasaReciente !== null ? tasaReciente : (at ? e / at : null),
     lowQuality: rt.length >= 8 && rt.filter(t => t < 2000).length / rt.length > 0.6,
     selfCorrections: (s.metrics && s.metrics.self_corrections) || 0,
     merits: ((s.behavior_log || []).length),
@@ -294,6 +298,53 @@ function summarizeStudent(entry, today) {
   ficha.tieneDiario = !!entry.state;
   ficha.clave = entry.key || null;
   return ficha;
+}
+
+/* ── Quién es quién entre la lista de clase y los diarios ──
+   Esto se comparaba por nombre en minúsculas, y con dos «Mara Ibáñez» en
+   cursos distintos —el caso que ya obligó a cambiar la clave de los diarios—
+   la segunda desaparecía de la pantalla: ni salía como alumna ni salía en
+   «quién falta». Nadie se enteraba de que le faltaba.
+
+   Se empareja en dos pasadas. Primero por lo que no se repite: la clave del
+   diario (que lleva el usuario dentro) y el id de la cuenta. Después, solo
+   para lo que quede suelto, por el nombre —un diario antiguo se guardaba
+   así— y solo cuando ese nombre es único a los dos lados. Si hay duda no se
+   empareja ninguno: adivinar es escribir en la ficha de quien no es. */
+function normNombre(t) { return String(t == null ? '' : t).trim().toLowerCase(); }
+
+function emparejarConLaLista(students, roster) {
+  const deFicha = new Map();      /* ficha de alumno → índice en la lista */
+  const usados = new Set();       /* índices de la lista ya emparejados */
+  const fuertes = new Map();
+  roster.forEach((r, i) => {
+    const u = normNombre(r.username);
+    if (u) fuertes.set('u:' + u, i);
+    if (r.authId) fuertes.set(String(r.authId), i);
+  });
+
+  const pendientes = [];
+  for (const s of students) {
+    let idx = -1;
+    for (const sena of [s.clave, s.id]) {
+      const k = sena == null ? '' : String(sena);
+      if (k && fuertes.has(k)) { idx = fuertes.get(k); break; }
+    }
+    if (idx >= 0 && !usados.has(idx)) { usados.add(idx); deFicha.set(s, idx); }
+    else pendientes.push(s);
+  }
+
+  const cuentaLista = {};
+  for (const r of roster) { const k = normNombre(r.name); if (k) cuentaLista[k] = (cuentaLista[k] || 0) + 1; }
+  const cuentaFichas = {};
+  for (const s of pendientes) { const k = normNombre(s.name); if (k) cuentaFichas[k] = (cuentaFichas[k] || 0) + 1; }
+  for (const s of pendientes) {
+    const k = normNombre(s.name);
+    if (!k || cuentaLista[k] !== 1 || cuentaFichas[k] !== 1) continue;
+    const idx = roster.findIndex((r, i) => !usados.has(i) && normNombre(r.name) === k);
+    if (idx >= 0) { usados.add(idx); deFicha.set(s, idx); }
+  }
+  return { deFicha, usados };
 }
 
 function buildClassOverview(entries, today) {
@@ -391,10 +442,35 @@ function buildClassOverview(entries, today) {
     };
   }).sort((a, b) => b.alumnos.length - a.alumnos.length || b.tasa - a.tasa);
 
-  /* ── Cuadrillas: aquí SÍ se puede sumar el total real ── */
+  /* ── Cuadrillas ──
+     La pertenencia a una cuadrilla se guarda por NOMBRE, aquí y en el resto de
+     la app (los roles, el mérito de grupo). Con dos alumnos que se llaman
+     igual, ese nombre casaba con los dos y cada cuadrilla se apuntaba a ambos:
+     dos equipos de «2 miembros» con la aportación de los dos, cuando cada uno
+     tiene una.
+
+     No se adivina. Un nombre que llevan dos alumnos no se asigna a ninguna
+     cuadrilla y se dice cuál es: mientras las cuadrillas se guarden por
+     nombre, ahí no hay forma de saber a quién se refería el docente. */
+  const porNombreFicha = new Map();
+  for (const s of students) {
+    const k = normNombre(s.name);
+    if (!k) continue;
+    porNombreFicha.set(k, (porNombreFicha.get(k) || 0) + 1);
+  }
+  const ambiguos = [];
   const teams = ((ATLAS_CONFIG.teams && ATLAS_CONFIG.teams.list) || []).map(t => {
-    const lower = (t.members || []).map(m => String(m).trim().toLowerCase());
-    const mine = students.filter(s => lower.includes(s.name.trim().toLowerCase()));
+    const lower = (t.members || []).map(normNombre);
+    const mine = [];
+    for (const s of students) {
+      const k = normNombre(s.name);
+      if (!lower.includes(k)) continue;
+      if (porNombreFicha.get(k) > 1) {
+        if (!ambiguos.includes(s.name)) ambiguos.push(s.name);
+        continue;
+      }
+      mine.push(s);
+    }
     return {
       id: t.id, name: t.name, icon: t.icon,
       members: mine.length,
@@ -408,33 +484,36 @@ function buildClassOverview(entries, today) {
      diario todavía. Sin duplicar a nadie que aparezca en ambos sitios.
      Estos NO son un aviso al pie: son alumnos de la clase que aún no han
      empezado, y el docente los añadió esperando verlos aquí. */
-  const known = new Set(students.map(s => s.name.trim().toLowerCase()));
   const roster = ATLAS_CONFIG.roster || [];
-  const enRoster = new Map(roster.map(r => [String(r.name).trim().toLowerCase(), r]));
+  const { deFicha, usados } = emparejarConLaLista(students, roster);
+  const enRoster = new Map(roster.map(r => [normNombre(r.name), r]));
   const missing = [];
-  const seen = new Set();
-  const anota = (name, where, origen) => {
-    const k = String(name).trim().toLowerCase();
-    if (!k || known.has(k) || seen.has(k)) return;
-    seen.add(k);
-    const ficha = enRoster.get(k);
-    missing.push({
-      name, team: where, origen,
-      /* Un nombre que sale de una cuadrilla pero no está en la lista de
-         clase suele ser una errata al escribirlo: eso sí es un aviso. */
-      enLista: !!ficha,
-      account: !!(ficha && ficha.account)
-    });
-  };
+  const vistos = new Set();
+
+  /* Quien está en la lista y todavía no tiene diario. Se decide por índice,
+     no por nombre: con dos alumnos que se llaman igual, que uno haya empezado
+     no puede tapar al otro. */
+  roster.forEach((r, i) => {
+    if (usados.has(i)) return;
+    missing.push({ name: r.name, team: 'lista de clase', origen: 'lista',
+                   enLista: true, account: !!r.account });
+    vistos.add(normNombre(r.name));
+  });
+  /* Y los nombres de una cuadrilla que no están en la lista: eso suele ser
+     una errata al escribirlo, y por eso sí merece un aviso. */
   for (const t of ((ATLAS_CONFIG.teams && ATLAS_CONFIG.teams.list) || [])) {
-    for (const m of (t.members || [])) anota(m, t.name, 'equipo');
+    for (const m of (t.members || [])) {
+      const k = normNombre(m);
+      if (!k || vistos.has(k) || enRoster.has(k) || porNombreFicha.has(k)) continue;
+      vistos.add(k);
+      missing.push({ name: m, team: t.name, origen: 'equipo', enLista: false, account: false });
+    }
   }
-  for (const r of roster) anota(r.name, 'lista de clase', 'lista');
 
   /* Para poder decir «1 de 3»: cuántos de la LISTA han empezado ya. No vale
      contar diarios, porque puede haber diarios de quien no está en la lista
      (el docente probando, o un nombre escrito de otra forma). */
-  const deLaLista = students.filter(s => enRoster.has(s.name.trim().toLowerCase())).length;
+  const deLaLista = deFicha.size;
   /* Tener diario y haber empezado dejaron de ser lo mismo el día que el panel
      crea el diario al dar de alta la cuenta. Contar documentos diría «2 de 2
      han empezado» de dos niños que no han abierto la app nunca. */
@@ -443,9 +522,12 @@ function buildClassOverview(entries, today) {
     students, kpis, teams, repasar, missing, generatedAt: day,
     enLista: roster.length,
     deLaLista,
-    empezados: students.filter(s => s.lastSeen && enRoster.has(s.name.trim().toLowerCase())).length,
+    empezados: students.filter(s => s.lastSeen && deFicha.has(s)).length,
     sinEstrenar,
-    fueraDeLista: students.length - deLaLista
+    fueraDeLista: students.length - deLaLista,
+    /* Nombres que llevan dos alumnos: mientras las cuadrillas se guarden por
+       nombre, a estos no se les puede asignar equipo sin adivinar. */
+    ambiguos
   };
 }
 

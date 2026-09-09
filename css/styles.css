@@ -2274,6 +2274,9 @@ input[type="checkbox"]::after, input[type="radio"]::after {
 }
 .repaso-estrato .ico { width: .95rem; height: .95rem; }
 
+/* Leyenda de una tabla de cifras: qué periodo mide cada columna. */
+.dash-leyenda { font-size: var(--t-xs); color: var(--ink-soft); margin: .4rem 0 .8rem; }
+
 /* La evaluación de la clase. Tres cifras, y la tercera es la que avisa. */
 .class-evaluacion { margin: 0 0 var(--s-5); }
 .class-eval-intro { font-size: var(--t-sm); color: var(--ink-soft); margin: 0 0 .7rem; }

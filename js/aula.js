@@ -1376,23 +1376,41 @@ function datosDelInforme(estado, opciones) {
     return { label: info.label, casa: info.casa || '' };
   });
 
+  /* ── Por dónde va cada pozo ──
+     Tres estados, no dos. «Terminado» decía que los bloques estaban al 80 %,
+     y eso podía convivir —en la misma hoja, cuatro líneas más abajo— con «la
+     prueba, todavía no superada». Para una familia «terminado» cierra un
+     tema, así que solo se dice cuando la Cámara del Guardián, que es la que
+     confirma, está superada. Y justamente ese caso es en el que la propia app
+     ya sospecha que la barra de dominio va por delante de lo aprendido.
+
+     Un pozo que el docente retiró del catálogo no sale: sin `branchDef` solo
+     se puede imprimir su identificador interno, y `pozo_borrado` en una hoja
+     que va a una casa no informa de nada. Al docente sí se lo dice su propia
+     pantalla, que es donde se arregla. */
+  const conGuardian = !!(ATLAS_CONFIG.guardian && ATLAS_CONFIG.guardian.enabled);
   const pozos = [];
   for (const siteId in (s.dig_sites || {})) {
     for (const bId in s.dig_sites[siteId]) {
       const def = branchDef(bId);
-      const strata = s.dig_sites[siteId][bId].strata || {};
+      if (!def) continue;
+      const pozo = s.dig_sites[siteId][bId];
+      const strata = pozo.strata || {};
       let hechos = 0, hay = 0, tocado = false;
       for (const sId of STRATA_ORDER) {
         const st = strata[sId];
-        if (!st || (def && !stratumHasContent(def, sId))) continue;
+        if (!st || !stratumHasContent(def, sId)) continue;
         hay++;
         if ((st.mastery || 0) >= 0.8) hechos++;
         if (st.attempts > 0) tocado = true;
       }
       if (!hay || !tocado) continue;
-      pozos.push(`${def ? def.name : bId} — ${hechos === hay
-        ? 'terminado'
-        : `${hechos} de ${hay} bloques`}`);
+      const superada = !!(pozo.guardian && pozo.guardian.cleared);
+      pozos.push(`${def.name} — ${hechos < hay
+        ? `${hechos} de ${hay} bloques`
+        : (!conGuardian || superada)
+          ? 'terminado'
+          : 'los bloques hechos, a falta de la prueba final'}`);
     }
   }
   /* ── De qué periodo habla esta hoja ──
@@ -1442,9 +1460,29 @@ ${antiguas.length ? `<details class="antes"><summary>Lo que se dijo antes</summa
   ${antiguas.map(n => `<div class="nota-vieja"><p>${esc(n.texto).replace(/\n+/g, '</p><p>')}</p>
     <p class="firma">${esc(enEspanol(n.fecha))}</p></div>`).join('')}</details>` : ''}` : '';
 
+  /* ── Dos maneras de no tener nada que contar ──
+     Un informe de cuatro ceros se lee en casa como buenas noticias, y una de
+     sus frases —«ahora mismo no hay nada que se le esté atragantando»— es la
+     correcta para un niño que trabaja sin dificultades y la peor posible para
+     uno que no ha abierto la aplicación. No es lo mismo no haber empezado
+     nunca que no haber trabajado este trimestre, y ninguna de las dos se dice
+     con ceros. */
+  const haJugadoAlguna = ((s.metrics && s.metrics.questions_answered) || 0) > 0
+    || (((s.metrics && s.metrics.sessions_log) || []).length > 0)
+    /* Y cualquier otro rastro de haber excavado: un concepto anotado, un pozo
+       tocado, una prueba intentada. Mirar solo el contador de preguntas dejaba
+       fuera a quien sí ha jugado y le mandaba a la familia el informe de quien
+       no ha entrado nunca, que es peor que el de ceros. */
+    || Object.keys((s.metrics && s.metrics.errors_by_concept) || {}).length > 0
+    || pozos.length > 0
+    || historialEvaluacion(s).length > 0;
+  const vacio = !haJugadoAlguna
+    ? 'nunca'
+    : (!log.length && !camaras.length ? 'trimestre' : '');
+
   return cuerpoDelInforme(s, o, {
     dominados, flojos, pozos, camaras, superadasTri, log, minutos, sesiones, cubo, tri, hoy,
-    lista, bloqueNota, enEspanol
+    lista, bloqueNota, enEspanol, vacio
   });
 }
 
@@ -1538,9 +1576,10 @@ ${cuerpo}
    el de la clase entera se escriben una vez. */
 function cuerpoDelInforme(s, o, d) {
   const { dominados, flojos, pozos, camaras, superadasTri, log, minutos, sesiones,
-          cubo, tri, hoy, lista, bloqueNota, enEspanol } = d;
+          cubo, tri, hoy, lista, bloqueNota, enEspanol, vacio } = d;
   const dentro = f => !tri || !f || (String(f) >= tri.start && String(f) <= tri.end);
-  return `<article class="informe">
+
+  const cabecera = `<article class="informe">
 <h1>${esc(s.profile.explorer_name)}</h1>
 <p class="sub">Expedición Atlas${o.clase ? ' · ' + esc(o.clase) : ''} · ${esc(hoy)}</p>
 <p class="periodo">${tri
@@ -1548,7 +1587,22 @@ function cuerpoDelInforme(s, o, d) {
      al ${esc(enEspanol(tri.end))}.`
   : 'Este informe habla de todo lo que lleva hecho.'}</p>
 
-${bloqueNota}
+${bloqueNota}`;
+
+  /* Quien no ha entrado nunca: se dice, y no se rellena una hoja de ceros que
+     se lea como que todo va bien. */
+  if (vacio === 'nunca') {
+    return `${cabecera}
+<h2>Todavía no ha empezado</h2>
+<p>${esc(s.profile.explorer_name)} tiene su cuenta creada, pero aún no ha entrado a excavar
+ninguna vez, así que no hay nada que contar todavía: ni lo que ya le sale, ni lo que le está
+costando. En cuanto empiece, este informe se llena solo.</p>
+<p class="nota">Si en casa no ha podido entrar —una contraseña que no funciona, una tablet sin
+sitio—, decídnoslo y lo miramos: no es que no quiera, es que no ha podido.</p>
+</article>`;
+  }
+
+  return `${cabecera}
 <h2>Lo que ya le sale</h2>
 ${lista(dominados, 'Está empezando: todavía no ha practicado lo suficiente como para decirlo.')}
 
@@ -1564,7 +1618,10 @@ ${flojos.length
 ${lista(pozos, 'Todavía no ha empezado ningún bloque.')}
 
 <h2>Constancia${tri ? ` en el ${esc(tri.name)}` : ''}</h2>
-<div class="cifras">
+${vacio === 'trimestre'
+  ? `<p class="vacio">No ha trabajado en la expedición durante este trimestre. Lo de arriba es lo
+     que aprendió antes, que no se pierde.</p>`
+  : `<div class="cifras">
   <div class="cifra"><strong>${log.length}</strong><span>${log.length === 1 ? 'día trabajado' : 'días trabajados'}</span></div>
   <div class="cifra"><strong>${minutos}</strong><span>${minutos === 1 ? 'minuto' : 'minutos'} de trabajo</span></div>
   <div class="cifra"><strong>${sesiones}</strong><span>${sesiones === 1 ? 'expedición' : 'expediciones'}</span></div>
@@ -1572,7 +1629,7 @@ ${lista(pozos, 'Todavía no ha empezado ningún bloque.')}
     enteroSano(cubo.stamps, 0, 0, 99) === 1 ? 'semana completa' : 'semanas completas'}</span></div>
   <div class="cifra"><strong>${enteroSano(cubo.strata, 0, 0, 999)}</strong><span>${
     enteroSano(cubo.strata, 0, 0, 999) === 1 ? 'bloque dominado' : 'bloques dominados'}</span></div>
-</div>
+</div>`}
 
 ${camaras.length ? `<h2>Pruebas${tri ? ' de este trimestre' : ''}</h2>
 <p>Ha superado <strong>${superadasTri} de ${camaras.length}</strong>
@@ -1818,12 +1875,32 @@ async function descargarInformesDeClase() {
    cosa de clase; por debajo es una conversación con quien sea, no una
    lección. */
 const REPASO_TOPE = 6;
-const REPASO_ES_DE_CLASE = 3;
+/* ── Cuándo algo es cosa de toda la clase ──
+   Estaba fijo en tres alumnos, y el pie decía «lo falla media clase o más».
+   En una clase de veintidós, tres es el catorce por ciento: la decisión que
+   ese texto pide —parar la clase entera para repasar— no le corresponde a
+   tres niños.
+
+   Ahora el umbral es un tercio de los que tienen datos, con un mínimo de tres
+   para que en un grupo pequeño no baste con uno. Y se escribe la cifra de
+   verdad, «lo fallan 7 de 22», que es lo que permite decidir sin fiarse de un
+   adjetivo. */
+const REPASO_MINIMO = 3;
+const REPASO_PROPORCION = 1 / 3;
+
+function umbralDeClase(cuantosAlumnos) {
+  return Math.max(REPASO_MINIMO, Math.ceil((cuantosAlumnos || 0) * REPASO_PROPORCION));
+}
 
 function pintarRepaso(d) {
   const caja = $('#class-repasar');
   if (!caja) return;
   const lista = (d.repasar || []).slice(0, REPASO_TOPE);
+  /* Sobre los que tienen datos, no sobre la lista de clase: quien no ha
+     entrado nunca no puede fallar nada, y contarlo bajaría el listón. */
+  const conDatos = ((d.students || []).filter(s => (s.conceptos || []).length).length)
+    || ((d.students || []).length);
+  const umbral = umbralDeClase(conDatos);
   if (!lista.length) {
     caja.classList.add('hidden');
     caja.innerHTML = '';
@@ -1844,7 +1921,7 @@ function pintarRepaso(d) {
     <div class="repaso-lista">
       ${lista.map(c => {
         const n = c.alumnos.length;
-        const deClase = n >= REPASO_ES_DE_CLASE;
+        const deClase = n >= umbral;
         return `<div class="repaso-fila${deClase ? ' repaso-clase' : ''}">
           <div class="repaso-cabeza">
             <strong>${esc(c.label)}</strong>
@@ -1854,7 +1931,7 @@ function pintarRepaso(d) {
           </div>
           <div class="repaso-barra"><div class="repaso-relleno" style="width:${Math.round(c.tasa * 100)}%"></div></div>
           <div class="repaso-pie">
-            <span class="repaso-num">${n} ${n === 1 ? 'alumno' : 'alumnos'}</span>
+            <span class="repaso-num">${n} de ${conDatos} ${conDatos === 1 ? 'alumno' : 'alumnos'}</span>
             <span class="repaso-tasa">${Math.round(c.tasa * 100)} % de fallo en ${c.attempts} intentos</span>
           </div>
           <small class="repaso-quien">${esc(c.alumnos.slice(0, 8).join(', '))}${
@@ -1864,9 +1941,12 @@ function pintarRepaso(d) {
         </div>`;
       }).join('')}
     </div>
-    ${lista.some(c => c.alumnos.length >= REPASO_ES_DE_CLASE)
-      ? '<p class="class-repasar-nota">Lo resaltado lo falla media clase o más: eso se lleva a la pizarra. El resto se resuelve mejor de uno en uno.</p>'
-      : '<p class="class-repasar-nota">Nada que afecte a tres o más alumnos: de momento son conversaciones sueltas, no una clase.</p>'}`;
+    ${lista.some(c => c.alumnos.length >= umbral)
+      ? `<p class="class-repasar-nota">Lo resaltado lo falla al menos <strong>${umbral} de
+         ${conDatos}</strong>: eso se lleva a la pizarra. El resto se resuelve mejor de uno en
+         uno.</p>`
+      : `<p class="class-repasar-nota">Nada que le pase a ${umbral} o más de los ${conDatos} que
+         han trabajado: de momento son conversaciones sueltas, no una clase.</p>`}`;
 
   /* De «nueve alumnos fallan la resta llevando» a una tanda de retos de eso,
      sin tener que traducirlo a materia, pozo y estrato a mano. */
@@ -1899,7 +1979,23 @@ function pintarCuadrillas(d) {
           <div class="mastery-bar"><div class="mastery-fill${pct >= 100 ? ' gold' : ''}" style="width:${pct}%"></div></div>
           <small>${t.members} con diario${t.listed !== t.members ? ` de ${t.listed} asignados` : ''} · ${t.mastered} estratos entre todos</small>
         </div>`;
-      }).join('');
+      }).join('') + avisoDeNombresRepetidos(d);
+}
+
+/* Dos alumnos que se llaman igual y están asignados a cuadrillas: la
+   pertenencia se guarda por NOMBRE, así que ahí no hay forma de saber a cuál
+   se refería el docente. Antes se les asignaba a los dos —dos equipos con la
+   aportación de ambos— y no lo decía nadie. Ahora no se asigna ninguno y se
+   dice, que es lo único honesto hasta que las cuadrillas guarden el usuario. */
+function avisoDeNombresRepetidos(d) {
+  const l = (d && d.ambiguos) || [];
+  if (!l.length) return '';
+  return `<div class="class-warn">⚠️ <strong>${l.map(n => esc(n)).join(', ')}</strong>
+    ${l.length === 1 ? 'lo llevan dos alumnos' : 'los llevan dos alumnos cada uno'} de esta clase, y
+    las cuadrillas se guardan por el nombre: no se puede saber a cuál asignaste, así que
+    <strong>no cuentan en ninguna</strong> en vez de contar en las dos. Sus diarios y sus méritos
+    sí están separados; es solo la cuadrilla. Para arreglarlo, cámbiale el nombre a uno de los dos
+    en la lista de clase —«Mara I.» y «Mara S.», por ejemplo— y vuelve a asignarlos.</div>`;
 }
 
 /* ── Alumnos de la lista que todavía no han empezado ──

@@ -160,12 +160,25 @@ test('el informe a la familia no lleva notas, porcentajes ni comparaciones', () 
     'sin comparaciones con nadie (PRD §0.2)');
 });
 
-test('el informe aguanta un diario recién empezado', () => {
+test('a quien no ha entrado nunca no se le manda un informe de ceros', () => {
+  /* Cuatro ceros y un «no hay nada que se le esté atragantando» se leen en
+     casa como buenas noticias. Es la frase correcta para quien trabaja sin
+     dificultades y la peor posible para quien no ha abierto la app. */
   const ctx = cargarApp();
   ctx.ev('createState')('Nilo');
   const html = ctx.ev('informeFamilia')(ctx.ev('S'), {});
   assert.ok(html.includes('Nilo'));
-  assert.ok(html.includes('Está empezando'), 'lo dice en vez de dejar huecos');
+  assert.match(html, /Todavía no ha empezado/);
+  assert.ok(!/no hay nada que se le esté atragantando/.test(html));
+  assert.ok(!/días trabajados/.test(html), 'ni una cifra a cero');
+});
+
+test('en cuanto hay rastro de haber jugado, el informe sale entero', () => {
+  const ctx = cargarApp();
+  ctx.ev('createState')('Nilo');
+  for (let i = 0; i < 3; i++) ctx.ev('recordConcepto')('valor_posicional', true);
+  const html = ctx.ev('informeFamilia')(ctx.ev('S'), {});
+  assert.match(html, /Lo que ya le sale/);
 });
 
 test('el nombre del archivo se entiende dentro de seis meses', () => {

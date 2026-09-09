@@ -75,6 +75,7 @@ Cubren lo que ya se ha roto alguna vez, que es de donde salieron:
 | `nube.test.js` | Que la configuración de Appwrite esté completa y que el diagnóstico no confunda «no existe» con «no deja listar» |
 | `conceptos.test.js` | Que todo reto declare su concepto y que el agregado de clase ordene por a cuántos alumnos les pasa |
 | `evaluacion.test.js` | Que cada intento de la Cámara deje rastro y que el informe a familias no lleve notas ni comparaciones |
+| `informe-fallos.test.js` | Los fallos que encontró la auditoría de los informes: que «terminado» exija la prueba superada, que el diagnóstico olvide lo viejo, que dos alumnos del mismo nombre no se fundan en la vista de clase y que un estrato que se está perdiendo avise |
 | `informe-mejoras.test.js` | Que el informe diga de qué trimestre habla, con qué denominador y con cuánta evidencia detrás; que la nota del docente no viaje a las tablets del alumnado y no se pierda al juntar dos equipos |
 | `voz.test.js` | Que la lectura en voz alta no lea emoji y respete lo que decida cada alumno |
 | `taller.test.js` | Que ningún reto escrito por un niño llegue a la clase sin pasar por el docente |
@@ -958,6 +959,38 @@ nombre, en clase dirigida, o el de la cuenta del alumno si entró él— y sin
 recordarlo, lo que el docente le compre acabaría en un segundo documento que el
 niño no lee nunca.
 
+### Quién es quién en la vista de clase
+
+La lista de clase y los diarios se emparejaban **por nombre en minúsculas**, y
+con dos «Mara Ibáñez» en cursos distintos la segunda desaparecía de la pantalla:
+ni salía como alumna ni salía en «quién falta». Nadie se enteraba de que le
+faltaba, que es justo lo contrario de para lo que existe esa lista.
+
+Ahora se empareja en dos pasadas:
+
+1. Por lo que **no se repite**: la clave del diario (que lleva el usuario
+   dentro) y el id de la cuenta de Appwrite.
+2. Solo para lo que quede suelto, **por el nombre** —un diario antiguo se
+   guardaba así— y solo cuando ese nombre es único a los dos lados. Si hay duda
+   no se empareja ninguno: adivinar es escribir en la ficha de quien no es.
+
+> **Las cuadrillas siguen guardándose por nombre**, aquí y en el resto de la app
+> (los roles, el mérito de grupo). Con dos alumnos que se llaman igual, cada
+> cuadrilla se apuntaba a los dos y sumaba la aportación de ambos. Ahora ese
+> nombre **no cuenta en ninguna** y la pantalla lo dice, con el arreglo: cámbiale
+> el nombre a uno de los dos en la lista —«Mara I.» y «Mara S.»— y vuelve a
+> asignarlos. Separarlos de verdad pide que las cuadrillas guarden el usuario en
+> vez del nombre, y eso toca también los roles.
+
+### Lo que se está perdiendo, no solo lo que falta
+
+El aviso de «atascado» exigía que el estrato estuviera en `in_progress`, y un
+estrato que llega a `mastered` **no vuelve nunca a ese estado** aunque el dominio
+se caiga. Resultado: el que lo tuvo y lo está perdiendo —justo del que hay que
+acordarse— no contaba como dominado ni saltaba como atascado. Ahora se decide
+por el dominio y la fecha, no por la etiqueta, y lo que se está perdiendo se
+marca aparte: pedagógicamente no es lo mismo que lo que nunca se ganó.
+
 ### El id de cada cosa es único
 
 Crear una cuadrilla nueva le ponía siempre el id `cuadrilla`; un pozo nuevo, `pozo`; un yacimiento, `yacimiento`. **El id no es una etiqueta**: es lo que decide de qué pozo es un reto, en qué cuadrilla está un niño y qué artículo se compra, y la app resuelve un id devolviendo el primero que encuentra. Dos cosas con el mismo id son *la misma cosa* para toda la plataforma.
@@ -1057,9 +1090,38 @@ informes del mismo curso no se podían comparar. Ahora la constancia y las
 pruebas son del trimestre en curso, y una línea al pie explica qué parte cuenta
 desde el principio y por qué.
 
+**«Terminado» significa terminado.** Un pozo se daba por terminado con los
+bloques al 80 %, y eso podía convivir —en la misma hoja, cuatro líneas más
+abajo— con «la prueba, todavía no superada». Ahora hay tres estados: *terminado*
+solo con la Cámara del Guardián superada, *los bloques hechos, a falta de la
+prueba final* mientras no lo esté, y *X de Y bloques* antes. Un pozo que
+retiraste del catálogo no sale: sin su definición solo se podría imprimir su
+identificador interno, y eso en una hoja que va a una casa no informa de nada.
+
+**A quien no ha entrado nunca no se le manda un informe de ceros.** Cuatro ceros
+y un «ahora mismo no hay nada que se le esté atragantando» se leen en casa como
+buenas noticias: es la frase correcta para quien trabaja sin dificultades y la
+peor posible para quien no ha abierto la app. Ahora sale un informe corto que lo
+dice, y ofrece que la familia avise si el problema es que no ha podido entrar.
+Quien empezó antes pero no ha trabajado este trimestre también lo lee escrito,
+con lo que aprendió antes intacto encima.
+
 **Los números llevan denominador.** «0 pruebas superadas» podían ser cero de
 cero; ahora dice «ha superado 1 de 2». Y concuerdan en singular: «1 día
 trabajado», no «1 días».
+
+**Los informes olvidan lo viejo, como la barra de dominio.** Los contadores por
+concepto eran acumulados de por vida, así que un mal octubre pesaba igual en
+junio y el informe no podía enseñar que un niño había mejorado. Medido: un
+concepto con cuatro fallos en ocho intentos necesitaba **19 aciertos seguidos**
+para pasar a «ya le sale». Ahora cada concepto guarda además sus últimos
+`CONCEPTO_VENTANA` intentos y el diagnóstico se hace sobre esa ventana: los
+mismos 19 se quedan en 5. El acumulado sigue guardado, que es el histórico, y un
+diario anterior al cambio se mide con lo que tiene.
+
+> Lo mismo vale para la señal de rescate «tasa de error alta», que salía de un
+> contador de por vida: una alerta que no se puede quitar de encima por más que
+> se mejore deja de ser una alerta y pasa a ser una etiqueta pegada al niño.
 
 **«Ya le sale» pide más de una tanda con suerte.** Antes bastaban tres aciertos
 seguidos, que pueden ser tres en el mismo minuto. Ahora hacen falta además dos
@@ -1112,6 +1174,11 @@ que es por donde hay que empezar.
 
 Tres decisiones que conviene no deshacer:
 
+- **Algo es «de clase» a partir de un tercio de los que tienen datos**, con un
+  mínimo de tres. Estaba fijo en tres y el pie decía «lo falla media clase o
+  más»: en una clase de veintidós, tres es el 14 %, y parar la clase entera no
+  le corresponde a tres niños. Ahora se escribe la cifra real, «lo fallan 7 de
+  22», que es lo que permite decidir sin fiarse de un adjetivo.
 - **Se ordena por cuántos alumnos lo fallan, no por la tasa de error.** Lo que
   decide si algo va a la pizarra es a cuánta gente le sirve. Un concepto con
   89 % de fallo en un solo niño es una conversación con ese niño, no una

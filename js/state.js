@@ -219,9 +219,15 @@ function buildSummaryOf(S) {
         if (def && typeof stratumHasContent === 'function' && !stratumHasContent(def, sId)) continue;
         total++; masterySum += st.mastery || 0;
         if ((st.mastery || 0) >= 0.8) mastered++;
-        else if (st.status === 'in_progress' && st.last_practiced &&
+        /* Se decide por el dominio y la fecha, NO por la etiqueta de estado.
+           Un estrato que llegó a «mastered» no vuelve nunca a «in_progress»
+           aunque el dominio se caiga, así que el que lo tuvo y lo está
+           perdiendo —justo del que hay que acordarse— no avisaba por ningún
+           lado: ni contaba como dominado ni saltaba como atascado. */
+        else if (st.last_practiced &&
                  Math.floor((new Date(todayStr()) - new Date(st.last_practiced)) / 86400000) > 7) {
-          stuck.push(`${def ? def.name : bId} · ${STRATA_META[sId].label}`);
+          stuck.push(`${def ? def.name : bId} · ${STRATA_META[sId].label}${
+            st.ever_mastered ? ' · se le está olvidando' : ''}`);
         }
       }
     }
@@ -251,7 +257,14 @@ function buildSummaryOf(S) {
     activeDays: ((S.logbook && S.logbook.active_days_this_week) || []).length,
     stamps: (S.logbook && S.logbook.stamps_lifetime) || 0,
     accuracy: arr.length ? +(arr.reduce((a, b) => a + b, 0) / arr.length).toFixed(3) : null,
-    errorRate: at ? +(e / at).toFixed(3) : null,
+    /* Reciente si el diario ya lleva las ventanas por concepto; si no, la de
+       siempre. Una señal de rescate que no se puede quitar de encima por más
+       que se mejore deja de ser una señal y pasa a ser una etiqueta. */
+    errorRate: (() => {
+      const r = typeof tasaRecienteDe === 'function' ? tasaRecienteDe(S) : null;
+      if (r !== null) return +r.toFixed(3);
+      return at ? +(e / at).toFixed(3) : null;
+    })(),
     lowQuality: rt.length >= 8 && rt.filter(t => t < 2000).length / rt.length > 0.6,
     /* Los conceptos flojos viajan como ternas [id, fallos, intentos]: el
        resumen entero tiene que seguir por debajo de 1 KB, porque la vista de
@@ -1659,6 +1672,15 @@ function recordConcepto(skill, acierto, stratumId) {
   if (!m[skill]) m[skill] = { errors: 0, attempts: 0, dias: 0, ultimo: '' };
   const e = m[skill];
   e.attempts++;
+  /* ── Lo reciente, aparte de lo de siempre ──
+     `attempts` y `errors` son de por vida y siguen estando: son el histórico.
+     Pero un informe que se hace con ellos no puede enseñar que un niño ha
+     mejorado, porque un mal octubre pesa igual en junio. La barra de dominio
+     ya resolvió esto siendo una media móvil —«lo que cuenta es el rendimiento
+     reciente», dice su comentario— y los conceptos se quedaron sin ello.
+     `rec` es esa ventana: los últimos intentos como unos y ceros. */
+  e.rec = String(e.rec || '') + (acierto ? '1' : '0');
+  if (e.rec.length > CONCEPTO_VENTANA) e.rec = e.rec.slice(-CONCEPTO_VENTANA);
   if (!acierto) {
     e.errors++;
     /* En qué nivel se rompe. «Nueve fallan la resta llevando» y «nueve la
@@ -1693,6 +1715,42 @@ function recordConcepto(skill, acierto, stratumId) {
    que la bajada podría traer. */
 const CONCEPTO_MIN_INTENTOS = 3;
 const CONCEPTO_MIN_FALLOS = 2;
+/* Cuántos intentos recientes miran los informes. Diez es lo que hace falta
+   para que la cuenta no dependa de un despiste suelto y, a la vez, para que un
+   concepto ya resuelto salga de la lista en dos o tres sesiones en vez de en
+   veinte. Con el acumulado de por vida, un concepto con cuatro fallos en ocho
+   intentos necesitaba diecinueve aciertos seguidos para pasar a «ya le sale»:
+   semanas diciéndole a una familia que su hijo sigue atascado en algo que ya
+   le sale. */
+const CONCEPTO_VENTANA = 10;
+
+/* Los intentos que cuentan para el diagnóstico: la ventana si la hay, y el
+   acumulado de siempre si el diario es anterior a que existiera. */
+function ventanaDeConcepto(entrada) {
+  const e = entrada || {};
+  const rec = typeof e.rec === 'string' ? e.rec : '';
+  if (!rec) return { attempts: Number(e.attempts) || 0, errors: Number(e.errors) || 0, reciente: false };
+  let errors = 0;
+  for (const ch of rec) if (ch === '0') errors++;
+  return { attempts: rec.length, errors, reciente: true };
+}
+
+/* La tasa de error RECIENTE del diario entero, sumando las ventanas de todos
+   sus conceptos. Es la que alimenta la señal de rescate: la de por vida no se
+   podía quitar de encima ni mejorando, y una alerta que no se apaga deja de
+   ser una alerta. */
+function tasaRecienteDe(estado) {
+  const m = (estado && estado.metrics && estado.metrics.errors_by_concept) || {};
+  let errors = 0, attempts = 0, hayVentana = false;
+  for (const id in m) {
+    const v = ventanaDeConcepto(m[id]);
+    if (!v.reciente) continue;
+    hayVentana = true;
+    errors += v.errors; attempts += v.attempts;
+  }
+  if (!hayVentana || !attempts) return null;
+  return errors / attempts;
+}
 const CONCEPTO_UMBRAL = 0.30;
 
 /* El estrato donde más se rompe un concepto, si se sabe. */
@@ -1711,7 +1769,7 @@ function conceptosFlojosDe(estado, tope) {
   const m = (estado && estado.metrics && estado.metrics.errors_by_concept) || {};
   const out = [];
   for (const id in m) {
-    const { errors = 0, attempts = 0 } = m[id] || {};
+    const { errors, attempts } = ventanaDeConcepto(m[id]);
     if (attempts < CONCEPTO_MIN_INTENTOS || errors < CONCEPTO_MIN_FALLOS) continue;
     const tasa = errors / attempts;
     if (tasa <= CONCEPTO_UMBRAL) continue;
@@ -1742,7 +1800,8 @@ function conceptosDominadosDe(estado, tope) {
   const m = (estado && estado.metrics && estado.metrics.errors_by_concept) || {};
   const out = [];
   for (const id in m) {
-    const { errors = 0, attempts = 0, dias } = m[id] || {};
+    const { errors, attempts } = ventanaDeConcepto(m[id]);
+    const dias = (m[id] || {}).dias;
     if (attempts < CONCEPTO_MIN_INTENTOS) continue;
     if (dias !== undefined && (Number(dias) || 0) < CONCEPTO_MIN_DIAS) continue;
     if (errors / attempts > CONCEPTO_DOMINADO) continue;
