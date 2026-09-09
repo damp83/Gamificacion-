@@ -132,7 +132,7 @@ test('un número que es parte del nombre no se confunde con un curso', () => {
 
 test('el mismo nombre en otro curso ya no se rechaza como repetido', () => {
   const t = leer('js/teacher.js');
-  assert.match(t, /=== name\.toLowerCase\(\)\s*\n\s*&& \(r\.grade \|\| ATLAS_CONFIG\.defaultGrade\) === grade\)/,
+  assert.match(t, /=== guardado\.toLowerCase\(\)\s*\n\s*&& \(r\.grade \|\| ATLAS_CONFIG\.defaultGrade\) === grade\)/,
     'la repetición es nombre Y curso, no solo nombre');
 });
 

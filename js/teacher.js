@@ -441,6 +441,206 @@ function motivoDeNube(r) {
   return dichos[razon] || (r && r.detail) || razon || 'error desconocido';
 }
 
+/* ══════════ LA FICHA DE DATOS DE UN ALUMNO ══════════
+
+   La portada le promete a la familia dos cosas: que puede pedir ver lo que se
+   guarda de su hijo y que puede pedir que se borre. Esto es lo que cumple las
+   dos, y va en la lista de clase porque es donde el docente busca a un niño.
+
+   Se enseña lo que hay, sin resumir: una familia que pregunta esto no quiere
+   un resumen bonito, quiere el inventario. */
+let fichaDeDatos = null;      /* clave del alumno con la ficha abierta */
+
+function cursoLegible(n) {
+  return n ? gradeInfo(n).label : '—';
+}
+
+/* La misma ficha, como documento que se puede imprimir y archivar. */
+function fichaDeDatosHtml(clave) {
+  const d = datosDeAlumno(clave);
+  if (!d) return null;
+  const hoy = new Date().toLocaleDateString('es-ES', { day: 'numeric', month: 'long', year: 'numeric' });
+  const fila = (q, v) => `<tr><th>${esc(q)}</th><td>${esc(v == null || v === '' ? '—' : String(v))}</td></tr>`;
+  return `<!doctype html>
+<html lang="es">
+<meta charset="utf-8">
+<title>Datos guardados de ${esc(d.nombre)} — Expedición Atlas</title>
+<style>
+  body { font: 16px/1.55 system-ui, -apple-system, "Segoe UI", sans-serif; color: #2b2118;
+         max-width: 700px; margin: 32px auto; padding: 0 20px; }
+  h1 { font-size: 1.4rem; margin: 0 0 2px; }
+  h2 { font-size: 1rem; margin: 24px 0 6px; padding-bottom: 4px; border-bottom: 2px solid #e0d3ba; }
+  .sub { color: #6b5d4a; margin: 0 0 20px; }
+  table { border-collapse: collapse; width: 100%; margin: 0 0 6px; }
+  th { text-align: left; font-weight: 600; width: 45%; padding: 5px 8px 5px 0;
+       border-bottom: 1px solid #eee5d4; vertical-align: top; }
+  td { padding: 5px 0; border-bottom: 1px solid #eee5d4; }
+  .nota { background: #f6efe2; border-left: 4px solid #b8862b; padding: 11px 14px;
+          margin: 24px 0 0; font-size: .9rem; }
+  @media print { body { margin: 0; max-width: none; } }
+</style>
+<h1>Datos guardados de ${esc(d.nombre)}</h1>
+<p class="sub">Expedición Atlas${ATLAS_CONFIG.className ? ' · ' + esc(ATLAS_CONFIG.className) : ''} · ${esc(hoy)}</p>
+
+<h2>En la lista de clase</h2>
+<table>${d.lista
+  ? fila('Nombre', d.nombre) + fila('Usuario con el que entra', d.lista.usuario)
+    + fila('Curso', cursoLegible(d.lista.curso))
+    + fila('Cuenta creada', d.lista.cuenta ? 'sí' : 'no')
+  : fila('En la lista', 'no está')}</table>
+<p class="sub">La contraseña no se imprime aquí a propósito: si hace falta, se entrega aparte.</p>
+
+<h2>En su diario</h2>
+<table>${d.diario
+  ? fila('Puntos de expedición', d.diario.pe) + fila('Doblones', d.diario.doblones)
+    + fila('Días con actividad', d.diario.sesiones)
+    + fila('Respuestas registradas', d.diario.respuestas)
+    + fila('Méritos concedidos', d.diario.meritos)
+    + fila('Conceptos de los que hay datos', d.diario.conceptos)
+    + fila('Primer día registrado', d.diario.desde)
+  : fila('Diario', 'no hay ninguno guardado')}</table>
+
+<h2>Cuadrilla</h2>
+<table>${d.cuadrilla ? fila('Equipo', d.cuadrilla.nombre) + fila('Rol', d.cuadrilla.rol)
+  : fila('Cuadrilla', 'no está en ninguna')}</table>
+
+<h2>Notas del docente para la familia</h2>
+${d.notas.length
+  ? d.notas.map(n => `<p><em>${esc(String(n.fecha).split('-').reverse().join('/'))}</em><br>${esc(n.texto)}</p>`).join('')
+  : '<p>Ninguna.</p>'}
+
+<h2>Dónde está guardado</h2>
+<ul>
+  <li>Su diario, en el equipo del docente: <strong>${d.donde.esteEquipo ? 'sí' : 'no'}</strong></li>
+  <li>Su diario, en el servidor del centro: <strong>${d.donde.enLaNube ? 'sí' : 'no'}</strong></li>
+  <li>En el documento privado del docente: <strong>${d.donde.documentoPrivado ? 'sí' : 'no'}</strong></li>
+  <li>Cuenta de acceso: <strong>${d.lista && d.lista.cuenta ? 'creada' : 'sin crear'}</strong></li>
+</ul>
+
+<p class="nota"><strong>Qué NO se guarda.</strong> Ni fotografías, ni ubicación, ni correo
+electrónico ni teléfono del alumno o de su familia. Entra con un usuario inventado, no con una
+dirección suya. Nada se cede a terceros ni se usa con fines publicitarios.</p>
+`;
+}
+
+async function descargarFichaDeDatos(clave) {
+  const html = fichaDeDatosHtml(clave);
+  if (!html) { toast('No se ha podido preparar la ficha.'); return; }
+  const d = datosDeAlumno(clave);
+  const limpio = String(d.nombre || 'alumno').normalize('NFD').replace(/[\u0300-\u036f]/g, '')
+    .replace(/[^A-Za-z0-9]+/g, '-').replace(/^-|-$/g, '').toLowerCase();
+  const r = await guardarArchivo(`datos-${limpio || 'alumno'}-${todayStr()}.html`, html, 'text/html');
+  toast(r && r.ok === false
+    ? 'No se ha podido descargar. Prueba desde Configuración → Copia de seguridad.'
+    : 'Ficha de datos descargada ✓');
+}
+
+/* ── Borrar todo lo de un alumno ──
+   Es lo más destructivo que se puede hacer con un niño concreto, así que se
+   pide el nombre escrito, igual que para borrar una clase: un toque de más en
+   una lista de veinticuatro no puede llevarse un curso entero de trabajo. */
+async function borrarAlumnoUI(clave) {
+  const d = datosDeAlumno(clave);
+  if (!d) return;
+  const ficha = (ATLAS_CONFIG.roster || []).find(r => diaryKey(r) === clave) || null;
+
+  const escrito = await askPrompt(
+    `Se va a borrar TODO lo de ${d.nombre}: su diario, su ficha de la lista, sus notas y su sitio `
+    + 'en la cuadrilla. No se puede deshacer. Escribe su nombre para confirmarlo.',
+    '', 'Borrar todo lo suyo');
+  if (!escrito) return;
+  if (String(escrito).trim().toLowerCase() !== String(d.nombre).trim().toLowerCase()) {
+    toast('El nombre no coincide: no se ha borrado nada.', 3600);
+    return;
+  }
+
+  toast('Borrando…');
+  let pendientes = [];
+  if (ficha && typeof cloudBorrarAlumno === 'function' && cloudConfigured() && cloudEnabled()) {
+    try {
+      const r = await cloudBorrarAlumno(ficha);
+      pendientes = r.pendientes || [];
+    } catch (e) { pendientes = ['No se ha podido tocar la nube: ' + ((e && e.message) || '')]; }
+  }
+  borrarDatosLocalesDeAlumno(clave);
+  fichaDeDatos = null;
+  /* El resultado va en el aviso de la sección y no en el registro de las
+     altas: ese solo se pinta con Appwrite configurado, y sin él el docente se
+     quedaba sin saber qué había pasado con un borrado. */
+  cfgNotice = pendientes.length
+    ? `<strong>Borrado lo de ${esc(d.nombre)} en este equipo.</strong> Queda esto por hacer:`
+      + `<ul>${pendientes.map(x => `<li>${esc(x)}</li>`).join('')}</ul>`
+    : `<strong>Borrado todo lo de ${esc(d.nombre)}.</strong> No queda nada pendiente.`;
+  renderTeacherConfig();
+  toast(pendientes.length ? 'Borrado aquí. Mira lo que queda pendiente abajo.' : 'Borrado todo ✓',
+        pendientes.length ? 5000 : 2600);
+}
+
+function panelDeDatos(clave) {
+  const d = datosDeAlumno(clave);
+  const caja = document.createElement('div');
+  caja.className = 'datos-panel';
+  if (!d) { caja.textContent = 'No hay datos de ese alumno.'; return caja; }
+
+  const fila = (que, valor) => `<div class="datos-fila"><span>${esc(que)}</span><strong>${esc(valor)}</strong></div>`;
+  const nada = '<p class="cfg-hint">Nada guardado aquí.</p>';
+
+  caja.innerHTML = `
+    <div class="datos-cab">
+      <strong>Qué se guarda de ${esc(d.nombre || 'este alumno')}</strong>
+      <button class="datos-cerrar" aria-label="Cerrar la ficha de datos">✕</button>
+    </div>
+
+    <h5>En la lista de clase</h5>
+    ${d.lista ? fila('Nombre', d.nombre) + fila('Usuario', d.lista.usuario || '—')
+      + fila('Contraseña', d.lista.contrasena || '(no está en este equipo)')
+      + fila('Curso', cursoLegible(d.lista.curso))
+      + fila('Cuenta de Appwrite', d.lista.cuenta ? 'creada' : 'sin crear')
+      + fila('Identificador de su cuenta', d.lista.idDeCuenta || '—') : nada}
+
+    <h5>En su diario</h5>
+    ${d.diario ? fila('Puntos de expedición', d.diario.pe)
+      + fila('Doblones', d.diario.doblones)
+      + fila('Días con actividad', d.diario.sesiones)
+      + fila('Respuestas registradas', d.diario.respuestas)
+      + fila('Méritos concedidos', d.diario.meritos)
+      + fila('Conceptos con datos', d.diario.conceptos)
+      + fila('Desde', d.diario.desde || '—') : nada}
+
+    <h5>Cuadrilla</h5>
+    ${d.cuadrilla ? fila('Equipo', d.cuadrilla.nombre) + fila('Rol', d.cuadrilla.rol || '—')
+      : '<p class="cfg-hint">No está en ninguna.</p>'}
+
+    <h5>Notas tuyas para su familia</h5>
+    ${d.notas.length
+      ? d.notas.map(n => `<div class="datos-nota"><em>${esc(String(n.fecha).split('-').reverse().join('/'))}</em>
+          ${esc(n.texto)}</div>`).join('')
+      : '<p class="cfg-hint">Ninguna escrita.</p>'}
+
+    <h5>Dónde vive</h5>
+    <ul class="datos-donde">
+      <li>${d.donde.esteEquipo ? '✓' : '·'} Su diario, en este equipo</li>
+      <li>${d.donde.enLaNube ? '✓' : '·'} Su diario, en la nube del centro</li>
+      <li>${d.donde.documentoPrivado ? '✓' : '·'} Tu documento privado (contraseña y notas)</li>
+      <li>${d.lista && d.lista.cuenta ? '✓' : '·'} Su cuenta de Appwrite</li>
+    </ul>
+
+    <div class="datos-acciones">
+      <button class="btn btn-secondary btn-small datos-bajar">📄 Descargar esta ficha</button>
+      <button class="btn btn-quit btn-small datos-borrar">🗑️ Borrar todo lo suyo</button>
+    </div>
+    <p class="cfg-hint">La ficha se descarga para poder enseñársela a la familia o
+    archivarla. Borrar quita todo lo que esta app controla y te dice, si queda algo,
+    qué falta y dónde se hace.</p>`;
+
+  caja.querySelector('.datos-cerrar').addEventListener('click', () => {
+    fichaDeDatos = null; renderTeacherConfig();
+  });
+  caja.querySelector('.datos-bajar').addEventListener('click', () => descargarFichaDeDatos(clave));
+  caja.querySelector('.datos-borrar').addEventListener('click', () => borrarAlumnoUI(clave));
+  return caja;
+}
+
 function cfgAlumnado(body) {
   const roster = ATLAS_CONFIG.roster || [];
   const conCuenta = roster.filter(r => r.account).length;
@@ -478,6 +678,8 @@ function cfgAlumnado(body) {
     ${nube ? 'crear las cuentas de todos de una vez.' :
       'tenerla preparada. <strong>Para crear cuentas hace falta configurar Appwrite</strong> en «Acceso y nube».'}</p>
 
+    ${cfgNotice ? `<div class="cfg-warn" role="status">${cfgNotice}</div>` : ''}
+
     ${field('Escuchar los retos en voz alta', `<select id="cfg-read-aloud">
       <option value="ciclo"${ATLAS_CONFIG.readAloud === 'ciclo' ? ' selected' : ''}>En 1.º y 2.º (recomendado)</option>
       <option value="todos"${ATLAS_CONFIG.readAloud === 'todos' ? ' selected' : ''}>A toda la clase</option>
@@ -504,6 +706,9 @@ function cfgAlumnado(body) {
         <div class="cfg-card cfg-student">
           <div class="cfg-row">
             <input type="text" class="ros-name" data-i="${i}" value="${esc(r.name || '')}" placeholder="Nombre">
+            <button class="cfg-datos" data-datos="${esc(diaryKey(r))}"
+              title="Qué se guarda de ${esc(r.name || 'este alumno')}"
+              aria-label="Ver qué se guarda de ${esc(r.name || 'este alumno')}">🔐</button>
             <button class="cfg-del" data-delros="${i}" title="Quitar de la lista">🗑️</button>
           </div>
           <div class="cfg-row">
@@ -523,6 +728,7 @@ function cfgAlumnado(body) {
                <strong>Lo que los separa es el usuario</strong> (${esc(r.username || 'sin usuario')}),
                así que asegúrate de que el curso de cada uno es el suyo.</p>`
             : ''}
+          ${diaryKey(r) === fichaDeDatos ? '<div data-panel-datos="1"></div>' : ''}
           ${(() => {
             /* Lo que impide que este alumno entre, dicho en su propia ficha.
                Antes había que deducirlo: se escribía una contraseña de tres
@@ -549,6 +755,14 @@ function cfgAlumnado(body) {
     <code>Mara Ibáñez, 4</code>. Así <strong>dos alumnas con el mismo nombre en cursos
     distintos son dos alumnas</strong>, cada una con su usuario y su diario.</p>
     <textarea id="ros-bulk" rows="4" placeholder="Vega Serrano&#10;Nilo Ferrer, 3&#10;Mara Ibáñez (4.º)"></textarea>
+    <label class="cfg-field cfg-field-inline">
+      <span class="cfg-label">Guardar solo el nombre y la inicial</span>
+      <input type="checkbox" id="ros-inicial"${ATLAS_CONFIG.nombresCortos ? ' checked' : ''}>
+      <small class="cfg-hint">«Vega Serrano» se guarda como «Vega S.». El apellido completo de un
+      menor es un dato personal, y aquí no hace falta para nada: lo único que tiene que hacer el
+      nombre es que sepas de quién hablas. Tú decides; si dos se llaman igual, deja los apellidos
+      o escribe «Vega S.» y «Vega M.».</small>
+    </label>
     <button class="btn btn-secondary btn-small" id="ros-bulk-go">📥 Añadir a la lista</button>
     <p id="ros-bulk-err" class="cfg-warn hidden"></p>
 
@@ -613,12 +827,24 @@ function cfgAlumnado(body) {
   }));
   $$('.ros-grade').forEach(el => onInput(el, e => write(+e.target.dataset.i, 'grade', +e.target.value)));
 
+  /* El panel se pinta después, dentro de la ficha a la que pertenece: pegado
+     al alumno del que habla, no en un cajón aparte al final de la lista. */
+  const hueco = $('[data-panel-datos]');
+  if (hueco && fichaDeDatos) hueco.replaceWith(panelDeDatos(fichaDeDatos));
+
+  $$('[data-datos]').forEach(el => el.addEventListener('click', () => {
+    const k = el.dataset.datos;
+    fichaDeDatos = fichaDeDatos === k ? null : k;
+    renderTeacherConfig();
+  }));
+
   $$('[data-delros]').forEach(el => el.addEventListener('click', async () => {
     const i = +el.dataset.delros;
     const l = rosterCopy();
     const quien = l[i].name || 'este alumno';
     if (!(await askConfirm(`¿Quitar a ${quien} de la lista? ${l[i].account
-      ? 'Su cuenta y su diario NO se borran: seguirá pudiendo entrar.'
+      ? 'Su cuenta y su diario NO se borran: seguirá pudiendo entrar. Para borrarlo todo, '
+        + 'usa el candado de su ficha.'
       : 'Aún no tiene cuenta.'}`, 'Quitar'))) return;
     l.splice(i, 1);
     cfgSave('roster', l, 'Quitado de la lista ✓');
@@ -654,6 +880,8 @@ function cfgAlumnado(body) {
     cfgSave('roster', [], 'Lista vaciada ✓');
   });
 
+  onInput('#ros-inicial', e => cfgSave('nombresCortos', e.target.checked, false));
+
   $('#ros-bulk-go').addEventListener('click', () => {
     const err = $('#ros-bulk-err');
     const raw = $('#ros-bulk').value.trim();
@@ -661,17 +889,22 @@ function cfgAlumnado(body) {
     const l = rosterCopy();
     const taken = l.map(r => r.username);
     let added = 0, dup = [];
+    const acortar = !!($('#ros-inicial') || {}).checked;
     for (const line of raw.split('\n')) {
       const { name, grade } = leerLineaDeAlta(line);
       if (!name) continue;
+      const guardado = acortar ? nombreCorto(name) : name;
       /* Dos alumnas que se llaman igual pero van a cursos distintos NO son la
          misma: en un colegio pasa, y antes la segunda se rechazaba como
          repetida. Se repite quien coincide en nombre Y curso. */
-      if (l.some(r => (r.name || '').trim().toLowerCase() === name.toLowerCase()
-                   && (r.grade || ATLAS_CONFIG.defaultGrade) === grade)) { dup.push(name); continue; }
+      if (l.some(r => (r.name || '').trim().toLowerCase() === guardado.toLowerCase()
+                   && (r.grade || ATLAS_CONFIG.defaultGrade) === grade)) { dup.push(guardado); continue; }
+      /* El usuario sale del nombre COMPLETO aunque se guarde acortado: dos
+         «Vega S.» de apellidos distintos tienen que poder distinguirse al
+         entrar, y el usuario es lo que las separa en toda la app. */
       const username = makeUsername(name, taken);
       taken.push(username);
-      l.push({ name, username, password: makePassword(), account: false, grade });
+      l.push({ name: guardado, username, password: makePassword(), account: false, grade });
       added++;
     }
     if (!added) {

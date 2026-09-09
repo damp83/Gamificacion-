@@ -11,7 +11,7 @@
    copia guardada. Sin este número, «ya está arreglado» y «a mí no me pasa» son
    indistinguibles. Va junto al nombre de la caché del service worker, y una
    prueba comprueba que no se separen. */
-const ATLAS_VERSION = 'v72';
+const ATLAS_VERSION = 'v73';
 
 const ATLAS_DEFAULTS = {
 
@@ -89,6 +89,10 @@ const ATLAS_DEFAULTS = {
      ella. Nunca sale hacia el alumnado (va en NO_SE_COMPARTE) y sí viaja
      entre los equipos del docente, por su canal privado. */
   notasInforme: {},
+
+  /* Al pegar la clase de golpe, guardar «Vega S.» en vez de «Vega Serrano».
+     Lo decide el docente una vez y se recuerda. */
+  nombresCortos: false,
 
   /* PIN del panel del docente. Este es el que llevan TODAS las tablets: el que
      se cambia desde el panel vale solo para ese equipo, porque el PIN no viaja

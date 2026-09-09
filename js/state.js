@@ -1657,6 +1657,123 @@ function guardarNotaDeAlumno(clave, texto) {
   return lista.length ? lista[lista.length - 1] : null;
 }
 
+/* «Vega Serrano» → «Vega S.». El apellido completo de un menor es un dato
+   personal que esta app no necesita para nada: lo único que tiene que hacer el
+   nombre es que el docente sepa de quién habla. Se deja el nombre de pila
+   entero, que es como se le llama en clase. */
+function nombreCorto(nombre) {
+  const partes = String(nombre || '').trim().split(/\s+/).filter(Boolean);
+  if (partes.length < 2) return partes.join(' ');
+  const iniciales = partes.slice(1)
+    .map(p => p.charAt(0).toUpperCase() + '.')
+    .join(' ');
+  return `${partes[0]} ${iniciales}`;
+}
+
+/* ══════════ QUÉ SE GUARDA DE UN ALUMNO ══════════
+
+   La portada le dice a la familia que puede pedir ver lo que se guarda de su
+   hijo y pedir que se borre. Eso es una promesa, y una promesa que la app no
+   sabía cumplir: los datos de un niño estaban repartidos por seis sitios y no
+   había forma de reunirlos ni de quitarlos de todos a la vez.
+
+   Esto los reúne. No inventa nada ni resume: enseña lo que hay, tal cual, que
+   es lo que se puede poner delante de una familia. */
+function datosDeAlumno(clave) {
+  if (!clave) return null;
+  const ficha = (ATLAS_CONFIG.roster || []).find(r => diaryKey(r) === clave) || null;
+  const mapa = loadDiaries();
+  const k = ficha ? diaryKeyExistente(ficha) : clave;
+  const diario = mapa[k] || null;
+  const nombre = (ficha && ficha.name) || (diario && diario.profile && diario.profile.explorer_name) || '';
+
+  /* La cuadrilla y el rol se guardan por nombre, así que se buscan por él. */
+  const cu = nombre ? cuadrillaDe(nombre) : null;
+  const rol = cu ? rolDe(nombre, cu) : null;
+
+  return {
+    clave: k,
+    nombre,
+    lista: ficha ? {
+      usuario: ficha.username || '',
+      contrasena: ficha.password || '',
+      curso: ficha.grade || null,
+      cuenta: !!ficha.account,
+      idDeCuenta: ficha.authId || ''
+    } : null,
+    diario: diario ? {
+      nivel: levelFromXp((diario.progression && diario.progression.xp_total) || 0),
+      pe: (diario.progression && diario.progression.xp_total) || 0,
+      doblones: (diario.progression && diario.progression.doubloons_balance) || 0,
+      sesiones: ((diario.metrics && diario.metrics.sessions_log) || []).length,
+      respuestas: (diario.metrics && diario.metrics.questions_answered) || 0,
+      meritos: ((diario.behavior_log) || []).length,
+      conceptos: Object.keys((diario.metrics && diario.metrics.errors_by_concept) || {}).length,
+      desde: (((diario.metrics && diario.metrics.sessions_log) || [])[0] || {}).date || null
+    } : null,
+    cuadrilla: cu ? { nombre: cu.name, rol: rol ? rol.personaje : '' } : null,
+    notas: notasDeAlumno(k),
+    /* Dónde vive cada cosa. Sin esto, «borrar» es un botón que hay que creerse. */
+    donde: {
+      esteEquipo: !!diario,
+      enLaNube: !!(ficha && ficha.authId),
+      documentoPrivado: !!(ficha && (ficha.password || notasDeAlumno(k).length))
+    }
+  };
+}
+
+/* Borra de ESTE equipo todo lo que hay de un alumno. Lo de la nube va aparte,
+   porque puede fallar por permisos y hay que poder decirlo. */
+function borrarDatosLocalesDeAlumno(clave) {
+  const hecho = { diario: false, lista: false, notas: false, cuadrilla: false };
+  if (!clave) return hecho;
+
+  const ficha = (ATLAS_CONFIG.roster || []).find(r => diaryKey(r) === clave) || null;
+  const nombre = ficha ? ficha.name : '';
+
+  /* El diario, con las dos claves posibles: la del usuario y la antigua del
+     nombre. Dejar una de las dos sería no haber borrado nada. */
+  const mapa = loadDiaries();
+  for (const k of [clave, diaryKeyExistente(clave), nombre ? String(nombre).trim().toLowerCase() : '']) {
+    if (k && mapa[k]) { delete mapa[k]; hecho.diario = true; }
+  }
+  if (hecho.diario) saveDiaries(mapa);
+
+  const ids = loadDocIds();
+  for (const k of Object.keys(ids)) if (k === clave || (nombre && k === String(nombre).trim().toLowerCase())) delete ids[k];
+  saveDocIds(ids);
+
+  if (ficha) {
+    setTeacherConfig('roster', (ATLAS_CONFIG.roster || []).filter(r => diaryKey(r) !== clave));
+    hecho.lista = true;
+  }
+
+  if (notasDeAlumno(clave).length) {
+    const todas = deepClone(ATLAS_CONFIG.notasInforme || {});
+    delete todas[clave];
+    setTeacherConfig('notasInforme', todas);
+    hecho.notas = true;
+  }
+
+  /* Y de su cuadrilla, con su rol: un rol suelto sin dueño se queda colgando
+     en la lista del equipo y reaparece al rotar. */
+  if (nombre) {
+    const clv = String(nombre).trim().toLowerCase();
+    const t = deepClone(ATLAS_CONFIG.teams || {});
+    let tocado = false;
+    for (const eq of (t.list || [])) {
+      const antes = (eq.members || []).length;
+      eq.members = (eq.members || []).filter(m => String(m).trim().toLowerCase() !== clv);
+      if (eq.members.length !== antes) tocado = true;
+      if (eq.roles && eq.roles[clv] !== undefined) { delete eq.roles[clv]; tocado = true; }
+    }
+    if (tocado) { setTeacherConfig('teams', t); hecho.cuadrilla = true; }
+  }
+
+  saveTeacherConfig();
+  return hecho;
+}
+
 /* ── Métricas de aprendizaje ── */
 function recordError(branchId, stratumId) {
   const key = `${branchId}.${stratumId}`;

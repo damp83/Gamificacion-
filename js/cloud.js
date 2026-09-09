@@ -1195,6 +1195,76 @@ async function cloudTraerCredenciales() {
   }
 }
 
+/* ── Borrar de la nube todo lo de un alumno ──
+
+   Tres sitios y tres finales distintos, y conviene no prometer los tres:
+
+   · El documento privado del docente es suyo: se reescribe sin ese alumno y
+     ya está.
+   · Su diario lo creó él, con permiso solo para él. El equipo «docentes»
+     tiene Read y Update en la colección —es lo que hace falta para la vista
+     de clase y para anotarle un mérito—, pero Delete es un permiso aparte que
+     puede no estar dado. Si falta, se dice cuál y dónde se da.
+   · Su CUENTA de Appwrite no se puede borrar desde aquí: el SDK del navegador
+     no tiene servicio de usuarios, a propósito. Eso se hace en la consola, y
+     mientras no se haga el niño puede seguir entrando y crear un diario nuevo.
+     Callarlo sería dar por cumplido un borrado a medias. */
+async function cloudBorrarAlumno(ficha) {
+  const hecho = { privado: false, diario: false };
+  const pendientes = [];
+  if (!aulasOn() || !CLOUD.user) {
+    return { ok: false, reason: 'sin-sesion', hecho,
+             pendientes: ['No hay sesión de docente: no se ha tocado nada de la nube.'] };
+  }
+  const c = ATLAS_CONFIG.appwrite;
+  const usuario = String((ficha && ficha.username) || '').trim().toLowerCase();
+  const clave = ficha ? diaryKey(ficha) : '';
+
+  /* 1) El documento privado: contraseña, ficha de la lista y notas. */
+  if (aulaActiva()) {
+    const previo = await cloudTraerCredenciales();
+    if (previo.ok) {
+      const cred = { ...(previo.cred || {}) };
+      if (usuario) delete cred[usuario];
+      const notas = { ...(previo.notas || {}) };
+      if (clave) delete notas[clave];
+      const roster = (previo.roster || []).filter(r => String(r.username || '').trim().toLowerCase() !== usuario);
+      try {
+        await CLOUD.db.updateDocument(c.databaseId, c.aulasCollectionId,
+          idDeCredenciales(aulaActiva()),
+          { config: JSON.stringify({ v: 1, cred, notas, roster, rosterAt: Date.now() }),
+            updated_at: String(Date.now()) },
+          permisosDeCredenciales(CLOUD.user.$id));
+        hecho.privado = true;
+      } catch (e) { pendientes.push('No se ha podido reescribir tu documento privado: ' + ((e && e.message) || '')); }
+    }
+  }
+
+  /* 2) Su diario. */
+  const docId = (ficha && ficha.authId) || '';
+  if (docId) {
+    try {
+      await CLOUD.db.deleteDocument(c.databaseId, c.collectionId, docId);
+      hecho.diario = true;
+    } catch (e) {
+      const msg = (e && e.message) || '';
+      if (/not be found|not found|404/i.test(msg)) hecho.diario = true;   /* no había */
+      else if (/not authorized|missing scope|permission/i.test(msg)) {
+        pendientes.push('Su diario sigue en la nube: tu cuenta no tiene permiso para borrarlo. '
+          + 'En la consola de Appwrite, colección de diarios → Settings → Permissions → '
+          + 'Team «docentes» → Delete. Es un permiso aparte del de leer y escribir.');
+      } else pendientes.push('Su diario sigue en la nube: ' + msg);
+    }
+  }
+
+  /* 3) Su cuenta, que desde aquí no se toca. */
+  if (ficha && ficha.account) {
+    pendientes.push('Su CUENTA de Appwrite sigue existiendo y no se puede borrar desde la app. '
+      + 'Hazlo en la consola, en Auth → Users. Mientras siga, puede entrar y empezar un diario nuevo.');
+  }
+  return { ok: true, hecho, pendientes };
+}
+
 /* ── Juntar las notas de dos equipos ──
    Cada alumno tiene una lista corta de notas con fecha. Se juntan por fecha:
    dos equipos que escribieron el mismo día son una corrección —gana la de

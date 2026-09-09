@@ -83,6 +83,7 @@ Cubren lo que ya se ha roto alguna vez, que es de donde salieron:
 | `vista-vacia.test.js` | Que la vista de clase sin diarios diga quién falta y qué le falta, en vez de dejar huecos |
 | `cuentas.test.js` | Que el panel avise de una contraseña que Appwrite va a rechazar, y de que escribirla no crea la cuenta |
 | `merito-grupo.test.js` | Que dar un mérito a una cuadrilla entera, a la clase o a unos cuantos elegidos a dedo use el mismo tope y el mismo registro que darlo uno a uno, y que se diga a quién no le llegó |
+| `datos-alumno.test.js` | Que se pueda ver y borrar todo lo que se guarda de un alumno, que el borrado no se lleve a nadie más, y que lo que la app no puede borrar —su cuenta de Appwrite— se diga en vez de darse por hecho |
 | `credenciales.test.js` | Que las contraseñas lleguen al segundo equipo del docente y a nadie más: permisos solo para su cuenta, nunca `users`, y que ningún equipo pueda vaciar lo que otro guardó |
 | `cuaderno-docente.test.js` | Que la lectura pedagógica sobre un alumno solo se abra con el docente al mando |
 | `version.test.js` | Que el número de versión que lee el docente no se separe del de la caché |
@@ -929,6 +930,46 @@ Si un alumno aparece con cuenta creada y sin contraseña, es que se puso en otro
 > fallaban una vez por alumno, con el nombre interno de la comprobación en
 > pantalla: una lista de «✘ NADIA — sin-nube» que mandaba a mirar la red cuando
 > lo que faltaba era entrar.
+
+### Qué se guarda de un alumno, y cómo borrarlo
+
+La portada le dice a la familia que puede pedir ver lo que se guarda de su hijo
+y pedir que se borre. Eso es una promesa, y hasta ahora la app no sabía
+cumplirla: los datos de un niño estaban repartidos por seis sitios y no había
+forma de reunirlos ni de quitarlos de todos a la vez.
+
+El **🔐 de cada ficha** de la lista de clase abre su inventario: lo que hay en la
+lista, lo que hay en su diario, su cuadrilla y su rol, tus notas para su familia,
+y **dónde vive cada cosa**. Sin eso último, «borrar» es un botón que hay que
+creerse.
+
+- **📄 Descargar esta ficha** la deja en un HTML que se imprime y se archiva. No
+  imprime la contraseña: es un documento que se enseña, y esa se entrega aparte.
+- **🗑️ Borrar todo lo suyo** se lleva su diario (con la clave nueva y con la
+  antigua del nombre), su ficha de la lista, sus notas, su sitio en la cuadrilla
+  y **su rol** —uno suelto reaparecería al rotar—, su entrada del documento
+  privado y su diario de la nube. Pide el nombre escrito antes, igual que borrar
+  una clase.
+
+> **Lo que la app no puede hacer, lo dice.** Su cuenta de Appwrite no se borra
+> desde aquí: el SDK del navegador no tiene servicio de usuarios, y mientras la
+> cuenta siga el niño puede entrar y empezar un diario nuevo. Eso se hace en la
+> consola, en *Auth → Users*. Y si tu cuenta no tiene permiso para borrar
+> diarios, se dice cuál falta y dónde se da: colección de diarios → *Settings →
+> Permissions → Team «docentes» → Delete*, que es un permiso aparte del de leer
+> y escribir. Un borrado a medias que se da por hecho es peor que no borrar.
+
+### Menos dato desde el origen
+
+Al pegar la clase de golpe hay una casilla: **guardar solo el nombre y la
+inicial**. «Vega Serrano» se guarda como «Vega S.». El apellido completo de un
+menor es un dato personal y aquí no hace falta para nada: lo único que tiene que
+hacer el nombre es que sepas de quién hablas.
+
+El **usuario se genera del nombre completo** aunque se guarde acortado, porque
+dos «Vega S.» de apellidos distintos tienen que poder distinguirse al entrar, y
+el usuario es lo que las separa en toda la app. La casilla viene desmarcada: no
+se toca lo que escribe el docente sin que lo decida.
 
 ### El diario nace cuando el niño entra, y luego se vincula
 
