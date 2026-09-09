@@ -11,7 +11,7 @@
    copia guardada. Sin este número, «ya está arreglado» y «a mí no me pasa» son
    indistinguibles. Va junto al nombre de la caché del service worker, y una
    prueba comprueba que no se separen. */
-const ATLAS_VERSION = 'v71';
+const ATLAS_VERSION = 'v72';
 
 const ATLAS_DEFAULTS = {
 
@@ -467,12 +467,15 @@ function saveTeacherConfig() {
    entonces, se adopta solo. Si las dos han cambiado, no se toca nada y el
    panel lo avisa: decidir por el docente sería peor que preguntarle. */
 const CONFIG_META_KEY = 'atlas_config_meta_v1';
-let ATLAS_CONFIG_META = { touchedAt: 0, sharedAt: 0, by: '', backupAt: 0 };
+/* `rosterAt` es la marca de la última lista de clase que este equipo escribió
+   o adoptó. Va aparte de `sharedAt` porque la lista ya no viaja con los
+   ajustes: tiene su propio documento y su propio reloj. */
+let ATLAS_CONFIG_META = { touchedAt: 0, sharedAt: 0, by: '', backupAt: 0, rosterAt: 0 };
 
 function loadConfigMeta() {
   try {
     const raw = localStorage.getItem(CONFIG_META_KEY);
-    if (raw) ATLAS_CONFIG_META = { touchedAt: 0, sharedAt: 0, by: '', backupAt: 0, ...JSON.parse(raw) };
+    if (raw) ATLAS_CONFIG_META = { touchedAt: 0, sharedAt: 0, by: '', backupAt: 0, rosterAt: 0, ...JSON.parse(raw) };
   } catch (e) { /* se queda con los valores por defecto */ }
   return ATLAS_CONFIG_META;
 }
@@ -501,9 +504,27 @@ function configEditadaEnLocal() {
    `notasInforme` son las líneas que el docente escribe para la familia de un
    niño concreto. Aunque no sean secretas, son sobre UN niño y las leerían sus
    veinticinco compañeros: van por el canal privado del docente, el mismo que
-   las contraseñas, no por el documento de la clase. */
+   las contraseñas, no por el documento de la clase.
+
+   ── Y la LISTA DE CLASE, que es lo más serio de esta lista ──
+   Viajaba dentro del documento del aula solo sin las contraseñas, y ese
+   documento lo puede leer CUALQUIER cuenta con sesión: los datos de conexión
+   están en el JavaScript que se sirve, así que a un alumno le bastaba con
+   pedir el documento para tener el nombre, los apellidos, el curso y —lo
+   importante— el USUARIO con el que entra cada uno de sus veinticuatro
+   compañeros. La tablet del niño la borraba al recibirla, pero borrarla
+   después de entregarla no es no entregarla.
+
+   El usuario es la mitad de una credencial. Sumado a que estas contraseñas
+   son de aula —una palabra y cuatro cifras, para que las teclee un niño de
+   ocho años—, tener la lista de usuarios es tener por dónde empezar.
+
+   La lista es del docente y solo la necesitan sus equipos, así que va por su
+   canal privado, con las contraseñas dentro y todo. Las cuadrillas sí siguen
+   viajando: un niño ve los nombres de su cuadrilla en su propia app, y eso es
+   lo mismo que ve al girar la cabeza en clase. */
 const NO_SE_COMPARTE = ['appwrite', 'teacherPin', 'curriculo', 'iaCola', 'iaClave',
-                        'iaWorkspace', 'notasInforme'];
+                        'iaWorkspace', 'notasInforme', 'roster'];
 
 /* Topes de las notas del docente. Viven aquí y no en state.js porque cloud.js
    los usa al mezclar las de dos equipos, y carga antes que state.js. */
@@ -513,9 +534,6 @@ const NOTA_LARGO = 1200;       /* lo que cabe leerse en un informe */
 function configParaCompartir() {
   const o = deepClone(ATLAS_OVERLAY);
   for (const k of NO_SE_COMPARTE) delete o[k];
-  if (Array.isArray(o.roster)) {
-    o.roster = o.roster.map(r => { const c = { ...r }; delete c.password; return c; });
-  }
   return o;
 }
 
@@ -530,13 +548,11 @@ function adoptSharedConfig(paquete) {
   for (const k of NO_SE_COMPARTE) {
     if (propio[k] !== undefined) nuevo[k] = propio[k];
   }
-  if (Array.isArray(nuevo.roster) && Array.isArray(propio.roster)) {
-    const mias = new Map(propio.roster.map(r => [String(r.username || r.name).toLowerCase(), r.password]));
-    nuevo.roster = nuevo.roster.map(r => {
-      const pw = mias.get(String(r.username || r.name).toLowerCase());
-      return pw ? { ...r, password: pw } : r;
-    });
-  }
+  /* La lista de clase de este equipo manda siempre —está en NO_SE_COMPARTE—,
+     con una excepción a propósito: si aquí no hay ninguna y el documento es
+     antiguo y todavía la lleva dentro, se adopta. Es lo que rescata la lista
+     en un equipo que se estrena mientras queden documentos sin reescribir.
+     Llegan sin contraseñas, y de eso se encarga el canal privado. */
   sinSubir(() => { applyOverlay(nuevo); saveTeacherConfig(); });
   ATLAS_CONFIG_META.sharedAt = paquete.updated_at || Date.now();
   ATLAS_CONFIG_META.touchedAt = ATLAS_CONFIG_META.sharedAt;

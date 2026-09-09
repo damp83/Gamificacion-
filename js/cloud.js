@@ -738,8 +738,14 @@ async function traerAjustesDeAula() {
        la clase dirigida, ninguno de los dos vive ahí, y son nombres de
        menores. Menos datos donde no hacen falta. */
     if (!aulaActiva()) delete ajustes.roster;
+    /* Un documento escrito antes de que la lista saliera de aquí todavía la
+       lleva dentro, y ahí la lee cualquier alumno. Adoptarlo no la borra: hay
+       que reescribir el documento, así que se programa la subida que lo
+       limpia. Es lo que hace que el agujero se cierre solo. */
+    const traiaLaLista = Array.isArray(ajustes.roster) && ajustes.roster.length > 0;
     adoptSharedConfig({ overlay: ajustes, updated_at: marca, by: doc.teacher || '' });
-    return { ok: true, adoptado: true };
+    if (traiaLaLista && aulaActiva()) programarSubidaAjustes();
+    return { ok: true, adoptado: true, limpiando: traiaLaLista };
   } catch (e) { return errorNube(e); }
 }
 
@@ -1113,25 +1119,56 @@ async function cloudGuardarCredenciales() {
   /* Las notas de las familias se mezclan con la misma regla: gana la más
      reciente de cada alumno, y lo que este equipo no conoce se conserva. */
   const notas = mezclarNotas(previo.ok ? previo.notas : null, ATLAS_CONFIG.notasInforme);
+
+  /* ── Y la lista de clase ──
+     Aquí sí va entera, con las contraseñas dentro: este documento es del
+     docente y de nadie más. Dos cautelas, por lo que se juega:
+
+     · Si este equipo no tiene lista y el documento sí, se conserva la suya.
+       Un equipo recién estrenado no puede vaciarle la clase al que la tiene.
+     · Si la guardada es MÁS NUEVA que la última que vio este equipo, tampoco
+       se pisa. Es el caso de dar de alta a un alumno en el portátil y tocar
+       cualquier ajuste en la tablet antes de que le llegue: sin esto, la
+       tablet subiría su lista vieja y el alumno nuevo desaparecería. */
+  const miRoster = Array.isArray(ATLAS_CONFIG.roster) ? ATLAS_CONFIG.roster : [];
+  const rosterGuardado = (previo.ok && Array.isArray(previo.roster)) ? previo.roster : null;
+  const guardadaEsMasNueva = !!(previo.ok && previo.rosterAt
+    && previo.rosterAt > (ATLAS_CONFIG_META.rosterAt || 0));
+  const conservarLaGuardada = !!rosterGuardado && (!miRoster.length || guardadaEsMasNueva);
+  const roster = conservarLaGuardada ? rosterGuardado : miRoster;
+  const rosterAt = conservarLaGuardada
+    ? (previo.rosterAt || Date.now())
+    : (miRoster.length ? Date.now() : 0);
+
   const data = {
     owner: uid,
     name: 'Credenciales',
     teacher: ATLAS_CONFIG.teacherName || '',
-    config: JSON.stringify({ v: 1, cred, notas }),
+    config: JSON.stringify({ v: 1, cred, notas, roster, rosterAt }),
     updated_at: String(Date.now())
   };
   const id = idDeCredenciales(aulaActiva());
   try {
     await CLOUD.db.updateDocument(c.databaseId, c.aulasCollectionId, id, data,
       permisosDeCredenciales(uid));
+    apuntarRosterVisto(rosterAt);
     return { ok: true };
   } catch (e) {
     try {
       await CLOUD.db.createDocument(c.databaseId, c.aulasCollectionId, id, data,
         permisosDeCredenciales(uid));
+      apuntarRosterVisto(rosterAt);
       return { ok: true, creado: true };
     } catch (e2) { return errorNube(e2); }
   }
+}
+
+/* La marca de la última lista que este equipo escribió o adoptó. Sirve para
+   no adoptar la propia y para saber cuándo la de la nube es más nueva. */
+function apuntarRosterVisto(marca) {
+  if (!marca) return;
+  ATLAS_CONFIG_META.rosterAt = Math.max(ATLAS_CONFIG_META.rosterAt || 0, marca);
+  saveConfigMeta();
 }
 
 async function cloudTraerCredenciales() {
@@ -1141,11 +1178,19 @@ async function cloudTraerCredenciales() {
     const doc = await CLOUD.db.getDocument(c.databaseId, c.aulasCollectionId,
       idDeCredenciales(aulaActiva()));
     const p = JSON.parse(doc.config || '{}');
-    return { ok: true, cred: (p && p.cred) || {}, notas: (p && p.notas) || {} };
+    return {
+      ok: true,
+      cred: (p && p.cred) || {},
+      notas: (p && p.notas) || {},
+      roster: (p && Array.isArray(p.roster)) ? p.roster : null,
+      rosterAt: Number((p && p.rosterAt) || 0)
+    };
   } catch (e) {
     const msg = (e && e.message) || '';
     /* Que no exista es lo normal la primera vez. */
-    if (/not be found|not found|404/i.test(msg)) return { ok: true, cred: {}, notas: {} };
+    if (/not be found|not found|404/i.test(msg)) {
+      return { ok: true, cred: {}, notas: {}, roster: null, rosterAt: 0 };
+    }
     return errorNube(e);
   }
 }
@@ -1178,6 +1223,19 @@ function mezclarNotas(dellaNube, deAqui) {
 async function rellenarCredenciales() {
   const r = await cloudTraerCredenciales();
   if (!r.ok) return r;
+
+  /* ── Primero la lista de clase entera ──
+     Desde que la lista dejó de viajar con los ajustes —la leía cualquier
+     alumno—, este es el único camino por el que llega al segundo equipo del
+     docente. Se adopta cuando la guardada es más nueva que la última que vio
+     este equipo, la misma regla que ya usan los ajustes del aula. */
+  let rosterNuevo = 0;
+  if (Array.isArray(r.roster) && r.rosterAt > (ATLAS_CONFIG_META.rosterAt || 0)) {
+    rosterNuevo = r.roster.length;
+    sinSubir(() => { setTeacherConfig('roster', deepClone(r.roster)); saveTeacherConfig(); });
+    apuntarRosterVisto(r.rosterAt);
+  }
+
   const lista = deepClone(ATLAS_CONFIG.roster || []);
   let puestas = 0;
   for (const f of lista) {
@@ -1197,7 +1255,7 @@ async function rellenarCredenciales() {
       saveTeacherConfig();
     });
   }
-  return { ok: true, puestas, notas: cambian };
+  return { ok: true, puestas, notas: cambian, roster: rosterNuevo };
 }
 
 /* ══════════ LOS AJUSTES, A LA CLASE ══════════

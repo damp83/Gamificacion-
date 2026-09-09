@@ -135,7 +135,7 @@ Es lo primero que ve cualquiera al abrir la app, y separa los dos caminos:
 Además explica la plataforma a sus dos públicos a la vez:
 
 - **Para el alumnado:** la premisa (el Atlas de Ossian roto en fragmentos), la regla de oro (*el mapa solo se dibuja con lo que aprendes de verdad*), cómo se excava en cinco pasos, y el elenco — con Bruno dejando claro desde el principio que equivocarse forma parte de excavar.
-- **Para familias y profesorado:** qué es, el criterio pedagógico (estratos de Bloom, 80 % de dominio), la adaptación a cada niño, y las garantías: nada se pierde, sin compras reales, sin rankings entre niños, sin datos personales.
+- **Para familias y profesorado:** qué es, el criterio pedagógico (estratos de Bloom, 80 % de dominio), la adaptación a cada niño, y las garantías: nada se pierde, sin compras reales, sin rankings entre niños, y los datos justos — el nombre con el que aparece en clase y lo que aprende, sin fotos, sin ubicación y sin correo del niño.
 
 Los yacimientos que aparecen salen de la configuración real: si creas uno de Lengua, se muestra en la portada sin tocar nada.
 
@@ -879,15 +879,44 @@ Con Appwrite configurado aparece **🎒 Crear cuentas**: da de alta en Appwrite 
 
 Si alguna ficha llegó sin usuario o sin contraseña —escrita a mano, o traída de una copia antigua— **🔑 Completar fichas sin credenciales** rellena lo que falte de una vez, sin tocar lo que ya esté puesto. No se ofrece para quien ya tiene cuenta creada: inventarle ahí una contraseña no cambia la de Appwrite, y el niño se quedaría fuera con un papel en la mano.
 
-### Las contraseñas, en tus dos equipos
+### La lista de clase y las contraseñas, en tus dos equipos
 
-Las contraseñas del alumnado **no viajan en el documento de la clase**, porque ese documento lo lee cualquier alumno con sesión: meterlas ahí sería enseñarle a cada niño la de los demás. Pero tú sí las necesitas en el portátil y en la tablet, así que van por un canal aparte: **un documento propio, en la misma colección `aulas`, con permisos solo para tu cuenta**. Su id es el de la clase con el sufijo `-cred`, se sube con cada cambio de la lista y se recupera solo al abrir la app con la clase abierta. En la lista de clases no aparece.
+La lista de clase **no viaja en el documento del aula**, y esto es lo más serio
+que hay que entender del reparto de datos. Ese documento lo puede leer
+**cualquier cuenta con sesión** —los alumnos lo necesitan para jugar, y los
+datos de conexión están en el JavaScript que se sirve—, así que a un niño le
+bastaba con pedirlo para tener el nombre, los apellidos, el curso y **el usuario
+con el que entra** cada uno de sus compañeros. Iba sin contraseñas, sí; pero el
+usuario es media credencial, y estas contraseñas son de aula: una palabra y
+cuatro cifras, para que las teclee alguien de ocho años.
 
-Tres detalles que evitan perderlas:
+Así que la lista va por un canal aparte: **un documento propio, en la misma
+colección `aulas`, con permisos solo para tu cuenta**. Su id es el de la clase
+con el sufijo `-cred`, lleva la lista entera —contraseñas incluidas, que ahí
+dentro no hay a quién esconderlas— más tus notas para las familias, se sube con
+cada cambio y se recupera sola al abrir la app con la clase abierta. En la lista
+de clases no aparece.
 
-- Un equipo que **no** las tiene nunca vacía el documento del que sí.
+> **Lo que sí sigue viajando son las cuadrillas**, con los nombres de sus
+> miembros: un niño ve quién está en su equipo dentro de su propia app, y eso es
+> lo mismo que ve girando la cabeza en clase. Lo que se ha quitado del documento
+> público es la lista completa con los usuarios, que es lo que no debía estar.
+
+> **Los documentos escritos antes de este cambio siguen llevando la lista
+> dentro.** Adoptarlos no la borra —hay que volver a escribir el documento—, así
+> que al abrir la clase la app detecta que el documento es antiguo y programa la
+> subida que lo limpia. Se cierra solo, sin que tengas que hacer nada.
+
+Cuatro detalles que evitan perder algo:
+
+- Un equipo que **no** tiene contraseñas nunca vacía el documento del que sí.
 - Un equipo que conoce tres de veinticinco **mezcla**, no reemplaza: las otras veintidós siguen ahí.
 - Lo que ya está puesto en un equipo **no se pisa** con lo que baje de la nube.
+- Y con la lista, igual por partida doble: un equipo sin lista no le vacía la
+  clase al que la tiene, y un equipo con la lista **de ayer** no pisa la de hoy.
+  Es el caso de dar de alta a un alumno en el portátil y tocar cualquier ajuste
+  en la tablet antes de que le llegue; sin esa cautela, el alumno nuevo
+  desaparecía de los dos sitios.
 
 > **Cambiar la contraseña en la lista no cambia la cuenta.** Atlas no sabe cambiar contraseñas en Appwrite: lo que escribes ahí es el papel que repartes, no la credencial de la cuenta. El panel te lo dice en el momento en que editas la de un alumno que ya tiene cuenta. Para cambiarla de verdad, hazlo desde la consola de Appwrite.
 

@@ -2277,6 +2277,10 @@ input[type="checkbox"]::after, input[type="radio"]::after {
 }
 .repaso-estrato .ico { width: .95rem; height: .95rem; }
 
+/* La línea de privacidad de la portada: va bajo la lista de garantías y en
+   voz más baja, porque es una invitación a preguntar, no una garantía más. */
+.home-privacidad { margin: .8rem 0 0; font-size: var(--t-sm); color: var(--ink-soft); }
+
 /* Leyenda de una tabla de cifras: qué periodo mide cada columna. */
 .dash-leyenda { font-size: var(--t-xs); color: var(--ink-soft); margin: .4rem 0 .8rem; }
 
@@ -3203,8 +3207,18 @@ body.en-consulta #shop-list button { display: none !important; }
           y no existe forma de restar puntos.</li>
           <li><strong>Sin compras reales ni rankings entre niños.</strong> Todo lo comprable
           es decorativo y jamás da ventaja; la competición se dirige a personajes, no a compañeros.</li>
-          <li><strong>Sin datos personales.</strong> Ni apellidos, ni foto, ni ubicación.</li>
+          <!-- Esta línea decía «sin datos personales, ni apellidos». No era
+               verdad: el docente escribe el nombre de cada alumno en la lista
+               de clase, apellidos incluidos, y eso es un dato personal de un
+               menor. Prometerle a una familia lo contrario es peor que no
+               prometerle nada, así que dice lo que hay. -->
+          <li><strong>Los datos, los justos.</strong> El nombre con el que aparece en clase y lo
+          que va aprendiendo. <strong>Sin fotos, sin ubicación y sin correo del niño</strong>: entra
+          con un usuario inventado, no con una dirección suya. No hay publicidad ni se cede nada a
+          terceros, y todo vive en el servidor que gestiona su centro.</li>
         </ul>
+        <p class="home-privacidad">¿Queréis saber qué guarda exactamente de vuestro hijo o que
+        se borre? Pedídselo a su maestro: puede enseñároslo y puede borrarlo.</p>
       </section>
 
       <p class="home-foot">Sociedad Geográfica de los Diarios Perdidos · Expedición Atlas</p>
@@ -5768,7 +5782,7 @@ function cruzarVerificacion(retos, respuestas) {
    copia guardada. Sin este número, «ya está arreglado» y «a mí no me pasa» son
    indistinguibles. Va junto al nombre de la caché del service worker, y una
    prueba comprueba que no se separen. */
-const ATLAS_VERSION = 'v71';
+const ATLAS_VERSION = 'v72';
 
 const ATLAS_DEFAULTS = {
 
@@ -6224,12 +6238,15 @@ function saveTeacherConfig() {
    entonces, se adopta solo. Si las dos han cambiado, no se toca nada y el
    panel lo avisa: decidir por el docente sería peor que preguntarle. */
 const CONFIG_META_KEY = 'atlas_config_meta_v1';
-let ATLAS_CONFIG_META = { touchedAt: 0, sharedAt: 0, by: '', backupAt: 0 };
+/* `rosterAt` es la marca de la última lista de clase que este equipo escribió
+   o adoptó. Va aparte de `sharedAt` porque la lista ya no viaja con los
+   ajustes: tiene su propio documento y su propio reloj. */
+let ATLAS_CONFIG_META = { touchedAt: 0, sharedAt: 0, by: '', backupAt: 0, rosterAt: 0 };
 
 function loadConfigMeta() {
   try {
     const raw = localStorage.getItem(CONFIG_META_KEY);
-    if (raw) ATLAS_CONFIG_META = { touchedAt: 0, sharedAt: 0, by: '', backupAt: 0, ...JSON.parse(raw) };
+    if (raw) ATLAS_CONFIG_META = { touchedAt: 0, sharedAt: 0, by: '', backupAt: 0, rosterAt: 0, ...JSON.parse(raw) };
   } catch (e) { /* se queda con los valores por defecto */ }
   return ATLAS_CONFIG_META;
 }
@@ -6258,9 +6275,27 @@ function configEditadaEnLocal() {
    `notasInforme` son las líneas que el docente escribe para la familia de un
    niño concreto. Aunque no sean secretas, son sobre UN niño y las leerían sus
    veinticinco compañeros: van por el canal privado del docente, el mismo que
-   las contraseñas, no por el documento de la clase. */
+   las contraseñas, no por el documento de la clase.
+
+   ── Y la LISTA DE CLASE, que es lo más serio de esta lista ──
+   Viajaba dentro del documento del aula solo sin las contraseñas, y ese
+   documento lo puede leer CUALQUIER cuenta con sesión: los datos de conexión
+   están en el JavaScript que se sirve, así que a un alumno le bastaba con
+   pedir el documento para tener el nombre, los apellidos, el curso y —lo
+   importante— el USUARIO con el que entra cada uno de sus veinticuatro
+   compañeros. La tablet del niño la borraba al recibirla, pero borrarla
+   después de entregarla no es no entregarla.
+
+   El usuario es la mitad de una credencial. Sumado a que estas contraseñas
+   son de aula —una palabra y cuatro cifras, para que las teclee un niño de
+   ocho años—, tener la lista de usuarios es tener por dónde empezar.
+
+   La lista es del docente y solo la necesitan sus equipos, así que va por su
+   canal privado, con las contraseñas dentro y todo. Las cuadrillas sí siguen
+   viajando: un niño ve los nombres de su cuadrilla en su propia app, y eso es
+   lo mismo que ve al girar la cabeza en clase. */
 const NO_SE_COMPARTE = ['appwrite', 'teacherPin', 'curriculo', 'iaCola', 'iaClave',
-                        'iaWorkspace', 'notasInforme'];
+                        'iaWorkspace', 'notasInforme', 'roster'];
 
 /* Topes de las notas del docente. Viven aquí y no en state.js porque cloud.js
    los usa al mezclar las de dos equipos, y carga antes que state.js. */
@@ -6270,9 +6305,6 @@ const NOTA_LARGO = 1200;       /* lo que cabe leerse en un informe */
 function configParaCompartir() {
   const o = deepClone(ATLAS_OVERLAY);
   for (const k of NO_SE_COMPARTE) delete o[k];
-  if (Array.isArray(o.roster)) {
-    o.roster = o.roster.map(r => { const c = { ...r }; delete c.password; return c; });
-  }
   return o;
 }
 
@@ -6287,13 +6319,11 @@ function adoptSharedConfig(paquete) {
   for (const k of NO_SE_COMPARTE) {
     if (propio[k] !== undefined) nuevo[k] = propio[k];
   }
-  if (Array.isArray(nuevo.roster) && Array.isArray(propio.roster)) {
-    const mias = new Map(propio.roster.map(r => [String(r.username || r.name).toLowerCase(), r.password]));
-    nuevo.roster = nuevo.roster.map(r => {
-      const pw = mias.get(String(r.username || r.name).toLowerCase());
-      return pw ? { ...r, password: pw } : r;
-    });
-  }
+  /* La lista de clase de este equipo manda siempre —está en NO_SE_COMPARTE—,
+     con una excepción a propósito: si aquí no hay ninguna y el documento es
+     antiguo y todavía la lleva dentro, se adopta. Es lo que rescata la lista
+     en un equipo que se estrena mientras queden documentos sin reescribir.
+     Llegan sin contraseñas, y de eso se encarga el canal privado. */
   sinSubir(() => { applyOverlay(nuevo); saveTeacherConfig(); });
   ATLAS_CONFIG_META.sharedAt = paquete.updated_at || Date.now();
   ATLAS_CONFIG_META.touchedAt = ATLAS_CONFIG_META.sharedAt;
@@ -7064,8 +7094,14 @@ async function traerAjustesDeAula() {
        la clase dirigida, ninguno de los dos vive ahí, y son nombres de
        menores. Menos datos donde no hacen falta. */
     if (!aulaActiva()) delete ajustes.roster;
+    /* Un documento escrito antes de que la lista saliera de aquí todavía la
+       lleva dentro, y ahí la lee cualquier alumno. Adoptarlo no la borra: hay
+       que reescribir el documento, así que se programa la subida que lo
+       limpia. Es lo que hace que el agujero se cierre solo. */
+    const traiaLaLista = Array.isArray(ajustes.roster) && ajustes.roster.length > 0;
     adoptSharedConfig({ overlay: ajustes, updated_at: marca, by: doc.teacher || '' });
-    return { ok: true, adoptado: true };
+    if (traiaLaLista && aulaActiva()) programarSubidaAjustes();
+    return { ok: true, adoptado: true, limpiando: traiaLaLista };
   } catch (e) { return errorNube(e); }
 }
 
@@ -7439,25 +7475,56 @@ async function cloudGuardarCredenciales() {
   /* Las notas de las familias se mezclan con la misma regla: gana la más
      reciente de cada alumno, y lo que este equipo no conoce se conserva. */
   const notas = mezclarNotas(previo.ok ? previo.notas : null, ATLAS_CONFIG.notasInforme);
+
+  /* ── Y la lista de clase ──
+     Aquí sí va entera, con las contraseñas dentro: este documento es del
+     docente y de nadie más. Dos cautelas, por lo que se juega:
+
+     · Si este equipo no tiene lista y el documento sí, se conserva la suya.
+       Un equipo recién estrenado no puede vaciarle la clase al que la tiene.
+     · Si la guardada es MÁS NUEVA que la última que vio este equipo, tampoco
+       se pisa. Es el caso de dar de alta a un alumno en el portátil y tocar
+       cualquier ajuste en la tablet antes de que le llegue: sin esto, la
+       tablet subiría su lista vieja y el alumno nuevo desaparecería. */
+  const miRoster = Array.isArray(ATLAS_CONFIG.roster) ? ATLAS_CONFIG.roster : [];
+  const rosterGuardado = (previo.ok && Array.isArray(previo.roster)) ? previo.roster : null;
+  const guardadaEsMasNueva = !!(previo.ok && previo.rosterAt
+    && previo.rosterAt > (ATLAS_CONFIG_META.rosterAt || 0));
+  const conservarLaGuardada = !!rosterGuardado && (!miRoster.length || guardadaEsMasNueva);
+  const roster = conservarLaGuardada ? rosterGuardado : miRoster;
+  const rosterAt = conservarLaGuardada
+    ? (previo.rosterAt || Date.now())
+    : (miRoster.length ? Date.now() : 0);
+
   const data = {
     owner: uid,
     name: 'Credenciales',
     teacher: ATLAS_CONFIG.teacherName || '',
-    config: JSON.stringify({ v: 1, cred, notas }),
+    config: JSON.stringify({ v: 1, cred, notas, roster, rosterAt }),
     updated_at: String(Date.now())
   };
   const id = idDeCredenciales(aulaActiva());
   try {
     await CLOUD.db.updateDocument(c.databaseId, c.aulasCollectionId, id, data,
       permisosDeCredenciales(uid));
+    apuntarRosterVisto(rosterAt);
     return { ok: true };
   } catch (e) {
     try {
       await CLOUD.db.createDocument(c.databaseId, c.aulasCollectionId, id, data,
         permisosDeCredenciales(uid));
+      apuntarRosterVisto(rosterAt);
       return { ok: true, creado: true };
     } catch (e2) { return errorNube(e2); }
   }
+}
+
+/* La marca de la última lista que este equipo escribió o adoptó. Sirve para
+   no adoptar la propia y para saber cuándo la de la nube es más nueva. */
+function apuntarRosterVisto(marca) {
+  if (!marca) return;
+  ATLAS_CONFIG_META.rosterAt = Math.max(ATLAS_CONFIG_META.rosterAt || 0, marca);
+  saveConfigMeta();
 }
 
 async function cloudTraerCredenciales() {
@@ -7467,11 +7534,19 @@ async function cloudTraerCredenciales() {
     const doc = await CLOUD.db.getDocument(c.databaseId, c.aulasCollectionId,
       idDeCredenciales(aulaActiva()));
     const p = JSON.parse(doc.config || '{}');
-    return { ok: true, cred: (p && p.cred) || {}, notas: (p && p.notas) || {} };
+    return {
+      ok: true,
+      cred: (p && p.cred) || {},
+      notas: (p && p.notas) || {},
+      roster: (p && Array.isArray(p.roster)) ? p.roster : null,
+      rosterAt: Number((p && p.rosterAt) || 0)
+    };
   } catch (e) {
     const msg = (e && e.message) || '';
     /* Que no exista es lo normal la primera vez. */
-    if (/not be found|not found|404/i.test(msg)) return { ok: true, cred: {}, notas: {} };
+    if (/not be found|not found|404/i.test(msg)) {
+      return { ok: true, cred: {}, notas: {}, roster: null, rosterAt: 0 };
+    }
     return errorNube(e);
   }
 }
@@ -7504,6 +7579,19 @@ function mezclarNotas(dellaNube, deAqui) {
 async function rellenarCredenciales() {
   const r = await cloudTraerCredenciales();
   if (!r.ok) return r;
+
+  /* ── Primero la lista de clase entera ──
+     Desde que la lista dejó de viajar con los ajustes —la leía cualquier
+     alumno—, este es el único camino por el que llega al segundo equipo del
+     docente. Se adopta cuando la guardada es más nueva que la última que vio
+     este equipo, la misma regla que ya usan los ajustes del aula. */
+  let rosterNuevo = 0;
+  if (Array.isArray(r.roster) && r.rosterAt > (ATLAS_CONFIG_META.rosterAt || 0)) {
+    rosterNuevo = r.roster.length;
+    sinSubir(() => { setTeacherConfig('roster', deepClone(r.roster)); saveTeacherConfig(); });
+    apuntarRosterVisto(r.rosterAt);
+  }
+
   const lista = deepClone(ATLAS_CONFIG.roster || []);
   let puestas = 0;
   for (const f of lista) {
@@ -7523,7 +7611,7 @@ async function rellenarCredenciales() {
       saveTeacherConfig();
     });
   }
-  return { ok: true, puestas, notas: cambian };
+  return { ok: true, puestas, notas: cambian, roster: rosterNuevo };
 }
 
 /* ══════════ LOS AJUSTES, A LA CLASE ══════════

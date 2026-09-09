@@ -137,12 +137,19 @@ test('lo que el docente publica para la clase viaja, y por eso hay que escaparlo
   assert.equal(paquete.teacherName, ATAQUE);
 });
 
-test('las contraseñas del alumnado NO viajan a las demás tablets', () => {
+test('la lista de clase entera NO viaja a las demás tablets', () => {
+  /* Viajaba sin las contraseñas, y aun así entregaba el nombre, los apellidos
+     y el USUARIO de los veinticuatro a cualquier alumno con sesión: el
+     documento del aula lo puede leer cualquiera y los datos de conexión están
+     en el JavaScript que se sirve. El usuario es media credencial. */
   const ctx = cargarApp();
-  ctx.ev('setTeacherConfig')('roster', [{ name: 'Vega', username: 'vega', password: 'secreta123' }]);
+  ctx.ev('setTeacherConfig')('roster', [{ name: 'Vega Serrano', username: 'vega', password: 'secreta123' }]);
   const paquete = ctx.ev('configParaCompartir()');
-  assert.ok(!JSON.stringify(paquete).includes('secreta123'));
-  assert.equal(paquete.roster[0].username, 'vega', 'el usuario sí, que hace falta');
+  const texto = JSON.stringify(paquete);
+  assert.equal(paquete.roster, undefined);
+  assert.ok(!texto.includes('secreta123'), 'ni la contraseña');
+  assert.ok(!texto.includes('vega'), 'ni el usuario, que es media credencial');
+  assert.ok(!texto.includes('Serrano'), 'ni los apellidos de un menor');
 });
 
 test('ni el PIN ni los datos de conexión viajan', () => {

@@ -2274,6 +2274,10 @@ input[type="checkbox"]::after, input[type="radio"]::after {
 }
 .repaso-estrato .ico { width: .95rem; height: .95rem; }
 
+/* La línea de privacidad de la portada: va bajo la lista de garantías y en
+   voz más baja, porque es una invitación a preguntar, no una garantía más. */
+.home-privacidad { margin: .8rem 0 0; font-size: var(--t-sm); color: var(--ink-soft); }
+
 /* Leyenda de una tabla de cifras: qué periodo mide cada columna. */
 .dash-leyenda { font-size: var(--t-xs); color: var(--ink-soft); margin: .4rem 0 .8rem; }
 
