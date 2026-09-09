@@ -1143,9 +1143,29 @@ async function cloudSaveAulaConfig() {
   const c = ATLAS_CONFIG.appwrite;
   /* El nombre de la clase vive en su documento. Sincronizar desde un equipo
      donde no esté puesto NO puede rebautizarla: antes la dejaba en «Clase». */
+  const paquete = JSON.stringify(configParaCompartir());
+
+  /* ── ¿Cabe? ──
+     El campo `config` del aula admite 200 000 caracteres. Los retos generados
+     con IA viven en su propia tabla y no cuentan aquí, pero los escritos a
+     mano ANTES de configurarla se quedan dentro de los ajustes, y un banco
+     propio de cierto tamaño se pasa. Sin esta comprobación, lo que se veía
+     era el error crudo de Appwrite: no decía qué ocupaba de más ni qué hacer,
+     y el docente creía que sus ajustes estaban a salvo cuando no subían. */
+  if (paquete.length > CONFIG_MAX) {
+    const dentro = retosDentroDeLosAjustes();
+    return { ok: false, reason: 'demasiado-grande',
+      detail: `Los ajustes ocupan ${Math.round(paquete.length / 1000)} KB y la clase admite `
+            + `${Math.round(CONFIG_MAX / 1000)}. `
+            + (dentro
+              ? `Llevan ${dentro} reto(s) escritos dentro. Configura la tabla de retos en `
+                + '«Acceso y nube» y pulsa «Mover los retos a la tabla»: dejan de viajar aquí.'
+              : 'Revisa si hay yacimientos o pozos que ya no uses.') };
+  }
+
   const data = {
     teacher: ATLAS_CONFIG.teacherName || '',
-    config: JSON.stringify(configParaCompartir()),
+    config: paquete,
     updated_at: String(Date.now())
   };
   const nombre = (ATLAS_CONFIG.className || '').trim() || (AULA.name || '').trim();
@@ -1164,6 +1184,23 @@ async function cloudSaveAulaConfig() {
     saveConfigMeta();
     return { ok: true };
   } catch (e) { return errorNube(e); }
+}
+
+/* Lo que admite el campo `config` del documento de la clase. Es el límite de
+   Appwrite, no nuestro: por eso se comprueba antes de mandar en vez de
+   descubrirlo en el mensaje de error. */
+const CONFIG_MAX = 200000;
+
+/* Cuántos retos escritos a mano viajan todavía dentro de los ajustes. Es el
+   número que convierte «no cabe» en algo que el docente puede arreglar. */
+function retosDentroDeLosAjustes() {
+  let n = 0;
+  for (const s of (ATLAS_CONFIG.sites || [])) {
+    for (const b of (s.branches || [])) {
+      for (const est of Object.keys(b.bank || {})) n += (b.bank[est] || []).length;
+    }
+  }
+  return n;
 }
 
 /* ── Diarios de una clase ── */

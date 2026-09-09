@@ -2102,10 +2102,14 @@ body.large-text .branch-info strong, body.large-text .stratum-info strong { font
 
 /* Rango de cursos de un pozo, en el editor */
 .cfg-grades-row { gap: .3rem; }
+/* El chip de curso se toca con el dedo, de pie y en clase: medía 36×26 px y la
+   recomendación para dedos es 44×44. Se sube el alto sin ensancharlo de más,
+   que en el panel van seis en fila. */
 .grade-chip {
-  display: flex; align-items: center; gap: .25rem;
+  display: flex; align-items: center; justify-content: center; gap: .3rem;
   background: var(--parchment); border: 2px solid var(--parchment-dark);
-  border-radius: 999px; padding: .15rem .55rem; font-size: .78rem;
+  border-radius: 999px; padding: .5rem .7rem; font-size: .82rem;
+  min-height: 2.75rem;
   flex: 0 0 auto !important; min-width: 0 !important;
 }
 .grade-chip.on { background: #e8ecd8; border-color: var(--jungle); color: var(--ink); }
@@ -5582,7 +5586,7 @@ function cruzarVerificacion(retos, respuestas) {
    copia guardada. Sin este número, «ya está arreglado» y «a mí no me pasa» son
    indistinguibles. Va junto al nombre de la caché del service worker, y una
    prueba comprueba que no se separen. */
-const ATLAS_VERSION = 'v62';
+const ATLAS_VERSION = 'v63';
 
 const ATLAS_DEFAULTS = {
 
@@ -7262,9 +7266,29 @@ async function cloudSaveAulaConfig() {
   const c = ATLAS_CONFIG.appwrite;
   /* El nombre de la clase vive en su documento. Sincronizar desde un equipo
      donde no esté puesto NO puede rebautizarla: antes la dejaba en «Clase». */
+  const paquete = JSON.stringify(configParaCompartir());
+
+  /* ── ¿Cabe? ──
+     El campo `config` del aula admite 200 000 caracteres. Los retos generados
+     con IA viven en su propia tabla y no cuentan aquí, pero los escritos a
+     mano ANTES de configurarla se quedan dentro de los ajustes, y un banco
+     propio de cierto tamaño se pasa. Sin esta comprobación, lo que se veía
+     era el error crudo de Appwrite: no decía qué ocupaba de más ni qué hacer,
+     y el docente creía que sus ajustes estaban a salvo cuando no subían. */
+  if (paquete.length > CONFIG_MAX) {
+    const dentro = retosDentroDeLosAjustes();
+    return { ok: false, reason: 'demasiado-grande',
+      detail: `Los ajustes ocupan ${Math.round(paquete.length / 1000)} KB y la clase admite `
+            + `${Math.round(CONFIG_MAX / 1000)}. `
+            + (dentro
+              ? `Llevan ${dentro} reto(s) escritos dentro. Configura la tabla de retos en `
+                + '«Acceso y nube» y pulsa «Mover los retos a la tabla»: dejan de viajar aquí.'
+              : 'Revisa si hay yacimientos o pozos que ya no uses.') };
+  }
+
   const data = {
     teacher: ATLAS_CONFIG.teacherName || '',
-    config: JSON.stringify(configParaCompartir()),
+    config: paquete,
     updated_at: String(Date.now())
   };
   const nombre = (ATLAS_CONFIG.className || '').trim() || (AULA.name || '').trim();
@@ -7283,6 +7307,23 @@ async function cloudSaveAulaConfig() {
     saveConfigMeta();
     return { ok: true };
   } catch (e) { return errorNube(e); }
+}
+
+/* Lo que admite el campo `config` del documento de la clase. Es el límite de
+   Appwrite, no nuestro: por eso se comprueba antes de mandar en vez de
+   descubrirlo en el mensaje de error. */
+const CONFIG_MAX = 200000;
+
+/* Cuántos retos escritos a mano viajan todavía dentro de los ajustes. Es el
+   número que convierte «no cabe» en algo que el docente puede arreglar. */
+function retosDentroDeLosAjustes() {
+  let n = 0;
+  for (const s of (ATLAS_CONFIG.sites || [])) {
+    for (const b of (s.branches || [])) {
+      for (const est of Object.keys(b.bank || {})) n += (b.bank[est] || []).length;
+    }
+  }
+  return n;
 }
 
 /* ── Diarios de una clase ── */
@@ -8340,6 +8381,14 @@ function diariosPorSubir(desde) {
 const BACKUP_MARCA = 'expedicion-atlas-copia';
 const BACKUP_VERSION = 1;
 
+/* ── Qué lleva la copia de seguridad ──
+   Lleva las contraseñas del alumnado A PROPÓSITO: son las de la hoja de
+   credenciales y, si se pierden, no hay forma de recuperarlas —Appwrite
+   guarda un resumen, no la contraseña—. Pero eso convierte el fichero en algo
+   que no se deja en cualquier sitio, y el panel lo dice al descargarla.
+
+   La clave de la API sí queda fuera (va en NO_SE_COMPARTE): esa se puede
+   volver a pegar en un minuto y su fuga cuesta dinero. */
 function exportBackup() {
   let propio = null;
   try {
@@ -8491,10 +8540,11 @@ function loadState() {
   return S;
 }
 /* ── Un diario que todavía no ha estrenado nadie ──
-   El panel lo crea al dar de alta la cuenta, para que nazca ya dentro de su
-   clase: en ese momento —y solo en ese— están juntas las tres cosas que hacen
-   falta (quién es el docente, cuál es la clase y qué cuenta se acaba de
-   crear). El alumno en su casa no sabe ninguna de las tres.
+   Lo usa la vista de clase para distinguir «tiene diario» de «ha jugado». El
+   panel ya NO crea diarios —Appwrite no deja repartir permisos que uno no
+   tiene, así que el diario lo crea el niño al entrar y el panel lo vincula
+   después—, pero un diario sin estrenar sigue apareciendo: restaurado de una
+   copia, o creado y abandonado.
 
    Se le quita la fecha del día. `defaultState` la pone a hoy porque da por
    hecho que quien crea el diario es quien va a jugar, y aquí no: dejarla
@@ -12565,9 +12615,10 @@ function paintClassView() {
   const enLista = d.enLista || 0;
   /* Antes, en modo local, este aviso sustituía al recuento: el docente añadía
      tres alumnos, veía una sola ficha y en ninguna parte se decía «1 de 3». */
-  /* «Han empezado» es haber abierto la app, no tener documento: desde que el
-     panel crea el diario al dar de alta la cuenta, las dos cosas dejaron de
-     coincidir y contar documentos daba de alta a niños que no han entrado. */
+  /* «Han empezado» es haber abierto la app, no tener documento. Las dos cosas
+     no coinciden: un diario puede existir sin estrenar —restaurado de una
+     copia, o creado y abandonado—, y contar documentos daba por empezados a
+     niños que no habían jugado nunca. */
   const empezados = typeof d.empezados === 'number' ? d.empezados : d.deLaLista;
   const recuento = `<p class="class-meta">${clase ? esc(clase) + ' · ' : ''}${
     enLista ? `<strong>${empezados} de ${enLista}</strong> de la lista han empezado su diario${
@@ -13344,13 +13395,15 @@ function cfgPremios(body) {
       ${list.map((b, i) => `
         <div class="cfg-card cfg-premio">
           <div class="cfg-row">
-            <input type="text" class="cfg-b-icon cfg-icono" data-i="${i}" value="${esc(b.icon)}" maxlength="4" title="Icono">
-            <input type="text" class="cfg-b-name" data-i="${i}" value="${esc(b.name)}" placeholder="Nombre">
+            <input type="text" class="cfg-b-icon cfg-icono" data-i="${i}" value="${esc(b.icon)}" maxlength="4"
+              aria-label="Icono del reconocimiento" title="Icono">
+            <input type="text" class="cfg-b-name" data-i="${i}" value="${esc(b.name)}" placeholder="Nombre"
+              aria-label="Nombre del reconocimiento">
           </div>
           <div class="cfg-row">
             <label>Doblones <input type="number" class="cfg-b-coins" data-i="${i}" value="${b.coins}" min="1" max="200"></label>
             <label>Tope/día <input type="number" class="cfg-b-cap" data-i="${i}" value="${b.perDay}" min="1" max="20"></label>
-            <select class="cfg-b-cat" data-i="${i}">
+            <select class="cfg-b-cat" data-i="${i}" aria-label="Tipo de reconocimiento">
               ${CATEGORIES.map(c => `<option value="${c.id}"${(b.category || 'comportamiento') === c.id ? ' selected' : ''}>${esc(c.label)}</option>`).join('')}
             </select>
             <button class="cfg-del" data-del="${i}" title="Eliminar">🗑️</button>
@@ -13869,8 +13922,9 @@ function cfgEquipos(body) {
       ${t.list.map((team, i) => `
         <div class="cfg-card">
           <div class="cfg-row">
-            <input type="text" class="cfg-t-icon cfg-icono" data-i="${i}" value="${esc(team.icon)}" maxlength="4">
-            <input type="text" class="cfg-t-name" data-i="${i}" value="${esc(team.name)}">
+            <input type="text" class="cfg-t-icon cfg-icono" data-i="${i}" value="${esc(team.icon)}" maxlength="4"
+              aria-label="Icono de la cuadrilla">
+            <input type="text" class="cfg-t-name" data-i="${i}" value="${esc(team.name)}" aria-label="Nombre de la cuadrilla">
             <button class="cfg-del" data-delteam="${i}" title="Eliminar">🗑️</button>
           </div>
           <label class="cfg-label">Miembros</label>
@@ -14289,8 +14343,9 @@ function propuestaDeYacimiento(body, a, site) {
       ${branchesOf(site).length} pozo(s).</p>` : `
       <div class="cfg-card">
         <div class="cfg-row">
-          <input type="text" class="cfg-icono" id="prop-icon" value="${esc(y.icon)}" maxlength="4">
-          <input type="text" id="prop-name" value="${esc(y.name)}">
+          <input type="text" class="cfg-icono" id="prop-icon" value="${esc(y.icon)}" maxlength="4"
+            aria-label="Icono del yacimiento propuesto">
+          <input type="text" id="prop-name" value="${esc(y.name)}" aria-label="Nombre del yacimiento propuesto">
         </div>
         <div class="cfg-row">
           <label>Materia <input type="text" id="prop-subject" value="${esc(y.subject)}"></label>
@@ -14302,8 +14357,9 @@ function propuestaDeYacimiento(body, a, site) {
       ${y.pozos.map((b, i) => `
         <div class="cfg-card">
           <div class="cfg-row">
-            <input type="text" class="cfg-icono prop-b-icon" data-i="${i}" value="${esc(b.icon)}" maxlength="4">
-            <input type="text" class="prop-b-name" data-i="${i}" value="${esc(b.name)}">
+            <input type="text" class="cfg-icono prop-b-icon" data-i="${i}" value="${esc(b.icon)}" maxlength="4"
+              aria-label="Icono del pozo propuesto">
+            <input type="text" class="prop-b-name" data-i="${i}" value="${esc(b.name)}" aria-label="Nombre del pozo propuesto">
             <button class="cfg-del" data-propdel="${i}" title="Quitar este pozo">🗑️</button>
           </div>
           <textarea class="prop-b-desc" data-i="${i}" rows="2">${esc(b.desc)}</textarea>
@@ -14425,8 +14481,9 @@ function cfgYacimientos(body) {
               ? 'Sus pozos no tienen retos en el primer estrato. Escribe uno en cualquiera de ellos.'
               : 'No tiene pozos. Añádele al menos uno y escríbele un reto.'}</p>` : ''}
           <div class="cfg-row">
-            <input type="text" class="cfg-si-icon cfg-icono" data-si="${si}" value="${esc(site.icon)}" maxlength="4">
-            <input type="text" class="cfg-si-name" data-si="${si}" value="${esc(site.name)}">
+            <input type="text" class="cfg-si-icon cfg-icono" data-si="${si}" value="${esc(site.icon)}" maxlength="4"
+              aria-label="Icono del yacimiento">
+            <input type="text" class="cfg-si-name" data-si="${si}" value="${esc(site.name)}" aria-label="Nombre del yacimiento">
             <button class="cfg-del" data-delsite="${si}" title="Eliminar yacimiento">🗑️</button>
           </div>
           <div class="cfg-row">
@@ -14453,8 +14510,9 @@ function cfgYacimientos(body) {
               const listos = STRATA_ORDER.filter(sId => stratumHasContent(b, sId)).length;
               return `<div class="cfg-branch">
                 <div class="cfg-row">
-                  <input type="text" class="cfg-b2-icon cfg-icono" data-si="${si}" data-bi="${bi}" value="${esc(b.icon)}" maxlength="4">
-                  <input type="text" class="cfg-b2-name" data-si="${si}" data-bi="${bi}" value="${esc(b.name)}">
+                  <input type="text" class="cfg-b2-icon cfg-icono" data-si="${si}" data-bi="${bi}" value="${esc(b.icon)}" maxlength="4"
+                    aria-label="Icono del pozo">
+                  <input type="text" class="cfg-b2-name" data-si="${si}" data-bi="${bi}" value="${esc(b.name)}" aria-label="Nombre del pozo">
                   <button class="cfg-del" data-delbranch="${si}:${bi}" title="Eliminar pozo">🗑️</button>
                 </div>
                 <textarea class="cfg-b2-desc" data-si="${si}" data-bi="${bi}" rows="2"
@@ -14613,6 +14671,55 @@ function countPlayable(si) {
 }
 
 /* ══════════ BANCO DE RETOS DE UN POZO ══════════ */
+/* ── Retos que preguntan lo mismo ──
+   Tras varias tandas sobre el mismo pozo a lo largo de meses se acumulan, y
+   hoy solo se descubren leyéndolos todos. Se detecta aquí, en local, sin IA y
+   sin coste.
+
+   Se compara por PALABRAS, no letra a letra: dos tandas distintas rara vez
+   escriben el mismo enunciado exacto, pero sí «¿Cuánto vale la cifra 4 en 347?»
+   y «En el número 347, ¿cuánto vale la cifra 4?». Y se compara dentro del pozo
+   entero, no dentro del estrato: el mismo reto en dos estratos es igual de
+   repetido.
+
+   No se borra nada ni se impide guardar: el que decide si dos retos sobran es
+   el docente. Esto solo se los pone delante. */
+function palabrasDeReto(q) {
+  return new Set(String((q && q.question) || '')
+    .toLowerCase().normalize('NFD').replace(/[\u0300-\u036f]/g, '')
+    .split(/[^a-z0-9]+/)
+    .filter(w => w.length > 2));
+}
+
+function parecidoDeRetos(a, b) {
+  const A = palabrasDeReto(a), B = palabrasDeReto(b);
+  if (!A.size || !B.size) return 0;
+  let comunes = 0;
+  for (const w of A) if (B.has(w)) comunes++;
+  return comunes / (A.size + B.size - comunes);   /* Jaccard */
+}
+
+/* Los pares que se parecen demasiado dentro de un pozo. 0,8 deja pasar dos
+   retos del mismo concepto con números distintos y caza los que solo cambian
+   el orden de las palabras. */
+const PARECIDO_TOPE = 0.8;
+function retosParecidos(branch) {
+  const todos = [];
+  for (const sId of STRATA_ORDER) {
+    ((branch.bank || {})[sId] || []).forEach((q, i) => {
+      if (q && String(q.question || '').trim()) todos.push({ q, estrato: sId, i });
+    });
+  }
+  const pares = [];
+  for (let a = 0; a < todos.length; a++) {
+    for (let b = a + 1; b < todos.length; b++) {
+      const p = parecidoDeRetos(todos[a].q, todos[b].q);
+      if (p >= PARECIDO_TOPE) pares.push({ uno: todos[a], otro: todos[b], parecido: p });
+    }
+  }
+  return pares;
+}
+
 function cfgBancoRetos(body) {
   const { siteId, branchId } = cfgEditBranch;
   const site = siteById(siteId);
@@ -14643,6 +14750,23 @@ function cfgBancoRetos(body) {
 
     <p class="cfg-hint">${meta.icon} <strong>${meta.label}</strong> · «${meta.name}» —
     ${bank.length ? `${bank.length} reto(s). Con 6 o más, el alumno no repetirá dentro de una misión.` : 'Sin retos todavía.'}</p>
+
+    ${(() => {
+      const pares = retosParecidos(branch);
+      if (!pares.length) return '';
+      return `<details class="cfg-inspector">
+        <summary>👯 ${pares.length} par(es) de retos que preguntan casi lo mismo</summary>
+        <p class="cfg-hint">Se comparan por palabras, dentro de todo el pozo. Míralos y borra el
+        que sobre: dos retos iguales miden lo mismo dos veces.</p>
+        <ul>${pares.map(x => `<li>
+          <strong>${esc(STRATA_META[x.uno.estrato].label)} nº ${x.uno.i + 1}</strong>
+          y <strong>${esc(STRATA_META[x.otro.estrato].label)} nº ${x.otro.i + 1}</strong>
+          (${Math.round(x.parecido * 100)} % iguales)<br>
+          <small>«${esc(String(x.uno.q.question).slice(0, 90))}»</small><br>
+          <small>«${esc(String(x.otro.q.question).slice(0, 90))}»</small>
+        </li>`).join('')}</ul>
+      </details>`;
+    })()}
 
     <div class="cfg-list" id="cfg-bank-list">
       ${bank.map((q, qi) => `
@@ -14934,8 +15058,9 @@ function cfgAlmacen(body) {
       ${list.map((it, i) => `
         <div class="cfg-card">
           <div class="cfg-row">
-            <input type="text" class="cfg-s-icon cfg-icono" data-i="${i}" value="${esc(it.icon)}" maxlength="4">
-            <input type="text" class="cfg-s-name" data-i="${i}" value="${esc(it.name)}">
+            <input type="text" class="cfg-s-icon cfg-icono" data-i="${i}" value="${esc(it.icon)}" maxlength="4"
+              aria-label="Icono del artículo">
+            <input type="text" class="cfg-s-name" data-i="${i}" value="${esc(it.name)}" aria-label="Nombre del artículo">
             <button class="cfg-del" data-delshop="${i}" title="Eliminar">🗑️</button>
           </div>
           <div class="cfg-row">
@@ -15845,7 +15970,8 @@ function cfgFondo(body) {
       ${ms.map((m, i) => `
         <div class="cfg-card">
           <div class="cfg-row">
-            <input type="text" class="cfg-f-icon cfg-icono" data-i="${i}" value="${esc(m.icon)}" maxlength="4">
+            <input type="text" class="cfg-f-icon cfg-icono" data-i="${i}" value="${esc(m.icon)}" maxlength="4"
+              aria-label="Icono del hito">
             <input type="text" class="cfg-f-name" data-i="${i}" value="${esc(m.name)}">
             <button class="cfg-del" data-delfund="${i}" title="Eliminar">🗑️</button>
           </div>

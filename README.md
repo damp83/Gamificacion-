@@ -86,6 +86,7 @@ Cubren lo que ya se ha roto alguna vez, que es de donde salieron:
 | `generador.test.js` | Que un reto escrito por IA con la cuenta mal marcada no llegue nunca a un niño |
 | `alta.test.js` | Que el panel no intente crear el diario del alumno —Appwrite no lo permite— y que vincularlo le ponga su clase y su docente |
 | `asistente-yacimientos.test.js` | Que la asistente proponga estructura y **nunca retos**, que lo que vuelve se limpie antes de tocar los ajustes, y que el inspector avise de lo que falla en silencio sin acusar a un yacimiento sano |
+| `auditoria-resto.test.js` | Que unos ajustes que no caben se paren antes de mandarlos, que ningún campo del panel se quede sin nombre accesible, y que los retos repetidos de un pozo salgan a la vista |
 | `robustez.test.js` | Que un diario a medias se complete en vez de reventar, que un equipo que no puede guardar lo diga, y que la economía no admita números imposibles |
 | `ids-unicos.test.js` | Que dos cosas creadas seguidas no nazcan con el mismo id, y que una configuración ya rota se repare al cargarla |
 | `avatar.test.js` | Que el retrato del rol sea el avatar en las cuatro pantallas, y que el sombrero comprado no lo borre |
@@ -485,6 +486,12 @@ pantalla.
 > guardaba ninguna, sin que la pantalla cambiara en nada. Ahora sale una barra
 > roja que lo dice y qué hacer, y se retira sola en cuanto vuelve a poder. En
 > clase dirigida esto importa el doble: ahí no hay nube que haga de red.
+
+> **Si los ajustes no caben, se dice antes de mandarlos.** El campo de la clase
+> admite 200 000 caracteres. Los retos con IA viven en su propia tabla y no
+> cuentan, pero los escritos a mano antes de configurarla se quedan dentro de
+> los ajustes. Ahora se mide antes de subir y el aviso dice cuánto ocupa,
+> cuántos retos lo llenan y qué hacer, en vez del error crudo de Appwrite.
 
 > **Los diarios viven en ese equipo.** En clase dirigida no hace falta Appwrite:
 > el equipo del docente guarda el diario de cada alumno y la vista general de la
@@ -1062,6 +1069,8 @@ Cada yacimiento lleva una línea plegada que dice **cuántas cosas hay que revis
 | Dos pozos con el mismo nombre | En el mapa el niño ve dos entradas idénticas |
 
 Un yacimiento sano no dice nada: un inspector que siempre encuentra algo se deja de leer.
+
+Dentro del banco de un pozo hay además un **detector de retos repetidos**. Compara por palabras y mira el pozo entero, no cada estrato por separado: dos tandas distintas rara vez repiten el enunciado exacto, pero sí la pregunta con las palabras cambiadas de orden —«¿Cuánto vale la cifra 4 en 347?» y «En el número 347, ¿cuánto vale la cifra 4?»—, y el mismo reto en dos estratos no se ve nunca porque están en pestañas distintas. No borra nada: te los pone delante y decides tú.
 
 ### De «esto se falla» a una tanda de retos
 

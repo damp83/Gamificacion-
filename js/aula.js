@@ -948,9 +948,10 @@ function paintClassView() {
   const enLista = d.enLista || 0;
   /* Antes, en modo local, este aviso sustituía al recuento: el docente añadía
      tres alumnos, veía una sola ficha y en ninguna parte se decía «1 de 3». */
-  /* «Han empezado» es haber abierto la app, no tener documento: desde que el
-     panel crea el diario al dar de alta la cuenta, las dos cosas dejaron de
-     coincidir y contar documentos daba de alta a niños que no han entrado. */
+  /* «Han empezado» es haber abierto la app, no tener documento. Las dos cosas
+     no coinciden: un diario puede existir sin estrenar —restaurado de una
+     copia, o creado y abandonado—, y contar documentos daba por empezados a
+     niños que no habían jugado nunca. */
   const empezados = typeof d.empezados === 'number' ? d.empezados : d.deLaLista;
   const recuento = `<p class="class-meta">${clase ? esc(clase) + ' · ' : ''}${
     enLista ? `<strong>${empezados} de ${enLista}</strong> de la lista han empezado su diario${

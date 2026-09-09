@@ -289,13 +289,15 @@ function cfgPremios(body) {
       ${list.map((b, i) => `
         <div class="cfg-card cfg-premio">
           <div class="cfg-row">
-            <input type="text" class="cfg-b-icon cfg-icono" data-i="${i}" value="${esc(b.icon)}" maxlength="4" title="Icono">
-            <input type="text" class="cfg-b-name" data-i="${i}" value="${esc(b.name)}" placeholder="Nombre">
+            <input type="text" class="cfg-b-icon cfg-icono" data-i="${i}" value="${esc(b.icon)}" maxlength="4"
+              aria-label="Icono del reconocimiento" title="Icono">
+            <input type="text" class="cfg-b-name" data-i="${i}" value="${esc(b.name)}" placeholder="Nombre"
+              aria-label="Nombre del reconocimiento">
           </div>
           <div class="cfg-row">
             <label>Doblones <input type="number" class="cfg-b-coins" data-i="${i}" value="${b.coins}" min="1" max="200"></label>
             <label>Tope/día <input type="number" class="cfg-b-cap" data-i="${i}" value="${b.perDay}" min="1" max="20"></label>
-            <select class="cfg-b-cat" data-i="${i}">
+            <select class="cfg-b-cat" data-i="${i}" aria-label="Tipo de reconocimiento">
               ${CATEGORIES.map(c => `<option value="${c.id}"${(b.category || 'comportamiento') === c.id ? ' selected' : ''}>${esc(c.label)}</option>`).join('')}
             </select>
             <button class="cfg-del" data-del="${i}" title="Eliminar">🗑️</button>
@@ -814,8 +816,9 @@ function cfgEquipos(body) {
       ${t.list.map((team, i) => `
         <div class="cfg-card">
           <div class="cfg-row">
-            <input type="text" class="cfg-t-icon cfg-icono" data-i="${i}" value="${esc(team.icon)}" maxlength="4">
-            <input type="text" class="cfg-t-name" data-i="${i}" value="${esc(team.name)}">
+            <input type="text" class="cfg-t-icon cfg-icono" data-i="${i}" value="${esc(team.icon)}" maxlength="4"
+              aria-label="Icono de la cuadrilla">
+            <input type="text" class="cfg-t-name" data-i="${i}" value="${esc(team.name)}" aria-label="Nombre de la cuadrilla">
             <button class="cfg-del" data-delteam="${i}" title="Eliminar">🗑️</button>
           </div>
           <label class="cfg-label">Miembros</label>
@@ -1234,8 +1237,9 @@ function propuestaDeYacimiento(body, a, site) {
       ${branchesOf(site).length} pozo(s).</p>` : `
       <div class="cfg-card">
         <div class="cfg-row">
-          <input type="text" class="cfg-icono" id="prop-icon" value="${esc(y.icon)}" maxlength="4">
-          <input type="text" id="prop-name" value="${esc(y.name)}">
+          <input type="text" class="cfg-icono" id="prop-icon" value="${esc(y.icon)}" maxlength="4"
+            aria-label="Icono del yacimiento propuesto">
+          <input type="text" id="prop-name" value="${esc(y.name)}" aria-label="Nombre del yacimiento propuesto">
         </div>
         <div class="cfg-row">
           <label>Materia <input type="text" id="prop-subject" value="${esc(y.subject)}"></label>
@@ -1247,8 +1251,9 @@ function propuestaDeYacimiento(body, a, site) {
       ${y.pozos.map((b, i) => `
         <div class="cfg-card">
           <div class="cfg-row">
-            <input type="text" class="cfg-icono prop-b-icon" data-i="${i}" value="${esc(b.icon)}" maxlength="4">
-            <input type="text" class="prop-b-name" data-i="${i}" value="${esc(b.name)}">
+            <input type="text" class="cfg-icono prop-b-icon" data-i="${i}" value="${esc(b.icon)}" maxlength="4"
+              aria-label="Icono del pozo propuesto">
+            <input type="text" class="prop-b-name" data-i="${i}" value="${esc(b.name)}" aria-label="Nombre del pozo propuesto">
             <button class="cfg-del" data-propdel="${i}" title="Quitar este pozo">🗑️</button>
           </div>
           <textarea class="prop-b-desc" data-i="${i}" rows="2">${esc(b.desc)}</textarea>
@@ -1370,8 +1375,9 @@ function cfgYacimientos(body) {
               ? 'Sus pozos no tienen retos en el primer estrato. Escribe uno en cualquiera de ellos.'
               : 'No tiene pozos. Añádele al menos uno y escríbele un reto.'}</p>` : ''}
           <div class="cfg-row">
-            <input type="text" class="cfg-si-icon cfg-icono" data-si="${si}" value="${esc(site.icon)}" maxlength="4">
-            <input type="text" class="cfg-si-name" data-si="${si}" value="${esc(site.name)}">
+            <input type="text" class="cfg-si-icon cfg-icono" data-si="${si}" value="${esc(site.icon)}" maxlength="4"
+              aria-label="Icono del yacimiento">
+            <input type="text" class="cfg-si-name" data-si="${si}" value="${esc(site.name)}" aria-label="Nombre del yacimiento">
             <button class="cfg-del" data-delsite="${si}" title="Eliminar yacimiento">🗑️</button>
           </div>
           <div class="cfg-row">
@@ -1398,8 +1404,9 @@ function cfgYacimientos(body) {
               const listos = STRATA_ORDER.filter(sId => stratumHasContent(b, sId)).length;
               return `<div class="cfg-branch">
                 <div class="cfg-row">
-                  <input type="text" class="cfg-b2-icon cfg-icono" data-si="${si}" data-bi="${bi}" value="${esc(b.icon)}" maxlength="4">
-                  <input type="text" class="cfg-b2-name" data-si="${si}" data-bi="${bi}" value="${esc(b.name)}">
+                  <input type="text" class="cfg-b2-icon cfg-icono" data-si="${si}" data-bi="${bi}" value="${esc(b.icon)}" maxlength="4"
+                    aria-label="Icono del pozo">
+                  <input type="text" class="cfg-b2-name" data-si="${si}" data-bi="${bi}" value="${esc(b.name)}" aria-label="Nombre del pozo">
                   <button class="cfg-del" data-delbranch="${si}:${bi}" title="Eliminar pozo">🗑️</button>
                 </div>
                 <textarea class="cfg-b2-desc" data-si="${si}" data-bi="${bi}" rows="2"
@@ -1558,6 +1565,55 @@ function countPlayable(si) {
 }
 
 /* ══════════ BANCO DE RETOS DE UN POZO ══════════ */
+/* ── Retos que preguntan lo mismo ──
+   Tras varias tandas sobre el mismo pozo a lo largo de meses se acumulan, y
+   hoy solo se descubren leyéndolos todos. Se detecta aquí, en local, sin IA y
+   sin coste.
+
+   Se compara por PALABRAS, no letra a letra: dos tandas distintas rara vez
+   escriben el mismo enunciado exacto, pero sí «¿Cuánto vale la cifra 4 en 347?»
+   y «En el número 347, ¿cuánto vale la cifra 4?». Y se compara dentro del pozo
+   entero, no dentro del estrato: el mismo reto en dos estratos es igual de
+   repetido.
+
+   No se borra nada ni se impide guardar: el que decide si dos retos sobran es
+   el docente. Esto solo se los pone delante. */
+function palabrasDeReto(q) {
+  return new Set(String((q && q.question) || '')
+    .toLowerCase().normalize('NFD').replace(/[\u0300-\u036f]/g, '')
+    .split(/[^a-z0-9]+/)
+    .filter(w => w.length > 2));
+}
+
+function parecidoDeRetos(a, b) {
+  const A = palabrasDeReto(a), B = palabrasDeReto(b);
+  if (!A.size || !B.size) return 0;
+  let comunes = 0;
+  for (const w of A) if (B.has(w)) comunes++;
+  return comunes / (A.size + B.size - comunes);   /* Jaccard */
+}
+
+/* Los pares que se parecen demasiado dentro de un pozo. 0,8 deja pasar dos
+   retos del mismo concepto con números distintos y caza los que solo cambian
+   el orden de las palabras. */
+const PARECIDO_TOPE = 0.8;
+function retosParecidos(branch) {
+  const todos = [];
+  for (const sId of STRATA_ORDER) {
+    ((branch.bank || {})[sId] || []).forEach((q, i) => {
+      if (q && String(q.question || '').trim()) todos.push({ q, estrato: sId, i });
+    });
+  }
+  const pares = [];
+  for (let a = 0; a < todos.length; a++) {
+    for (let b = a + 1; b < todos.length; b++) {
+      const p = parecidoDeRetos(todos[a].q, todos[b].q);
+      if (p >= PARECIDO_TOPE) pares.push({ uno: todos[a], otro: todos[b], parecido: p });
+    }
+  }
+  return pares;
+}
+
 function cfgBancoRetos(body) {
   const { siteId, branchId } = cfgEditBranch;
   const site = siteById(siteId);
@@ -1588,6 +1644,23 @@ function cfgBancoRetos(body) {
 
     <p class="cfg-hint">${meta.icon} <strong>${meta.label}</strong> · «${meta.name}» —
     ${bank.length ? `${bank.length} reto(s). Con 6 o más, el alumno no repetirá dentro de una misión.` : 'Sin retos todavía.'}</p>
+
+    ${(() => {
+      const pares = retosParecidos(branch);
+      if (!pares.length) return '';
+      return `<details class="cfg-inspector">
+        <summary>👯 ${pares.length} par(es) de retos que preguntan casi lo mismo</summary>
+        <p class="cfg-hint">Se comparan por palabras, dentro de todo el pozo. Míralos y borra el
+        que sobre: dos retos iguales miden lo mismo dos veces.</p>
+        <ul>${pares.map(x => `<li>
+          <strong>${esc(STRATA_META[x.uno.estrato].label)} nº ${x.uno.i + 1}</strong>
+          y <strong>${esc(STRATA_META[x.otro.estrato].label)} nº ${x.otro.i + 1}</strong>
+          (${Math.round(x.parecido * 100)} % iguales)<br>
+          <small>«${esc(String(x.uno.q.question).slice(0, 90))}»</small><br>
+          <small>«${esc(String(x.otro.q.question).slice(0, 90))}»</small>
+        </li>`).join('')}</ul>
+      </details>`;
+    })()}
 
     <div class="cfg-list" id="cfg-bank-list">
       ${bank.map((q, qi) => `
@@ -1879,8 +1952,9 @@ function cfgAlmacen(body) {
       ${list.map((it, i) => `
         <div class="cfg-card">
           <div class="cfg-row">
-            <input type="text" class="cfg-s-icon cfg-icono" data-i="${i}" value="${esc(it.icon)}" maxlength="4">
-            <input type="text" class="cfg-s-name" data-i="${i}" value="${esc(it.name)}">
+            <input type="text" class="cfg-s-icon cfg-icono" data-i="${i}" value="${esc(it.icon)}" maxlength="4"
+              aria-label="Icono del artículo">
+            <input type="text" class="cfg-s-name" data-i="${i}" value="${esc(it.name)}" aria-label="Nombre del artículo">
             <button class="cfg-del" data-delshop="${i}" title="Eliminar">🗑️</button>
           </div>
           <div class="cfg-row">
@@ -2790,7 +2864,8 @@ function cfgFondo(body) {
       ${ms.map((m, i) => `
         <div class="cfg-card">
           <div class="cfg-row">
-            <input type="text" class="cfg-f-icon cfg-icono" data-i="${i}" value="${esc(m.icon)}" maxlength="4">
+            <input type="text" class="cfg-f-icon cfg-icono" data-i="${i}" value="${esc(m.icon)}" maxlength="4"
+              aria-label="Icono del hito">
             <input type="text" class="cfg-f-name" data-i="${i}" value="${esc(m.name)}">
             <button class="cfg-del" data-delfund="${i}" title="Eliminar">🗑️</button>
           </div>

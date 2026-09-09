@@ -726,6 +726,14 @@ function diariosPorSubir(desde) {
 const BACKUP_MARCA = 'expedicion-atlas-copia';
 const BACKUP_VERSION = 1;
 
+/* ── Qué lleva la copia de seguridad ──
+   Lleva las contraseñas del alumnado A PROPÓSITO: son las de la hoja de
+   credenciales y, si se pierden, no hay forma de recuperarlas —Appwrite
+   guarda un resumen, no la contraseña—. Pero eso convierte el fichero en algo
+   que no se deja en cualquier sitio, y el panel lo dice al descargarla.
+
+   La clave de la API sí queda fuera (va en NO_SE_COMPARTE): esa se puede
+   volver a pegar en un minuto y su fuga cuesta dinero. */
 function exportBackup() {
   let propio = null;
   try {
@@ -877,10 +885,11 @@ function loadState() {
   return S;
 }
 /* ── Un diario que todavía no ha estrenado nadie ──
-   El panel lo crea al dar de alta la cuenta, para que nazca ya dentro de su
-   clase: en ese momento —y solo en ese— están juntas las tres cosas que hacen
-   falta (quién es el docente, cuál es la clase y qué cuenta se acaba de
-   crear). El alumno en su casa no sabe ninguna de las tres.
+   Lo usa la vista de clase para distinguir «tiene diario» de «ha jugado». El
+   panel ya NO crea diarios —Appwrite no deja repartir permisos que uno no
+   tiene, así que el diario lo crea el niño al entrar y el panel lo vincula
+   después—, pero un diario sin estrenar sigue apareciendo: restaurado de una
+   copia, o creado y abandonado.
 
    Se le quita la fecha del día. `defaultState` la pone a hoy porque da por
    hecho que quien crea el diario es quien va a jugar, y aquí no: dejarla

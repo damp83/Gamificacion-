@@ -2099,10 +2099,14 @@ body.large-text .branch-info strong, body.large-text .stratum-info strong { font
 
 /* Rango de cursos de un pozo, en el editor */
 .cfg-grades-row { gap: .3rem; }
+/* El chip de curso se toca con el dedo, de pie y en clase: medía 36×26 px y la
+   recomendación para dedos es 44×44. Se sube el alto sin ensancharlo de más,
+   que en el panel van seis en fila. */
 .grade-chip {
-  display: flex; align-items: center; gap: .25rem;
+  display: flex; align-items: center; justify-content: center; gap: .3rem;
   background: var(--parchment); border: 2px solid var(--parchment-dark);
-  border-radius: 999px; padding: .15rem .55rem; font-size: .78rem;
+  border-radius: 999px; padding: .5rem .7rem; font-size: .82rem;
+  min-height: 2.75rem;
   flex: 0 0 auto !important; min-width: 0 !important;
 }
 .grade-chip.on { background: #e8ecd8; border-color: var(--jungle); color: var(--ink); }
