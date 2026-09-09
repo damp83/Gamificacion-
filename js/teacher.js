@@ -2355,6 +2355,8 @@ const GUARD_FIELDS = [
    nota la sigue poniendo quien tiene que ponerla. */
 let criterioAbierto = null;      /* id del criterio con los conceptos abiertos */
 let tablaEvaluacion = null;      /* la última tabla calculada, para no rehacerla */
+let criteriosPropuestos = null;  /* lo que ha leído la IA del currículo, sin aceptar */
+let criteriosEstado = '';        /* qué está pasando con esa lectura */
 
 /* Los conceptos agrupados por área, con su etiqueta, para pintar las casillas.
    NO se llama `conceptosPorArea`: generador.js ya tiene una con ese nombre y
@@ -2371,9 +2373,116 @@ function conceptosAgrupados() {
   return areas;
 }
 
+/* Qué currículos hay pegados, por materia y curso: es de donde se leen los
+   criterios, y sin ninguno el botón no tiene nada que hacer. */
+function materiasDelCurriculo() {
+  const out = [];
+  const cur = ATLAS_CONFIG.curriculo || {};
+  for (const materia of Object.keys(cur)) {
+    const nombre = (AREAS_IA[materia] || {}).nombre || materia;
+    if (iaHayParaTodos(materia)) out.push({ clave: materia + '|', nombre, curso: '', materia, cursoNum: null });
+    for (const c of iaCursosConCurriculo(materia)) {
+      out.push({ clave: materia + '|' + c, nombre, curso: c + '.º', materia, cursoNum: +c });
+    }
+  }
+  return out;
+}
+
+async function leerCriteriosDelCurriculo() {
+  const sel = $('#cr-materia');
+  const elegido = materiasDelCurriculo().find(m => m.clave === (sel && sel.value));
+  if (!elegido) return;
+  const texto = iaCurriculo(elegido.materia, elegido.cursoNum || 'todos');
+  if (!texto.trim()) { criteriosEstado = '⚠️ Ese currículo está vacío.'; renderTeacherConfig(); return; }
+
+  criteriosEstado = '⏳ Leyendo el currículo… tarda, que se lo lee entero.';
+  criteriosPropuestos = null;
+  renderTeacherConfig();
+
+  const r = await cloudProponerCriterios({
+    materiaNombre: elegido.nombre,
+    cursos: elegido.cursoNum ? [elegido.cursoNum] : [1, 2, 3, 4, 5, 6],
+    curriculo: texto
+  });
+  if (!r.ok) {
+    criteriosEstado = '⚠️ ' + (r.texto || r.detail || r.reason || 'No se ha podido leer.');
+    renderTeacherConfig();
+    return;
+  }
+  /* Se marcan de partida los que la app SÍ mide: los que no, se dejan sin
+     marcar para que se vean y se decida, no para que se cuelen. */
+  criteriosPropuestos = r.criterios.map((c, i) => ({ ...c, marcado: c.conceptos.length > 0, n: i }));
+  criteriosEstado = `Leídos ${r.criterios.length} criterios. Revísalos antes de añadirlos.`;
+  renderTeacherConfig();
+}
+
+function pintarPropuestaDeCriterios() {
+  const caja = $('#cr-propuesta');
+  if (!caja) return;
+  if (!criteriosPropuestos) { caja.innerHTML = ''; return; }
+  const yaTengo = new Set((ATLAS_CONFIG.criterios || []).map(c => (c.texto || '').trim().toLowerCase()));
+  const marcados = criteriosPropuestos.filter(c => c.marcado).length;
+
+  caja.innerHTML = `
+    <div class="cr-propuesta">
+      <div class="cr-prop-cab"><strong>${criteriosPropuestos.length} criterios leídos</strong>
+        <span class="cfg-tag">${marcados} marcados</span></div>
+      ${criteriosPropuestos.map(c => {
+        const repe = yaTengo.has((c.texto || '').trim().toLowerCase());
+        return `<label class="cr-prop-fila${c.conceptos.length ? '' : ' cr-prop-sin'}">
+          <input type="checkbox" class="cr-prop-check" data-n="${c.n}"${c.marcado ? ' checked' : ''}${repe ? ' disabled' : ''}>
+          <div>
+            <strong>${esc(c.codigo || '(sin código)')}</strong> ${esc(c.texto)}
+            ${c.saberes.length ? `<small class="cr-saberes">Saberes: ${
+              c.saberes.map(x => esc(x)).join(' · ')}</small>` : ''}
+            <small class="cr-prop-conceptos">${c.conceptos.length
+              ? 'Lo mide con: ' + c.conceptos.map(x => esc(conceptoInfo(x).label)).join(', ')
+              : '⚠️ Ningún concepto de la app mide esto. Se puede añadir igual, pero saldrá vacío en la tabla.'}</small>
+            ${repe ? '<small class="cr-prop-conceptos">Ya lo tienes en tu lista.</small>' : ''}
+          </div>
+        </label>`;
+      }).join('')}
+      <div class="cfg-row cfg-row-actions">
+        <button class="btn btn-primary btn-small" id="cr-aceptar"${marcados ? '' : ' disabled'}>
+          ➕ Añadir ${marcados} a mis criterios</button>
+        <button class="btn btn-quit btn-small" id="cr-descartar">Descartar la propuesta</button>
+      </div>
+    </div>`;
+
+  $$('.cr-prop-check').forEach(el => el.addEventListener('change', e => {
+    const c = criteriosPropuestos.find(x => x.n === +e.target.dataset.n);
+    if (c) c.marcado = e.target.checked;
+    pintarPropuestaDeCriterios();
+  }));
+
+  $('#cr-descartar').addEventListener('click', () => {
+    criteriosPropuestos = null; criteriosEstado = '';
+    renderTeacherConfig();
+  });
+
+  $('#cr-aceptar').addEventListener('click', () => {
+    const l = deepClone(ATLAS_CONFIG.criterios || []);
+    const usados = l.map(x => x.id);
+    let n = 0;
+    for (const c of criteriosPropuestos.filter(x => x.marcado)) {
+      const base = (c.codigo || 'criterio').toLowerCase().replace(/[^a-z0-9]+/g, '-').replace(/^-|-$/g, '');
+      const id = idUnico(base || 'criterio', 'criterio', usados);
+      usados.push(id);
+      l.push({ id, codigo: c.codigo, texto: c.texto, saberes: c.saberes, conceptos: c.conceptos });
+      n++;
+    }
+    criteriosPropuestos = null;
+    criteriosEstado = '';
+    cfgSave('criterios', l, `${n} criterio(s) añadidos ✓`);
+  });
+}
+
 function cfgCriterios(body) {
   const criterios = ATLAS_CONFIG.criterios || [];
   const tri = ATLAS_CONFIG.course.trimesters || [];
+  /* Se cuenta una vez para toda la lista: recorrer el banco entero por cada
+     criterio serían ocho recorridos de lo mismo. */
+  const cuentaDeRetos = retosPorConcepto();
 
   body.innerHTML = `
     <p class="cfg-intro">Atlas <strong>no pone notas</strong>, y esto no las pone tampoco. Lo que
@@ -2384,6 +2493,22 @@ function cfgCriterios(body) {
 
     ${cfgNotice ? `<div class="cfg-warn" role="status">${cfgNotice}</div>` : ''}
 
+    <h4 class="cfg-h4">Sacarlos de tu currículo</h4>
+    <p class="cfg-hint">El currículo que pegaste en <strong>Retos con IA</strong> ya trae dentro tus
+    criterios y sus saberes básicos. Esto los lee y te los propone, con los conceptos de la app que
+    le corresponden a cada uno. <strong>Nada se guarda sin que lo revises</strong>: el criterio y los
+    saberes se copian literalmente del texto, y si un criterio no lo mide esta app, se dice.</p>
+    <div class="cfg-row">
+      <label>Materia <select id="cr-materia">${materiasDelCurriculo().map(m =>
+        `<option value="${esc(m.clave)}">${esc(m.nombre)}${m.curso ? ' · ' + esc(m.curso) : ''}</option>`).join('')}</select></label>
+      <button class="btn btn-secondary btn-small" id="cr-leer"${materiasDelCurriculo().length ? '' : ' disabled'}>
+        🤖 Leer el currículo y proponer</button>
+    </div>
+    ${materiasDelCurriculo().length ? '' :
+      '<p class="cfg-hint">Todavía no hay ningún currículo pegado. Se pega en <strong>Retos con IA</strong>.</p>'}
+    ${criteriosEstado ? `<p class="cfg-warn">${criteriosEstado}</p>` : ''}
+    <div id="cr-propuesta"></div>
+
     <h4 class="cfg-h4">Tus criterios <span class="cfg-tag">${criterios.length}</span></h4>
     <p class="cfg-hint">Escribe el código y el texto tal y como estén en tu programación, y marca
     qué conceptos de la app los trabajan. Se hace una vez por curso.</p>
@@ -2391,6 +2516,10 @@ function cfgCriterios(body) {
     <div class="cfg-list">
       ${criterios.length ? criterios.map((c, i) => {
         const n = (c.conceptos || []).length;
+        /* Cuántos retos hay en la clase de lo que este criterio mide. Marcar
+           conceptos y quedarse sin actividades de ellos da una tabla vacía que
+           se descubre en diciembre; esto lo dice en septiembre. */
+        const act = actividadesDeCriterio(c, cuentaDeRetos);
         return `<div class="cfg-card">
           <div class="cfg-row">
             <label>Código <input type="text" class="cr-codigo" data-i="${i}"
@@ -2399,12 +2528,18 @@ function cfgCriterios(body) {
           </div>
           <textarea class="cr-texto" data-i="${i}" rows="2"
             placeholder="Resuelve problemas de suma y resta en situaciones de la vida cotidiana…">${esc(c.texto || '')}</textarea>
+          ${(c.saberes || []).length ? `<small class="cr-saberes">Saberes: ${
+            (c.saberes || []).map(x => esc(x)).join(' · ')}</small>` : ''}
           <div class="cfg-row cfg-row-actions">
             <button class="btn btn-secondary btn-small cr-abrir" data-cr="${esc(c.id)}">
               ${criterioAbierto === c.id ? '▾' : '▸'} ${n} concepto(s) marcados</button>
-            ${n ? `<span class="cfg-tag">${esc((c.conceptos || []).slice(0, 3)
-              .map(x => conceptoInfo(x).label).join(', '))}${n > 3 ? `… y ${n - 3} más` : ''}</span>` : ''}
+            ${n ? `<span class="cfg-tag${act.total ? '' : ' cfg-tag-aviso'}">${act.total
+              ? `${act.total} reto(s) de esto en la clase`
+              : '⚠️ sin retos de esto todavía'}</span>` : ''}
           </div>
+          ${n && act.sin.length ? `<p class="cfg-hint">Sin ningún reto: ${
+            act.sin.map(x => esc(conceptoInfo(x).label)).join(', ')}. La tabla de evaluación no
+            podrá decir nada de esa parte hasta que los haya.</p>` : ''}
           ${criterioAbierto === c.id ? `<div class="cr-conceptos">${
             [...conceptosAgrupados().entries()].map(([area, lista]) => `
               <div class="cr-area"><strong>${esc(area)}</strong>
@@ -2485,6 +2620,10 @@ function cfgCriterios(body) {
     tablaEvaluacion = null;
     cfgSave('criterios', [], 'Lista vaciada ✓');
   });
+
+  const leer = $('#cr-leer');
+  if (leer) leer.addEventListener('click', () => leerCriteriosDelCurriculo());
+  pintarPropuestaDeCriterios();
 
   $('#cr-calcular').addEventListener('click', () => calcularTablaDeEvaluacion());
   if (tablaEvaluacion) pintarTablaDeEvaluacion();

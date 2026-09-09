@@ -138,6 +138,120 @@ test('un texto con punto y coma no rompe la columna', () => {
   assert.equal(campo('normal'), 'normal');
 });
 
+/* ── Leerlos del currículo ── */
+
+test('lo que devuelve el modelo se limpia antes de guardarse', () => {
+  const c = cargarApp();
+  const l = c.ev('limpiarCriterios')([
+    { codigo: 'CE.3.1', texto: '  Resuelve   problemas de suma. ',
+      saberes: ['Estrategias.', ''], conceptos: ['suma_llevada', 'inventado', 'suma_llevada'] },
+    { codigo: 'X', texto: '', saberes: [], conceptos: [] },
+    'basura'
+  ]);
+  assert.equal(l.length, 1, 'un criterio sin texto no es un criterio');
+  assert.equal(l[0].texto, 'Resuelve problemas de suma.');
+  assert.deepEqual(l[0].conceptos, ['suma_llevada'], 'ni inventados ni repetidos');
+  assert.deepEqual(l[0].saberes, ['Estrategias.']);
+});
+
+test('un concepto que no está en el catálogo se cae', () => {
+  /* Es lo que llega de fuera: si se colara, la tabla mediría algo que no
+     existe y saldría siempre vacía sin decir por qué. */
+  const c = cargarApp();
+  const l = c.ev('limpiarCriterios')([
+    { codigo: '1', texto: 'x', saberes: [], conceptos: ['<script>', 'resta_llevada'] }]);
+  assert.deepEqual(l[0].conceptos, ['resta_llevada']);
+});
+
+test('el prompt prohíbe reescribir el criterio y prohíbe inventar conceptos', () => {
+  /* Lo que va a la programación del centro tiene que ser lo que dice el
+     currículo, palabra por palabra. Y un emparejamiento forzado da una
+     evaluación de otra cosa. */
+  const g = leer('js/generador.js');
+  const i = g.indexOf('function promptCriterios');
+  const cuerpo = g.slice(i, g.indexOf('\n}\n', i));
+  assert.match(cuerpo, /COPIADO LITERALMENTE/);
+  assert.match(cuerpo, /NO inventes criterios/);
+  assert.match(cuerpo, /Y DE NINGUNA OTRA/);
+  assert.match(cuerpo, /devuelve la lista VACÍA/);
+});
+
+test('el esquema pide los saberes junto a cada criterio', () => {
+  const c = cargarApp();
+  const e = c.ev('esquemaCriterios()');
+  const props = e.properties.criterios.items;
+  assert.deepEqual(props.required.sort(), ['codigo', 'conceptos', 'saberes', 'texto']);
+  assert.equal(props.additionalProperties, false);
+  /* El esquema de salida no admite límites de tamaño: se rechaza la petición
+     entera con un 400 antes de escribir nada. */
+  const texto = JSON.stringify(e);
+  assert.ok(!/minItems|maxItems|minLength|maxLength|minimum|maximum/.test(texto));
+});
+
+test('la función reparte el encargo por su paso, y el validador es el mismo', () => {
+  const main = leer('functions/generador/src/main.js');
+  assert.match(main, /paso === 'criterios'/);
+  assert.match(main, /limpiarCriterios/);
+  /* La copia del validador que corre en el servidor no puede quedarse vieja:
+     si se separan, uno acepta lo que el otro rechaza. */
+  const copia = leer('functions/generador/src/generador.js');
+  assert.match(copia, /function limpiarCriterios/);
+  assert.match(copia, /function promptCriterios/);
+});
+
+test('sin currículo pegado no se llama a la API', () => {
+  const main = leer('functions/generador/src/main.js');
+  const i = main.indexOf("paso === 'criterios'");
+  const cuerpo = main.slice(i, main.indexOf('Tercer encargo', i));
+  assert.match(cuerpo, /reason: 'sin-curriculo'/);
+  assert.match(cuerpo, /reason: 'sin-clave'/, 'ni sin clave de API');
+  assert.ok(cuerpo.indexOf('sin-curriculo') < cuerpo.indexOf('messages.create'),
+    'se comprueba antes de gastar la cuenta');
+});
+
+/* ── Las actividades de cada criterio ── */
+
+test('dice cuántos retos hay de lo que mide un criterio', () => {
+  /* Marcar conceptos y quedarse sin actividades da una tabla vacía que se
+     descubre en diciembre. */
+  const c = cargarApp();
+  const l = c.ev('deepClone')(c.ev('ATLAS_CONFIG.sites'));
+  const br = l[0].branches[0];
+  br.bank = { recordar: [
+    { question: 'a', options: ['1', '2', '3', '4'], answer: 0, skill: 'suma_llevada' },
+    { question: 'b', options: ['1', '2', '3', '4'], answer: 0, skill: 'suma_llevada' }] };
+  c.ev('setTeacherConfig')('sites', l);
+  const cuenta = c.ev('retosPorConcepto()');
+  assert.equal(cuenta.suma_llevada, 2);
+  const act = c.ev('actividadesDeCriterio')(CRITERIOS[0], cuenta);
+  assert.equal(act.total, 2);
+  assert.deepEqual(act.sin, ['resta_llevada'], 'y dice de cuál no hay ninguno');
+});
+
+test('un criterio sin ningún reto se avisa en su ficha', () => {
+  const t = leer('js/teacher.js');
+  assert.match(t, /sin retos de esto todavía/);
+  assert.match(t, /La tabla de evaluación no[\s\S]{0,20}podrá decir nada de esa parte/);
+});
+
+test('un criterio que la app no mide se propone sin marcar', () => {
+  /* Se puede añadir igual —está en su programación— pero no se cuela solo. */
+  const t = leer('js/teacher.js');
+  const i = t.indexOf('async function leerCriteriosDelCurriculo');
+  const cuerpo = t.slice(i, t.indexOf('\n}\n', i));
+  assert.match(cuerpo, /marcado: c\.conceptos\.length > 0/);
+});
+
+test('nada se guarda sin revisarlo', () => {
+  const t = leer('js/teacher.js');
+  const i = t.indexOf('function pintarPropuestaDeCriterios');
+  const cuerpo = t.slice(i, t.indexOf('\n}\n', i));
+  assert.match(cuerpo, /cr-aceptar/, 'hace falta aceptar');
+  assert.match(cuerpo, /cr-descartar/);
+  assert.ok(!/setTeacherConfig\('criterios'/.test(cuerpo.slice(0, cuerpo.indexOf('cr-aceptar'))),
+    'no se escribe nada al pintarla');
+});
+
 /* ── La frontera que no se cruza ── */
 
 test('los criterios no viajan a las tablets del alumnado', () => {

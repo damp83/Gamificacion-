@@ -325,6 +325,42 @@ async function cloudProponerYacimiento(peticion) {
   return { ok: true, yacimiento: r.yacimiento, usados: r.usados };
 }
 
+/* ── Leer el currículo y sacar sus criterios ──
+   Una sola llamada, como el yacimiento: lo que vuelve es texto copiado del
+   propio currículo del docente y una lista de conceptos del catálogo, así que
+   se revisa entero en pantalla y no hace falta cola de aprobación. */
+async function cloudProponerCriterios(peticion) {
+  if (!CLOUD.enabled) return { ok: false, reason: 'sin-nube', texto: 'No hay conexión con Appwrite.' };
+  if (!CLOUD.functions) {
+    return { ok: false, reason: 'sdk-viejo',
+      texto: 'El SDK de Appwrite que ha cargado no trae Functions. Recarga forzando la página.' };
+  }
+  if (!CLOUD.user) {
+    return { ok: false, reason: 'sin-sesion',
+      texto: 'Entra con tu cuenta de docente en «Mis clases» antes de pedir una propuesta.' };
+  }
+  const id = (ATLAS_CONFIG.appwrite.generadorFunctionId || '').trim();
+  if (!id) {
+    return { ok: false, reason: 'sin-funcion',
+      texto: 'Falta el ID de la función en Acceso y nube. Está en Appwrite → Functions.' };
+  }
+  const r = await ejecutarConReintento(id, {
+    paso: 'criterios',
+    materiaNombre: peticion.materiaNombre,
+    cursos: peticion.cursos,
+    curriculo: peticion.curriculo,
+    clave: ATLAS_CONFIG.iaClave || '',
+    workspace: ATLAS_CONFIG.iaWorkspace || ''
+  });
+  if (!r.ok) return r;
+  if (!Array.isArray(r.criterios) || !r.criterios.length) {
+    return { ok: false, reason: 'vacio',
+      texto: 'No se ha leído ningún criterio. ¿Seguro que el texto pegado trae los criterios de '
+           + 'evaluación y no solo los contenidos?' };
+  }
+  return { ok: true, criterios: r.criterios, usados: r.usados };
+}
+
 /* ══════════ LA TABLA DE RETOS ══════════
 
    Una fila por reto, en dos estados: `cola` (escrito, sin revisar) y `banco`

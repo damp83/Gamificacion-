@@ -449,6 +449,119 @@ function promptYacimiento(p) {
   return { sistema, usuario };
 }
 
+/* ══════════ LOS CRITERIOS, LEÍDOS DEL CURRÍCULO ══════════
+
+   El docente ya tiene su currículo pegado en el panel —lo usa el generador de
+   retos— y ahí dentro están, literalmente, sus criterios de evaluación y sus
+   saberes básicos. Escribirlos otra vez a mano, uno a uno, y encima marcar qué
+   conceptos de la app trabaja cada uno, es media tarde de copiar y pegar.
+
+   Esto lo lee y lo propone. Tres cosas que NO hace, y que son las que hacen que
+   la propuesta se pueda revisar deprisa:
+
+   · No reescribe. El criterio y los saberes se copian literalmente del texto,
+     porque lo que va a la programación del centro tiene que ser lo que dice el
+     currículo, no una paráfrasis nuestra.
+   · No inventa criterios que no estén en el texto.
+   · No inventa conceptos: solo puede marcar los del catálogo de la app, y si
+     ninguno encaja lo deja vacío. Un criterio sin conceptos es un criterio que
+     esta app no mide, y saberlo vale más que un emparejamiento forzado. */
+function esquemaCriterios() {
+  return {
+    type: 'object',
+    additionalProperties: false,
+    required: ['criterios'],
+    properties: {
+      criterios: {
+        type: 'array',
+        items: {
+          type: 'object',
+          additionalProperties: false,
+          required: ['codigo', 'texto', 'saberes', 'conceptos'],
+          properties: {
+            codigo: { type: 'string' },
+            texto: { type: 'string' },
+            saberes: { type: 'array', items: { type: 'string' } },
+            conceptos: { type: 'array', items: { type: 'string' } }
+          }
+        }
+      }
+    }
+  };
+}
+
+function promptCriterios(p) {
+  const nombreMateria = String(p.materiaNombre || '').trim() || 'esta materia';
+  const cursos = (Array.isArray(p.cursos) && p.cursos.length ? p.cursos : [3, 4])
+    .map(Number).filter(n => n >= 1 && n <= 6).sort((a, b) => a - b);
+  /* El catálogo entero, no solo el de una materia: un currículo de Lengua puede
+     traer criterios de comprensión y de ortografía a la vez, y limitar la lista
+     por materia obligaría a adivinar cuál es antes de leer nada. */
+  const catalogo = Object.keys(CONCEPTOS)
+    .map(id => '  ' + id + ' — ' + CONCEPTOS[id].area + ': ' + CONCEPTOS[id].label).join('\n');
+
+  const sistema = [
+    'Lees el currículo de un curso de Primaria en España y devuelves sus CRITERIOS DE',
+    'EVALUACIÓN, cada uno con los SABERES BÁSICOS que trabaja y con los conceptos de',
+    'una plataforma educativa que le corresponden.',
+    '',
+    'Reglas que no se negocian:',
+    '1. `texto` es el criterio COPIADO LITERALMENTE del currículo. No lo reescribas, no',
+    '   lo resumas y no lo mejores: lo que el docente lleva a su programación tiene que',
+    '   ser lo que dice el currículo, palabra por palabra.',
+    '2. `saberes` son los fragmentos de saberes básicos que ese criterio trabaja, también',
+    '   copiados literalmente. Si el texto no los distingue, deja la lista vacía.',
+    '3. `codigo` es el que traiga el currículo («1.2», «CE.2.3», «MAT.2.1»). Si no viene',
+    '   numerado, deja la cadena vacía: inventar una numeración que el centro no usa hace',
+    '   que la tabla de evaluación no case con nada.',
+    '4. NO inventes criterios. Si en el texto hay cinco, devuelve cinco.',
+    '5. `conceptos` se eligen de la lista de abajo Y DE NINGUNA OTRA. Si ningún concepto',
+    '   de la lista trabaja ese criterio, devuelve la lista VACÍA. Un criterio sin',
+    '   conceptos es un criterio que la plataforma no mide, y el docente necesita saberlo:',
+    '   forzar un emparejamiento parecido le daría una evaluación de otra cosa.',
+    '',
+    'Conceptos de la plataforma:',
+    catalogo
+  ].join('\n');
+
+  const usuario = [
+    'Materia: ' + nombreMateria + '. Cursos: ' + cursos.map(c => c + '.º').join(', ') + '.',
+    '',
+    'Currículo:',
+    '<curriculo>',
+    textoLimpio(p.curriculo, 20000),
+    '</curriculo>',
+    '',
+    'Devuelve todos los criterios de evaluación que haya en ese texto.'
+  ].join('\n');
+
+  return { sistema, usuario };
+}
+
+/* Lo que devuelve el modelo no entra en los ajustes tal cual. Aquí se cae todo
+   lo que no cuadre: un concepto que no existe, un criterio sin texto, una lista
+   de saberes interminable. */
+const CRITERIO_MAX_TEXTO = 600;
+const CRITERIO_MAX_SABERES = 8;
+
+function limpiarCriterios(lista) {
+  const texto = (v, max) => String(v == null ? '' : v).trim().replace(/\s+/g, ' ').slice(0, max);
+  return (Array.isArray(lista) ? lista : []).map(c => {
+    if (!c || typeof c !== 'object') return null;
+    const t = texto(c.texto, CRITERIO_MAX_TEXTO);
+    if (!t) return null;
+    const conceptos = Array.from(new Set((Array.isArray(c.conceptos) ? c.conceptos : [])
+      .map(x => texto(x, 60)).filter(x => !!CONCEPTOS[x])));
+    return {
+      codigo: texto(c.codigo, 24),
+      texto: t,
+      saberes: (Array.isArray(c.saberes) ? c.saberes : [])
+        .map(x => texto(x, CRITERIO_MAX_TEXTO)).filter(Boolean).slice(0, CRITERIO_MAX_SABERES),
+      conceptos
+    };
+  }).filter(Boolean);
+}
+
 /* Lo que llega de la API no se mete en los ajustes tal cual: un icono de tres
    emojis, un curso 9 o un pozo sin nombre pasarían al panel y de ahí al mapa
    de un niño. Se limpia aquí, que es el sitio por el que pasa todo. */
@@ -565,5 +678,8 @@ export {
   limpiarYacimiento,
   promptVerificacion,
   esquemaVerificacion,
-  cruzarVerificacion
+  cruzarVerificacion,
+  esquemaCriterios,
+  promptCriterios,
+  limpiarCriterios
 };

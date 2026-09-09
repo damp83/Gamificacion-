@@ -2283,6 +2283,25 @@ input[type="checkbox"]::after, input[type="radio"]::after {
 .cr-casillas { display: grid; gap: .2rem .8rem; grid-template-columns: repeat(auto-fit, minmax(13rem, 1fr)); margin-top: .3rem; }
 .cr-casilla { display: flex; align-items: center; gap: .4rem; font-size: var(--t-sm); min-height: 32px; }
 
+.cr-saberes { display: block; margin: .3rem 0; font-size: var(--t-xs); color: var(--ink-soft); }
+.cfg-tag-aviso { background: var(--brass-tint); color: var(--brass); }
+
+/* La propuesta que lee la IA del currículo: se revisa entera antes de guardar
+   nada, así que se lee como una lista de casillas, no como un formulario. */
+.cr-propuesta {
+  margin: .6rem 0 1rem; padding: .7rem .8rem;
+  background: var(--paper-deep); border: var(--line); border-radius: var(--r-md);
+}
+.cr-prop-cab { display: flex; align-items: center; gap: .5rem; margin-bottom: .5rem; font-size: var(--t-sm); }
+.cr-prop-fila {
+  display: flex; gap: .6rem; align-items: flex-start;
+  padding: .5rem .6rem; margin-bottom: .35rem;
+  background: var(--surface); border-radius: var(--r-sm); font-size: var(--t-sm);
+}
+.cr-prop-fila input { margin-top: .25rem; flex-shrink: 0; }
+.cr-prop-sin { box-shadow: inset 3px 0 0 var(--brass); }
+.cr-prop-conceptos { display: block; margin-top: .25rem; font-size: var(--t-xs); color: var(--ink-soft); }
+
 .cr-tabla-caja { overflow-x: auto; margin: .6rem 0; border: var(--line); border-radius: var(--r-md); }
 .cr-tabla { border-collapse: collapse; width: 100%; font-size: var(--t-sm); background: var(--surface); }
 .cr-tabla th, .cr-tabla td { padding: .4rem .6rem; border-bottom: 1px solid var(--paper-deep); text-align: left; }

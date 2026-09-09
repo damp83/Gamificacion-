@@ -23,6 +23,7 @@ EXPORTA = [
     'comprobarAritmetica', 'promptGenerador', 'esquemaRetos',
     'esquemaYacimiento', 'promptYacimiento', 'limpiarYacimiento',
     'promptVerificacion', 'esquemaVerificacion', 'cruzarVerificacion',
+    'esquemaCriterios', 'promptCriterios', 'limpiarCriterios',
 ]
 
 CABECERA = ('/* GENERADO por tools/sync-generador.py — no editar a mano.\n'

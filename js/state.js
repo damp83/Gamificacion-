@@ -1670,6 +1670,38 @@ function nombreCorto(nombre) {
   return `${partes[0]} ${iniciales}`;
 }
 
+/* ── Cuántas actividades hay de cada criterio ──
+   Marcar los conceptos de un criterio no sirve de nada si en el banco no hay
+   ni un reto de ellos: la tabla saldría vacía y el docente lo descubriría en
+   diciembre. Esto lo dice antes: cuántos retos hay para lo que ese criterio
+   mide, contando el banco escrito a mano y el de la tabla de retos. */
+function retosPorConcepto() {
+  const cuenta = {};
+  const suma = r => {
+    const id = r && r.skill;
+    if (id) cuenta[id] = (cuenta[id] || 0) + 1;
+  };
+  for (const site of (ATLAS_CONFIG.sites || [])) {
+    for (const b of (site.branches || [])) {
+      for (const est of Object.keys(b.bank || {})) for (const r of (b.bank[est] || [])) suma(r);
+    }
+  }
+  if (typeof retosDelBanco === 'function') for (const r of retosDelBanco()) suma(r);
+  return cuenta;
+}
+
+function actividadesDeCriterio(criterio, cuenta) {
+  const c = cuenta || retosPorConcepto();
+  let total = 0;
+  const sin = [];
+  for (const id of ((criterio && criterio.conceptos) || [])) {
+    const n = c[id] || 0;
+    total += n;
+    if (!n) sin.push(id);
+  }
+  return { total, sin };
+}
+
 /* ══════════ LA EVIDENCIA POR CRITERIO ══════════
 
    Atlas no pone notas, y eso no cambia: el niño no ve ninguna, la familia

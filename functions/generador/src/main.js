@@ -36,7 +36,8 @@ import Anthropic from '@anthropic-ai/sdk';
 import {
   validarTanda, promptGenerador, esquemaRetos,
   promptVerificacion, esquemaVerificacion, cruzarVerificacion,
-  promptYacimiento, esquemaYacimiento, limpiarYacimiento
+  promptYacimiento, esquemaYacimiento, limpiarYacimiento,
+  promptCriterios, esquemaCriterios, limpiarCriterios
 } from './generador.js';
 
 const MODELO = 'claude-opus-5';
@@ -57,7 +58,7 @@ export default async ({ req, res, log, error }) => {
   try { p = typeof req.body === 'string' ? JSON.parse(req.body || '{}') : (req.body || {}); }
   catch (e) { return res.json({ ok: false, reason: 'peticion', texto: 'La petición no se entiende.' }, 400); }
 
-  const paso = ['verificar', 'yacimiento'].includes(p.paso) ? p.paso : 'generar';
+  const paso = ['verificar', 'yacimiento', 'criterios'].includes(p.paso) ? p.paso : 'generar';
 
   /* ── Segundo encargo: resolverlos otra vez ──
      No necesita currículo ni esfuerzo alto: es resolver ejercicios de
@@ -93,6 +94,56 @@ export default async ({ req, res, log, error }) => {
       return res.json({ ok: true, retos: cruce.buenos, descartados: cruce.descartados, usados: uso(chk) });
     } catch (e) {
       return falloApi(res, error, e, clave2);
+    }
+  }
+
+  /* ── Cuarto encargo: leer el currículo y sacar sus criterios ──
+     No escribe nada que vaya a jugar un niño: devuelve texto copiado del
+     propio currículo del docente y una lista de conceptos del catálogo. Por
+     eso puede revisarse de una tirada en pantalla, como el yacimiento, en vez
+     de pasar por una cola de aprobación uno a uno. */
+  if (paso === 'criterios') {
+    const texto = String(p.curriculo || '').trim();
+    if (texto.length < 200) {
+      return res.json({ ok: false, reason: 'sin-curriculo',
+        texto: 'Pega el currículo de esa materia y ese curso en «Retos con IA». Con menos de '
+             + '200 caracteres no hay criterios que leer, y el modelo se los inventaría.' }, 400);
+    }
+    if (texto.length > CURRICULO_MAX) {
+      return res.json({ ok: false, reason: 'curriculo-largo',
+        texto: `El currículo pasa de ${CURRICULO_MAX} caracteres. Manda solo el área y el ciclo que toca.` }, 400);
+    }
+    const clave4 = (typeof p.clave === 'string' && p.clave.trim()) || process.env.ANTHROPIC_API_KEY;
+    if (!clave4) {
+      return res.json({ ok: false, reason: 'sin-clave',
+        texto: 'No hay clave de API. Pon la tuya en Configuración → Retos con IA.' }, 400);
+    }
+    const esp4 = (typeof p.workspace === 'string' && p.workspace.trim())
+      || process.env.ANTHROPIC_WORKSPACE_ID || '';
+    const cli4 = new Anthropic(esp4
+      ? { apiKey: clave4, defaultHeaders: { 'anthropic-workspace-id': esp4 } }
+      : { apiKey: clave4 });
+    try {
+      const enc4 = promptCriterios(p);
+      const c = await cli4.messages.create({
+        model: MODELO,
+        max_tokens: 16000,
+        thinking: { type: 'adaptive' },
+        /* El catálogo de conceptos es idéntico en cada llamada y ocupa lo suyo:
+           se cachea, igual que en el paso del yacimiento. */
+        system: [{ type: 'text', text: enc4.sistema, cache_control: { type: 'ephemeral' } }],
+        output_config: { effort: 'medium', format: { type: 'json_schema', schema: esquemaCriterios() } },
+        messages: [{ role: 'user', content: enc4.usuario }]
+      });
+      if (c.stop_reason === 'refusal') {
+        return res.json({ ok: false, reason: 'rechazado',
+          texto: 'El modelo ha rechazado la petición. Revisa el currículo pegado.' }, 400);
+      }
+      const criterios = limpiarCriterios(leerJson(c).criterios || []);
+      log(`criterios leídos del currículo: ${criterios.length}`);
+      return res.json({ ok: true, criterios, usados: uso(c) });
+    } catch (e) {
+      return falloApi(res, error, e, clave4);
     }
   }
 

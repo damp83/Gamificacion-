@@ -596,7 +596,7 @@ test('la comprobación es otra llamada, y en tandas', () => {
   assert.match(cloud, /paso: 'verificar'/);
   assert.match(cloud, /i \+= 4/, 'se parte por si el docente pidió muchos');
   const main = leer('functions/generador/src/main.js');
-  assert.match(main, /const paso = \['verificar', 'yacimiento'\]\.includes\(p\.paso\)/,
+  assert.match(main, /const paso = \['verificar', 'yacimiento', 'criterios'\]\.includes\(p\.paso\)/,
     'la función reparte los encargos por «paso»');
 });
 

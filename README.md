@@ -972,7 +972,36 @@ en vez de traduciendo veinticuatro informes a mano.
 
 **Configuración → 📋 Evaluación por criterios.** Escribes el código y el texto
 tal y como estén en tu programación y marcas qué conceptos de la app los
-trabajan. Se hace una vez por curso. Después, **Calcular la tabla** da una fila
+trabajan. Se hace una vez por curso.
+
+### O se los saca la IA a tu currículo
+
+El currículo que pegaste en **Retos con IA** ya trae dentro tus criterios de
+evaluación y sus saberes básicos. **🤖 Leer el currículo y proponer** los lee y
+te los devuelve con los conceptos de la app que le corresponden a cada uno.
+
+Tres reglas que hacen que la propuesta se revise deprisa:
+
+- **No reescribe.** El criterio y los saberes se copian *literalmente* del
+  texto. Lo que llevas a la programación del centro tiene que ser lo que dice el
+  currículo, palabra por palabra, no una paráfrasis nuestra.
+- **No inventa criterios** que no estén en el texto, ni códigos que tu centro no
+  use: si el currículo no viene numerado, el código se queda vacío.
+- **No inventa conceptos.** Solo puede marcar los del catálogo, y si ninguno
+  encaja deja la lista vacía. Ese criterio llega **sin marcar** y lo dice: *«ningún
+  concepto de la app mide esto»*. Puedes añadirlo igual —está en tu
+  programación— pero saldrá vacío en la tabla, y eso es información, no un fallo.
+
+Nada se guarda sin que lo revises: la propuesta es una lista de casillas y hay
+que aceptarla.
+
+### Y si un criterio no tiene actividades, se dice
+
+Cada criterio de tu lista muestra **cuántos retos hay en la clase** de lo que
+mide, contando el banco escrito a mano y la tabla de retos. Si alguno de sus
+conceptos no tiene ni uno, sale el aviso con cuál: la tabla de evaluación no
+podrá decir nada de esa parte hasta que los haya. Es la diferencia entre
+enterarse en septiembre y enterarse en diciembre. Después, **Calcular la tabla** da una fila
 por alumno y una columna por criterio, acotada al trimestre que elijas.
 
 Cada celda lleva tres cosas, y las tres importan:
