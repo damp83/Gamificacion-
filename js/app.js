@@ -448,31 +448,6 @@ function wireGlobalListeners() {
     applyTextSize();
   });
 
-  /* Panel del docente (PIN de aula) */
-  $('#btn-teacher-panel').addEventListener('click', () => {
-    if (teacherUnlocked) { renderAwardList(); showTeacherPanel(); return; }
-    $('#teacher-locked').classList.remove('hidden');
-    $('#btn-teacher-panel').classList.add('hidden');
-    $('#pin-input').focus();
-  });
-  $('#pin-form').addEventListener('submit', e => {
-    e.preventDefault();
-    if ($('#pin-input').value === String(ATLAS_CONFIG.teacherPin)) {
-      teacherUnlocked = true;
-      $('#pin-error').classList.add('hidden');
-      $('#pin-input').value = '';
-      renderAwardList();
-      showTeacherPanel();
-    } else {
-      $('#pin-error').classList.remove('hidden');
-      $('#pin-input').value = '';
-    }
-  });
-  $('#btn-close-panel').addEventListener('click', () => {
-    $('#teacher-award').classList.add('hidden');
-    $('#btn-teacher-panel').classList.remove('hidden');
-  });
-
   $('#home-student').addEventListener('click', startStudentPath);
   $('#home-teacher').addEventListener('click', async () => {
     if (!teacherUnlocked && !(await askPin())) return;
@@ -482,7 +457,11 @@ function wireGlobalListeners() {
   $('#teacher-go-aula').addEventListener('click', () => { aulaAlumno = null; teacherScreen('aula'); });
   $('#teacher-go-class').addEventListener('click', () => { classData = null; teacherScreen('class'); });
   $('#teacher-go-config').addEventListener('click', () => { cfgSection = CFG_INICIO; teacherScreen('config'); });
-  $('#teacher-exit').addEventListener('click', showHome);
+  /* Salir del portal lo vuelve a cerrar con llave. El PIN valía para toda la
+     sesión, así que un docente que salía y le pasaba la tablet a un niño se la
+     pasaba con el portal abierto: la lista de clase y las contraseñas de sus
+     compañeros a un toque. Volver a teclear cuatro cifras cuesta menos. */
+  $('#teacher-exit').addEventListener('click', () => { teacherUnlocked = false; showHome(); });
 
   $('#class-sort').addEventListener('change', e => { classSort = e.target.value; paintClassView(); });
   $('#class-reload').addEventListener('click', () => { classData = null; renderClassView(); });

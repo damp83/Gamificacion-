@@ -871,22 +871,14 @@
         <h3>Diario de méritos</h3>
         <div id="merits-history" class="merits-history"></div>
 
-        <div class="teacher-gate">
-          <button id="btn-teacher-panel" class="btn btn-secondary">🧔🏻‍♂️ Panel del docente</button>
-          <div id="teacher-locked" class="hidden">
-            <p class="teacher-hint">Introduce el PIN para conceder méritos.</p>
-            <form id="pin-form">
-              <input type="password" id="pin-input" inputmode="numeric" placeholder="PIN" autocomplete="off">
-              <button type="submit" class="btn btn-secondary btn-small">Abrir</button>
-            </form>
-            <p id="pin-error" class="auth-error hidden">PIN incorrecto.</p>
-          </div>
-          <div id="teacher-award" class="hidden">
-            <p class="teacher-hint">Toca un mérito para concederlo. Los topes diarios evitan la inflación.</p>
-            <div id="award-list" class="award-list"></div>
-            <button id="btn-close-panel" class="btn btn-quit">Cerrar panel</button>
-          </div>
-        </div>
+        <!-- Aquí había un portillo con el PIN para que el docente concediera
+             méritos desde la pantalla del propio niño. Se ha quitado: el PIN
+             es una barrera de aula, no seguridad —el código se ejecuta en su
+             tablet— y un niño que lo veía escribir podía concederse méritos a
+             sí mismo. Peor: abrirlo aquí dejaba abierto también el portal del
+             docente, con la lista de clase y las contraseñas de sus compañeros.
+             Los méritos se conceden desde «Dirigir la clase», en el equipo del
+             docente, que además los da a una cuadrilla o a la clase entera. -->
       </section>
 
       <!-- ══════════ CUADRILLA ══════════ -->

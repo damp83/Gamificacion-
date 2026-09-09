@@ -1318,8 +1318,6 @@ body.en-mision #main { padding-bottom: var(--s-5); }
 }
 
 /* Panel del docente (méritos) */
-.teacher-gate { margin-top: var(--s-6); padding-top: var(--s-5); border-top: var(--line); }
-.teacher-hint { font-size: var(--t-sm); color: var(--ink-soft); margin-bottom: var(--s-3); }
 #pin-form { display: flex; gap: .5rem; }
 #pin-input {
   flex: 1; max-width: 150px; padding: .55rem .8rem; font-size: var(--t-base);
@@ -3764,22 +3762,14 @@ body.en-consulta #shop-list button { display: none !important; }
         <h3>Diario de méritos</h3>
         <div id="merits-history" class="merits-history"></div>
 
-        <div class="teacher-gate">
-          <button id="btn-teacher-panel" class="btn btn-secondary">🧔🏻‍♂️ Panel del docente</button>
-          <div id="teacher-locked" class="hidden">
-            <p class="teacher-hint">Introduce el PIN para conceder méritos.</p>
-            <form id="pin-form">
-              <input type="password" id="pin-input" inputmode="numeric" placeholder="PIN" autocomplete="off">
-              <button type="submit" class="btn btn-secondary btn-small">Abrir</button>
-            </form>
-            <p id="pin-error" class="auth-error hidden">PIN incorrecto.</p>
-          </div>
-          <div id="teacher-award" class="hidden">
-            <p class="teacher-hint">Toca un mérito para concederlo. Los topes diarios evitan la inflación.</p>
-            <div id="award-list" class="award-list"></div>
-            <button id="btn-close-panel" class="btn btn-quit">Cerrar panel</button>
-          </div>
-        </div>
+        <!-- Aquí había un portillo con el PIN para que el docente concediera
+             méritos desde la pantalla del propio niño. Se ha quitado: el PIN
+             es una barrera de aula, no seguridad —el código se ejecuta en su
+             tablet— y un niño que lo veía escribir podía concederse méritos a
+             sí mismo. Peor: abrirlo aquí dejaba abierto también el portal del
+             docente, con la lista de clase y las contraseñas de sus compañeros.
+             Los méritos se conceden desde «Dirigir la clase», en el equipo del
+             docente, que además los da a una cuadrilla o a la clase entera. -->
       </section>
 
       <!-- ══════════ CUADRILLA ══════════ -->
@@ -6003,7 +5993,7 @@ function cruzarVerificacion(retos, respuestas) {
    copia guardada. Sin este número, «ya está arreglado» y «a mí no me pasa» son
    indistinguibles. Va junto al nombre de la caché del service worker, y una
    prueba comprueba que no se separen. */
-const ATLAS_VERSION = 'v79';
+const ATLAS_VERSION = 'v80';
 
 const ATLAS_DEFAULTS = {
 
@@ -13646,39 +13636,11 @@ function formatDay(d) {
   return `${day}/${m}`;
 }
 
-/* Panel del docente: PIN de aula, no seguridad real (el código es visible) */
+/* El portal del docente está abierto en esta sesión. Lo abre UNA puerta y solo
+   una —el PIN de la portada— y se cierra al salir de él. Antes lo abría también
+   un portillo dentro de la pantalla de méritos del propio niño, y con él se
+   abría todo lo demás. */
 let teacherUnlocked = false;
-function renderAwardList() {
-  $('#award-list').innerHTML = '';
-  for (const b of ATLAS_CONFIG.behaviors) {
-    const used = behaviorCountToday(b.id);
-    const full = used >= b.perDay;
-    const btn = document.createElement('button');
-    btn.className = 'award-btn' + (full ? ' award-full' : '');
-    btn.disabled = full;
-    btn.innerHTML = `<span class="award-icon">${esc(b.icon)}</span>
-      <span class="award-name">${esc(b.name)}</span>
-      <span class="award-meta">+${b.coins} ${ico('coin')} · ${used}/${b.perDay}</span>`;
-    btn.addEventListener('click', () => {
-      const res = awardBehavior(b.id);
-      if (res.ok) {
-        toast(`${b.icon} ¡${b.name}! +${b.coins} doblones`);
-        renderMerits();
-        renderAwardList();
-        showTeacherPanel();
-      } else if (res.reason === 'cap') {
-        toast('Ya se alcanzó el tope de hoy para ese mérito.');
-      }
-    });
-    $('#award-list').appendChild(btn);
-  }
-}
-function showTeacherPanel() {
-  $('#teacher-locked').classList.add('hidden');
-  $('#teacher-award').classList.remove('hidden');
-  $('#btn-teacher-panel').classList.add('hidden');
-}
-
 
 /* ══════════ MIS CLASES ══════════
    Con varios docentes en el mismo despliegue, cada uno entra con su cuenta y
@@ -20511,31 +20473,6 @@ function wireGlobalListeners() {
     applyTextSize();
   });
 
-  /* Panel del docente (PIN de aula) */
-  $('#btn-teacher-panel').addEventListener('click', () => {
-    if (teacherUnlocked) { renderAwardList(); showTeacherPanel(); return; }
-    $('#teacher-locked').classList.remove('hidden');
-    $('#btn-teacher-panel').classList.add('hidden');
-    $('#pin-input').focus();
-  });
-  $('#pin-form').addEventListener('submit', e => {
-    e.preventDefault();
-    if ($('#pin-input').value === String(ATLAS_CONFIG.teacherPin)) {
-      teacherUnlocked = true;
-      $('#pin-error').classList.add('hidden');
-      $('#pin-input').value = '';
-      renderAwardList();
-      showTeacherPanel();
-    } else {
-      $('#pin-error').classList.remove('hidden');
-      $('#pin-input').value = '';
-    }
-  });
-  $('#btn-close-panel').addEventListener('click', () => {
-    $('#teacher-award').classList.add('hidden');
-    $('#btn-teacher-panel').classList.remove('hidden');
-  });
-
   $('#home-student').addEventListener('click', startStudentPath);
   $('#home-teacher').addEventListener('click', async () => {
     if (!teacherUnlocked && !(await askPin())) return;
@@ -20545,7 +20482,11 @@ function wireGlobalListeners() {
   $('#teacher-go-aula').addEventListener('click', () => { aulaAlumno = null; teacherScreen('aula'); });
   $('#teacher-go-class').addEventListener('click', () => { classData = null; teacherScreen('class'); });
   $('#teacher-go-config').addEventListener('click', () => { cfgSection = CFG_INICIO; teacherScreen('config'); });
-  $('#teacher-exit').addEventListener('click', showHome);
+  /* Salir del portal lo vuelve a cerrar con llave. El PIN valía para toda la
+     sesión, así que un docente que salía y le pasaba la tablet a un niño se la
+     pasaba con el portal abierto: la lista de clase y las contraseñas de sus
+     compañeros a un toque. Volver a teclear cuatro cifras cuesta menos. */
+  $('#teacher-exit').addEventListener('click', () => { teacherUnlocked = false; showHome(); });
 
   $('#class-sort').addEventListener('change', e => { classSort = e.target.value; paintClassView(); });
   $('#class-reload').addEventListener('click', () => { classData = null; renderClassView(); });

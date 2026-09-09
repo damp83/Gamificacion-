@@ -952,39 +952,11 @@ function formatDay(d) {
   return `${day}/${m}`;
 }
 
-/* Panel del docente: PIN de aula, no seguridad real (el código es visible) */
+/* El portal del docente está abierto en esta sesión. Lo abre UNA puerta y solo
+   una —el PIN de la portada— y se cierra al salir de él. Antes lo abría también
+   un portillo dentro de la pantalla de méritos del propio niño, y con él se
+   abría todo lo demás. */
 let teacherUnlocked = false;
-function renderAwardList() {
-  $('#award-list').innerHTML = '';
-  for (const b of ATLAS_CONFIG.behaviors) {
-    const used = behaviorCountToday(b.id);
-    const full = used >= b.perDay;
-    const btn = document.createElement('button');
-    btn.className = 'award-btn' + (full ? ' award-full' : '');
-    btn.disabled = full;
-    btn.innerHTML = `<span class="award-icon">${esc(b.icon)}</span>
-      <span class="award-name">${esc(b.name)}</span>
-      <span class="award-meta">+${b.coins} ${ico('coin')} · ${used}/${b.perDay}</span>`;
-    btn.addEventListener('click', () => {
-      const res = awardBehavior(b.id);
-      if (res.ok) {
-        toast(`${b.icon} ¡${b.name}! +${b.coins} doblones`);
-        renderMerits();
-        renderAwardList();
-        showTeacherPanel();
-      } else if (res.reason === 'cap') {
-        toast('Ya se alcanzó el tope de hoy para ese mérito.');
-      }
-    });
-    $('#award-list').appendChild(btn);
-  }
-}
-function showTeacherPanel() {
-  $('#teacher-locked').classList.add('hidden');
-  $('#teacher-award').classList.remove('hidden');
-  $('#btn-teacher-panel').classList.add('hidden');
-}
-
 
 /* ══════════ MIS CLASES ══════════
    Con varios docentes en el mismo despliegue, cada uno entra con su cuenta y

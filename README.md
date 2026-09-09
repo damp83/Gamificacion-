@@ -27,7 +27,7 @@ PWA sin dependencias: HTML + CSS + JavaScript vanilla, funciona offline y se ins
 | **Clase dirigida** | El docente pregunta desde su equipo y el alumnado responde en voz alta, sin entrar en la app. Turnos repartidos, méritos desde el propio turno y el diario de cada alumno guardado en ese equipo |
 | **Varios docentes** | Un claustro comparte el despliegue: cada docente entra con su cuenta, ve solo sus clases y las sincroniza entre equipos. El aislamiento lo imponen los permisos por documento de Appwrite |
 | **Cuentas de alumno** | Registro y acceso con usuario y contraseña vía Appwrite; el diario se sincroniza entre clase y casa |
-| **Méritos de Campamento** | Doblones por comportamientos (ayudar, cuidar el material, participar…), concedidos por el docente con PIN y topes diarios, **a un alumno, a una cuadrilla, a la clase entera o a unos cuantos elegidos a dedo, de un toque** |
+| **Méritos de Campamento** | Doblones por comportamientos (ayudar, cuidar el material, participar…), concedidos por el docente desde su equipo, con topes diarios, **a un alumno, a una cuadrilla, a la clase entera o a unos cuantos elegidos a dedo, de un toque** |
 | **Panel de Configuración** | El docente edita en la propia app el curso, los reconocimientos, las cuadrillas, los pozos, el almacén, la economía y el acceso — sin tocar código |
 | **Cuadrillas de excavación** | Equipos cooperativos que suman a una meta común de clase, con un **rol y personaje** para cada miembro; sin ranking entre niños salvo que se active |
 | **Portada** | Primera pantalla: la historia contada para el alumnado, cómo se juega, el elenco, y las dos entradas (explorador / docente) |
@@ -84,6 +84,7 @@ Cubren lo que ya se ha roto alguna vez, que es de donde salieron:
 | `cuentas.test.js` | Que el panel avise de una contraseña que Appwrite va a rechazar, y de que escribirla no crea la cuenta |
 | `merito-grupo.test.js` | Que dar un mérito a una cuadrilla entera, a la clase o a unos cuantos elegidos a dedo use el mismo tope y el mismo registro que darlo uno a uno, y que se diga a quién no le llegó |
 | `criterios.test.js` | Que la evidencia por criterio se calcule bien, que no se proponga un nivel sin datos suficientes, y que nada de esto llegue nunca al niño ni a su familia |
+| `pin.test.js` | Que no quede ni un sitio donde teclear el PIN en la pantalla de un alumno, que al portal se entre por una sola puerta, y que salir de él lo vuelva a cerrar |
 | `conexion.test.js` | Que «no hay conexión» diga cuál de las cuatro causas es, y que las cuatro dejen claro que la contraseña no se ha llegado a comprobar |
 | `salud.test.js` | Que todo lo que se pierde en silencio deje de perderse en silencio: quién no sincroniza, qué diario está roto, si la clave de la IA se agotó, y que con todo en orden el panel no invente un problema |
 | `adaptaciones.test.js` | Que las cuatro palancas de una adaptación hagan lo que dicen, que el techo no impida bajar, y sobre todo que abrir la puerta no cambie lo que la app dice que ese alumno ha demostrado |
@@ -408,6 +409,36 @@ Ese último es el que muerde al publicar: hay que dar de alta como plataforma
 **Web** tanto `localhost` (para probar) como el dominio de GitHub Pages. Sin eso
 el navegador corta las peticiones por CORS y no hay cuentas ni sincronización.
 
+### El PIN no se teclea nunca delante de un niño
+
+La pantalla de Méritos del alumno tenía debajo un portillo: **«Panel del
+docente»**, el PIN, y ahí mismo la lista para conceder méritos. La idea era que
+el docente pasara por las mesas y fuera dando méritos en la tablet de cada uno.
+
+Estaba mal, y por dos motivos de tamaño muy distinto.
+
+El evidente: **el PIN se teclea a diez centímetros de los ojos del dueño de la
+tablet**. Basta con verlo una vez para concederse méritos cuando se quiera, y
+eso convierte la moneda del juego en algo que no vale nada.
+
+El grave: abrir aquel portillo **marcaba la sesión entera como desbloqueada**.
+Desde la portada se entraba después al portal del docente **sin volver a pedir
+nada**: la lista de clase, las contraseñas de todos sus compañeros, los ajustes.
+Un niño que veía cuatro cifras se llevaba el portal completo.
+
+Así que el portillo se ha ido, y con él dos cosas más:
+
+- **Solo hay una puerta.** El PIN se pide en un sitio, el de la portada, y no
+  hay ningún campo de PIN en ninguna pantalla del alumno.
+- **Salir del portal lo vuelve a cerrar con llave.** Antes el PIN valía para
+  toda la sesión, así que un docente que salía y le pasaba la tablet a un niño
+  se la pasaba abierta. Volver a teclear cuatro cifras cuesta menos que eso.
+
+Los méritos se conceden desde **Dirigir la clase**, en el equipo del docente,
+que además es donde se dan a una cuadrilla, a la clase entera o a unos cuantos
+elegidos a dedo de un solo toque. Y no hace falta nube: esa pantalla trabaja con
+la lista de clase y los diarios de ese equipo.
+
 ### El PIN del docente, y por qué no basta con cambiarlo en el panel
 
 `teacherPin` está en `js/config.js` y ahora mismo es `2026`. Se puede cambiar
@@ -429,11 +460,11 @@ O sea que hay dos formas, y conviene elegir a sabiendas:
 | **En el panel** | *Acceso y nube → PIN* | Solo ese equipo | Hay que repetirlo en cada tablet |
 
 Para un juego de tablets de aula, lo práctico es lo primero: el PIN existe para
-que nadie se conceda méritos por accidente, no para resistir a quien se ponga a
-leer el código. Si en tu grupo hay alguien capaz de abrir el inspector, entonces
+que un niño no entre al portal del docente por curiosidad, no para resistir a
+quien se ponga a leer el código. Si en tu grupo hay alguien capaz de abrir el inspector, entonces
 lo segundo, tablet por tablet.
 
-Cambia también `teacherPin`. Y ojo: **el PIN es una barrera de aula, no seguridad real** — el código se ejecuta en el navegador y un alumno curioso puede leerlo. Sirve para que no se concedan méritos por accidente, no para resistir a quien quiera saltárselo.
+Cambia también `teacherPin`. Y ojo: **el PIN es una barrera de aula, no seguridad real** — el código se ejecuta en el navegador y un alumno curioso puede leerlo. Sirve para que un niño no entre al portal por curiosidad, no para resistir a quien quiera saltárselo. Por eso mismo no se teclea nunca en la pantalla de un alumno.
 
 ### Cómo entran los alumnos
 

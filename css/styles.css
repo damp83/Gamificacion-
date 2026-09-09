@@ -1315,8 +1315,6 @@ body.en-mision #main { padding-bottom: var(--s-5); }
 }
 
 /* Panel del docente (méritos) */
-.teacher-gate { margin-top: var(--s-6); padding-top: var(--s-5); border-top: var(--line); }
-.teacher-hint { font-size: var(--t-sm); color: var(--ink-soft); margin-bottom: var(--s-3); }
 #pin-form { display: flex; gap: .5rem; }
 #pin-input {
   flex: 1; max-width: 150px; padding: .55rem .8rem; font-size: var(--t-base);
