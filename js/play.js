@@ -124,7 +124,14 @@ function openBranch(branchId) {
       /* pozo del docente a medio llenar: se dice, no se finge que está bloqueado */
       detail = '<small>Este estrato todavía no tiene retos preparados</small>';
     } else if (locked) {
-      detail = '<small>Se abre al dominar (≥80%) el estrato de arriba</small>';
+      /* Si el de arriba ya ha llegado al 0,8 una vez, lo que falta no es
+         dominar más: es repetirlo para confirmar que no fue suerte. Decirlo
+         convierte una puerta cerrada sin motivo aparente en un objetivo
+         claro, que es la diferencia entre insistir y abandonar. */
+      const arriba = i > 0 ? strata[STRATA_ORDER[i - 1]] : null;
+      detail = (arriba && (arriba.altas || 0) === 1)
+        ? '<small>¡Ya casi! Vuelve a superar el estrato de arriba una vez más y este se abre</small>'
+        : '<small>Se abre al dominar (≥80%) el estrato de arriba, dos veces seguidas</small>';
     } else {
       detail = `<div class="mastery-bar"><div class="mastery-fill${st.mastery >= 0.8 ? ' gold' : ''}" style="width:${masteryPct}%"></div></div>
         <small>Dominio: ${masteryPct}%${st.mastery >= 0.9 ? ' · ya excavado (PE al 10%)' : ''}${cover > 0.2 ? ' · cubierto de arena' : ''}</small>`;
@@ -405,7 +412,14 @@ function renderResult(r) {
 
   const dialog = $('#result-dialog');
   let brunoSays;
-  if (r.nowMastered) brunoSays = '«¡Extraordinario! Ni yo lo habría hecho mejor… bueno, yo me habría caído en tres trampas. El estrato de abajo ya está desbloqueado.»';
+  if (r.nowMastered) {
+    /* Prometer «ya está desbloqueado» cuando aún falta la confirmación es
+       mentirle al niño en la única pantalla que lee con atención. */
+    const stR = getStratum(r.branchId, r.stratumId);
+    brunoSays = (stR.altas || 0) >= 2
+      ? '«¡Extraordinario! Ni yo lo habría hecho mejor… bueno, yo me habría caído en tres trampas. El estrato de abajo ya está desbloqueado.»'
+      : '«¡Extraordinario! Ni yo lo habría hecho mejor. Repítelo una vez más y abrimos el estrato de abajo: en arqueología, un hallazgo se confirma antes de anunciarlo.»';
+  }
   else if (good) brunoSays = '«¡Buen trabajo, aprendiz! Cada acierto dibuja el mundo. Yo una vez confundí un mapa con una servilleta.»';
   else if (r.reabreGuardian) brunoSays = '«¡Repaso hecho! El Guardián ya no tiene excusa: su cámara vuelve a estar abierta para ti.»';
   else if (r.restored > 0) brunoSays = '«¿Sabes qué distingue a un gran explorador? Que vuelve a mirar donde se equivocó. ¡Y tú lo has hecho!»';

@@ -13,7 +13,7 @@ PWA sin dependencias: HTML + CSS + JavaScript vanilla, funciona offline y se ins
 | **Cámara del Guardián** | Evaluación sumativa por pozo: se abre con los cuatro estratos dominados, encadena 10 retos de todos ellos y entrega un fragmento del Atlas. Fallar no cuesta nada y el Guardián señala en qué estrato se falló |
 | **Fondo de la Sociedad** | Sumidero cooperativo e infinito de Doblones, con hitos de clase, para cuando el almacén se agota |
 | **Ajustes de todo el equipo** | Un docente publica su configuración y las demás tablets la recogen solas al abrir. Nunca viajan las contraseñas del alumnado, el PIN ni los datos de conexión |
-| **Estratos de Bloom 1–4** | Recordar · Comprender · Aplicar · Analizar, con desbloqueo por mastery ≥80% del estrato superior |
+| **Estratos de Bloom 1–4** | Recordar · Comprender · Aplicar · Analizar, con desbloqueo al demostrar ≥80% de dominio del estrato superior **dos sesiones seguidas** |
 | **Economía doble** | Puntos de Expedición (PE, curva `100 × n^1.55`) + Doblones con fuentes y sumideros del PRD §2.4–2.5 |
 | **Anti-grinding** | PE solo por primer acierto · contenido dominado ≥90% da 10% de PE · fatiga narrativa tras 25 min de excavación diaria (50% PE) · auditoría silenciosa de respuestas <2 s |
 | **Personajes** | Bruno Ocaña (modela el error sin vergüenza), Kira (pistas graduadas: 1 gratis + 1 a 10 🪙), Tobías y Vera Kovak (en los retos de "encontrar el error") |
@@ -1098,6 +1098,32 @@ Tres comportamientos que conviene conocer:
 - **Lo que no se puede jugar no se ofrece:** un yacimiento sin pozos, o un pozo sin retos, no aparece en el mapa del niño.
 
 Con menos de 6 retos en un estrato el alumno repetirá alguno dentro de la misma misión; a partir de 6 no.
+
+### La puerta al estrato siguiente se confirma antes de abrirse
+
+El desbloqueo es por prerrequisito cognitivo —≥80 % de dominio del estrato de arriba— y hasta la v65 se abría **en el instante** en que la media cruzaba ese 0,8. Una sesión son cinco retos: un niño con un 70 % de competencia real saca cinco de cinco una de cada seis veces, y esa casualidad decidía para siempre.
+
+Medido simulando cientos de niños con una competencia real conocida, machacando el mismo estrato ocho veces:
+
+| acierto real | abrían el siguiente | …y terminaban con su propia barra diciendo que **no** dominan |
+|---|---|---|
+| 55 % | 15 % | 13 % |
+| 70 % | 59 % | 43 % |
+| 85 % | 99 % | 19 % |
+
+La app se contradecía: la barra decía «0,70 · no dominado» y la puerta estaba abierta. Ahora **el 0,8 hay que enseñarlo dos veces seguidas**:
+
+| acierto real | abren ahora | terminan sin dominar |
+|---|---|---|
+| 55 % | 4 % | 3 % |
+| 70 % | 34 % | 21 % |
+| 85 % | 97 % | 17 % |
+
+**No es un listón más alto** —sigue siendo 0,8— ni cierra nada de lo ya abierto: es pedir que la medida se repita antes de tomar una decisión permanente. A quien de verdad domina apenas le cuesta: de 100 niños con un 85 % de acierto, abrían 99 y siguen abriendo 97.
+
+> **Y se le dice al niño.** Con una sesión por encima del 0,8, el estrato de abajo pone *«¡Ya casi! Vuelve a superar el estrato de arriba una vez más y este se abre»*, y Bruno deja de prometer una puerta que aún no está abierta. Una puerta cerrada sin motivo aparente invita a abandonar; un objetivo a una sesión de distancia, no.
+
+> **La barra sí dice la verdad.** La misma simulación comprueba que el dominio mostrado coincide con la competencia real a todos los niveles (25 % → 0,25; 70 % → 0,70; 85 % → 0,85), y que **al azar puro nadie llega a dominar**. El árbol no está inflado.
 
 ## Cuadrillas de excavación (equipos)
 

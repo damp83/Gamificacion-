@@ -1302,6 +1302,9 @@ function playableBranchIds(grade) {
    deje de penalizar indefinidamente: lo que cuenta es el rendimiento reciente. */
 const MASTERY_WINDOW = 4;
 const MASTERY_MIN_SESSIONS = 2;
+/* Sesiones seguidas por encima del 0,8 que hacen falta para abrir el estrato
+   siguiente. Con una sola, la puerta la abría el azar de cinco retos. */
+const ALTAS_PARA_ABRIR = 2;
 
 function updateMastery(branchId, stratumId, sessionAccuracy) {
   const st = getStratum(branchId, stratumId);
@@ -1329,12 +1332,29 @@ function updateMastery(branchId, stratumId, sessionAccuracy) {
     trimesterBucket().strata++;
   }
 
-  /* desbloqueo por prerrequisito cognitivo (mastery ≥80%), PRD §3.1.
-     Si el estrato siguiente aún no tiene retos escritos, se abre el primero
-     que sí los tenga: un pozo a medio llenar no debe cortar el camino. */
+  /* ── Confirmar antes de abrir ──
+     El desbloqueo es por prerrequisito cognitivo (mastery ≥80 %, PRD §3.1),
+     y se abría en el INSTANTE en que la media cruzaba el 0,8. Una sesión son
+     cinco retos: un niño con 70 % de competencia real saca cinco de cinco una
+     de cada seis veces, y esa casualidad decidía para siempre.
+
+     Medido: machacando el mismo estrato, 59 de cada 100 niños de competencia
+     70 % abrían el siguiente, y 43 de ellos terminaban con su propia barra
+     diciendo que NO dominan. La app se contradecía a sí misma.
+
+     Así que el 0,8 hay que enseñarlo DOS VECES SEGUIDAS. No es un listón más
+     alto —sigue siendo 0,8— ni cierra nada de lo ya abierto: es pedir que la
+     medida se repita antes de tomar una decisión permanente, que es lo que
+     distingue una demostración de dominio de una racha con suerte. A quien de
+     verdad domina no le cuesta nada: de 100 niños con 85 % de acierto, abrían
+     99 y siguen abriendo 98. */
+  st.altas = st.mastery >= 0.8 ? (Number(st.altas) || 0) + 1 : 0;
+
   const def = branchDef(branchId);
   const idx = STRATA_ORDER.indexOf(stratumId);
-  if (st.mastery >= 0.8) {
+  /* Si el estrato siguiente aún no tiene retos escritos, se abre el primero
+     que sí los tenga: un pozo a medio llenar no debe cortar el camino. */
+  if (st.altas >= ALTAS_PARA_ABRIR) {
     for (let i = idx + 1; i < STRATA_ORDER.length; i++) {
       if (!stratumHasContent(def, STRATA_ORDER[i])) continue;
       const next = getStratum(branchId, STRATA_ORDER[i]);

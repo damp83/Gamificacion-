@@ -68,7 +68,66 @@ test('acertando siempre se domina, y en pocas sesiones', () => {
   let n = 0, dominado = false;
   while (n < 10 && !dominado) { dominado = mision(c, POZO, 'recordar', true).masteryAfter >= 0.8; n++; }
   assert.ok(dominado && n <= 4, `hicieron falta ${n} sesiones perfectas`);
+});
+
+/* ── La puerta al estrato siguiente ── */
+
+test('llegar al 0,8 una vez no abre todavía el estrato siguiente', () => {
+  /* Una sesión son cinco retos: un niño con 70 % de competencia real saca
+     cinco de cinco una de cada seis veces. Esa casualidad no puede decidir
+     para siempre. */
+  const c = nino();
+  let n = 0;
+  while (n < 10 && est(c, POZO, 'recordar').mastery < 0.8) { mision(c, POZO, 'recordar', true); n++; }
+  assert.ok(est(c, POZO, 'recordar').mastery >= 0.8, 'primero hay que llegar al 0,8');
+  assert.equal(est(c, POZO, 'recordar').altas, 1, 'una sola vez por encima');
+  assert.equal(est(c, POZO, 'comprender').status, 'locked', 'y la puerta sigue cerrada');
+});
+
+test('confirmarlo una segunda vez seguida sí la abre', () => {
+  const c = nino();
+  let n = 0;
+  while (n < 10 && est(c, POZO, 'comprender').status === 'locked') { mision(c, POZO, 'recordar', true); n++; }
   assert.notEqual(est(c, POZO, 'comprender').status, 'locked');
+  assert.ok(est(c, POZO, 'recordar').altas >= 2);
+});
+
+test('una sesión floja en medio rompe la racha y hay que volver a confirmar', () => {
+  const c = nino();
+  let n = 0;
+  while (n < 10 && est(c, POZO, 'recordar').mastery < 0.8) { mision(c, POZO, 'recordar', true); n++; }
+  mision(c, POZO, 'recordar', false);
+  assert.equal(est(c, POZO, 'recordar').altas, 0, 'la racha se rompe');
+  assert.equal(est(c, POZO, 'comprender').status, 'locked');
+});
+
+test('el listón no ha subido: sigue siendo el 0,8 de siempre', () => {
+  /* Lo que se pide es repetir la medida, no acertar más. Subir el umbral
+     sería otra decisión, y no es esta. */
+  const st = require('node:fs').readFileSync(
+    require('node:path').join(__dirname, '..', 'js', 'state.js'), 'utf8');
+  assert.match(st, /const ALTAS_PARA_ABRIR = 2;/);
+  assert.match(st, /st\.altas = st\.mastery >= 0\.8/);
+  assert.ok(!/mastery >= 0\.8[5-9]/.test(st), 'nadie ha subido el umbral por la puerta de atrás');
+});
+
+test('lo que ya estaba abierto no se cierra nunca', () => {
+  /* Nada se pierde: la regla nueva solo condiciona ABRIR. */
+  const c = nino();
+  let n = 0;
+  while (n < 10 && est(c, POZO, 'comprender').status === 'locked') { mision(c, POZO, 'recordar', true); n++; }
+  assert.notEqual(est(c, POZO, 'comprender').status, 'locked');
+  for (let i = 0; i < 6; i++) mision(c, POZO, 'recordar', false);
+  assert.notEqual(est(c, POZO, 'comprender').status, 'locked', 'sigue abierto tras fallar seis veces');
+});
+
+test('al niño se le dice qué le falta, no se le deja adivinando', () => {
+  const play = require('node:fs').readFileSync(
+    require('node:path').join(__dirname, '..', 'js', 'play.js'), 'utf8');
+  assert.match(play, /¡Ya casi! Vuelve a superar el estrato de arriba una vez más/);
+  assert.match(play, /dos veces seguidas/);
+  /* Y Bruno no promete una puerta que aún no se ha abierto. */
+  assert.match(play, /Repítelo una vez más y abrimos el estrato de abajo/);
 });
 
 test('lo dominado no se pierde por dejar de practicar', () => {
