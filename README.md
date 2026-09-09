@@ -86,6 +86,7 @@ Cubren lo que ya se ha roto alguna vez, que es de donde salieron:
 | `generador.test.js` | Que un reto escrito por IA con la cuenta mal marcada no llegue nunca a un niño |
 | `alta.test.js` | Que el panel no intente crear el diario del alumno —Appwrite no lo permite— y que vincularlo le ponga su clase y su docente |
 | `asistente-yacimientos.test.js` | Que la asistente proponga estructura y **nunca retos**, que lo que vuelve se limpie antes de tocar los ajustes, y que el inspector avise de lo que falla en silencio sin acusar a un yacimiento sano |
+| `motor-reglas.test.js` | Que las reglas del motor se cumplan jugando misiones enteras: que fallar no domine, que lo dominado no se pierda, que la Cámara no se abra antes de tiempo y que fallarla salga gratis |
 | `auditoria-resto.test.js` | Que unos ajustes que no caben se paren antes de mandarlos, que ningún campo del panel se quede sin nombre accesible, y que los retos repetidos de un pozo salgan a la vista |
 | `robustez.test.js` | Que un diario a medias se complete en vez de reventar, que un equipo que no puede guardar lo diga, y que la economía no admita números imposibles |
 | `ids-unicos.test.js` | Que dos cosas creadas seguidas no nazcan con el mismo id, y que una configuración ya rota se repare al cargarla |
