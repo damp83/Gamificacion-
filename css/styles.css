@@ -2274,6 +2274,24 @@ input[type="checkbox"]::after, input[type="radio"]::after {
 }
 .repaso-estrato .ico { width: .95rem; height: .95rem; }
 
+/* ── Evaluación por criterios ──
+   La tabla es alumnos por criterios: con veinticuatro y ocho columnas no cabe
+   en un móvil, así que rueda dentro de su caja en vez de empujar la página. */
+.cr-conceptos { margin: .6rem 0 0; padding: .6rem .7rem; background: var(--paper-deep); border-radius: var(--r-md); }
+.cr-area { margin-bottom: .7rem; }
+.cr-area > strong { font-size: var(--t-xs); text-transform: uppercase; letter-spacing: .04em; color: var(--ink-soft); }
+.cr-casillas { display: grid; gap: .2rem .8rem; grid-template-columns: repeat(auto-fit, minmax(13rem, 1fr)); margin-top: .3rem; }
+.cr-casilla { display: flex; align-items: center; gap: .4rem; font-size: var(--t-sm); min-height: 32px; }
+
+.cr-tabla-caja { overflow-x: auto; margin: .6rem 0; border: var(--line); border-radius: var(--r-md); }
+.cr-tabla { border-collapse: collapse; width: 100%; font-size: var(--t-sm); background: var(--surface); }
+.cr-tabla th, .cr-tabla td { padding: .4rem .6rem; border-bottom: 1px solid var(--paper-deep); text-align: left; }
+.cr-tabla thead th { background: var(--paper-deep); font-size: var(--t-xs); white-space: nowrap; }
+.cr-tabla tbody th { white-space: nowrap; font-weight: 600; }
+.cr-tabla td { font-variant-numeric: tabular-nums; white-space: nowrap; }
+.cr-tabla td small { display: block; font-size: var(--t-xs); color: var(--ink-soft); font-variant-numeric: normal; }
+.cr-tabla td.cr-pocos { color: var(--ink-soft); background: var(--paper-deep); }
+
 /* ── La ficha de datos de un alumno ──
    Va dentro de su tarjeta de la lista, pegada al niño del que habla. Se lee
    como un inventario, no como una tarjeta bonita: quien pregunta esto quiere

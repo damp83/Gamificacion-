@@ -1670,6 +1670,77 @@ function nombreCorto(nombre) {
   return `${partes[0]} ${iniciales}`;
 }
 
+/* ══════════ LA EVIDENCIA POR CRITERIO ══════════
+
+   Atlas no pone notas, y eso no cambia: el niño no ve ninguna, la familia
+   tampoco, y aquí no se calcula nada que llegue a sus pantallas. Lo que hace
+   esto es reunir para el docente lo que ya está medido, agrupado por SUS
+   criterios de evaluación, para que ponga la nota donde se la piden sin
+   traducir veinticuatro informes a mano.
+
+   La diferencia entre evidencia y nota importa y se sostiene aquí dentro: se
+   devuelve el porcentaje de aciertos y CUÁNTOS intentos hay detrás. Con pocos
+   intentos no se propone nada, porque un 100 % de tres respuestas no es un
+   sobresaliente, es un 100 % de tres respuestas. */
+const CRITERIO_MIN_INTENTOS = 8;
+
+/* Los niveles son los de un boletín de primaria. El corte se puede discutir;
+   lo que no se puede es esconder de dónde sale, así que la tabla enseña
+   siempre el porcentaje y los intentos al lado de la etiqueta. */
+const NIVELES_CRITERIO = [
+  { desde: 90, etiqueta: 'Sobresaliente' },
+  { desde: 80, etiqueta: 'Notable' },
+  { desde: 65, etiqueta: 'Bien' },
+  { desde: 50, etiqueta: 'Suficiente' },
+  { desde: 0,  etiqueta: 'Insuficiente' }
+];
+
+function nivelDeCriterio(pct) {
+  for (const n of NIVELES_CRITERIO) if (pct >= n.desde) return n.etiqueta;
+  return NIVELES_CRITERIO[NIVELES_CRITERIO.length - 1].etiqueta;
+}
+
+/* Los intentos y fallos de un concepto, acotados a un trimestre o de siempre.
+   Un diario anterior a que existieran los contadores por trimestre no puede
+   dar el desglose: se dice que no hay, en vez de inventar un reparto. */
+function intentosDeConcepto(entrada, trimestre) {
+  const e = entrada || {};
+  if (trimestre === null || trimestre === undefined) {
+    return { attempts: Number(e.attempts) || 0, errors: Number(e.errors) || 0, hayTri: !!e.tri };
+  }
+  const t = (e.tri || {})[trimestre];
+  return { attempts: Number(t && t.a) || 0, errors: Number(t && t.e) || 0, hayTri: !!e.tri };
+}
+
+/* La evidencia de UN alumno para todos los criterios. */
+function evidenciaDeCriterios(estado, criterios, trimestre) {
+  const m = (estado && estado.metrics && estado.metrics.errors_by_concept) || {};
+  let algunTri = false;
+  const filas = (criterios || []).map(c => {
+    let attempts = 0, errors = 0;
+    for (const id of (c.conceptos || [])) {
+      const v = intentosDeConcepto(m[id], trimestre);
+      attempts += v.attempts;
+      errors += v.errors;
+      if (v.hayTri) algunTri = true;
+    }
+    const aciertos = attempts - errors;
+    const pct = attempts ? Math.round((aciertos / attempts) * 100) : null;
+    return {
+      id: c.id,
+      codigo: c.codigo || '',
+      intentos: attempts,
+      aciertos,
+      pct,
+      /* Sin intentos suficientes no se propone nivel. Es la diferencia entre
+         una evidencia y una corazonada con formato de tabla. */
+      suficiente: attempts >= CRITERIO_MIN_INTENTOS,
+      nivel: (attempts >= CRITERIO_MIN_INTENTOS && pct !== null) ? nivelDeCriterio(pct) : ''
+    };
+  });
+  return { filas, hayTrimestres: algunTri };
+}
+
 /* ══════════ QUÉ SE GUARDA DE UN ALUMNO ══════════
 
    La portada le dice a la familia que puede pedir ver lo que se guarda de su
@@ -1814,6 +1885,19 @@ function recordConcepto(skill, acierto, stratumId) {
      que sabe se sostiene de un día para otro o fue una tanda con suerte. */
   const hoy = todayStr();
   if (e.ultimo !== hoy) { e.dias = (Number(e.dias) || 0) + 1; e.ultimo = hoy; }
+
+  /* ── Y lo mismo por trimestre ──
+     Los tres contadores de arriba sirven para enseñar: el acumulado es el
+     histórico y la ventana dice cómo va HOY. Pero para poner una nota en la
+     plataforma del centro hace falta una tercera cosa que no tenían: cuánto
+     ha trabajado este alumno este trimestre y con qué acierto. Son dos
+     números por concepto y trimestre, y sin ellos la evaluación por criterios
+     no puede acotarse al periodo que pide el centro. */
+  const t = currentTrimesterIndex();
+  if (!e.tri) e.tri = {};
+  if (!e.tri[t]) e.tri[t] = { a: 0, e: 0 };
+  e.tri[t].a++;
+  if (!acierto) e.tri[t].e++;
 }
 
 /* ── Cuándo un concepto se declara flojo ──

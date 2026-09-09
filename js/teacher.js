@@ -36,6 +36,7 @@ const CFG_SECTIONS = [
   { id: 'almacen',    icon: '🏪', name: 'Almacén',              grupo: 'preparar' },
   { id: 'economia',   icon: '⚖️', name: 'Economía',             grupo: 'preparar' },
   { id: 'guardian',   icon: '🗿', name: 'Cámara del Guardián',  grupo: 'preparar' },
+  { id: 'criterios',  icon: '📋', name: 'Evaluación por criterios', grupo: 'preparar' },
   { id: 'fondo',      icon: '🌍', name: 'Fondo de la Sociedad', grupo: 'preparar' },
   { id: 'acceso',     icon: '🔐', name: 'Acceso y nube',        grupo: 'preparar' },
   { id: 'copia',      icon: '💾', name: 'Copia de seguridad',   grupo: 'preparar' }
@@ -212,7 +213,8 @@ function renderTeacherConfig() {
   const renderers = {
     curso: cfgCurso, premios: cfgPremios, alumnado: cfgAlumnado, equipos: cfgEquipos,
     yacimient: cfgYacimientos, almacen: cfgAlmacen, economia: cfgEconomia,
-    guardian: cfgGuardian, taller: cfgTaller, ia: cfgIA, fondo: cfgFondo, acceso: cfgAcceso, copia: cfgCopia
+    guardian: cfgGuardian, taller: cfgTaller, ia: cfgIA, fondo: cfgFondo, acceso: cfgAcceso,
+    criterios: cfgCriterios, copia: cfgCopia
   };
   body.innerHTML = '';
   renderers[cfgSection](body);
@@ -2338,6 +2340,304 @@ const GUARD_FIELDS = [
   { k: 'peBonus',      label: 'Puntos de Expedición al superarla', min: 0, max: 500 },
   { k: 'tierBoost',    label: 'Dificultad extra', min: 0, max: 3, hint: 'Puntos de dificultad por encima de lo habitual.' }
 ];
+
+/* ══════════ EVALUACIÓN POR CRITERIOS ══════════
+
+   Es el punto donde la plataforma se encuentra con el papeleo del centro sin
+   traicionar su propio diseño. Atlas no pone notas: el niño no ve ninguna, la
+   familia tampoco, y eso no se toca. Pero en diciembre hay que meter una
+   calificación por criterio en Séneca o en Rayuela, y hasta ahora eso salía de
+   traducir veinticuatro informes a mano.
+
+   Aquí se define UNA VEZ qué conceptos de la app trabaja cada criterio de la
+   programación, y a partir de ahí la tabla la calcula ella. Lo que da no es
+   una nota: es el porcentaje de aciertos y cuántos intentos hay detrás. La
+   nota la sigue poniendo quien tiene que ponerla. */
+let criterioAbierto = null;      /* id del criterio con los conceptos abiertos */
+let tablaEvaluacion = null;      /* la última tabla calculada, para no rehacerla */
+
+/* Los conceptos agrupados por área, con su etiqueta, para pintar las casillas.
+   NO se llama `conceptosPorArea`: generador.js ya tiene una con ese nombre y
+   otra forma —ids sueltos por área— y estos ficheros comparten un solo ámbito
+   global, así que la segunda pisa a la primera en silencio. Pisarla dejaba a
+   la IA sin conceptos válidos y rechazaba todos los retos al aprobarlos. */
+function conceptosAgrupados() {
+  const areas = new Map();
+  for (const id of Object.keys(CONCEPTOS)) {
+    const a = CONCEPTOS[id].area || 'Otros';
+    if (!areas.has(a)) areas.set(a, []);
+    areas.get(a).push({ id, label: CONCEPTOS[id].label });
+  }
+  return areas;
+}
+
+function cfgCriterios(body) {
+  const criterios = ATLAS_CONFIG.criterios || [];
+  const tri = ATLAS_CONFIG.course.trimesters || [];
+
+  body.innerHTML = `
+    <p class="cfg-intro">Atlas <strong>no pone notas</strong>, y esto no las pone tampoco. Lo que
+    hace es reunir lo que ya está medido y agruparlo por <strong>tus</strong> criterios de
+    evaluación, para que la nota que pide el centro la pongas mirando una tabla y no traduciendo
+    veinticuatro informes. La tabla dice el porcentaje de aciertos y cuántos intentos hay detrás;
+    lo demás es tuyo.</p>
+
+    ${cfgNotice ? `<div class="cfg-warn" role="status">${cfgNotice}</div>` : ''}
+
+    <h4 class="cfg-h4">Tus criterios <span class="cfg-tag">${criterios.length}</span></h4>
+    <p class="cfg-hint">Escribe el código y el texto tal y como estén en tu programación, y marca
+    qué conceptos de la app los trabajan. Se hace una vez por curso.</p>
+
+    <div class="cfg-list">
+      ${criterios.length ? criterios.map((c, i) => {
+        const n = (c.conceptos || []).length;
+        return `<div class="cfg-card">
+          <div class="cfg-row">
+            <label>Código <input type="text" class="cr-codigo" data-i="${i}"
+              value="${esc(c.codigo || '')}" placeholder="MAT.2.1"></label>
+            <button class="cfg-del" data-delcr="${i}" title="Quitar este criterio">🗑️</button>
+          </div>
+          <textarea class="cr-texto" data-i="${i}" rows="2"
+            placeholder="Resuelve problemas de suma y resta en situaciones de la vida cotidiana…">${esc(c.texto || '')}</textarea>
+          <div class="cfg-row cfg-row-actions">
+            <button class="btn btn-secondary btn-small cr-abrir" data-cr="${esc(c.id)}">
+              ${criterioAbierto === c.id ? '▾' : '▸'} ${n} concepto(s) marcados</button>
+            ${n ? `<span class="cfg-tag">${esc((c.conceptos || []).slice(0, 3)
+              .map(x => conceptoInfo(x).label).join(', '))}${n > 3 ? `… y ${n - 3} más` : ''}</span>` : ''}
+          </div>
+          ${criterioAbierto === c.id ? `<div class="cr-conceptos">${
+            [...conceptosAgrupados().entries()].map(([area, lista]) => `
+              <div class="cr-area"><strong>${esc(area)}</strong>
+                <div class="cr-casillas">${lista.map(x => `
+                  <label class="cr-casilla"><input type="checkbox" class="cr-check"
+                    data-cr="${esc(c.id)}" data-concepto="${esc(x.id)}"
+                    ${(c.conceptos || []).includes(x.id) ? 'checked' : ''}>
+                    ${esc(x.label)}</label>`).join('')}</div>
+              </div>`).join('')}</div>` : ''}
+        </div>`;
+      }).join('') : '<p class="cfg-hint">Todavía no hay ninguno.</p>'}
+    </div>
+
+    <div class="cfg-row cfg-row-actions">
+      <button class="btn btn-secondary btn-small" id="cr-add">➕ Nuevo criterio</button>
+      ${criterios.length ? '<button class="btn btn-quit btn-small" id="cr-clear">Vaciar la lista</button>' : ''}
+    </div>
+
+    <h4 class="cfg-h4">La tabla de la clase</h4>
+    <p class="cfg-hint">Calcula el porcentaje de cada alumno en cada criterio. Necesita el diario
+    completo de cada uno: en clase dirigida están en este equipo, y con el alumnado entrando desde
+    el suyo hay que traerlos, así que tarda.</p>
+    <div class="cfg-row">
+      <label>Periodo <select id="cr-tri">
+        <option value="">Desde que empezaron</option>
+        ${tri.map((t, i) => `<option value="${i}"${i === currentTrimesterIndex() ? ' selected' : ''}>${esc(t.name)}</option>`).join('')}
+      </select></label>
+      <button class="btn btn-primary btn-small" id="cr-calcular"${criterios.length ? '' : ' disabled'}>
+        📊 Calcular la tabla</button>
+    </div>
+    <div id="cr-tabla"></div>`;
+
+  $$('.cr-codigo').forEach(el => onInput(el, e => escribirCriterio(+e.target.dataset.i, 'codigo', e.target.value.trim())));
+  $$('.cr-texto').forEach(el => onInput(el, e => escribirCriterio(+e.target.dataset.i, 'texto', e.target.value.trim())));
+
+  $$('.cr-abrir').forEach(el => el.addEventListener('click', () => {
+    criterioAbierto = criterioAbierto === el.dataset.cr ? null : el.dataset.cr;
+    renderTeacherConfig();
+  }));
+
+  $$('.cr-check').forEach(el => el.addEventListener('change', e => {
+    const l = deepClone(ATLAS_CONFIG.criterios || []);
+    const c = l.find(x => x.id === e.target.dataset.cr);
+    if (!c) return;
+    const id = e.target.dataset.concepto;
+    const tiene = (c.conceptos || []).includes(id);
+    c.conceptos = tiene ? c.conceptos.filter(x => x !== id) : (c.conceptos || []).concat([id]);
+    setTeacherConfig('criterios', l);
+    saveTeacherConfig();
+    /* Sin repintar entero: repintar cerraría el desplegable en cada casilla y
+       marcar ocho conceptos serían ocho viajes de ida y vuelta. */
+    const btn = $(`.cr-abrir[data-cr="${CSS.escape(c.id)}"]`);
+    if (btn) btn.textContent = `▾ ${c.conceptos.length} concepto(s) marcados`;
+  }));
+
+  $$('[data-delcr]').forEach(el => el.addEventListener('click', async () => {
+    const i = +el.dataset.delcr;
+    const l = deepClone(ATLAS_CONFIG.criterios || []);
+    if (!(await askConfirm(`¿Quitar «${l[i].codigo || 'este criterio'}»? Los datos de los alumnos
+      no se tocan: solo desaparece de la tabla.`, 'Quitar'))) return;
+    l.splice(i, 1);
+    criterioAbierto = null;
+    cfgSave('criterios', l, 'Criterio quitado ✓');
+  }));
+
+  $('#cr-add').addEventListener('click', () => {
+    const l = deepClone(ATLAS_CONFIG.criterios || []);
+    const id = idUnico('criterio', 'criterio', l.map(x => x.id));
+    l.push({ id, codigo: '', texto: '', conceptos: [] });
+    criterioAbierto = id;
+    cfgSave('criterios', l, 'Criterio añadido: ponle su código ✓');
+  });
+
+  const vaciar = $('#cr-clear');
+  if (vaciar) vaciar.addEventListener('click', async () => {
+    if (!(await askConfirm('¿Vaciar la lista de criterios? Los datos de los alumnos no se tocan.', 'Vaciar'))) return;
+    criterioAbierto = null;
+    tablaEvaluacion = null;
+    cfgSave('criterios', [], 'Lista vaciada ✓');
+  });
+
+  $('#cr-calcular').addEventListener('click', () => calcularTablaDeEvaluacion());
+  if (tablaEvaluacion) pintarTablaDeEvaluacion();
+}
+
+/* ── Calcular la tabla ──
+   Necesita el diario ENTERO de cada alumno: el resumen que sube cada diario
+   lleva solo los seis conceptos que peor van, y una evaluación hecha con eso
+   sería una evaluación de lo que falla. En clase dirigida están aquí; con el
+   alumnado entrando desde su casa hay que traerlos uno a uno, y se dice por
+   dónde va, que con veinticuatro y red de centro esto tarda. */
+async function calcularTablaDeEvaluacion() {
+  const criterios = ATLAS_CONFIG.criterios || [];
+  if (!criterios.length) return;
+  const sel = $('#cr-tri');
+  const trimestre = sel && sel.value !== '' ? +sel.value : null;
+
+  const btn = $('#cr-calcular');
+  if (btn) btn.disabled = true;
+  const alumnos = typeof aulaAlumnos === 'function' ? aulaAlumnos() : [];
+  const filas = [];
+  const sinDatos = [];
+  let hayTrimestres = false;
+
+  for (let i = 0; i < alumnos.length; i++) {
+    const a = alumnos[i];
+    cfgNotice = `Calculando ${i + 1} de ${alumnos.length}: ${esc(a.name)}…`;
+    const aviso = $('#cfg-body .cfg-warn');
+    if (aviso) aviso.innerHTML = cfgNotice;
+
+    let estado = null;
+    const clave = diaryKey(a);
+    const map = loadDiaries();
+    if (map[diaryKeyExistente(a)]) estado = migrateState(map[diaryKeyExistente(a)]);
+    else if (a.authId && typeof diarioCompletoDe === 'function') {
+      const r = await diarioCompletoDe(a.authId);
+      if (r.ok) estado = r.estado;
+    }
+    if (!estado) { sinDatos.push(a.name); continue; }
+
+    const ev = evidenciaDeCriterios(estado, criterios, trimestre);
+    if (ev.hayTrimestres) hayTrimestres = true;
+    filas.push({ clave, nombre: a.name, celdas: ev.filas });
+  }
+
+  if (btn) btn.disabled = false;
+  cfgNotice = '';
+  tablaEvaluacion = {
+    trimestre,
+    periodo: trimestre === null ? 'desde que empezaron'
+      : ((ATLAS_CONFIG.course.trimesters || [])[trimestre] || {}).name || '',
+    criterios: criterios.map(c => ({ id: c.id, codigo: c.codigo || '', texto: c.texto || '' })),
+    filas, sinDatos, hayTrimestres, calculadaEl: todayStr()
+  };
+  renderTeacherConfig();
+}
+
+function pintarTablaDeEvaluacion() {
+  const t = tablaEvaluacion;
+  const caja = $('#cr-tabla');
+  if (!caja || !t) return;
+  if (!t.filas.length) {
+    caja.innerHTML = `<p class="cfg-warn">No se ha podido leer el diario de nadie.${
+      t.sinDatos.length ? ' Sin datos de: ' + esc(t.sinDatos.join(', ')) + '.' : ''}</p>`;
+    return;
+  }
+
+  /* Con veinticuatro alumnos y ocho criterios, la tabla no cabe en un móvil:
+     rueda dentro de su caja en vez de empujar la página entera de lado. */
+  caja.innerHTML = `
+    <p class="cfg-hint">${t.filas.length} alumno(s) · ${t.periodo} · calculada el ${esc(t.calculadaEl)}${
+      t.trimestre !== null && !t.hayTrimestres
+        ? ' · <strong>ningún diario guarda todavía el desglose por trimestre</strong>, así que estas'
+          + ' columnas salen vacías: empieza a contarse a partir de ahora'
+        : ''}</p>
+    ${t.sinDatos.length ? `<p class="cfg-warn">Sin diario que leer: ${esc(t.sinDatos.join(', '))}.</p>` : ''}
+    <div class="cr-tabla-caja">
+      <table class="cr-tabla">
+        <thead><tr><th>Alumno</th>${t.criterios.map(c =>
+          `<th title="${esc(c.texto)}">${esc(c.codigo || '(sin código)')}</th>`).join('')}</tr></thead>
+        <tbody>${t.filas.map(f => `<tr><th>${esc(f.nombre)}</th>${f.celdas.map(x => `
+          <td class="${x.suficiente ? '' : 'cr-pocos'}">${x.pct === null ? '—'
+            : `<strong>${x.pct} %</strong><small>${x.aciertos}/${x.intentos}${
+                x.nivel ? ' · ' + esc(x.nivel) : ' · pocos datos'}</small>`}</td>`).join('')}</tr>`).join('')}
+        </tbody>
+      </table>
+    </div>
+    <p class="cfg-hint">Cada celda es el porcentaje de aciertos y los intentos que hay detrás. Las
+    grises tienen menos de ${CRITERIO_MIN_INTENTOS} intentos: ahí no se propone nivel, porque un
+    100 % de tres respuestas no es un sobresaliente, es un 100 % de tres respuestas.
+    <strong>Esto es evidencia, no una nota.</strong></p>
+    <div class="cfg-row cfg-row-actions">
+      <button class="btn btn-secondary btn-small" id="cr-csv">📄 Descargar en CSV</button>
+      <button class="btn btn-secondary btn-small" id="cr-csv-largo">📄 CSV una fila por alumno y criterio</button>
+    </div>`;
+
+  $('#cr-csv').addEventListener('click', () => descargarCsvEvaluacion(false));
+  $('#cr-csv-largo').addEventListener('click', () => descargarCsvEvaluacion(true));
+}
+
+/* ── El CSV ──
+   Dos formas porque se usan para dos cosas: la ancha se mira y se pega en la
+   hoja de cálculo del centro; la larga se filtra y se ordena, que es lo que
+   quiere quien va a hacer cuentas. Separador de punto y coma y BOM, que es lo
+   que abre bien un Excel en español sin tocar nada. */
+function csvCampo(v) {
+  const t = String(v == null ? '' : v);
+  return /[";\n]/.test(t) ? '"' + t.replace(/"/g, '""') + '"' : t;
+}
+
+function csvDeEvaluacion(largo) {
+  const t = tablaEvaluacion;
+  if (!t) return '';
+  const lineas = [];
+  if (largo) {
+    lineas.push(['Alumno', 'Criterio', 'Texto', 'Aciertos', 'Intentos', 'Porcentaje', 'Nivel'].map(csvCampo).join(';'));
+    for (const f of t.filas) {
+      f.celdas.forEach((x, i) => {
+        const c = t.criterios[i] || {};
+        lineas.push([f.nombre, c.codigo, c.texto, x.aciertos, x.intentos,
+                     x.pct === null ? '' : x.pct, x.nivel].map(csvCampo).join(';'));
+      });
+    }
+  } else {
+    lineas.push(['Alumno'].concat(t.criterios.map(c => c.codigo || c.id)).map(csvCampo).join(';'));
+    for (const f of t.filas) {
+      lineas.push([f.nombre].concat(f.celdas.map(x => x.pct === null ? '' : x.pct)).map(csvCampo).join(';'));
+    }
+  }
+  return '\ufeff' + lineas.join('\r\n') + '\r\n';
+}
+
+async function descargarCsvEvaluacion(largo) {
+  const t = tablaEvaluacion;
+  if (!t) return;
+  const clase = String(ATLAS_CONFIG.className || 'clase').normalize('NFD')
+    .replace(/[\u0300-\u036f]/g, '').replace(/[^A-Za-z0-9]+/g, '-')
+    .replace(/^-|-$/g, '').toLowerCase() || 'clase';
+  const r = await guardarArchivo(
+    `evaluacion-${clase}-${todayStr()}${largo ? '-detalle' : ''}.csv`,
+    csvDeEvaluacion(largo), 'text/csv');
+  toast(r && r.ok === false
+    ? 'No se ha podido descargar. Prueba desde Configuración → Copia de seguridad.'
+    : 'CSV descargado ✓');
+}
+
+function escribirCriterio(i, campo, valor) {
+  const l = deepClone(ATLAS_CONFIG.criterios || []);
+  if (!l[i]) return;
+  l[i][campo] = valor;
+  setTeacherConfig('criterios', l);
+  saveTeacherConfig();
+}
 
 function cfgGuardian(body) {
   const g = ATLAS_CONFIG.guardian || {};

@@ -11,7 +11,7 @@
    copia guardada. Sin este número, «ya está arreglado» y «a mí no me pasa» son
    indistinguibles. Va junto al nombre de la caché del service worker, y una
    prueba comprueba que no se separen. */
-const ATLAS_VERSION = 'v73';
+const ATLAS_VERSION = 'v74';
 
 const ATLAS_DEFAULTS = {
 
@@ -93,6 +93,18 @@ const ATLAS_DEFAULTS = {
   /* Al pegar la clase de golpe, guardar «Vega S.» en vez de «Vega Serrano».
      Lo decide el docente una vez y se recuerda. */
   nombresCortos: false,
+
+  /* ── Criterios de evaluación ──
+     El puente entre lo que mide la app y lo que pide el centro. Atlas no pone
+     notas a propósito, y eso no cambia: lo que hace esto es reunir la
+     evidencia por criterio para que el docente ponga la suya en Séneca, en
+     Rayuela o donde sea, sin traducir veinticuatro informes a mano.
+
+     Cada criterio es el que el docente tenga en su programación —su código y
+     su texto, tal cual— y las casillas dicen qué conceptos de la app lo
+     trabajan. Vive solo en el equipo del docente: al alumnado no le sirve de
+     nada y no tiene por qué viajar. */
+  criterios: [],
 
   /* PIN del panel del docente. Este es el que llevan TODAS las tablets: el que
      se cambia desde el panel vale solo para ese equipo, porque el PIN no viaja
@@ -528,7 +540,7 @@ function configEditadaEnLocal() {
    viajando: un niño ve los nombres de su cuadrilla en su propia app, y eso es
    lo mismo que ve al girar la cabeza en clase. */
 const NO_SE_COMPARTE = ['appwrite', 'teacherPin', 'curriculo', 'iaCola', 'iaClave',
-                        'iaWorkspace', 'notasInforme', 'roster'];
+                        'iaWorkspace', 'notasInforme', 'roster', 'criterios'];
 
 /* Topes de las notas del docente. Viven aquí y no en state.js porque cloud.js
    los usa al mezclar las de dos equipos, y carga antes que state.js. */

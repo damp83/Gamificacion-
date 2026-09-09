@@ -83,6 +83,8 @@ Cubren lo que ya se ha roto alguna vez, que es de donde salieron:
 | `vista-vacia.test.js` | Que la vista de clase sin diarios diga quién falta y qué le falta, en vez de dejar huecos |
 | `cuentas.test.js` | Que el panel avise de una contraseña que Appwrite va a rechazar, y de que escribirla no crea la cuenta |
 | `merito-grupo.test.js` | Que dar un mérito a una cuadrilla entera, a la clase o a unos cuantos elegidos a dedo use el mismo tope y el mismo registro que darlo uno a uno, y que se diga a quién no le llegó |
+| `criterios.test.js` | Que la evidencia por criterio se calcule bien, que no se proponga un nivel sin datos suficientes, y que nada de esto llegue nunca al niño ni a su familia |
+| `nombres-unicos.test.js` | Que dos ficheros no declaren una función con el mismo nombre: comparten un solo ámbito global y la segunda pisa a la primera en silencio |
 | `datos-alumno.test.js` | Que se pueda ver y borrar todo lo que se guarda de un alumno, que el borrado no se lleve a nadie más, y que lo que la app no puede borrar —su cuenta de Appwrite— se diga en vez de darse por hecho |
 | `credenciales.test.js` | Que las contraseñas lleguen al segundo equipo del docente y a nadie más: permisos solo para su cuenta, nunca `users`, y que ningún equipo pueda vaciar lo que otro guardó |
 | `cuaderno-docente.test.js` | Que la lectura pedagógica sobre un alumno solo se abra con el docente al mando |
@@ -958,6 +960,49 @@ creerse.
 > diarios, se dice cuál falta y dónde se da: colección de diarios → *Settings →
 > Permissions → Team «docentes» → Delete*, que es un permiso aparte del de leer
 > y escribir. Un borrado a medias que se da por hecho es peor que no borrar.
+
+## Evaluación por criterios
+
+Es el punto donde la plataforma se encuentra con el papeleo del centro sin
+traicionar su propio diseño. **Atlas no pone notas y esto no las pone tampoco**:
+el niño no ve ninguna, la familia tampoco, y hay pruebas que lo fijan. Lo que
+hace es reunir lo que ya está medido y agruparlo por **tus** criterios, para que
+la calificación que pide Séneca, Rayuela o quien sea la pongas mirando una tabla
+en vez de traduciendo veinticuatro informes a mano.
+
+**Configuración → 📋 Evaluación por criterios.** Escribes el código y el texto
+tal y como estén en tu programación y marcas qué conceptos de la app los
+trabajan. Se hace una vez por curso. Después, **Calcular la tabla** da una fila
+por alumno y una columna por criterio, acotada al trimestre que elijas.
+
+Cada celda lleva tres cosas, y las tres importan:
+
+| | Qué es |
+|---|---|
+| **90 %** | Aciertos sobre intentos en los conceptos de ese criterio |
+| **9/10** | La evidencia que hay detrás. Sin esto, el porcentaje no se puede juzgar |
+| **Sobresaliente** | El nivel que sugiere ese porcentaje, solo si hay evidencia suficiente |
+
+> **Con menos de 8 intentos no se propone nivel** y la celda sale gris: un 100 %
+> de tres respuestas no es un sobresaliente, es un 100 % de tres respuestas. Y
+> un criterio sin intentos sale vacío, no a cero: «no lo hemos trabajado» y «lo
+> hizo mal» se parecen en una tabla y no son lo mismo — uno se lleva a la nota y
+> el otro a la programación.
+
+**Se descarga en CSV de dos formas**, porque se usan para dos cosas: la ancha se
+pega en la hoja de cálculo del centro, y la larga —una fila por alumno y
+criterio, con aciertos e intentos— se filtra y se ordena. Las dos con punto y
+coma y BOM, que es lo que abre bien un Excel en español sin tocar nada.
+
+Para poder acotar al trimestre, cada concepto guarda ahora también sus intentos
+y fallos **por trimestre**. Un diario anterior a este cambio no tiene ese
+desglose y lo dice, en vez de repartir a ojo: sus columnas de trimestre salen
+vacías y el total sigue estando.
+
+> La tabla necesita el diario **completo** de cada alumno, no el resumen: el
+> resumen lleva solo los seis conceptos que peor van, y una evaluación hecha con
+> eso sería una evaluación de lo que falla. En clase dirigida están en el equipo;
+> con el alumnado entrando desde casa hay que traerlos uno a uno, así que tarda.
 
 ### Menos dato desde el origen
 
