@@ -893,6 +893,14 @@ Tres detalles que evitan perderlas:
 
 Si un alumno aparece con cuenta creada y sin contraseña, es que se puso en otro equipo y este todavía no la ha recuperado: entra al panel con la clase abierta y bajan solas. Sin Appwrite configurado no hay de dónde traerlas, y hay que mirarlas en el equipo donde se crearon.
 
+> **Vincular y buscar necesitan tu sesión; crear las cuentas, no.** Dar de alta
+> una cuenta es un alta pública de Appwrite y funciona sin haber entrado.
+> Adoptar el diario de un niño lo haces tú con tu cuenta, así que sin sesión
+> esos dos botones salen apagados y se dice por qué. Antes se ofrecían igual y
+> fallaban una vez por alumno, con el nombre interno de la comprobación en
+> pantalla: una lista de «✘ NADIA — sin-nube» que mandaba a mirar la red cuando
+> lo que faltaba era entrar.
+
 ### El diario nace cuando el niño entra, y luego se vincula
 
 Son dos momentos, y conviene saberlo porque explica lo que se ve en pantalla:

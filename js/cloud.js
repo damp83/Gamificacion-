@@ -250,7 +250,8 @@ async function ejecutarConReintento(id, cuerpo, avisar) {
    descarta de entrada lo que podría hacer daño —el diario de un alumno de
    otro docente—, porque vincularlo le pondría a él nuestra clase encima. */
 async function cloudDiariosParaVincular() {
-  if (!CLOUD.enabled || !CLOUD.user) return { ok: false, reason: 'sin-nube' };
+  if (!CLOUD.enabled) return { ok: false, reason: 'sin-nube' };
+  if (!CLOUD.user) return { ok: false, reason: 'sin-sesion' };
   const c = ATLAS_CONFIG.appwrite;
   const yo = CLOUD.user.$id;
   const aula = aulaActiva() || '';
@@ -618,7 +619,12 @@ async function cloudCreateStudent(name, username, password) {
    la colección de diarios; es el mismo que ya hace falta para anotarle un
    mérito a un niño que se registró por su cuenta. */
 async function cloudVincularDiario(alumnoId) {
-  if (!CLOUD.enabled || !CLOUD.user) return { ok: false, reason: 'sin-nube' };
+  if (!CLOUD.enabled) return { ok: false, reason: 'sin-nube' };
+  /* Sin sesión de docente no se puede adoptar el diario de nadie, y eso NO es
+     lo mismo que estar sin nube: la app está conectada, quien no ha entrado
+     es el docente. Decirlo con el mismo código dejaba en pantalla una lista de
+     «sin-nube» que no llevaba a ninguna parte. */
+  if (!CLOUD.user) return { ok: false, reason: 'sin-sesion' };
   if (!alumnoId) return { ok: false, reason: 'sin-id' };
   const c = ATLAS_CONFIG.appwrite;
   const docente = CLOUD.user.$id;

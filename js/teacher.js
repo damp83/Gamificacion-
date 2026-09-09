@@ -422,6 +422,25 @@ function pegaDeLaCuenta(r) {
   return null;
 }
 
+/* ── Por qué ha fallado, dicho para una persona ──
+   La lista de la pantalla llegó a llenarse de «✘ NADIA — sin-nube», que es el
+   nombre interno de una comprobación y no le dice a nadie qué hacer. Peor aún
+   cuando la causa real era otra: la app SÍ estaba conectada y quien no había
+   entrado era el docente. */
+function motivoDeNube(r) {
+  const razon = (r && r.reason) || '';
+  const dichos = {
+    'sin-sesion': 'no has entrado con tu cuenta de docente. Entra arriba, en «Mis clases», y vuelve a pulsar.',
+    'sin-nube': 'este equipo no tiene conexión con Appwrite ahora mismo.',
+    'sin-permiso': 'tu cuenta no tiene permiso para eso en Appwrite.',
+    'sin-estrenar': 'todavía no ha entrado ninguna vez, así que su diario aún no existe.',
+    'sin-id': 'su ficha no guarda el identificador de la cuenta.',
+    'ritmo': 'Appwrite pide esperar un poco: inténtalo de nuevo en un minuto.',
+    'ilegible': 'su diario está guardado en un formato que no se puede leer.'
+  };
+  return dichos[razon] || (r && r.detail) || razon || 'error desconocido';
+}
+
 function cfgAlumnado(body) {
   const roster = ATLAS_CONFIG.roster || [];
   const conCuenta = roster.filter(r => r.account).length;
@@ -447,6 +466,11 @@ function cfgAlumnado(body) {
     if (cuenta[k] > 1) repes.add(k);
   }
   const nube = cloudConfigured() && cloudEnabled();
+  /* Dar de alta una cuenta es un alta pública y funciona sin sesión. Adoptar
+     el diario de un niño, no: eso lo hace el docente con su cuenta. Ofrecer
+     los dos botones igual era ofrecer uno que solo podía fallar, y encima
+     fallaba una vez por alumno. */
+  const conSesion = !!(typeof cloudUser === 'function' && cloudUser());
 
   body.innerHTML = `
     <p class="cfg-intro">La lista de clase sirve para dos cosas: asignar cuadrillas
@@ -532,12 +556,16 @@ function cfgAlumnado(body) {
       <h4 class="cfg-h4">Crear las cuentas</h4>
       <p class="cfg-hint">Se dan de alta en Appwrite las que aún no existan. Tu sesión no se
       toca. Si alguna falla, se dice cuál y por qué.</p>
+      ${conSesion ? '' : `<p class="cfg-warn">🔒 <strong>No has entrado con tu cuenta de docente.</strong>
+        Crear las cuentas sí funciona —es un alta y no necesita sesión—, pero vincular o buscar
+        diarios lo haces tú con tu cuenta, así que esos dos botones están apagados. Entra en
+        <strong>Mis clases</strong> y vuelve aquí.</p>`}
       <div class="cfg-acciones">
         <button class="btn btn-primary btn-small" id="ros-create"${roster.length === conCuenta ? ' disabled' : ''}>
           🎒 Crear ${roster.length - conCuenta} cuenta(s)</button>
-        ${porVincular ? `<button class="btn btn-secondary btn-small" id="ros-link">
+        ${porVincular ? `<button class="btn btn-secondary btn-small" id="ros-link"${conSesion ? '' : ' disabled'}>
           🔗 Vincular ${porVincular} diario(s) a esta clase</button>` : ''}
-        ${huerfanos ? `<button class="btn btn-secondary btn-small" id="ros-buscar">
+        ${huerfanos ? `<button class="btn btn-secondary btn-small" id="ros-buscar"${conSesion ? '' : ' disabled'}>
           🔍 Buscar el diario de ${huerfanos} alumno(s)</button>` : ''}
       </div>
       <p class="cfg-hint">El diario de cada niño <strong>nace cuando entra por primera vez</strong>,
@@ -736,7 +764,7 @@ function cfgAlumnado(body) {
     const r = await cloudDiariosParaVincular();
     buscarBtn.disabled = false;
     if (!r.ok) {
-      rosterLog = [`⚠️ No se han podido leer los diarios: ${esc(r.detail || r.reason || 'error')}`];
+      rosterLog = [`⚠️ No se han podido leer los diarios: ${esc(motivoDeNube(r))}`];
       return renderTeacherConfig();
     }
     /* Un nombre que sale dos veces entre los diarios no se propone: elegir
@@ -800,7 +828,13 @@ function cfgAlumnado(body) {
           (${esc(v.detail || '')}). Revisa que estén «aula» y «owner», escritas exactamente así.`);
         break;
       }
-      else { fallos++; lineas.push(`✘ ${esc(r.name)} — ${esc(v.detail || v.reason || 'error')}`); }
+      else if (v.reason === 'sin-sesion' || v.reason === 'sin-nube') {
+        /* Le va a pasar a los veinticinco: se dice una vez y se para. */
+        fallos++;
+        lineas.push(`⚠️ ${esc(motivoDeNube(v))}`);
+        break;
+      }
+      else { fallos++; lineas.push(`✘ ${esc(r.name)} — ${esc(motivoDeNube(v))}`); }
     }
     const sinCuenta = l.filter(r => r.account && !r.authId).length;
     lineas.push(`<span class="ros-log-sum">${atados} diario(s) en esta clase${

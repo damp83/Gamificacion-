@@ -102,7 +102,41 @@ test('el nombre se compara sin tildes ni dobles espacios', () => {
 test('el botón solo sale si hay alguien a quien rescatar', () => {
   const t = leer('js/teacher.js');
   assert.match(t, /const huerfanos = roster\.filter\(r => r\.account && !r\.authId\)\.length;/);
-  assert.match(t, /\$\{huerfanos \? `<button class="btn btn-secondary btn-small" id="ros-buscar">/);
+  assert.match(t, /\$\{huerfanos \? `<button class="btn btn-secondary btn-small" id="ros-buscar"/);
+});
+
+test('y está apagado sin sesión de docente, que es lo único que puede hacerlo', () => {
+  /* Buscar y vincular los hace el docente CON SU CUENTA. Ofrecerlos sin sesión
+     era ofrecer un botón que solo podía fallar, y fallaba una vez por alumno
+     con un código interno en pantalla. Crear las cuentas sí funciona: es un
+     alta pública. */
+  const t = leer('js/teacher.js');
+  assert.match(t, /const conSesion = !!\(typeof cloudUser === 'function' && cloudUser\(\)\);/);
+  assert.match(t, /id="ros-buscar"\$\{conSesion \? '' : ' disabled'\}/);
+  assert.match(t, /id="ros-link"\$\{conSesion \? '' : ' disabled'\}/);
+  assert.ok(!/id="ros-create"\$\{conSesion/.test(t), 'crear cuentas no necesita sesión');
+});
+
+test('el fallo se dice en castellano, no con el nombre de la comprobación', () => {
+  /* La pantalla llegó a llenarse de «✘ NADIA — sin-nube»: es el nombre interno
+     de un `if` y no le dice a nadie qué hacer. Y encima la causa era otra: la
+     app estaba conectada y quien no había entrado era el docente. */
+  const c = cargarApp();
+  const dicho = c.ev('motivoDeNube')({ reason: 'sin-sesion' });
+  assert.match(dicho, /cuenta de docente/);
+  assert.ok(!/sin-sesion/.test(dicho));
+  assert.match(c.ev('motivoDeNube')({ reason: 'sin-nube' }), /conexión con Appwrite/);
+});
+
+test('sin sesión y sin nube son cosas distintas', () => {
+  /* Las dos daban «sin-nube». Una se arregla entrando y la otra revisando la
+     red: mandar al docente a mirar donde no es cuesta la tarde. */
+  const cloud = leer('js/cloud.js');
+  const i = cloud.indexOf('async function cloudVincularDiario');
+  const cuerpo = cloud.slice(i, i + 500);
+  assert.match(cuerpo, /if \(!CLOUD\.user\) return \{ ok: false, reason: 'sin-sesion' \}/);
+  const j = cloud.indexOf('async function cloudDiariosParaVincular');
+  assert.match(cloud.slice(j, j + 300), /reason: 'sin-sesion'/);
 });
 
 test('el aviso de «no se pudo» manda al botón que lo arregla', () => {
