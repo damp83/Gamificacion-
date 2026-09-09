@@ -35,6 +35,10 @@ function documentoDeMentira() {
     classList: { add() {}, remove() {}, toggle() {}, contains: () => false },
     addEventListener() {}, appendChild() {}, querySelector: () => nodo,
     querySelectorAll: () => [], focus() {}, click() {}, select() {},
+    /* Los atributos no se guardan: aquí no se comprueba lo pintado, solo que
+       el código pueda correr. Lo que se ve se comprueba en el navegador. */
+    setAttribute() {}, removeAttribute() {}, getAttribute: () => null,
+    hasAttribute: () => false,
     dataset: {}, style: {}, innerHTML: '', textContent: '', value: '', disabled: false
   };
   return {

@@ -197,6 +197,71 @@ test('dos alumnas del mismo nombre en cursos distintos no se funden', () => {
     'la de 4.º no recibió nada');
 });
 
+/* ── Elegir a dedo ──
+   No todo lo que pasa en un aula es una cuadrilla: los cuatro que recogieron
+   la biblioteca, los tres que salieron a la pizarra. */
+
+test('un puñado suelto de dos cuadrillas distintas recibe igual', () => {
+  const c = conClase();
+  const b = primerMerito(c);
+  const sueltos = c.ev('aulaAlumnos()').filter(a => ['Leo', 'Iker'].includes(a.name));
+  const r = c.ev('awardBehaviorAVarios')(sueltos, b.id);
+  assert.deepEqual(r.dados.sort(), ['Iker', 'Leo']);
+  assert.equal(saldoDe(c, { name: 'Ana', username: 'ana' }), saldoDePartida(c),
+    'a quien no se marcó no le llega nada');
+});
+
+test('lo marcado son diarios, no nombres', () => {
+  /* Con dos alumnas del mismo nombre, marcar por nombre marcaría a las dos.
+     Es el error que ya costó caro una vez. */
+  const aula = leer('js/aula.js');
+  assert.match(aula, /elegidos\.add\(diaryKey\(a\)\)/);
+  assert.match(aula, /elegidos\.has\(clave\)/);
+});
+
+test('quien sale de la lista deja de estar marcado', () => {
+  /* Si no, se le daría un mérito a alguien que el docente ya no ve. */
+  const c = conClase();
+  c.ev('eligiendo = true');
+  c.ev("elegidos.add('u:ana'); elegidos.add('u:quien-ya-no-esta')");
+  c.ev('renderAula()');
+  assert.deepEqual([...c.ev('elegidos')], ['u:ana']);
+});
+
+test('eligiendo, la ficha marca en vez de dar turno', () => {
+  /* Es el mismo toque con otro significado, así que la tarjeta se resalta y
+     el modo se anuncia arriba: sin eso se dan turnos sin querer. */
+  const aula = leer('js/aula.js');
+  const i = aula.indexOf('const pintarAlumno = (a, donde) =>');
+  const cuerpo = aula.slice(i, i + 3000);
+  const iModo = cuerpo.indexOf('if (eligiendo) {');
+  const iTurno = cuerpo.indexOf('empezarTurno(a)');
+  assert.ok(iModo > 0 && iModo < iTurno, 'el modo elegir se decide antes de dar turno');
+  assert.match(cuerpo, /aria-checked/);
+});
+
+test('mientras se elige a mano, los botones de grupo se apagan', () => {
+  /* Dos grupos distintos pidiendo el mismo toque es un mérito en el diario
+     equivocado. */
+  const aula = leer('js/aula.js');
+  assert.match(aula, /btnClase\.disabled = !alumnos\.length \|\| eligiendo/);
+  assert.match(aula, /if \(!eligiendo\) cab\.appendChild\(botonDeMeritoGrupo/);
+});
+
+test('dar turno cierra el modo elegir', () => {
+  const aula = leer('js/aula.js');
+  const i = aula.indexOf('function empezarTurno(alumno)');
+  const cuerpo = aula.slice(i, i + 500);
+  assert.match(cuerpo, /eligiendo = false/);
+  assert.match(cuerpo, /elegidos\.clear\(\)/);
+});
+
+test('el panel de los elegidos se pinta con los que están marcados', () => {
+  const aula = leer('js/aula.js');
+  assert.match(aula, /meritoGrupo === 'seleccion' && marcados\.length/);
+  assert.match(aula, /los \$\{marcados\.length\} elegidos/);
+});
+
 /* ── La interfaz ── */
 
 test('la vía rápida pasa por awardBehavior, no por una copia', () => {

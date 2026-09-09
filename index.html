@@ -647,7 +647,11 @@
             <select id="aula-tema"></select>
             <span id="aula-resumen" class="class-meta"></span>
             <button class="btn btn-secondary btn-small" id="aula-merito-clase"><svg class="ico" viewBox="0 0 24 24" aria-hidden="true"><use href="#i-medal"/></svg> Mérito a toda la clase</button>
+            <button class="btn btn-secondary btn-small" id="aula-elegir">☑️ Elegir a varios</button>
           </div>
+          <!-- Barra del modo elegir: cuántos van, qué se les da y cómo salir.
+               Se pinta desde aula.js porque el número cambia con cada toque. -->
+          <div id="aula-seleccion" class="aula-seleccion hidden" role="status"></div>
           <div id="aula-vista" class="aula-vista hidden"></div>
           <div id="aula-lista" class="aula-lista"></div>
           <p id="aula-vacia" class="empty-note hidden"></p>

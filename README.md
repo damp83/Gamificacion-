@@ -27,7 +27,7 @@ PWA sin dependencias: HTML + CSS + JavaScript vanilla, funciona offline y se ins
 | **Clase dirigida** | El docente pregunta desde su equipo y el alumnado responde en voz alta, sin entrar en la app. Turnos repartidos, méritos desde el propio turno y el diario de cada alumno guardado en ese equipo |
 | **Varios docentes** | Un claustro comparte el despliegue: cada docente entra con su cuenta, ve solo sus clases y las sincroniza entre equipos. El aislamiento lo imponen los permisos por documento de Appwrite |
 | **Cuentas de alumno** | Registro y acceso con usuario y contraseña vía Appwrite; el diario se sincroniza entre clase y casa |
-| **Méritos de Campamento** | Doblones por comportamientos (ayudar, cuidar el material, participar…), concedidos por el docente con PIN y topes diarios, **a un alumno, a una cuadrilla entera o a toda la clase de un toque** |
+| **Méritos de Campamento** | Doblones por comportamientos (ayudar, cuidar el material, participar…), concedidos por el docente con PIN y topes diarios, **a un alumno, a una cuadrilla, a la clase entera o a unos cuantos elegidos a dedo, de un toque** |
 | **Panel de Configuración** | El docente edita en la propia app el curso, los reconocimientos, las cuadrillas, los pozos, el almacén, la economía y el acceso — sin tocar código |
 | **Cuadrillas de excavación** | Equipos cooperativos que suman a una meta común de clase, con un **rol y personaje** para cada miembro; sin ranking entre niños salvo que se active |
 | **Portada** | Primera pantalla: la historia contada para el alumnado, cómo se juega, el elenco, y las dos entradas (explorador / docente) |
@@ -80,7 +80,7 @@ Cubren lo que ya se ha roto alguna vez, que es de donde salieron:
 | `consulta.test.js` | Que ver el cuaderno de un alumno no le cambie ni una coma del diario |
 | `vista-vacia.test.js` | Que la vista de clase sin diarios diga quién falta y qué le falta, en vez de dejar huecos |
 | `cuentas.test.js` | Que el panel avise de una contraseña que Appwrite va a rechazar, y de que escribirla no crea la cuenta |
-| `merito-grupo.test.js` | Que dar un mérito a una cuadrilla entera use el mismo tope y el mismo registro que darlo uno a uno, y que se diga a quién no le llegó |
+| `merito-grupo.test.js` | Que dar un mérito a una cuadrilla entera, a la clase o a unos cuantos elegidos a dedo use el mismo tope y el mismo registro que darlo uno a uno, y que se diga a quién no le llegó |
 | `credenciales.test.js` | Que las contraseñas lleguen al segundo equipo del docente y a nadie más: permisos solo para su cuenta, nunca `users`, y que ningún equipo pueda vaciar lo que otro guardó |
 | `cuaderno-docente.test.js` | Que la lectura pedagógica sobre un alumno solo se abra con el docente al mando |
 | `version.test.js` | Que el número de versión que lee el docente no se separe del de la caché |
@@ -481,8 +481,9 @@ Se cambia en **Configuración → Alumnado → «Cómo se usa en clase»**:
    que si jugara solo, y darle la pista de Kira.
 5. **🏅 Los méritos se conceden desde el propio turno**, que es donde ocurren
    («ha ayudado a su compañera»), sin salir a otra pantalla. Y a **una cuadrilla
-   entera** desde el botón 🏅 de su título, o a **toda la clase** desde la barra
-   de arriba: un toque en vez de una parada por niño.
+   entera** desde el botón 🏅 de su título, a **toda la clase** desde la barra de
+   arriba, o a **un puñado elegido a dedo** con ☑️ *Elegir a varios*: un toque en
+   vez de una parada por niño.
 6. **Terminar turno** cierra la ronda cuando haga falta: se puntúa solo lo
    respondido, no las preguntas que nadie llegó a ver.
 
@@ -635,6 +636,20 @@ Tres cosas que lo hacen fiable:
 
 A quien ya llegó a su tope no se le cuenta dos veces, venga el mérito por donde
 venga: dárselo suelto en su bolsa y luego a su cuadrilla no le da dos.
+
+### Y a un puñado suelto, elegido a dedo
+
+No todo lo que pasa en un aula es una cuadrilla: los cuatro que recogieron la
+biblioteca, los tres que salieron a la pizarra. **☑️ Elegir a varios** convierte
+las fichas en casillas: se toca a quien sea —de cuadrillas distintas, da igual—,
+la barra de arriba dice cuántos van, y de ahí sale el mismo panel de méritos.
+
+- Lo marcado son **diarios, no nombres**. Con dos alumnas que se llaman igual,
+  marcar por nombre marcaría a las dos.
+- Mientras se elige, los botones de cuadrilla y de clase entera **se apagan**:
+  son otro grupo distinto pidiendo el mismo toque.
+- **Dar turno cierra el modo**, porque al volver una selección a medias de hace
+  diez minutos ya no es la que tenías en la cabeza.
 
 ## Retos escritos por IA (a partir de tu currículo)
 
@@ -800,7 +815,7 @@ scroll—. El panel abre por **Alumnado**.
 | Sección | Qué puedes cambiar |
 |---|---|
 | 👥 Alumnado | Tu nombre y el de la clase, la lista de alumnos, y **crear sus cuentas de golpe** |
-| 🏅 Comportamientos, tareas y actividades | Crear, editar y retirar reconocimientos: icono, nombre, Doblones, tope diario y categoría. **Se conceden desde la ficha del alumno en «Dirigir la clase»**, sin pedirle la tablet: el mismo sitio desde el que se le compra en el almacén o se dona al Fondo. Y **a una cuadrilla entera o a toda la clase de un toque**, con el tope diario de cada niño intacto |
+| 🏅 Comportamientos, tareas y actividades | Crear, editar y retirar reconocimientos: icono, nombre, Doblones, tope diario y categoría. **Se conceden desde la ficha del alumno en «Dirigir la clase»**, sin pedirle la tablet: el mismo sitio desde el que se le compra en el almacén o se dona al Fondo. Y **a una cuadrilla entera, a toda la clase o a unos cuantos elegidos a dedo, de un toque**, con el tope diario de cada niño intacto |
 | 🏛️ Yacimientos y pozos | **Crear yacimientos y pozos nuevos y escribir los retos de cada estrato**, además de renombrar y ocultar. Con la IA configurada, una **asistente** propone el yacimiento entero desde tu currículo o completa el que ya tienes, y un **inspector** dice qué pozo no lo ve nadie, cuál se queda a medias y cuál repite concepto. Los pozos **de fábrica** también tienen banco: lo que escribas ahí se sirve antes que sus retos automáticos, y cuando se agota el pozo sigue generando solo |
 | 🤖 Retos con IA | Tu clave de la API, el currículo de tu área, y la **cola de revisión**: nada escrito por IA entra en el banco sin que lo apruebes |
 | ✍️ Taller de Cartografía | Los acertijos que escriben los niños, esperando a que alguien los lea |

@@ -338,6 +338,11 @@ let aulaAlumno = null;        /* { name, grade } del turno en curso */
    `renderAula()` porque conceder repinta la lista y el panel tiene que
    seguir abierto: en clase se dan dos o tres seguidos. */
 let meritoGrupo = null;
+/* Y a mano: quién está marcado cuando el docente elige a dedo. Se guardan
+   claves de diario, no nombres, porque dos alumnas pueden llamarse igual y
+   marcar a una no puede marcar a la otra. */
+let eligiendo = false;
+let elegidos = new Set();
 
 /* La lista de a quién se puede preguntar: la clase, más quien ya tenga
    diario en este equipo aunque se le haya quitado de la lista. */
@@ -414,7 +419,7 @@ function panelDeMeritoGrupo(gente, titulo, icono) {
         return;
       }
       const aQuien = r.llenos.length ? `a ${r.dados.length} de ${r.total}` : `a los ${r.total}`;
-      toast(`${b.icon} ${titulo} · ${b.name}: +${b.coins} doblones ${aQuien}`
+      toast(`${b.icon} ${conMayuscula(titulo)} · ${b.name}: +${b.coins} doblones ${aQuien}`
         + (r.llenos.length ? `. Hoy ya no le quedaba a ${nombresCortos(r.llenos)}.` : ''),
         r.llenos.length ? 4600 : 2800);
       renderAula();
@@ -436,10 +441,65 @@ function panelDeMeritoGrupo(gente, titulo, icono) {
   return caja;
 }
 
+/* «los 2 elegidos» encaja dentro de «Mérito para…» y chirría al empezar un
+   aviso. Es la misma cadena en dos sitios, así que se arregla al usarla. */
+function conMayuscula(t) {
+  const x = String(t || '');
+  return x.charAt(0).toUpperCase() + x.slice(1);
+}
+
 /* Tres nombres y luego «y N más»: una lista de doce en un aviso no se lee. */
 function nombresCortos(nombres) {
   if (nombres.length <= 3) return nombres.join(', ');
   return nombres.slice(0, 3).join(', ') + ` y ${nombres.length - 3} más`;
+}
+
+/* La barra del modo elegir: cuántos van, qué se les da y cómo se sale. Vive
+   pegada a la barra de arriba, no flotando al final, porque lo que cuenta es
+   el número y hay que verlo mientras se marca. */
+function pintarBarraDeSeleccion(todos, marcados) {
+  const zona = $('#aula-seleccion');
+  if (!zona) return;
+  zona.classList.toggle('hidden', !eligiendo);
+  if (!eligiendo) { zona.innerHTML = ''; return; }
+  zona.innerHTML = '';
+
+  const cuenta = document.createElement('span');
+  cuenta.className = 'aula-sel-cuenta';
+  cuenta.textContent = marcados.length
+    ? `${marcados.length} de ${todos.length} elegidos`
+    : 'Toca a quien quieras darle el mérito';
+  zona.appendChild(cuenta);
+
+  const boton = (texto, clase, alPulsar, apagado) => {
+    const b = document.createElement('button');
+    b.className = 'btn btn-small ' + clase;
+    b.innerHTML = texto;
+    b.disabled = !!apagado;
+    b.addEventListener('click', alPulsar);
+    zona.appendChild(b);
+    return b;
+  };
+
+  boton(`${ico('medal')} Dar mérito${marcados.length ? ` a ${marcados.length}` : ''}`, 'btn-primary', () => {
+    meritoGrupo = meritoGrupo === 'seleccion' ? null : 'seleccion';
+    renderAula();
+  }, !marcados.length);
+
+  /* «Todos» aquí no es la clase entera: es marcar a todos los que se están
+     viendo, que es como se empieza cuando la excepción son dos. */
+  boton(marcados.length === todos.length ? 'Desmarcar todos' : 'Marcar todos', 'btn-secondary', () => {
+    if (marcados.length === todos.length) elegidos.clear();
+    else for (const a of todos) elegidos.add(diaryKey(a));
+    renderAula();
+  });
+
+  boton('Salir', 'btn-quit', () => {
+    eligiendo = false;
+    elegidos.clear();
+    meritoGrupo = null;
+    renderAula();
+  });
 }
 
 /* El botón que abre el panel de un grupo. Cerrarlo es volver a pulsarlo. */
@@ -492,11 +552,32 @@ function renderAula() {
      porque no pertenece a ninguna cuadrilla. */
   const btnClase = $('#aula-merito-clase');
   if (btnClase) {
-    btnClase.disabled = !alumnos.length;
+    /* Mientras se elige a mano, los dos botones de grupo se apagan: son otro
+       grupo distinto y el toque siguiente iría al que no es. */
+    btnClase.disabled = !alumnos.length || eligiendo;
     btnClase.classList.toggle('on', meritoGrupo === 'todos');
     btnClase.setAttribute('aria-expanded', meritoGrupo === 'todos' ? 'true' : 'false');
     btnClase.onclick = () => {
       meritoGrupo = meritoGrupo === 'todos' ? null : 'todos';
+      renderAula();
+    };
+  }
+
+  /* ── Elegir a dedo ──
+     Las cuadrillas cubren el caso de siempre, pero no todo lo que pasa en un
+     aula es una cuadrilla: los cuatro que recogieron la biblioteca, los que
+     salieron a la pizarra. Para eso se marcan a mano. */
+  const btnElegir = $('#aula-elegir');
+  if (btnElegir) {
+    btnElegir.disabled = !alumnos.length;
+    btnElegir.classList.toggle('on', eligiendo);
+    btnElegir.setAttribute('aria-pressed', eligiendo ? 'true' : 'false');
+    btnElegir.onclick = () => {
+      eligiendo = !eligiendo;
+      if (!eligiendo) elegidos.clear();
+      /* Los dos modos no conviven: un panel de cuadrilla abierto mientras se
+         marca a mano son dos grupos distintos pidiendo el mismo toque. */
+      meritoGrupo = null;
       renderAula();
     };
   }
@@ -512,11 +593,22 @@ function renderAula() {
   vacia.classList.add('hidden');
   $('#aula-siguiente').disabled = false;
 
+  /* Solo se conservan los que siguen en la lista: si el docente quita a
+     alguien mientras elige, marcado no puede quedarse. */
+  const porClave = new Map(alumnos.map(a => [diaryKey(a), a]));
+  for (const k of [...elegidos]) if (!porClave.has(k)) elegidos.delete(k);
+  const marcados = [...elegidos].map(k => porClave.get(k));
+  pintarBarraDeSeleccion(alumnos, marcados);
+
   lista.innerHTML = '';
   /* El panel de la clase entera va arriba del todo, antes de la primera
      ficha: es a quien afecta. */
   if (meritoGrupo === 'todos') {
     lista.appendChild(panelDeMeritoGrupo(alumnos, 'toda la clase', '👥'));
+  }
+  if (meritoGrupo === 'seleccion' && marcados.length) {
+    lista.appendChild(panelDeMeritoGrupo(marcados,
+      marcados.length === 1 ? marcados[0].name : `los ${marcados.length} elegidos`, '☑️'));
   }
 
   /* ── Por cuadrillas, o todos seguidos ──
@@ -529,7 +621,8 @@ function renderAula() {
   const agrupar = hayCuadrillas && ATLAS_CONFIG.aulaAgrupar !== false;
 
   const pintarAlumno = (a, donde) => {
-    const t = turnos[diaryKey(a)] || { rondas: 0, minutos: 0 };
+    const clave = diaryKey(a);
+    const t = turnos[clave] || { rondas: 0, minutos: 0 };
     const tiene = diaryExists(a);
     /* Dos acciones por alumno, no una: darle turno y abrir su bolsa. Un botón
        dentro de otro botón no es HTML válido, así que la tarjeta es un
@@ -547,6 +640,31 @@ function renderAula() {
       <span class="aula-card-nombre">${esc(a.name)}</span>
       <span class="aula-card-meta">${rol ? esc(rol.personaje.split(',')[0]) + ' · ' : ''}${
         gradeInfo(a.grade).label}${tiene ? ` · ${t.rondas} ronda(s) hoy` : ''}</span>`;
+    /* Eligiendo a mano, la tarjeta deja de dar turno y pasa a marcarse. Es un
+       cambio de significado del mismo toque, así que se ve: la tarjeta se
+       resalta, sale un tic y el modo se anuncia arriba. Mantener las dos
+       cosas en el mismo gesto —turno con un toque, marca con uno largo— es
+       justo lo que se pulsa mal con prisa y delante de la clase. */
+    if (eligiendo) {
+      const marcado = elegidos.has(clave);
+      card.classList.toggle('aula-card-elegida', marcado);
+      turno.setAttribute('role', 'checkbox');
+      turno.setAttribute('aria-checked', marcado ? 'true' : 'false');
+      turno.setAttribute('aria-label', `${a.name}: ${marcado ? 'quitar de' : 'añadir a'} los elegidos`);
+      const tic = document.createElement('span');
+      tic.className = 'aula-card-tic';
+      tic.setAttribute('aria-hidden', 'true');
+      tic.textContent = marcado ? '☑' : '☐';
+      card.appendChild(tic);
+      turno.addEventListener('click', () => {
+        if (elegidos.has(clave)) elegidos.delete(clave); else elegidos.add(clave);
+        renderAula();
+      });
+      card.appendChild(turno);
+      donde.appendChild(card);
+      return;
+    }
+
     turno.addEventListener('click', () => empezarTurno(a));
     card.appendChild(turno);
 
@@ -590,7 +708,7 @@ function renderAula() {
     cab.innerHTML = `<span class="aula-grupo-icono">${esc(icono)}</span>
       <strong>${esc(titulo)}</strong>
       <span class="aula-grupo-meta">${salidos} de ${gente.length} hoy</span>`;
-    cab.appendChild(botonDeMeritoGrupo(id, `Dar un mérito a ${titulo}`));
+    if (!eligiendo) cab.appendChild(botonDeMeritoGrupo(id, `Dar un mérito a ${titulo}`));
     lista.appendChild(cab);
     /* Pegado a su título, no en un cajón aparte: con cinco cuadrillas
        abiertas, un panel suelto se pulsa sobre la que no es. */
@@ -630,6 +748,11 @@ function pintarSelectorDeVista(hayCuadrillas, agrupar) {
 }
 
 function empezarTurno(alumno) {
+  /* Dar turno cierra el modo elegir: al volver, una selección a medias de
+     hace diez minutos ya no es la que el docente tenía en la cabeza. */
+  eligiendo = false;
+  elegidos.clear();
+  meritoGrupo = null;
   const tema = aulaTema === 'auto' ? null : aulaTema;
   let destino = null;
   if (tema) {
