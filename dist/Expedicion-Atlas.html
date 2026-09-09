@@ -2258,6 +2258,50 @@ input[type="checkbox"]::after, input[type="radio"]::after {
 }
 #aula-merito-clase.on:hover { background: var(--brass-tint); color: var(--brass); }
 
+/* El campo de varias líneas del diálogo: la nota que el docente escribe para
+   una familia no cabe en una línea, y con una línea se escriben notas de una
+   línea. */
+.modal-area {
+  width: 100%; margin-top: .6rem; padding: .6rem .7rem;
+  font-family: var(--font-text); font-size: var(--t-md); line-height: 1.5;
+  color: var(--ink); background: var(--paper);
+  border: var(--line); border-radius: var(--r-md); resize: vertical;
+}
+.modal-nota { margin: .5rem 0 0; font-size: var(--t-xs); color: var(--ink-soft); text-align: left; }
+
+/* El nivel de Bloom donde se rompe un concepto, junto a su área. */
+.repaso-estrato {
+  display: inline-flex; align-items: center; gap: .25rem;
+  font-size: var(--t-xs); color: var(--leather-dark);
+  background: var(--paper-deep); border-radius: var(--r-sm); padding: .1rem .4rem;
+}
+.repaso-estrato .ico { width: .95rem; height: .95rem; }
+
+/* La evaluación de la clase. Tres cifras, y la tercera es la que avisa. */
+.class-evaluacion { margin: 0 0 var(--s-5); }
+.class-eval-intro { font-size: var(--t-sm); color: var(--ink-soft); margin: 0 0 .7rem; }
+.class-eval-cifras {
+  display: grid; gap: .6rem;
+  grid-template-columns: repeat(auto-fit, minmax(9rem, 1fr));
+}
+.class-eval-dato {
+  background: var(--surface); border: var(--line); border-radius: var(--r-md);
+  padding: .7rem .8rem; display: flex; flex-direction: column; gap: .15rem;
+}
+.class-eval-dato strong { font-size: var(--t-lg); font-variant-numeric: tabular-nums; }
+.class-eval-dato span { font-size: var(--t-xs); color: var(--ink-soft); }
+.class-eval-aviso { border-color: var(--brass); box-shadow: inset 0 0 0 1px var(--brass); }
+.class-eval-aviso strong { color: var(--brass); }
+.class-eval-nota { font-size: var(--t-sm); color: var(--ink-soft); margin: .6rem 0 0; }
+.class-eval-nota-aviso {
+  color: var(--ink); background: var(--brass-tint);
+  border-left: 3px solid var(--brass); padding: .55rem .8rem; border-radius: var(--r-sm);
+}
+
+/* El botón de los informes de toda la clase, con su línea de explicación. */
+.class-informes { display: flex; align-items: center; gap: .6rem; flex-wrap: wrap; margin: 0 0 var(--s-4); }
+.class-informes-nota { font-size: var(--t-xs); color: var(--ink-soft); flex: 1 1 16rem; }
+
 /* La barra del modo elegir. */
 .aula-seleccion {
   display: flex; align-items: center; gap: .5rem; flex-wrap: wrap;
@@ -3644,6 +3688,16 @@ body.en-consulta #shop-list button { display: none !important; }
                pantalla, y estaba enterrada bajo veinticinco tarjetas. -->
           <div id="class-repasar" class="class-repasar hidden"></div>
 
+          <!-- La evaluación de la clase: cuánto se superan las Cámaras y, sobre
+               todo, cuánto prometía la barra de dominio de más. Se calculaba
+               desde hacía versiones y no se pintaba en ninguna parte. -->
+          <div id="class-evaluacion" class="class-evaluacion hidden"></div>
+
+          <!-- Un informe por alumno son veintidós descargas en la semana en que
+               menos tiempo hay. Este botón los junta en un archivo, uno por
+               página. Se pinta desde aula.js: sin diarios no tiene sentido. -->
+          <div id="class-informes" class="class-informes hidden"></div>
+
           <div id="class-students" class="class-students"></div>
 
           <!-- El título va DENTRO de la sección: suelto, se quedaba flotando
@@ -3719,6 +3773,10 @@ body.en-consulta #shop-list button { display: none !important; }
       <p id="modal-text" class="modal-text"></p>
       <!-- El tipo lo fija openModal(): «password» + teclado numérico para el PIN, texto normal para lo demás. -->
       <input type="text" id="modal-input" class="modal-input hidden" autocomplete="off">
+      <!-- Para lo que no cabe en una línea: la nota que el docente escribe en
+           el informe de una familia. Enter ahí dentro hace párrafo, no acepta. -->
+      <textarea id="modal-area" class="modal-area hidden" rows="5"></textarea>
+      <p id="modal-nota" class="modal-nota hidden"></p>
       <p id="modal-error" class="auth-error hidden"></p>
       <div class="modal-actions">
         <button id="modal-cancel" class="btn btn-quit">Cancelar</button>
@@ -3773,65 +3831,116 @@ const STRATA_META = {
      sumar» son conceptos distintos— porque un niño que resuelve 4856 + 30 y
      falla el mismo cálculo dentro de un problema no tiene un problema de
      matemáticas, lo tiene de lectura. Mezclarlos escondía justo eso. */
+/* ── El catálogo de conceptos ──
+   `area` y `label` son para las pantallas del docente y para el informe.
+
+   `casa` es para la familia, y es lo que convierte «está trabajando la resta
+   llevando» —que dice qué pasa— en algo que se puede hacer esta tarde. Regla
+   al escribirlas: cinco minutos, con lo que ya hay en una casa, sin fichas,
+   sin pantallas y sin «que practique más». Una casa que no puede comprar nada
+   ni imprimir nada tiene que poder hacerlo igual. */
 const CONCEPTOS = {
   /* ── Numeración ── */
-  serie_numerica:      { area: 'Numeración', label: 'Anterior y posterior' },
-  valor_posicional:    { area: 'Numeración', label: 'Valor posicional' },
-  comparar_numeros:    { area: 'Numeración', label: 'Comparar números' },
-  redondeo:            { area: 'Numeración', label: 'Redondeo' },
-  ordenar_numeros:     { area: 'Numeración', label: 'Ordenar de menor a mayor' },
-  contar_agrupando:    { area: 'Numeración', label: 'Contar agrupando de diez' },
-  series:              { area: 'Numeración', label: 'Continuar una serie' },
-  par_impar:           { area: 'Numeración', label: 'Pares e impares' },
+  serie_numerica:      { area: 'Numeración', label: 'Anterior y posterior',
+                         casa: 'Al subir portales o escaleras: «vivimos en el 7, ¿quién vive justo antes?».' },
+  valor_posicional:    { area: 'Numeración', label: 'Valor posicional',
+                         casa: 'Con el número de un recibo o una matrícula: «¿cuántas decenas hay en 340?».' },
+  comparar_numeros:    { area: 'Numeración', label: 'Comparar números',
+                         casa: 'Dos precios en la mano en el súper: «¿cuál es mayor?», sin hacer la resta.' },
+  redondeo:            { area: 'Numeración', label: 'Redondeo',
+                         casa: 'Antes de pagar, «¿cuánto es más o menos?». Redondear a euros y comprobar con el ticket.' },
+  ordenar_numeros:     { area: 'Numeración', label: 'Ordenar de menor a mayor',
+                         casa: 'Ordenar los dorsales de un partido, las páginas de un cómic o las tallas de la ropa tendida.' },
+  contar_agrupando:    { area: 'Numeración', label: 'Contar agrupando de diez',
+                         casa: 'Contar cromos, garbanzos o calcetines haciendo montones de diez antes de sumar.' },
+  series:              { area: 'Numeración', label: 'Continuar una serie',
+                         casa: 'Poner la mesa contando de dos en dos; subir los escalones de tres en tres.' },
+  par_impar:           { area: 'Numeración', label: 'Pares e impares',
+                         casa: 'Repartir algo entre dos: si sobra uno, es impar. Con la fruta o con las cartas.' },
 
   /* ── Cálculo ── */
-  suma_basica:         { area: 'Cálculo', label: 'Sumar sin llevada' },
-  suma_llevada:        { area: 'Cálculo', label: 'Suma con llevada' },
-  resta_llevada:       { area: 'Cálculo', label: 'Resta llevando' },
-  detectar_llevada:    { area: 'Cálculo', label: 'Reconocer cuándo hay llevada' },
-  error_suma:          { area: 'Cálculo', label: 'Encontrar el error en una suma' },
-  problema_suma:       { area: 'Cálculo', label: 'Problema de sumar (enunciado)' },
+  suma_basica:         { area: 'Cálculo', label: 'Sumar sin llevada',
+                         casa: 'Sumar en voz alta lo que se va echando al carro, sin decimales.' },
+  suma_llevada:        { area: 'Cálculo', label: 'Suma con llevada',
+                         casa: 'Sumar dos precios de dos cifras en un papel, diciendo en alto dónde «me llevo una».' },
+  resta_llevada:       { area: 'Cálculo', label: 'Resta llevando',
+                         casa: 'El cambio de la compra: «he pagado 20 y ha costado 13, ¿cuánto me devuelven?».' },
+  detectar_llevada:    { area: 'Cálculo', label: 'Reconocer cuándo hay llevada',
+                         casa: 'Antes de hacer la cuenta, preguntar solo «¿va a haber llevada?». Nada más.' },
+  error_suma:          { area: 'Cálculo', label: 'Encontrar el error en una suma',
+                         casa: 'Hacer una suma mal a propósito y pedirle que encuentre el fallo.' },
+  problema_suma:       { area: 'Cálculo', label: 'Problema de sumar (enunciado)',
+                         casa: 'Al revés: dar el resultado y que sea él quien invente el problema.' },
 
   /* ── Fracciones ── */
-  fraccion_leer:       { area: 'Fracciones', label: 'Leer una fracción' },
-  fraccion_terminos:   { area: 'Fracciones', label: 'Numerador y denominador' },
-  comparar_fracciones: { area: 'Fracciones', label: 'Comparar fracciones' },
-  fraccion_significado:{ area: 'Fracciones', label: 'Qué representa una fracción' },
-  fraccion_de_cantidad:{ area: 'Fracciones', label: 'Fracción de una cantidad' },
-  error_fraccion:      { area: 'Fracciones', label: 'Encontrar el error en un reparto' },
+  fraccion_leer:       { area: 'Fracciones', label: 'Leer una fracción',
+                         casa: 'Al partir la pizza o la tortilla: «esto es un cuarto, dilo tú».' },
+  fraccion_terminos:   { area: 'Fracciones', label: 'Numerador y denominador',
+                         casa: 'Con la tableta de chocolate: cuántos trozos hay en total y cuántos te llevas.' },
+  comparar_fracciones: { area: 'Fracciones', label: 'Comparar fracciones',
+                         casa: 'Dos vasos con distinta cantidad: «¿medio o un tercio?». Que lo vea antes de decirlo.' },
+  fraccion_significado:{ area: 'Fracciones', label: 'Qué representa una fracción',
+                         casa: 'Repartir de verdad seis galletas entre cuatro, y que explique cómo lo ha hecho.' },
+  fraccion_de_cantidad:{ area: 'Fracciones', label: 'Fracción de una cantidad',
+                         casa: '«Bébete la mitad del zumo» o «un tercio», y que lo sirva él.' },
+  error_fraccion:      { area: 'Fracciones', label: 'Encontrar el error en un reparto',
+                         casa: 'Repartir mal a propósito, con trozos desiguales, y que diga por qué no vale.' },
 
   /* ── Decimales y porcentajes ── */
-  decimal_posicion:    { area: 'Decimales', label: 'Décimas y centésimas' },
-  decimal_fraccion:    { area: 'Decimales', label: 'Decimal y fracción equivalentes' },
-  porcentaje:          { area: 'Decimales', label: 'Porcentaje de una cantidad' },
-  comparar_decimales:  { area: 'Decimales', label: 'Comparar decimales' },
+  decimal_posicion:    { area: 'Decimales', label: 'Décimas y centésimas',
+                         casa: 'Los precios del súper: «1,25 es un euro y…». Con monedas se toca mejor que se explica.' },
+  decimal_fraccion:    { area: 'Decimales', label: 'Decimal y fracción equivalentes',
+                         casa: 'Medio euro es 0,50. Con monedas de 50 y de 20 céntimos se ve solo.' },
+  porcentaje:          { area: 'Decimales', label: 'Porcentaje de una cantidad',
+                         casa: 'Los carteles de rebajas: «un 20 % de 30 euros, ¿cuánto se quita?».' },
+  comparar_decimales:  { area: 'Decimales', label: 'Comparar decimales',
+                         casa: 'Dos precios parecidos, 1,9 y 1,15: cuál es más caro y por qué engaña.' },
 
   /* ── Vocabulario ── */
-  sinonimos:           { area: 'Vocabulario', label: 'Sinónimos' },
-  antonimos:           { area: 'Vocabulario', label: 'Antónimos' },
-  categorias:          { area: 'Vocabulario', label: 'Sustantivo, adjetivo y verbo' },
-  familias_palabras:   { area: 'Vocabulario', label: 'Familias de palabras' },
+  sinonimos:           { area: 'Vocabulario', label: 'Sinónimos',
+                         casa: 'Repetir una frase cambiando una palabra por otra que valga igual.' },
+  antonimos:           { area: 'Vocabulario', label: 'Antónimos',
+                         casa: 'El juego del revés: uno dice una palabra y el otro contesta la contraria.' },
+  categorias:          { area: 'Vocabulario', label: 'Sustantivo, adjetivo y verbo',
+                         casa: 'Con cualquier frase de la tele: señalar quién hace, qué hace y cómo es.' },
+  familias_palabras:   { area: 'Vocabulario', label: 'Familias de palabras',
+                         casa: 'De «pan» salen panadero, panadería y panecillo. Ver cuántas caben en una.' },
 
   /* ── Ortografía ──
      Por regla y no por estrato: «falla ortografía» no se puede enseñar,
      «falla B/V» sí. El tipo lo declara cada palabra del banco. */
-  orto_bv:             { area: 'Ortografía', label: 'B y V' },
-  orto_h:              { area: 'Ortografía', label: 'La H' },
-  orto_lly:            { area: 'Ortografía', label: 'LL e Y' },
-  orto_gj:             { area: 'Ortografía', label: 'G y J' },
-  orto_tilde:          { area: 'Ortografía', label: 'Tildes' },
-  orto_zsc:            { area: 'Ortografía', label: 'Z, S y C' },
-  orto_x:              { area: 'Ortografía', label: 'La X' },
-  orto_homofonos:      { area: 'Ortografía', label: 'Palabras homófonas' },
-  orto_mn:             { area: 'Ortografía', label: 'M antes de B y P' },
-  orto_junto:          { area: 'Ortografía', label: 'Junto o separado' },
-  orto_otras:          { area: 'Ortografía', label: 'Otras reglas' },
+  orto_bv:             { area: 'Ortografía', label: 'B y V',
+                         casa: 'Una lista corta en la nevera con las que se le atragantan, para verla al pasar.' },
+  orto_h:              { area: 'Ortografía', label: 'La H',
+                         casa: 'La H no suena, así que leerla no basta: escribir la palabra y quedarse con su imagen.' },
+  orto_lly:            { area: 'Ortografía', label: 'LL e Y',
+                         casa: 'Que escriba él la lista de la compra: ahí salen «bollo», «pollo» y «papaya».' },
+  orto_gj:             { area: 'Ortografía', label: 'G y J',
+                         casa: 'Al escribir un mensaje a la familia, dejarle dudar y buscar la palabra antes de enviarlo.' },
+  orto_tilde:          { area: 'Ortografía', label: 'Tildes',
+                         casa: 'Leer en voz alta dando una palmada en la sílaba fuerte: la tilde va donde suena.' },
+  orto_zsc:            { area: 'Ortografía', label: 'Z, S y C',
+                         casa: 'Decir la palabra despacio antes de escribirla; se pronuncian casi igual y hay que verla.' },
+  orto_x:              { area: 'Ortografía', label: 'La X',
+                         casa: 'Las palabras con X salen poco: apuntar las que aparezcan al leer, en una lista.' },
+  orto_homofonos:      { area: 'Ortografía', label: 'Palabras homófonas',
+                         casa: '«Hola» y «ola», «vaca» y «baca»: pedirle una frase con cada una.' },
+  orto_mn:             { area: 'Ortografía', label: 'M antes de B y P',
+                         casa: 'Antes de B y de P, siempre M. Se aprende diciéndolo: «bomba», «campo», «tiempo».' },
+  orto_junto:          { area: 'Ortografía', label: 'Junto o separado',
+                         casa: '«Por qué» y «porque»: preguntarle cuál va en la pregunta y cuál en la respuesta.' },
+  orto_otras:          { area: 'Ortografía', label: 'Otras reglas',
+                         casa: 'Diez minutos de lectura al día hacen más por la ortografía que cualquier ejercicio.' },
 
   /* ── Comprensión lectora ── */
-  lectura_literal:     { area: 'Comprensión', label: 'Localizar un dato en el texto' },
-  lectura_inferencia:  { area: 'Comprensión', label: 'Inferir lo que no está escrito' },
-  lectura_idea:        { area: 'Comprensión', label: 'Idea principal' },
-  lectura_critica:     { area: 'Comprensión', label: 'Valorar lo que dice el texto' }
+  lectura_literal:     { area: 'Comprensión', label: 'Localizar un dato en el texto',
+                         casa: 'Tras leer algo juntos, preguntarle un dato y que lo busque en el texto, no de memoria.' },
+  lectura_inferencia:  { area: 'Comprensión', label: 'Inferir lo que no está escrito',
+                         casa: 'Preguntar «¿cómo crees que se sentía?» sobre algo que el texto no llega a decir.' },
+  lectura_idea:        { area: 'Comprensión', label: 'Idea principal',
+                         casa: 'Contar en una sola frase de qué iba el capítulo. Una sola.' },
+  lectura_critica:     { area: 'Comprensión', label: 'Valorar lo que dice el texto',
+                         casa: 'Preguntarle «¿estás de acuerdo con lo que hizo?» y pedirle el porqué.' }
 };
 
 /* Etiqueta legible de un concepto. Los pozos que crea el docente no tienen
@@ -5656,7 +5765,7 @@ function cruzarVerificacion(retos, respuestas) {
    copia guardada. Sin este número, «ya está arreglado» y «a mí no me pasa» son
    indistinguibles. Va junto al nombre de la caché del service worker, y una
    prueba comprueba que no se separen. */
-const ATLAS_VERSION = 'v68';
+const ATLAS_VERSION = 'v69';
 
 const ATLAS_DEFAULTS = {
 
@@ -5724,6 +5833,16 @@ const ATLAS_DEFAULTS = {
      No es un secreto —es un identificador— pero acompaña a la clave, así que
      viaja con ella: se queda en el equipo del docente. */
   iaWorkspace: '',
+
+  /* ── Las notas del docente para las familias ──
+     Clave del diario → lista de { fecha, texto }, la más reciente al final.
+     Es lo único del informe que no escribe una máquina, y por eso es lo que
+     más pesa cuando llega a una casa. Se guarda aquí y no en el diario del
+     niño por dos razones: el diario viaja a su tablet, y una nota que el
+     docente escribe PARA la familia no tiene por qué leerla el crío antes que
+     ella. Nunca sale hacia el alumnado (va en NO_SE_COMPARTE) y sí viaja
+     entre los equipos del docente, por su canal privado. */
+  notasInforme: {},
 
   /* PIN del panel del docente. Este es el que llevan TODAS las tablets: el que
      se cambia desde el panel vale solo para ese equipo, porque el PIN no viaja
@@ -6131,8 +6250,19 @@ function configEditadaEnLocal() {
    `curriculo` y `iaCola` se añaden por dos motivos distintos: el currículo son
    decenas de miles de caracteres que a un niño no le sirven de nada y que
    viajarían a las veinticinco tablets en cada apertura de clase; la cola es un
-   borrador del docente, y lo que está sin aprobar no se enseña. */
-const NO_SE_COMPARTE = ['appwrite', 'teacherPin', 'curriculo', 'iaCola', 'iaClave', 'iaWorkspace'];
+   borrador del docente, y lo que está sin aprobar no se enseña.
+
+   `notasInforme` son las líneas que el docente escribe para la familia de un
+   niño concreto. Aunque no sean secretas, son sobre UN niño y las leerían sus
+   veinticinco compañeros: van por el canal privado del docente, el mismo que
+   las contraseñas, no por el documento de la clase. */
+const NO_SE_COMPARTE = ['appwrite', 'teacherPin', 'curriculo', 'iaCola', 'iaClave',
+                        'iaWorkspace', 'notasInforme'];
+
+/* Topes de las notas del docente. Viven aquí y no en state.js porque cloud.js
+   los usa al mezclar las de dos equipos, y carga antes que state.js. */
+const NOTAS_TOPE = 6;          /* cuántas se conservan por alumno */
+const NOTA_LARGO = 1200;       /* lo que cabe leerse en un informe */
 
 function configParaCompartir() {
   const o = deepClone(ATLAS_OVERLAY);
@@ -7207,7 +7337,7 @@ async function cloudCreateAula(nombre) {
   } catch (e) { return errorNube(e); }
 }
 
-/* ══════════ LAS CREDENCIALES, SOLO PARA SU DOCENTE ══════════
+/* ══════════ EL CUADERNO PRIVADO DEL DOCENTE ══════════
 
    Las contraseñas del alumnado NO viajan en el documento de la clase, y no es
    un descuido: ese documento lo lee cualquier cuenta con sesión —tiene que
@@ -7226,7 +7356,14 @@ async function cloudCreateAula(nombre) {
    añadir ninguna columna en la consola.
 
    El id es el del aula con un sufijo, para que borrar la clase se lo lleve
-   también y no queden contraseñas de una clase que ya no existe. */
+   también y no queden contraseñas de una clase que ya no existe.
+
+   Por el mismo canal viajan las NOTAS que el docente escribe para las
+   familias: no son secretas, pero son sobre un niño concreto y el documento
+   de la clase lo lee toda la clase. El sufijo del id sigue siendo «-cred»
+   aunque ahora lleve dos cosas: cambiarlo dejaría huérfano el documento de
+   quien ya lo tenga creado, y un documento huérfano con contraseñas dentro es
+   justo lo que no puede pasar. */
 /* Appwrite corta los ids en 36 caracteres. Los que genera él tienen 20, así
    que el recorte no toca nada hoy; está para que un id escrito a mano no
    rompa el canal en silencio. */
@@ -7269,9 +7406,12 @@ async function cloudGuardarCredenciales() {
   const c = ATLAS_CONFIG.appwrite;
   const uid = CLOUD.user.$id;
   const propias = credencialesDeLaLista();
-  /* Sin contraseñas que guardar no se crea el documento: un equipo que aún no
-     las tiene no puede vaciar el del que sí. */
-  if (!Object.keys(propias).length) return { ok: true, vacio: true };
+  const hayNotas = Object.keys(ATLAS_CONFIG.notasInforme || {}).length > 0;
+  /* Sin nada que guardar no se crea el documento: un equipo que aún no tiene
+     contraseñas no puede vaciar el del que sí. Las notas cuentan como algo
+     que guardar, así que un equipo que solo tenga notas sí escribe: la mezcla
+     de más abajo es la que protege las contraseñas que no conoce. */
+  if (!Object.keys(propias).length && !hayNotas) return { ok: true, vacio: true };
 
   /* Se MEZCLA con lo que ya hay, no se reemplaza. Un segundo equipo puede
      conocer tres contraseñas de veinticinco —las que se pusieron en él—, y
@@ -7287,11 +7427,14 @@ async function cloudGuardarCredenciales() {
     }
   }
   Object.assign(cred, propias);
+  /* Las notas de las familias se mezclan con la misma regla: gana la más
+     reciente de cada alumno, y lo que este equipo no conoce se conserva. */
+  const notas = mezclarNotas(previo.ok ? previo.notas : null, ATLAS_CONFIG.notasInforme);
   const data = {
     owner: uid,
     name: 'Credenciales',
     teacher: ATLAS_CONFIG.teacherName || '',
-    config: JSON.stringify({ v: 1, cred }),
+    config: JSON.stringify({ v: 1, cred, notas }),
     updated_at: String(Date.now())
   };
   const id = idDeCredenciales(aulaActiva());
@@ -7315,13 +7458,35 @@ async function cloudTraerCredenciales() {
     const doc = await CLOUD.db.getDocument(c.databaseId, c.aulasCollectionId,
       idDeCredenciales(aulaActiva()));
     const p = JSON.parse(doc.config || '{}');
-    return { ok: true, cred: (p && p.cred) || {} };
+    return { ok: true, cred: (p && p.cred) || {}, notas: (p && p.notas) || {} };
   } catch (e) {
     const msg = (e && e.message) || '';
     /* Que no exista es lo normal la primera vez. */
-    if (/not be found|not found|404/i.test(msg)) return { ok: true, cred: {} };
+    if (/not be found|not found|404/i.test(msg)) return { ok: true, cred: {}, notas: {} };
     return errorNube(e);
   }
+}
+
+/* ── Juntar las notas de dos equipos ──
+   Cada alumno tiene una lista corta de notas con fecha. Se juntan por fecha:
+   dos equipos que escribieron el mismo día son una corrección —gana la de
+   aquí, que es la que el docente acaba de ver— y días distintos se conservan
+   los dos. Nunca se pierde una nota por sincronizar. */
+function mezclarNotas(dellaNube, deAqui) {
+  const out = {};
+  const claves = new Set([...Object.keys(dellaNube || {}), ...Object.keys(deAqui || {})]);
+  for (const k of claves) {
+    const porFecha = new Map();
+    for (const n of ((dellaNube || {})[k] || [])) {
+      if (n && n.texto && n.fecha) porFecha.set(String(n.fecha), { fecha: String(n.fecha), texto: String(n.texto) });
+    }
+    for (const n of ((deAqui || {})[k] || [])) {
+      if (n && n.texto && n.fecha) porFecha.set(String(n.fecha), { fecha: String(n.fecha), texto: String(n.texto) });
+    }
+    const lista = [...porFecha.values()].sort((a, b) => a.fecha.localeCompare(b.fecha));
+    if (lista.length) out[k] = lista.slice(-NOTAS_TOPE);
+  }
+  return out;
 }
 
 /* Rellena en la lista de clase las contraseñas que a ESTE equipo le faltan.
@@ -7337,8 +7502,19 @@ async function rellenarCredenciales() {
     if (!u || f.password) continue;
     if (r.cred[u]) { f.password = r.cred[u]; puestas++; }
   }
-  if (puestas) sinSubir(() => { setTeacherConfig('roster', lista); saveTeacherConfig(); });
-  return { ok: true, puestas };
+  /* Y las notas de las familias, que viajan por el mismo documento. Aquí no
+     hay «no pisar»: se mezclan las dos listas y se quedan todas. */
+  const notas = mezclarNotas(r.notas, ATLAS_CONFIG.notasInforme);
+  const cambian = JSON.stringify(notas) !== JSON.stringify(ATLAS_CONFIG.notasInforme || {});
+
+  if (puestas || cambian) {
+    sinSubir(() => {
+      if (puestas) setTeacherConfig('roster', lista);
+      if (cambian) setTeacherConfig('notasInforme', notas);
+      saveTeacherConfig();
+    });
+  }
+  return { ok: true, puestas, notas: cambian };
 }
 
 /* ══════════ LOS AJUSTES, A LA CLASE ══════════
@@ -8129,13 +8305,14 @@ function buildSummaryOf(S) {
        resumen entero tiene que seguir por debajo de 1 KB, porque la vista de
        clase lo lee para TODOS los alumnos del centro de una vez. Seis
        conceptos son de sobra para decidir qué se repasa mañana. */
-    conceptos: conceptosFlojosDe(S, 6).map(c => [c.id, c.errors, c.attempts]),
+    conceptos: conceptosFlojosDe(S, 6).map(c => [c.id, c.errors, c.attempts, c.estrato || '']),
     /* Evaluación: cinco números que permiten calcular por clase el Guardian
        Pass Rate y la divergencia formativo/sumativo del PRD §6. */
     evalu: (() => { const m = metricasEvaluacion(S);
       return [m.camaras, m.superadas, m.intentos,
               m.passRate === null ? null : +m.passRate.toFixed(3),
-              m.divergencia === null ? null : +m.divergencia.toFixed(3)]; })(),
+              m.divergencia === null ? null : +m.divergencia.toFixed(3),
+              m.superados]; })(),
     selfCorrections: (S.metrics && S.metrics.self_corrections) || 0,
     merits: (S.behavior_log || []).length,
     teamContribution: Math.round(S.progression.team_contribution || 0),
@@ -9337,6 +9514,10 @@ function metricasEvaluacion(estado) {
     camaras: hist.length,
     superadas: hist.filter(c => c.cleared).length,
     intentos,
+    /* Dos cosas distintas que se confundían con el mismo nombre: `superadas`
+       son cámaras conseguidas y `superados` intentos que salieron bien. Una
+       cámara superada al tercer intento cuenta 1 arriba y 1 de 3 aquí. */
+    superados,
     passRate: intentos ? superados / intentos : null,
     /* > 0 significa que la barra de dominio prometía más de lo que la prueba
        confirmó. Por debajo de 0.15 es ruido normal. */
@@ -9467,6 +9648,50 @@ function lowQualityFlag() {
   return fast / rt.length > 0.6;
 }
 
+/* ══════════ LAS NOTAS DEL DOCENTE PARA LA FAMILIA ══════════
+
+   Todo lo demás que va en el informe lo escribe una máquina a partir de
+   números. Esto no, y por eso es lo que de verdad se lee en una casa.
+
+   Se guardan por clave de diario —no por nombre: dos niñas pueden llamarse
+   igual— y con la fecha, para que el informe de marzo pueda enseñar lo que se
+   dijo en diciembre y una familia vea el camino, no una foto suelta.
+
+   Viven en los ajustes del docente, fuera de lo que se comparte. Sus topes
+   —cuántas se guardan y cuánto ocupa cada una— están en config.js, porque
+   cloud.js también los necesita y carga antes que este fichero. */
+function notasDeAlumno(clave) {
+  const m = (ATLAS_CONFIG.notasInforme && ATLAS_CONFIG.notasInforme[clave]) || [];
+  return Array.isArray(m) ? m.filter(n => n && n.texto) : [];
+}
+function ultimaNotaDeAlumno(clave) {
+  const l = notasDeAlumno(clave);
+  return l.length ? l[l.length - 1] : null;
+}
+
+/* Guarda una nota nueva. Con el texto en blanco se borra la última, que es
+   lo que quiere decir alguien que vacía el campo y acepta. */
+function guardarNotaDeAlumno(clave, texto) {
+  if (!clave) return null;
+  const todas = deepClone(ATLAS_CONFIG.notasInforme || {});
+  const lista = Array.isArray(todas[clave]) ? todas[clave].filter(n => n && n.texto) : [];
+  const limpio = String(texto || '').trim().slice(0, NOTA_LARGO);
+  if (!limpio) {
+    lista.pop();
+  } else {
+    const hoy = todayStr();
+    /* Dos notas el mismo día son una corrección, no dos momentos: se
+       sustituye en vez de acumular. */
+    if (lista.length && lista[lista.length - 1].fecha === hoy) lista[lista.length - 1] = { fecha: hoy, texto: limpio };
+    else lista.push({ fecha: hoy, texto: limpio });
+  }
+  while (lista.length > NOTAS_TOPE) lista.shift();
+  if (lista.length) todas[clave] = lista; else delete todas[clave];
+  setTeacherConfig('notasInforme', todas);
+  saveTeacherConfig();
+  return lista.length ? lista[lista.length - 1] : null;
+}
+
 /* ── Métricas de aprendizaje ── */
 function recordError(branchId, stratumId) {
   const key = `${branchId}.${stratumId}`;
@@ -9475,13 +9700,29 @@ function recordError(branchId, stratumId) {
 }
 /* Un intento por concepto. Solo se llama en el PRIMER intento de cada reto:
    el segundo llega con la explicación de Kira delante y mediría otra cosa. */
-function recordConcepto(skill, acierto) {
+function recordConcepto(skill, acierto, stratumId) {
   if (!skill) return;
   if (!S.metrics.errors_by_concept) S.metrics.errors_by_concept = {};
   const m = S.metrics.errors_by_concept;
-  if (!m[skill]) m[skill] = { errors: 0, attempts: 0 };
-  m[skill].attempts++;
-  if (!acierto) m[skill].errors++;
+  if (!m[skill]) m[skill] = { errors: 0, attempts: 0, dias: 0, ultimo: '' };
+  const e = m[skill];
+  e.attempts++;
+  if (!acierto) {
+    e.errors++;
+    /* En qué nivel se rompe. «Nueve fallan la resta llevando» y «nueve la
+       fallan al analizar» piden clases distintas: la primera es procedimiento
+       y la segunda es razonar sobre el procedimiento. Solo se cuentan los
+       fallos, que es lo que dice dónde se atasca. */
+    if (stratumId && STRATA_META[stratumId]) {
+      if (!e.estratos) e.estratos = {};
+      e.estratos[stratumId] = (Number(e.estratos[stratumId]) || 0) + 1;
+    }
+  }
+  /* En cuántos DÍAS distintos se ha visto este concepto. Dos números diminutos
+     en vez de una lista de fechas, porque lo único que hay que saber es si lo
+     que sabe se sostiene de un día para otro o fue una tanda con suerte. */
+  const hoy = todayStr();
+  if (e.ultimo !== hoy) { e.dias = (Number(e.dias) || 0) + 1; e.ultimo = hoy; }
 }
 
 /* ── Cuándo un concepto se declara flojo ──
@@ -9502,6 +9743,18 @@ const CONCEPTO_MIN_INTENTOS = 3;
 const CONCEPTO_MIN_FALLOS = 2;
 const CONCEPTO_UMBRAL = 0.30;
 
+/* El estrato donde más se rompe un concepto, si se sabe. */
+function estratoFlojoDe(entrada) {
+  const e = (entrada && entrada.estratos) || null;
+  if (!e) return '';
+  let mejor = '', n = 0;
+  for (const sId of STRATA_ORDER) {
+    const c = Number(e[sId]) || 0;
+    if (c > n) { n = c; mejor = sId; }
+  }
+  return mejor;
+}
+
 function conceptosFlojosDe(estado, tope) {
   const m = (estado && estado.metrics && estado.metrics.errors_by_concept) || {};
   const out = [];
@@ -9510,7 +9763,7 @@ function conceptosFlojosDe(estado, tope) {
     if (attempts < CONCEPTO_MIN_INTENTOS || errors < CONCEPTO_MIN_FALLOS) continue;
     const tasa = errors / attempts;
     if (tasa <= CONCEPTO_UMBRAL) continue;
-    out.push({ id, errors, attempts, tasa });
+    out.push({ id, errors, attempts, tasa, estrato: estratoFlojoDe(m[id]) });
   }
   out.sort((a, b) => b.tasa - a.tasa || b.attempts - a.attempts);
   return tope ? out.slice(0, tope) : out;
@@ -9521,13 +9774,25 @@ function conceptosFlojos(tope) { return conceptosFlojosDe(S, tope); }
    lo que falla da una foto injusta, y «domina Numeración · Analizar» no
    significa nada fuera del aula. «Ya le sale comparar números» sí. */
 const CONCEPTO_DOMINADO = 0.15;
+/* ── Y en cuántos días distintos hay que haberlo visto ──
+   Con solo tres intentos, «ya le sale» podía salir de tres aciertos seguidos
+   en el mismo minuto, y eso no distingue haber aprendido de haber acertado
+   tres veces. Para una frase que va firmada a una casa es poco. Dos días es
+   el mismo criterio que ya usa la barra de dominio, que exige dos sesiones
+   antes de fiarse de una tanda afortunada.
+
+   Los diarios anteriores a esto no llevan la cuenta de días. A esos se les
+   aplica la regla de antes: quitarles de golpe todo lo que ya sabían hacer
+   sería vaciarles el informe por un cambio nuestro. */
+const CONCEPTO_MIN_DIAS = 2;
 
 function conceptosDominadosDe(estado, tope) {
   const m = (estado && estado.metrics && estado.metrics.errors_by_concept) || {};
   const out = [];
   for (const id in m) {
-    const { errors = 0, attempts = 0 } = m[id] || {};
+    const { errors = 0, attempts = 0, dias } = m[id] || {};
     if (attempts < CONCEPTO_MIN_INTENTOS) continue;
+    if (dias !== undefined && (Number(dias) || 0) < CONCEPTO_MIN_DIAS) continue;
     if (errors / attempts > CONCEPTO_DOMINADO) continue;
     out.push({ id, errors, attempts, tasa: errors / attempts });
   }
@@ -9662,7 +9927,7 @@ function answerQuestion(optionIndex) {
     /* El concepto se anota acierte o falle: sin los aciertos no hay tasa, y
        sin tasa un concepto muy practicado parecería peor que uno que apenas
        se ha tocado. */
-    recordConcepto(q.skill, correct);
+    recordConcepto(q.skill, correct, q.stratumId || mission.stratumId);
     if (correct) mission.firstTryCorrect++;
     else {
       recordError(mission.branchId, q.stratumId || mission.stratumId);
@@ -10313,8 +10578,15 @@ function textoSeguro(v, tope) {
    el cliente del alumno: se sanea igual que el resto del resumen. */
 function leerEvalu(v) {
   const a = Array.isArray(v) ? v : [];
-  return { camaras: numSeguro(a[0]), superadas: numSeguro(a[1]), intentos: numSeguro(a[2]),
-           passRate: numONulo(a[3]), divergencia: numONulo(a[4]) };
+  const intentos = numSeguro(a[2]);
+  const passRate = numONulo(a[3]);
+  return { camaras: numSeguro(a[0]), superadas: numSeguro(a[1]), intentos,
+           /* Los intentos que salieron bien empezaron a viajar después que el
+              resto. En un resumen antiguo se deducen de la tasa, que es lo
+              mismo con un número entero pequeño. */
+           superados: a[5] !== undefined ? numSeguro(a[5])
+             : (passRate === null ? 0 : Math.round(passRate * intentos)),
+           passRate, divergencia: numONulo(a[4]) };
 }
 
 function numONulo(v) {
@@ -10356,7 +10628,10 @@ function baseDesdeResumen(sum) {
        en vez de dejar que envenene el agregado de la clase. */
     conceptos: (Array.isArray(sum.conceptos) ? sum.conceptos : []).slice(0, 12)
       .map(c => Array.isArray(c)
-        ? { id: textoSeguro(c[0], 40), errors: numSeguro(c[1]), attempts: numSeguro(c[2]) }
+        ? { id: textoSeguro(c[0], 40), errors: numSeguro(c[1]), attempts: numSeguro(c[2]),
+            /* El estrato donde se rompe llegó después que el resto y lo escribe
+               el cliente del alumno: solo se acepta si es uno de los cuatro. */
+            estrato: STRATA_ORDER.includes(c[3]) ? c[3] : '' }
         : null)
       .filter(c => c && c.id && c.attempts > 0 && c.errors <= c.attempts),
     evalu: leerEvalu(sum.evalu),
@@ -10420,7 +10695,8 @@ function baseDesdeDiario(s, today) {
     fragments: s.progression.atlas_fragments_recovered || 0,
     stuck,
     conceptos: typeof conceptosFlojosDe === 'function'
-      ? conceptosFlojosDe(s, 6).map(c => ({ id: c.id, errors: c.errors, attempts: c.attempts }))
+      ? conceptosFlojosDe(s, 6).map(c => ({ id: c.id, errors: c.errors, attempts: c.attempts,
+                                            estrato: c.estrato || '' }))
       : [],
     evalu: typeof metricasEvaluacion === 'function'
       ? metricasEvaluacion(s)
@@ -10479,11 +10755,16 @@ function buildClassOverview(entries, today) {
        dominio por encima de lo que luego confirmó la prueba. Si es alta, el
        árbol está inflado y el dominio formativo está mintiendo. */
     guardianIntentos: students.reduce((a, s) => a + s.evalu.intentos, 0),
+    guardianCamaras: students.reduce((a, s) => a + s.evalu.camaras, 0),
+    guardianSuperadas: students.reduce((a, s) => a + s.evalu.superadas, 0),
+    /* El Guardian Pass Rate del PRD §6: intentos que salieron bien sobre
+       intentos hechos. Estaba calculado como cámaras superadas sobre cámaras
+       intentadas, que es otra medida con el mismo nombre; esa sigue estando,
+       arriba, con su propio nombre. */
     guardianPassRate: (() => {
       const i = students.reduce((a, s) => a + s.evalu.intentos, 0);
       if (!i) return null;
-      return students.reduce((a, s) => a + s.evalu.superadas, 0) /
-             Math.max(1, students.reduce((a, x) => a + x.evalu.camaras, 0));
+      return students.reduce((a, s) => a + s.evalu.superados, 0) / i;
     })(),
     divergencia: (() => {
       const con = students.filter(s => s.evalu.divergencia !== null);
@@ -10504,20 +10785,36 @@ function buildClassOverview(entries, today) {
   const porConcepto = new Map();
   for (const s of students) {
     for (const c of (s.conceptos || [])) {
-      if (!porConcepto.has(c.id)) porConcepto.set(c.id, { id: c.id, alumnos: [], errors: 0, attempts: 0 });
+      if (!porConcepto.has(c.id)) {
+        porConcepto.set(c.id, { id: c.id, alumnos: [], errors: 0, attempts: 0, porEstrato: {} });
+      }
       const e = porConcepto.get(c.id);
       e.alumnos.push(s.name);
       e.errors += c.errors;
       e.attempts += c.attempts;
+      /* A cuántos alumnos se les rompe en cada nivel. No son fallos sumados:
+         es en qué nivel se atasca cada uno, que es lo que decide si la clase
+         de mañana va de procedimiento o de razonar sobre él. */
+      if (c.estrato) e.porEstrato[c.estrato] = (e.porEstrato[c.estrato] || 0) + 1;
     }
   }
   const info = typeof conceptoInfo === 'function' ? conceptoInfo : (id => ({ area: '—', label: id }));
-  const repasar = [...porConcepto.values()].map(e => ({
-    ...e,
-    label: info(e.id).label,
-    area: info(e.id).area,
-    tasa: e.attempts ? e.errors / e.attempts : 0
-  })).sort((a, b) => b.alumnos.length - a.alumnos.length || b.tasa - a.tasa);
+  const repasar = [...porConcepto.values()].map(e => {
+    /* El nivel en el que se atasca más gente. Empate: gana el más básico, que
+       es por donde hay que empezar a repasar. */
+    let estrato = '', cuantos = 0;
+    for (const sId of STRATA_ORDER) {
+      const n = e.porEstrato[sId] || 0;
+      if (n > cuantos) { cuantos = n; estrato = sId; }
+    }
+    return {
+      ...e,
+      label: info(e.id).label,
+      area: info(e.id).area,
+      estrato, estratoAlumnos: cuantos,
+      tasa: e.attempts ? e.errors / e.attempts : 0
+    };
+  }).sort((a, b) => b.alumnos.length - a.alumnos.length || b.tasa - a.tasa);
 
   /* ── Cuadrillas: aquí SÍ se puede sumar el total real ── */
   const teams = ((ATLAS_CONFIG.teams && ATLAS_CONFIG.teams.list) || []).map(t => {
@@ -10674,32 +10971,46 @@ function closeModal(value) {
 }
 function modalKeys(e) {
   if (e.key === 'Escape') { e.preventDefault(); closeModal(null); }
+  /* En el campo de una línea, Enter acepta. En el de varias NO: ahí Enter es
+     un párrafo, y aceptar con él cortaría la nota a la mitad. */
   else if (e.key === 'Enter' && !$('#modal-input').classList.contains('hidden')) {
     e.preventDefault();
     $('#modal-ok').click();
   }
 }
-function openModal({ text, withInput, okLabel, cancelLabel, tipoInput }) {
+function openModal({ text, withInput, okLabel, cancelLabel, tipoInput, nota }) {
   return new Promise(resolve => {
     closeModal(null);           /* nunca dos diálogos a la vez */
     modalResolve = resolve;
     $('#modal-text').textContent = text;
     $('#modal-error').classList.add('hidden');
     const input = $('#modal-input');
+    const area = $('#modal-area');
     input.value = '';
+    if (area) area.value = '';
     /* El mismo campo sirve para el PIN y para preguntar un texto. Estaba fijo
        en «password» con teclado numérico, que es lo que quiere el PIN pero
        deja escribir el nombre de una clase a ciegas y con un teclado de
        cifras en tablet. */
     const esPin = tipoInput === 'pin';
+    const esParrafo = tipoInput === 'parrafo';
     input.type = esPin ? 'password' : 'text';
     input.inputMode = esPin ? 'numeric' : 'text';
-    input.classList.toggle('hidden', !withInput);
+    input.classList.toggle('hidden', !withInput || esParrafo);
+    if (area) area.classList.toggle('hidden', !esParrafo);
+    /* Una línea de contexto bajo el campo: para qué es esto, o qué se escribió
+       la vez anterior. Cabe texto con formato porque lo escribe la app. */
+    const pie = $('#modal-nota');
+    if (pie) {
+      pie.innerHTML = nota || '';
+      pie.classList.toggle('hidden', !nota);
+    }
     $('#modal-ok').textContent = okLabel || 'Aceptar';
     $('#modal-cancel').textContent = cancelLabel || 'Cancelar';
     $('#modal').classList.remove('hidden');
     document.addEventListener('keydown', modalKeys);
-    if (withInput) setTimeout(() => input.focus(), 50);
+    if (esParrafo && area) setTimeout(() => area.focus(), 50);
+    else if (withInput) setTimeout(() => input.focus(), 50);
     else setTimeout(() => $('#modal-ok').focus(), 50);
   });
 }
@@ -10714,6 +11025,16 @@ function askPrompt(text, inicial, okLabel) {
   const input = $('#modal-input');
   if (input && inicial) { input.value = inicial; input.select(); }
   return p.then(v => (v === null || v === true) ? null : String(v).trim() || null);
+}
+
+/* Lo mismo, pero para un texto de varias líneas. Devuelve la cadena tal cual
+   —espacios de los bordes fuera— y '' si se acepta en blanco, que aquí sí
+   significa algo: borrar lo que hubiera escrito. Cancelar devuelve null. */
+function askParrafo(text, inicial, okLabel, nota) {
+  const p = openModal({ text, withInput: true, tipoInput: 'parrafo', okLabel: okLabel || 'Aceptar', nota });
+  const area = $('#modal-area');
+  if (area && inicial) area.value = inicial;
+  return p.then(v => (v === null) ? null : (v === true ? '' : String(v).trim()));
 }
 
 /* Sustituye a prompt() para el PIN; reintenta hasta acertar o cancelar */
@@ -13272,6 +13593,8 @@ function paintClassView() {
     : '';
 
   pintarRepaso(d);
+  pintarEvaluacion(d);
+  pintarBotonDeInformes(d);
 
   $('#class-students').innerHTML = sortStudents(d.students, classSort).map(s => `
     <div class="student-card${s.needsHelp ? ' student-alert' : ''}">
@@ -13345,7 +13668,7 @@ function paintClassView() {
 
    Sale como HTML autocontenido para poder abrirlo e imprimirlo sin la
    plataforma delante. */
-function informeFamilia(estado, opciones) {
+function datosDelInforme(estado, opciones) {
   const s = estado || S;
   if (!s || !s.profile) return null;
   const o = opciones || {};
@@ -13357,7 +13680,13 @@ function informeFamilia(estado, opciones) {
      se cuenta por CONCEPTO —«ya le sale comparar números»— y los pozos se
      resumen por cuánto llevan hechos. */
   const dominados = conceptosDominadosDe(s, 8).map(c => conceptoInfo(c.id).label);
-  const flojos = conceptosFlojosDe(s, 4).map(c => conceptoInfo(c.id).label);
+  /* De cada uno de los que le cuestan sale además QUÉ HACER en casa. Decir
+     solo el nombre del concepto informa a la familia y no le da nada que
+     hacer con eso; la frase de al lado sí. */
+  const flojos = conceptosFlojosDe(s, 4).map(c => {
+    const info = conceptoInfo(c.id);
+    return { label: info.label, casa: info.casa || '' };
+  });
 
   const pozos = [];
   for (const siteId in (s.dig_sites || {})) {
@@ -13378,20 +13707,97 @@ function informeFamilia(estado, opciones) {
         : `${hechos} de ${hay} bloques`}`);
     }
   }
+  /* ── De qué periodo habla esta hoja ──
+     Antes no lo decía, y por dentro mezclaba tres ventanas: conceptos y
+     pruebas de toda la vida del diario, días y minutos de los últimos treinta
+     y sellos desde el principio. Dos informes del mismo curso no se podían
+     comparar porque no se sabía qué parte se había reiniciado.
+
+     Ahora manda el trimestre, que es la unidad del centro. Todo lo que lleva
+     fecha se acota a él; lo que no la lleva se dice que es de todo el curso,
+     en su propia sección, en vez de colarse entre lo demás. */
+  const iTri = typeof o.trimestre === 'number' ? o.trimestre : currentTrimesterIndex();
+  const tri = (ATLAS_CONFIG.course.trimesters || [])[iTri] || null;
+  const dentro = f => !tri || !f || (String(f) >= tri.start && String(f) <= tri.end);
+  const cubo = ((s.course && s.course.trimesters) || [])[iTri] || {};
+
   const evalu = metricasEvaluacion(s);
-  const camaras = historialEvaluacion(s);
-  const log = (s.metrics && s.metrics.sessions_log) || [];
-  const dias30 = log.filter(e => Math.floor((new Date(todayStr()) - new Date(e.date)) / 86400000) < 30);
-  const minutos = dias30.reduce((a, x) => a + (x.minutes || 0), 0);
+  /* Las pruebas sí llevan fecha en cada intento: se queda con las de este
+     trimestre, y una cámara sin ningún intento dentro no se enseña. */
+  const camaras = historialEvaluacion(s)
+    .map(c => ({ ...c, intentos: (c.intentos || []).filter(i => dentro(i.date)) }))
+    .filter(c => c.intentos.length);
+  const superadasTri = camaras.filter(c => c.intentos.some(i => i.passed)).length;
+
+  const log = ((s.metrics && s.metrics.sessions_log) || []).filter(e => dentro(e.date));
+  const minutos = log.reduce((a, x) => a + (x.minutes || 0), 0);
+  const sesiones = log.reduce((a, x) => a + (x.missions || 0), 0);
 
   const lista = (arr, vacio) => arr.length
     ? `<ul>${arr.map(x => `<li>${esc(x)}</li>`).join('')}</ul>`
     : `<p class="vacio">${esc(vacio)}</p>`;
 
+  /* ── Lo que dice el docente ──
+     Va lo primero, antes que ninguna cifra, porque es lo único de esta hoja
+     que ha escrito una persona mirando a ese niño. Las anteriores se enseñan
+     debajo y con su fecha: así una familia ve el camino —«en diciembre le
+     costaba, en marzo ya no»— y no una foto suelta. */
+  const notas = (o.notas || []).filter(n => n && n.texto);
+  const ultima = notas.length ? notas[notas.length - 1] : null;
+  const antiguas = notas.slice(0, -1).reverse();
+  const enEspanol = f => String(f || '').split('-').reverse().join('/');
+  const bloqueNota = ultima ? `
+<h2>Lo que dice ${o.docente ? esc(o.docente) : 'su maestro'}</h2>
+<div class="nota-docente"><p>${esc(ultima.texto).replace(/\n+/g, '</p><p>')}</p>
+  <p class="firma">${esc(enEspanol(ultima.fecha))}</p></div>
+${antiguas.length ? `<details class="antes"><summary>Lo que se dijo antes</summary>
+  ${antiguas.map(n => `<div class="nota-vieja"><p>${esc(n.texto).replace(/\n+/g, '</p><p>')}</p>
+    <p class="firma">${esc(enEspanol(n.fecha))}</p></div>`).join('')}</details>` : ''}` : '';
+
+  return cuerpoDelInforme(s, o, {
+    dominados, flojos, pozos, camaras, superadasTri, log, minutos, sesiones, cubo, tri, hoy,
+    lista, bloqueNota, enEspanol
+  });
+}
+
+/* El informe de un alumno, como documento completo. */
+function informeFamilia(estado, opciones) {
+  const s = estado || S;
+  if (!s || !s.profile) return null;
+  const cuerpo = datosDelInforme(s, opciones);
+  return cuerpo ? envolverInforme(s, cuerpo) : null;
+}
+
+/* ── Los informes de toda la clase, en un solo documento ──
+   Un botón por alumno son veintidós descargas y veintidós archivos que
+   colocar, justo la semana en que menos tiempo hay. Esto es la misma función
+   en bucle: un informe por página, listo para imprimir y repartir.
+
+   Aquí NO se pregunta la nota de cada familia: preguntarla veintidós veces
+   seguidas no es escribir, es rellenar. Se usa la que ya esté guardada de
+   cada uno, y quien quiera escribirla lo hace desde su ficha. */
+function informeDeClase(cuerpos, opciones) {
+  const o = opciones || {};
   return `<!doctype html>
+<html lang="es">
 <meta charset="utf-8">
-<title>Informe de ${esc(s.profile.explorer_name)} — Expedición Atlas</title>
+<title>Informes${o.clase ? ' de ' + esc(o.clase) : ' de la clase'} — Expedición Atlas</title>
+${ESTILO_INFORME}
 <style>
+  /* Cada informe empieza en una hoja: se reparten uno a uno. */
+  .informe { break-after: page; page-break-after: always; }
+  .informe:last-child { break-after: auto; page-break-after: auto; }
+  @media screen { .informe { border-bottom: 2px solid #e0d3ba; padding-bottom: 28px; margin-bottom: 34px; } }
+  .informe:last-child { border-bottom: none; }
+</style>
+${cuerpos.join('\n')}
+</html>
+`;
+}
+
+/* El estilo del informe, aparte: lo comparte el de un alumno y el de la clase
+   entera, y duplicarlo sería garantizar que un día se cambie solo uno. */
+const ESTILO_INFORME = `<style>
   body { font: 16px/1.55 system-ui, -apple-system, "Segoe UI", sans-serif; color: #2b2118;
          max-width: 720px; margin: 32px auto; padding: 0 20px; }
   h1 { font-size: 1.5rem; margin: 0 0 2px; }
@@ -13402,47 +13808,106 @@ function informeFamilia(estado, opciones) {
   .cifras { display: flex; gap: 26px; flex-wrap: wrap; margin: 10px 0; }
   .cifra strong { display: block; font-size: 1.5rem; line-height: 1.1; }
   .cifra span { color: #6b5d4a; font-size: .85rem; }
+  .periodo { color: #6b5d4a; margin: -14px 0 22px; font-size: .92rem; }
   .nota { background: #f6efe2; border-left: 4px solid #b8862b; padding: 11px 14px;
           margin: 24px 0 0; font-size: .9rem; }
-  @media print { body { margin: 0; max-width: none; } .nota { break-inside: avoid; } }
+  .nota-docente { border-left: 4px solid #2f5d8a; background: #f2f6fa;
+                  padding: 12px 16px; margin: 8px 0 0; }
+  .nota-docente p { margin: 0 0 8px; }
+  .nota-docente p:last-child { margin-bottom: 0; }
+  .firma { color: #6b5d4a; font-size: .82rem; }
+  .encasa { margin: 10px 0 0; }
+  .encasa dt { font-weight: 600; margin: 12px 0 1px; }
+  .encasa dt:first-child { margin-top: 0; }
+  .encasa dd { margin: 0; color: #4a4034; }
+  .antes { margin: 10px 0 0; font-size: .9rem; }
+  .antes summary { cursor: pointer; color: #6b5d4a; }
+  .nota-vieja { border-left: 3px solid #ddd2bd; padding: 6px 12px; margin: 8px 0 0; color: #4a4034; }
+  .nota-vieja p { margin: 0 0 5px; }
+  @media print {
+    body { margin: 0; max-width: none; }
+    .nota, .nota-docente { break-inside: avoid; }
+    .encasa dt, .encasa dd { break-inside: avoid; }
+    /* En papel no hay nada que desplegar: lo anterior se imprime abierto. */
+    .antes { display: block; } .antes summary { display: none; }
+  }
 </style>
+`;
+
+/* Un documento completo con un solo informe dentro. */
+function envolverInforme(s, cuerpo) {
+  return `<!doctype html>
+<html lang="es">
+<meta charset="utf-8">
+<title>Informe de ${esc(s.profile.explorer_name)} — Expedición Atlas</title>
+${ESTILO_INFORME}
+${cuerpo}
+</html>
+`;
+}
+
+/* Solo el contenido, sin cabecera de documento: así el informe de un alumno y
+   el de la clase entera se escriben una vez. */
+function cuerpoDelInforme(s, o, d) {
+  const { dominados, flojos, pozos, camaras, superadasTri, log, minutos, sesiones,
+          cubo, tri, hoy, lista, bloqueNota, enEspanol } = d;
+  const dentro = f => !tri || !f || (String(f) >= tri.start && String(f) <= tri.end);
+  return `<article class="informe">
 <h1>${esc(s.profile.explorer_name)}</h1>
 <p class="sub">Expedición Atlas${o.clase ? ' · ' + esc(o.clase) : ''} · ${esc(hoy)}</p>
+<p class="periodo">${tri
+  ? `Este informe habla del <strong>${esc(tri.name)}</strong>, del ${esc(enEspanol(tri.start))}
+     al ${esc(enEspanol(tri.end))}.`
+  : 'Este informe habla de todo lo que lleva hecho.'}</p>
 
+${bloqueNota}
 <h2>Lo que ya le sale</h2>
 ${lista(dominados, 'Está empezando: todavía no ha practicado lo suficiente como para decirlo.')}
 
 <h2>En lo que está trabajando ahora</h2>
 ${flojos.length
-  ? `<ul>${flojos.map(x => `<li>${esc(x)}</li>`).join('')}</ul>
-     <p>Es normal y es justo donde toca practicar; en clase se está trabajando.</p>`
+  ? `<p>Es normal y es justo donde toca practicar; en clase se está trabajando. Si
+       queréis echar una mano desde casa, esto es lo que más ayuda de cada cosa.</p>
+     <dl class="encasa">${flojos.map(x => `<dt>${esc(x.label)}</dt>${
+       x.casa ? `<dd>${esc(x.casa)}</dd>` : ''}`).join('')}</dl>`
   : '<p class="vacio">Ahora mismo no hay nada que se le esté atragantando.</p>'}
 
 <h2>Por dónde va la expedición</h2>
 ${lista(pozos, 'Todavía no ha empezado ningún bloque.')}
 
-<h2>Constancia</h2>
+<h2>Constancia${tri ? ` en el ${esc(tri.name)}` : ''}</h2>
 <div class="cifras">
-  <div class="cifra"><strong>${dias30.length}</strong><span>días trabajados (30 días)</span></div>
-  <div class="cifra"><strong>${minutos}</strong><span>minutos en total</span></div>
-  <div class="cifra"><strong>${(s.logbook && s.logbook.stamps_lifetime) || 0}</strong><span>semanas completas</span></div>
-  <div class="cifra"><strong>${evalu.superadas}</strong><span>pruebas superadas</span></div>
+  <div class="cifra"><strong>${log.length}</strong><span>${log.length === 1 ? 'día trabajado' : 'días trabajados'}</span></div>
+  <div class="cifra"><strong>${minutos}</strong><span>${minutos === 1 ? 'minuto' : 'minutos'} de trabajo</span></div>
+  <div class="cifra"><strong>${sesiones}</strong><span>${sesiones === 1 ? 'expedición' : 'expediciones'}</span></div>
+  <div class="cifra"><strong>${enteroSano(cubo.stamps, 0, 0, 99)}</strong><span>${
+    enteroSano(cubo.stamps, 0, 0, 99) === 1 ? 'semana completa' : 'semanas completas'}</span></div>
+  <div class="cifra"><strong>${enteroSano(cubo.strata, 0, 0, 999)}</strong><span>${
+    enteroSano(cubo.strata, 0, 0, 999) === 1 ? 'bloque dominado' : 'bloques dominados'}</span></div>
 </div>
 
-${camaras.length ? `<h2>Pruebas realizadas</h2>
+${camaras.length ? `<h2>Pruebas${tri ? ' de este trimestre' : ''}</h2>
+<p>Ha superado <strong>${superadasTri} de ${camaras.length}</strong>
+  ${camaras.length === 1 ? 'la prueba que ha hecho' : `las ${camaras.length} que ha hecho`}.
+  Una prueba no superada no es un suspenso: se repasa y se vuelve a intentar tantas veces como
+  haga falta, sin perder nada por el camino.</p>
 <ul>${camaras.map(c => {
-  const ult = c.intentos[c.intentos.length - 1];
-  return `<li><strong>${esc(c.name)}</strong> — ${c.cleared
-    ? `superada${c.clearedAt ? ' el ' + esc(c.clearedAt.split('-').reverse().join('/')) : ''}`
-    : 'todavía no superada'}${c.attempts > 1 ? ` · ${c.attempts} intentos` : ''}${
-    !c.cleared && ult ? '. Volverá a intentarlo tras repasar.' : ''}</li>`;
+  const superadaAqui = c.intentos.some(i => i.passed);
+  const n = c.intentos.length;
+  return `<li><strong>${esc(c.name)}</strong> — ${superadaAqui
+    ? `superada${c.clearedAt && dentro(c.clearedAt) ? ' el ' + esc(enEspanol(c.clearedAt)) : ''}`
+    : 'todavía no superada'}${n > 1 ? ` · ${n} intentos` : ''}${
+    !superadaAqui ? '. Volverá a intentarlo tras repasar.' : ''}</li>`;
 }).join('')}</ul>` : ''}
 
 <p class="nota"><strong>Cómo leer esto.</strong> Aquí no hay notas ni comparaciones con nadie:
 la plataforma no puntúa ni ordena a los niños. Lo que aparece como «en lo que está trabajando»
 no es un suspenso, es lo que toca ahora. Equivocarse forma parte de excavar, y de hecho corregir
-el propio error da premio dentro del juego.</p>
-`;
+el propio error da premio dentro del juego.
+${tri ? `<br><br><strong>Qué periodo cubre cada parte.</strong> «Constancia» y «Pruebas» son de
+este trimestre. «Lo que ya le sale», «en lo que está trabajando» y «por dónde va la expedición»
+cuentan desde que empezó a excavar, porque el aprendizaje no se reinicia en enero.` : ''}</p>
+</article>`;
 }
 
 /* Nombre de archivo que se entiende dentro de seis meses en una carpeta */
@@ -13509,18 +13974,150 @@ async function diarioCompletoDe(clave) {
   return { ok: true, estado: migrateState(r.estado), name: r.name };
 }
 
-/* Genera y descarga el informe de un alumno a partir de su diario completo. */
+/* Genera y descarga el informe de un alumno a partir de su diario completo.
+
+   Antes de generarlo se pregunta qué quiere decirle el docente a esa familia.
+   No es un paso de más: es lo único de la hoja que no sale de un contador, y
+   pedirlo justo aquí —con el informe delante— es cuando se sabe qué decir.
+   Se puede aceptar en blanco y el informe sale sin nota, como siempre. */
 async function descargarInforme(clave) {
+  const previa = ultimaNotaDeAlumno(clave);
+  const nombre = (aulaAlumnos().find(a => diaryKey(a) === clave) || {}).name || 'este alumno';
+  const texto = await askParrafo(
+    `¿Qué quieres decirle a la familia de ${nombre}?`,
+    previa ? previa.texto : '',
+    'Descargar el informe',
+    previa
+      ? `Esto es lo que escribiste el ${esc(String(previa.fecha).split('-').reverse().join('/'))}. `
+        + 'Si lo cambias hoy, se guarda como una nota nueva y la anterior sigue en el informe, con su fecha.'
+      : 'Va lo primero del informe, antes que ninguna cifra. Puedes dejarlo en blanco.');
+  if (texto === null) return;            /* cancelado: no se descarga nada */
+  guardarNotaDeAlumno(clave, texto);
+
   toast('Preparando el informe…');
   const r = await diarioCompletoDe(clave);
   if (!r.ok) { toast(r.texto); return; }
   const st = r.estado;
-  const html = informeFamilia(st, { clase: ATLAS_CONFIG.className });
+  const html = informeFamilia(st, {
+    clase: ATLAS_CONFIG.className,
+    docente: ATLAS_CONFIG.teacherName,
+    notas: notasDeAlumno(clave)
+  });
   if (!html) { toast('No se ha podido generar el informe.'); return; }
   const guardado = await guardarArchivo(informeFileName(st), html, 'text/html');
   toast(guardado && guardado.ok === false
     ? 'No se ha podido descargar. Prueba desde Configuración → Copia de seguridad.'
     : `Informe de ${st.profile.explorer_name} descargado ✓`);
+}
+
+/* Descarga un solo documento con el informe de toda la clase. Va uno a uno
+   porque cada diario hay que traerlo, y se dice por dónde va: con veintidós
+   alumnos y red de centro esto tarda, y una pantalla quieta parece rota. */
+/* ── La evaluación de la clase ──
+   Las dos cifras del PRD §6 se calculaban desde hacía versiones, viajaban en
+   el resumen de cada diario, se sumaban por clase… y no se pintaban en ningún
+   sitio. La segunda es la que de verdad avisa, y no avisa sobre los niños:
+   si la barra de dominio prometía 0,9 y la prueba da 0,5, lo que hay que
+   revisar es el banco de retos de ese pozo, que se ha quedado corto o repite
+   demasiado. Es la métrica que más puede mejorar el contenido. */
+const DIVERGENCIA_RUIDO = 0.15;
+
+function pintarEvaluacion(d) {
+  const caja = $('#class-evaluacion');
+  if (!caja) return;
+  const k = (d && d.kpis) || {};
+  const intentos = k.guardianIntentos || 0;
+  if (!intentos) {           /* nadie ha hecho ninguna prueba todavía */
+    caja.classList.add('hidden');
+    caja.innerHTML = '';
+    return;
+  }
+  caja.classList.remove('hidden');
+  const div = k.divergencia;
+  const alta = div !== null && div > DIVERGENCIA_RUIDO;
+  const pct = x => Math.round(x * 100) + ' %';
+
+  caja.innerHTML = `
+    <h3>${ico('map')} Las Cámaras del Guardián</h3>
+    <p class="class-eval-intro">La prueba sumativa de cada pozo: la única cifra que confirma lo
+    que la barra de dominio va prometiendo.</p>
+    <div class="class-eval-cifras">
+      <div class="class-eval-dato"><strong>${k.guardianSuperadas || 0} de ${k.guardianCamaras || 0}</strong>
+        <span>cámaras superadas</span></div>
+      <div class="class-eval-dato"><strong>${k.guardianPassRate === null ? '—' : pct(k.guardianPassRate)}</strong>
+        <span>intentos que salen bien${intentos ? ` · ${intentos} en total` : ''}</span></div>
+      <div class="class-eval-dato${alta ? ' class-eval-aviso' : ''}">
+        <strong>${div === null ? '—' : (div > 0 ? '+' : '') + pct(div)}</strong>
+        <span>lo que la barra prometía de más</span></div>
+    </div>
+    ${div === null
+      ? '<p class="class-eval-nota">Todavía no hay intentos suficientes para comparar el dominio con la prueba.</p>'
+      : alta
+        ? `<p class="class-eval-nota class-eval-nota-aviso">La barra de dominio va
+           ${pct(div)} por delante de lo que confirman las pruebas. <strong>Eso no es cosa de los
+           niños</strong>: apunta a que el banco de retos de algún pozo es demasiado fácil, o repite
+           demasiado entre sí, y el dominio se gana sin haber aprendido. Mira los pozos donde más
+           se falla la Cámara y añade variedad.</p>`
+        : `<p class="class-eval-nota">El dominio que marca la app y lo que rinden las pruebas van
+           de la mano: por debajo de ${pct(DIVERGENCIA_RUIDO)} es ruido normal. El banco de retos
+           está midiendo lo que dice medir.</p>`}`;
+}
+
+function pintarBotonDeInformes(d) {
+  const caja = $('#class-informes');
+  if (!caja) return;
+  const cuantos = ((d && d.students) || []).filter(s => s.clave || s.id).length;
+  caja.classList.toggle('hidden', !cuantos);
+  if (!cuantos) { caja.innerHTML = ''; return; }
+  caja.innerHTML = '';
+  const btn = document.createElement('button');
+  btn.className = 'btn btn-secondary btn-small';
+  btn.innerHTML = `${ico('logbook')} Informes de toda la clase (${cuantos})`;
+  btn.addEventListener('click', async () => {
+    btn.disabled = true;
+    try { await descargarInformesDeClase(); } finally { btn.disabled = false; }
+  });
+  caja.appendChild(btn);
+  const nota = document.createElement('small');
+  nota.className = 'class-informes-nota';
+  nota.textContent = 'Un archivo con un informe por página, listo para imprimir y repartir. '
+    + 'Para escribirle una nota a una familia concreta, usa el botón de su ficha.';
+  caja.appendChild(nota);
+}
+
+async function descargarInformesDeClase() {
+  const fichas = ((classData && classData.students) || []).filter(s => s.clave || s.id);
+  if (!fichas.length) { toast('No hay ningún diario del que hacer informe.'); return; }
+  if (!(await askConfirm(`Se van a preparar ${fichas.length} informes, uno por página, en un solo
+    archivo para imprimir. Se usa la nota que ya tengas escrita de cada familia; las que falten
+    salen sin ella.`, `Preparar ${fichas.length} informes`))) return;
+
+  const cuerpos = [];
+  const fallos = [];
+  for (let i = 0; i < fichas.length; i++) {
+    const f = fichas[i];
+    toast(`Preparando ${i + 1} de ${fichas.length}: ${f.name}…`, 4000);
+    const r = await diarioCompletoDe(f.clave || f.id);
+    if (!r.ok) { fallos.push(f.name); continue; }
+    const cuerpo = datosDelInforme(r.estado, {
+      clase: ATLAS_CONFIG.className,
+      docente: ATLAS_CONFIG.teacherName,
+      notas: notasDeAlumno(f.clave || f.id)
+    });
+    if (cuerpo) cuerpos.push(cuerpo); else fallos.push(f.name);
+  }
+  if (!cuerpos.length) { toast('No se ha podido preparar ningún informe.'); return; }
+
+  const html = informeDeClase(cuerpos, { clase: ATLAS_CONFIG.className });
+  const nombre = `informes-${String(ATLAS_CONFIG.className || 'clase')
+    .normalize('NFD').replace(/[\u0300-\u036f]/g, '')
+    .replace(/[^A-Za-z0-9]+/g, '-').replace(/^-|-$/g, '').toLowerCase() || 'clase'}-${todayStr()}.html`;
+  const guardado = await guardarArchivo(nombre, html, 'text/html');
+  toast(guardado && guardado.ok === false
+    ? 'No se ha podido descargar. Prueba desde Configuración → Copia de seguridad.'
+    : `${cuerpos.length} informe(s) descargados ✓${fallos.length
+        ? ` No se ha podido con: ${fallos.slice(0, 3).join(', ')}${fallos.length > 3 ? '…' : ''}` : ''}`,
+    fallos.length ? 5200 : 2800);
 }
 
 /* ── Lo que conviene repasar mañana ──
@@ -13553,7 +14150,9 @@ function pintarRepaso(d) {
   caja.innerHTML = `
     <h3>${ico('target')} Lo que conviene repasar</h3>
     <p class="class-repasar-intro">Conceptos que se fallan más de un tercio de las veces, ordenados
-    por a cuántos alumnos les pasa. Sale del primer intento de cada reto, que es el que mide.</p>
+    por a cuántos alumnos les pasa. Sale del primer intento de cada reto, que es el que mide.
+    La etiqueta del nivel dice <strong>dónde</strong> se rompe: fallarlo al aplicar es no tener el
+    procedimiento; fallarlo al analizar es tenerlo y no saber cuándo usarlo. No se prepara igual.</p>
     <div class="repaso-lista">
       ${lista.map(c => {
         const n = c.alumnos.length;
@@ -13562,6 +14161,8 @@ function pintarRepaso(d) {
           <div class="repaso-cabeza">
             <strong>${esc(c.label)}</strong>
             <span class="repaso-area">${esc(c.area)}</span>
+            ${c.estrato ? `<span class="repaso-estrato" title="El nivel en el que se atasca más gente">${
+              ico(ICO_ESTRATO[c.estrato] || 'lens')} ${esc(STRATA_META[c.estrato].label)}</span>` : ''}
           </div>
           <div class="repaso-barra"><div class="repaso-relleno" style="width:${Math.round(c.tasa * 100)}%"></div></div>
           <div class="repaso-pie">
@@ -17419,6 +18020,8 @@ function wireGlobalListeners() {
   });
 
   $('#modal-ok').addEventListener('click', () => {
+    const area = $('#modal-area');
+    if (area && !area.classList.contains('hidden')) return closeModal(area.value);
     const input = $('#modal-input');
     closeModal(input.classList.contains('hidden') ? true : input.value);
   });

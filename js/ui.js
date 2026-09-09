@@ -83,32 +83,46 @@ function closeModal(value) {
 }
 function modalKeys(e) {
   if (e.key === 'Escape') { e.preventDefault(); closeModal(null); }
+  /* En el campo de una línea, Enter acepta. En el de varias NO: ahí Enter es
+     un párrafo, y aceptar con él cortaría la nota a la mitad. */
   else if (e.key === 'Enter' && !$('#modal-input').classList.contains('hidden')) {
     e.preventDefault();
     $('#modal-ok').click();
   }
 }
-function openModal({ text, withInput, okLabel, cancelLabel, tipoInput }) {
+function openModal({ text, withInput, okLabel, cancelLabel, tipoInput, nota }) {
   return new Promise(resolve => {
     closeModal(null);           /* nunca dos diálogos a la vez */
     modalResolve = resolve;
     $('#modal-text').textContent = text;
     $('#modal-error').classList.add('hidden');
     const input = $('#modal-input');
+    const area = $('#modal-area');
     input.value = '';
+    if (area) area.value = '';
     /* El mismo campo sirve para el PIN y para preguntar un texto. Estaba fijo
        en «password» con teclado numérico, que es lo que quiere el PIN pero
        deja escribir el nombre de una clase a ciegas y con un teclado de
        cifras en tablet. */
     const esPin = tipoInput === 'pin';
+    const esParrafo = tipoInput === 'parrafo';
     input.type = esPin ? 'password' : 'text';
     input.inputMode = esPin ? 'numeric' : 'text';
-    input.classList.toggle('hidden', !withInput);
+    input.classList.toggle('hidden', !withInput || esParrafo);
+    if (area) area.classList.toggle('hidden', !esParrafo);
+    /* Una línea de contexto bajo el campo: para qué es esto, o qué se escribió
+       la vez anterior. Cabe texto con formato porque lo escribe la app. */
+    const pie = $('#modal-nota');
+    if (pie) {
+      pie.innerHTML = nota || '';
+      pie.classList.toggle('hidden', !nota);
+    }
     $('#modal-ok').textContent = okLabel || 'Aceptar';
     $('#modal-cancel').textContent = cancelLabel || 'Cancelar';
     $('#modal').classList.remove('hidden');
     document.addEventListener('keydown', modalKeys);
-    if (withInput) setTimeout(() => input.focus(), 50);
+    if (esParrafo && area) setTimeout(() => area.focus(), 50);
+    else if (withInput) setTimeout(() => input.focus(), 50);
     else setTimeout(() => $('#modal-ok').focus(), 50);
   });
 }
@@ -123,6 +137,16 @@ function askPrompt(text, inicial, okLabel) {
   const input = $('#modal-input');
   if (input && inicial) { input.value = inicial; input.select(); }
   return p.then(v => (v === null || v === true) ? null : String(v).trim() || null);
+}
+
+/* Lo mismo, pero para un texto de varias líneas. Devuelve la cadena tal cual
+   —espacios de los bordes fuera— y '' si se acepta en blanco, que aquí sí
+   significa algo: borrar lo que hubiera escrito. Cancelar devuelve null. */
+function askParrafo(text, inicial, okLabel, nota) {
+  const p = openModal({ text, withInput: true, tipoInput: 'parrafo', okLabel: okLabel || 'Aceptar', nota });
+  const area = $('#modal-area');
+  if (area && inicial) area.value = inicial;
+  return p.then(v => (v === null) ? null : (v === true ? '' : String(v).trim()));
 }
 
 /* Sustituye a prompt() para el PIN; reintenta hasta acertar o cancelar */

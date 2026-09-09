@@ -1014,7 +1014,7 @@ async function cloudCreateAula(nombre) {
   } catch (e) { return errorNube(e); }
 }
 
-/* ══════════ LAS CREDENCIALES, SOLO PARA SU DOCENTE ══════════
+/* ══════════ EL CUADERNO PRIVADO DEL DOCENTE ══════════
 
    Las contraseñas del alumnado NO viajan en el documento de la clase, y no es
    un descuido: ese documento lo lee cualquier cuenta con sesión —tiene que
@@ -1033,7 +1033,14 @@ async function cloudCreateAula(nombre) {
    añadir ninguna columna en la consola.
 
    El id es el del aula con un sufijo, para que borrar la clase se lo lleve
-   también y no queden contraseñas de una clase que ya no existe. */
+   también y no queden contraseñas de una clase que ya no existe.
+
+   Por el mismo canal viajan las NOTAS que el docente escribe para las
+   familias: no son secretas, pero son sobre un niño concreto y el documento
+   de la clase lo lee toda la clase. El sufijo del id sigue siendo «-cred»
+   aunque ahora lleve dos cosas: cambiarlo dejaría huérfano el documento de
+   quien ya lo tenga creado, y un documento huérfano con contraseñas dentro es
+   justo lo que no puede pasar. */
 /* Appwrite corta los ids en 36 caracteres. Los que genera él tienen 20, así
    que el recorte no toca nada hoy; está para que un id escrito a mano no
    rompa el canal en silencio. */
@@ -1076,9 +1083,12 @@ async function cloudGuardarCredenciales() {
   const c = ATLAS_CONFIG.appwrite;
   const uid = CLOUD.user.$id;
   const propias = credencialesDeLaLista();
-  /* Sin contraseñas que guardar no se crea el documento: un equipo que aún no
-     las tiene no puede vaciar el del que sí. */
-  if (!Object.keys(propias).length) return { ok: true, vacio: true };
+  const hayNotas = Object.keys(ATLAS_CONFIG.notasInforme || {}).length > 0;
+  /* Sin nada que guardar no se crea el documento: un equipo que aún no tiene
+     contraseñas no puede vaciar el del que sí. Las notas cuentan como algo
+     que guardar, así que un equipo que solo tenga notas sí escribe: la mezcla
+     de más abajo es la que protege las contraseñas que no conoce. */
+  if (!Object.keys(propias).length && !hayNotas) return { ok: true, vacio: true };
 
   /* Se MEZCLA con lo que ya hay, no se reemplaza. Un segundo equipo puede
      conocer tres contraseñas de veinticinco —las que se pusieron en él—, y
@@ -1094,11 +1104,14 @@ async function cloudGuardarCredenciales() {
     }
   }
   Object.assign(cred, propias);
+  /* Las notas de las familias se mezclan con la misma regla: gana la más
+     reciente de cada alumno, y lo que este equipo no conoce se conserva. */
+  const notas = mezclarNotas(previo.ok ? previo.notas : null, ATLAS_CONFIG.notasInforme);
   const data = {
     owner: uid,
     name: 'Credenciales',
     teacher: ATLAS_CONFIG.teacherName || '',
-    config: JSON.stringify({ v: 1, cred }),
+    config: JSON.stringify({ v: 1, cred, notas }),
     updated_at: String(Date.now())
   };
   const id = idDeCredenciales(aulaActiva());
@@ -1122,13 +1135,35 @@ async function cloudTraerCredenciales() {
     const doc = await CLOUD.db.getDocument(c.databaseId, c.aulasCollectionId,
       idDeCredenciales(aulaActiva()));
     const p = JSON.parse(doc.config || '{}');
-    return { ok: true, cred: (p && p.cred) || {} };
+    return { ok: true, cred: (p && p.cred) || {}, notas: (p && p.notas) || {} };
   } catch (e) {
     const msg = (e && e.message) || '';
     /* Que no exista es lo normal la primera vez. */
-    if (/not be found|not found|404/i.test(msg)) return { ok: true, cred: {} };
+    if (/not be found|not found|404/i.test(msg)) return { ok: true, cred: {}, notas: {} };
     return errorNube(e);
   }
+}
+
+/* ── Juntar las notas de dos equipos ──
+   Cada alumno tiene una lista corta de notas con fecha. Se juntan por fecha:
+   dos equipos que escribieron el mismo día son una corrección —gana la de
+   aquí, que es la que el docente acaba de ver— y días distintos se conservan
+   los dos. Nunca se pierde una nota por sincronizar. */
+function mezclarNotas(dellaNube, deAqui) {
+  const out = {};
+  const claves = new Set([...Object.keys(dellaNube || {}), ...Object.keys(deAqui || {})]);
+  for (const k of claves) {
+    const porFecha = new Map();
+    for (const n of ((dellaNube || {})[k] || [])) {
+      if (n && n.texto && n.fecha) porFecha.set(String(n.fecha), { fecha: String(n.fecha), texto: String(n.texto) });
+    }
+    for (const n of ((deAqui || {})[k] || [])) {
+      if (n && n.texto && n.fecha) porFecha.set(String(n.fecha), { fecha: String(n.fecha), texto: String(n.texto) });
+    }
+    const lista = [...porFecha.values()].sort((a, b) => a.fecha.localeCompare(b.fecha));
+    if (lista.length) out[k] = lista.slice(-NOTAS_TOPE);
+  }
+  return out;
 }
 
 /* Rellena en la lista de clase las contraseñas que a ESTE equipo le faltan.
@@ -1144,8 +1179,19 @@ async function rellenarCredenciales() {
     if (!u || f.password) continue;
     if (r.cred[u]) { f.password = r.cred[u]; puestas++; }
   }
-  if (puestas) sinSubir(() => { setTeacherConfig('roster', lista); saveTeacherConfig(); });
-  return { ok: true, puestas };
+  /* Y las notas de las familias, que viajan por el mismo documento. Aquí no
+     hay «no pisar»: se mezclan las dos listas y se quedan todas. */
+  const notas = mezclarNotas(r.notas, ATLAS_CONFIG.notasInforme);
+  const cambian = JSON.stringify(notas) !== JSON.stringify(ATLAS_CONFIG.notasInforme || {});
+
+  if (puestas || cambian) {
+    sinSubir(() => {
+      if (puestas) setTeacherConfig('roster', lista);
+      if (cambian) setTeacherConfig('notasInforme', notas);
+      saveTeacherConfig();
+    });
+  }
+  return { ok: true, puestas, notas: cambian };
 }
 
 /* ══════════ LOS AJUSTES, A LA CLASE ══════════

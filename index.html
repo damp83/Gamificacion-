@@ -910,6 +910,16 @@
                pantalla, y estaba enterrada bajo veinticinco tarjetas. -->
           <div id="class-repasar" class="class-repasar hidden"></div>
 
+          <!-- La evaluación de la clase: cuánto se superan las Cámaras y, sobre
+               todo, cuánto prometía la barra de dominio de más. Se calculaba
+               desde hacía versiones y no se pintaba en ninguna parte. -->
+          <div id="class-evaluacion" class="class-evaluacion hidden"></div>
+
+          <!-- Un informe por alumno son veintidós descargas en la semana en que
+               menos tiempo hay. Este botón los junta en un archivo, uno por
+               página. Se pinta desde aula.js: sin diarios no tiene sentido. -->
+          <div id="class-informes" class="class-informes hidden"></div>
+
           <div id="class-students" class="class-students"></div>
 
           <!-- El título va DENTRO de la sección: suelto, se quedaba flotando
@@ -985,6 +995,10 @@
       <p id="modal-text" class="modal-text"></p>
       <!-- El tipo lo fija openModal(): «password» + teclado numérico para el PIN, texto normal para lo demás. -->
       <input type="text" id="modal-input" class="modal-input hidden" autocomplete="off">
+      <!-- Para lo que no cabe en una línea: la nota que el docente escribe en
+           el informe de una familia. Enter ahí dentro hace párrafo, no acepta. -->
+      <textarea id="modal-area" class="modal-area hidden" rows="5"></textarea>
+      <p id="modal-nota" class="modal-nota hidden"></p>
       <p id="modal-error" class="auth-error hidden"></p>
       <div class="modal-actions">
         <button id="modal-cancel" class="btn btn-quit">Cancelar</button>

@@ -75,6 +75,7 @@ Cubren lo que ya se ha roto alguna vez, que es de donde salieron:
 | `nube.test.js` | Que la configuración de Appwrite esté completa y que el diagnóstico no confunda «no existe» con «no deja listar» |
 | `conceptos.test.js` | Que todo reto declare su concepto y que el agregado de clase ordene por a cuántos alumnos les pasa |
 | `evaluacion.test.js` | Que cada intento de la Cámara deje rastro y que el informe a familias no lleve notas ni comparaciones |
+| `informe-mejoras.test.js` | Que el informe diga de qué trimestre habla, con qué denominador y con cuánta evidencia detrás; que la nota del docente no viaje a las tablets del alumnado y no se pierda al juntar dos equipos |
 | `voz.test.js` | Que la lectura en voz alta no lea emoji y respete lo que decida cada alumno |
 | `taller.test.js` | Que ningún reto escrito por un niño llegue a la clase sin pasar por el docente |
 | `consulta.test.js` | Que ver el cuaderno de un alumno no le cambie ni una coma del diario |
@@ -1024,6 +1025,73 @@ Necesita el diario completo, así que funciona en clase dirigida —donde los
 diarios están en el equipo—. Leyendo de la nube llega solo el resumen, la misma
 limitación que tiene el informe a familias.
 
+### El informe para la familia
+
+En cada ficha, **📖 Informe para la familia** descarga un HTML autocontenido que
+se abre y se imprime sin la plataforma delante. No lleva notas, ni porcentajes,
+ni comparaciones con nadie: eso está prohibido por el PRD §0.2 y comprobado por
+una prueba.
+
+**Antes de generarlo se te pregunta qué quieres decirle a esa familia.** Es lo
+único de la hoja que no sale de un contador, y va lo primero, antes que ninguna
+cifra. Se guarda con la fecha, así que el informe de marzo enseña también lo que
+escribiste en diciembre: una familia ve entonces el camino y no una foto suelta.
+Puedes dejarlo en blanco.
+
+> Las notas **no viajan en el documento de la clase**, que lo lee cualquier
+> alumno con sesión: lo que dices de un niño a su familia no lo leen sus
+> veinticinco compañeros. Van por el mismo canal privado que las contraseñas,
+> así que sí las tienes en tus dos equipos. Al juntarlas, dos equipos que
+> escribieron días distintos conservan las dos.
+
+**Lo que le cuesta viene con qué hacer en casa.** «Está trabajando la resta
+llevando» dice qué pasa, no qué hacer; debajo va la frase de ese concepto —«el
+cambio de la compra: he pagado 20 y ha costado 13»—. Están escritas una por
+concepto en `js/content.js`, con una regla: cinco minutos, con lo que ya hay en
+una casa, sin fichas, sin pantallas y sin «que practique más». Una familia que
+no puede comprar ni imprimir nada tiene que poder hacerlo igual.
+
+**El informe habla de un trimestre y lo dice.** Antes mezclaba tres ventanas sin
+avisar —conceptos de siempre, días de treinta, sellos de toda la vida— y dos
+informes del mismo curso no se podían comparar. Ahora la constancia y las
+pruebas son del trimestre en curso, y una línea al pie explica qué parte cuenta
+desde el principio y por qué.
+
+**Los números llevan denominador.** «0 pruebas superadas» podían ser cero de
+cero; ahora dice «ha superado 1 de 2». Y concuerdan en singular: «1 día
+trabajado», no «1 días».
+
+**«Ya le sale» pide más de una tanda con suerte.** Antes bastaban tres aciertos
+seguidos, que pueden ser tres en el mismo minuto. Ahora hacen falta además dos
+días distintos, el mismo criterio que ya usa la barra de dominio. Los diarios
+anteriores al cambio no llevan esa cuenta y se les aplica la regla de antes: no
+se le vacía el informe a nadie por una decisión nuestra.
+
+**Y de toda la clase de una vez.** Arriba de las fichas, **Informes de toda la
+clase** prepara un solo archivo con uno por página, listo para imprimir y
+repartir. Usa la nota que ya tengas escrita de cada familia y no pregunta
+veintidós veces seguidas, que eso ya no es escribir.
+
+### Las Cámaras del Guardián, por clase
+
+Bajo «lo que conviene repasar» hay tres cifras que se calculaban desde hacía
+versiones y no se pintaban en ninguna parte:
+
+| Cifra | Qué dice |
+|---|---|
+| **Cámaras superadas** | Cuántas pruebas sumativas ha conseguido la clase, de las abiertas |
+| **Intentos que salen bien** | El *Guardian Pass Rate* del PRD §6: intentos superados sobre intentos hechos |
+| **Lo que la barra prometía de más** | La divergencia entre el dominio formativo y lo que confirmó la prueba |
+
+La tercera es la que avisa, **y no avisa sobre los niños**: si la barra promete
+0,9 y la prueba da 0,5, lo que hay que revisar es el banco de retos de ese pozo
+—demasiado fácil, o demasiado parecido entre sí— porque el dominio se está
+ganando sin haber aprendido. Por debajo del 15 % es ruido normal y se dice.
+
+> Ojo con dos medidas que estuvieron con el mismo nombre: cámaras conseguidas e
+> intentos que salen bien no son lo mismo. Una cámara superada al tercer intento
+> cuenta 1 en la primera y 1 de 3 en la segunda. Ahora cada una lleva el suyo.
+
 ### Lo que conviene repasar
 
 Es lo primero de la pantalla, y a propósito: el docente entra aquí con la
@@ -1034,6 +1102,13 @@ Cada reto declara **qué concepto** trabaja: no «Numeración · Aplicar», sino
 «Resta llevando», «B y V», «Comparar fracciones». Con eso, la vista de clase
 puede decir **«7 alumnos fallan la resta llevando, y son estos»**, que sí es una
 frase con la que se prepara una clase.
+
+Y junto al concepto va **en qué nivel se rompe**, que es lo que decide la clase
+del día siguiente: «la fallan al aplicar» es no tener el procedimiento, y «la
+fallan al analizar» es tenerlo y no saber cuándo usarlo. No se preparan igual.
+Se cuenta solo sobre los fallos —acertar no dice dónde se atasca nadie— y en la
+clase gana el nivel en el que se atranca más gente; a igualdad, el más básico,
+que es por donde hay que empezar.
 
 Tres decisiones que conviene no deshacer:
 

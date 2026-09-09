@@ -1281,6 +1281,8 @@ function paintClassView() {
     : '';
 
   pintarRepaso(d);
+  pintarEvaluacion(d);
+  pintarBotonDeInformes(d);
 
   $('#class-students').innerHTML = sortStudents(d.students, classSort).map(s => `
     <div class="student-card${s.needsHelp ? ' student-alert' : ''}">
@@ -1354,7 +1356,7 @@ function paintClassView() {
 
    Sale como HTML autocontenido para poder abrirlo e imprimirlo sin la
    plataforma delante. */
-function informeFamilia(estado, opciones) {
+function datosDelInforme(estado, opciones) {
   const s = estado || S;
   if (!s || !s.profile) return null;
   const o = opciones || {};
@@ -1366,7 +1368,13 @@ function informeFamilia(estado, opciones) {
      se cuenta por CONCEPTO —«ya le sale comparar números»— y los pozos se
      resumen por cuánto llevan hechos. */
   const dominados = conceptosDominadosDe(s, 8).map(c => conceptoInfo(c.id).label);
-  const flojos = conceptosFlojosDe(s, 4).map(c => conceptoInfo(c.id).label);
+  /* De cada uno de los que le cuestan sale además QUÉ HACER en casa. Decir
+     solo el nombre del concepto informa a la familia y no le da nada que
+     hacer con eso; la frase de al lado sí. */
+  const flojos = conceptosFlojosDe(s, 4).map(c => {
+    const info = conceptoInfo(c.id);
+    return { label: info.label, casa: info.casa || '' };
+  });
 
   const pozos = [];
   for (const siteId in (s.dig_sites || {})) {
@@ -1387,20 +1395,97 @@ function informeFamilia(estado, opciones) {
         : `${hechos} de ${hay} bloques`}`);
     }
   }
+  /* ── De qué periodo habla esta hoja ──
+     Antes no lo decía, y por dentro mezclaba tres ventanas: conceptos y
+     pruebas de toda la vida del diario, días y minutos de los últimos treinta
+     y sellos desde el principio. Dos informes del mismo curso no se podían
+     comparar porque no se sabía qué parte se había reiniciado.
+
+     Ahora manda el trimestre, que es la unidad del centro. Todo lo que lleva
+     fecha se acota a él; lo que no la lleva se dice que es de todo el curso,
+     en su propia sección, en vez de colarse entre lo demás. */
+  const iTri = typeof o.trimestre === 'number' ? o.trimestre : currentTrimesterIndex();
+  const tri = (ATLAS_CONFIG.course.trimesters || [])[iTri] || null;
+  const dentro = f => !tri || !f || (String(f) >= tri.start && String(f) <= tri.end);
+  const cubo = ((s.course && s.course.trimesters) || [])[iTri] || {};
+
   const evalu = metricasEvaluacion(s);
-  const camaras = historialEvaluacion(s);
-  const log = (s.metrics && s.metrics.sessions_log) || [];
-  const dias30 = log.filter(e => Math.floor((new Date(todayStr()) - new Date(e.date)) / 86400000) < 30);
-  const minutos = dias30.reduce((a, x) => a + (x.minutes || 0), 0);
+  /* Las pruebas sí llevan fecha en cada intento: se queda con las de este
+     trimestre, y una cámara sin ningún intento dentro no se enseña. */
+  const camaras = historialEvaluacion(s)
+    .map(c => ({ ...c, intentos: (c.intentos || []).filter(i => dentro(i.date)) }))
+    .filter(c => c.intentos.length);
+  const superadasTri = camaras.filter(c => c.intentos.some(i => i.passed)).length;
+
+  const log = ((s.metrics && s.metrics.sessions_log) || []).filter(e => dentro(e.date));
+  const minutos = log.reduce((a, x) => a + (x.minutes || 0), 0);
+  const sesiones = log.reduce((a, x) => a + (x.missions || 0), 0);
 
   const lista = (arr, vacio) => arr.length
     ? `<ul>${arr.map(x => `<li>${esc(x)}</li>`).join('')}</ul>`
     : `<p class="vacio">${esc(vacio)}</p>`;
 
+  /* ── Lo que dice el docente ──
+     Va lo primero, antes que ninguna cifra, porque es lo único de esta hoja
+     que ha escrito una persona mirando a ese niño. Las anteriores se enseñan
+     debajo y con su fecha: así una familia ve el camino —«en diciembre le
+     costaba, en marzo ya no»— y no una foto suelta. */
+  const notas = (o.notas || []).filter(n => n && n.texto);
+  const ultima = notas.length ? notas[notas.length - 1] : null;
+  const antiguas = notas.slice(0, -1).reverse();
+  const enEspanol = f => String(f || '').split('-').reverse().join('/');
+  const bloqueNota = ultima ? `
+<h2>Lo que dice ${o.docente ? esc(o.docente) : 'su maestro'}</h2>
+<div class="nota-docente"><p>${esc(ultima.texto).replace(/\n+/g, '</p><p>')}</p>
+  <p class="firma">${esc(enEspanol(ultima.fecha))}</p></div>
+${antiguas.length ? `<details class="antes"><summary>Lo que se dijo antes</summary>
+  ${antiguas.map(n => `<div class="nota-vieja"><p>${esc(n.texto).replace(/\n+/g, '</p><p>')}</p>
+    <p class="firma">${esc(enEspanol(n.fecha))}</p></div>`).join('')}</details>` : ''}` : '';
+
+  return cuerpoDelInforme(s, o, {
+    dominados, flojos, pozos, camaras, superadasTri, log, minutos, sesiones, cubo, tri, hoy,
+    lista, bloqueNota, enEspanol
+  });
+}
+
+/* El informe de un alumno, como documento completo. */
+function informeFamilia(estado, opciones) {
+  const s = estado || S;
+  if (!s || !s.profile) return null;
+  const cuerpo = datosDelInforme(s, opciones);
+  return cuerpo ? envolverInforme(s, cuerpo) : null;
+}
+
+/* ── Los informes de toda la clase, en un solo documento ──
+   Un botón por alumno son veintidós descargas y veintidós archivos que
+   colocar, justo la semana en que menos tiempo hay. Esto es la misma función
+   en bucle: un informe por página, listo para imprimir y repartir.
+
+   Aquí NO se pregunta la nota de cada familia: preguntarla veintidós veces
+   seguidas no es escribir, es rellenar. Se usa la que ya esté guardada de
+   cada uno, y quien quiera escribirla lo hace desde su ficha. */
+function informeDeClase(cuerpos, opciones) {
+  const o = opciones || {};
   return `<!doctype html>
+<html lang="es">
 <meta charset="utf-8">
-<title>Informe de ${esc(s.profile.explorer_name)} — Expedición Atlas</title>
+<title>Informes${o.clase ? ' de ' + esc(o.clase) : ' de la clase'} — Expedición Atlas</title>
+${ESTILO_INFORME}
 <style>
+  /* Cada informe empieza en una hoja: se reparten uno a uno. */
+  .informe { break-after: page; page-break-after: always; }
+  .informe:last-child { break-after: auto; page-break-after: auto; }
+  @media screen { .informe { border-bottom: 2px solid #e0d3ba; padding-bottom: 28px; margin-bottom: 34px; } }
+  .informe:last-child { border-bottom: none; }
+</style>
+${cuerpos.join('\n')}
+</html>
+`;
+}
+
+/* El estilo del informe, aparte: lo comparte el de un alumno y el de la clase
+   entera, y duplicarlo sería garantizar que un día se cambie solo uno. */
+const ESTILO_INFORME = `<style>
   body { font: 16px/1.55 system-ui, -apple-system, "Segoe UI", sans-serif; color: #2b2118;
          max-width: 720px; margin: 32px auto; padding: 0 20px; }
   h1 { font-size: 1.5rem; margin: 0 0 2px; }
@@ -1411,47 +1496,106 @@ function informeFamilia(estado, opciones) {
   .cifras { display: flex; gap: 26px; flex-wrap: wrap; margin: 10px 0; }
   .cifra strong { display: block; font-size: 1.5rem; line-height: 1.1; }
   .cifra span { color: #6b5d4a; font-size: .85rem; }
+  .periodo { color: #6b5d4a; margin: -14px 0 22px; font-size: .92rem; }
   .nota { background: #f6efe2; border-left: 4px solid #b8862b; padding: 11px 14px;
           margin: 24px 0 0; font-size: .9rem; }
-  @media print { body { margin: 0; max-width: none; } .nota { break-inside: avoid; } }
+  .nota-docente { border-left: 4px solid #2f5d8a; background: #f2f6fa;
+                  padding: 12px 16px; margin: 8px 0 0; }
+  .nota-docente p { margin: 0 0 8px; }
+  .nota-docente p:last-child { margin-bottom: 0; }
+  .firma { color: #6b5d4a; font-size: .82rem; }
+  .encasa { margin: 10px 0 0; }
+  .encasa dt { font-weight: 600; margin: 12px 0 1px; }
+  .encasa dt:first-child { margin-top: 0; }
+  .encasa dd { margin: 0; color: #4a4034; }
+  .antes { margin: 10px 0 0; font-size: .9rem; }
+  .antes summary { cursor: pointer; color: #6b5d4a; }
+  .nota-vieja { border-left: 3px solid #ddd2bd; padding: 6px 12px; margin: 8px 0 0; color: #4a4034; }
+  .nota-vieja p { margin: 0 0 5px; }
+  @media print {
+    body { margin: 0; max-width: none; }
+    .nota, .nota-docente { break-inside: avoid; }
+    .encasa dt, .encasa dd { break-inside: avoid; }
+    /* En papel no hay nada que desplegar: lo anterior se imprime abierto. */
+    .antes { display: block; } .antes summary { display: none; }
+  }
 </style>
+`;
+
+/* Un documento completo con un solo informe dentro. */
+function envolverInforme(s, cuerpo) {
+  return `<!doctype html>
+<html lang="es">
+<meta charset="utf-8">
+<title>Informe de ${esc(s.profile.explorer_name)} — Expedición Atlas</title>
+${ESTILO_INFORME}
+${cuerpo}
+</html>
+`;
+}
+
+/* Solo el contenido, sin cabecera de documento: así el informe de un alumno y
+   el de la clase entera se escriben una vez. */
+function cuerpoDelInforme(s, o, d) {
+  const { dominados, flojos, pozos, camaras, superadasTri, log, minutos, sesiones,
+          cubo, tri, hoy, lista, bloqueNota, enEspanol } = d;
+  const dentro = f => !tri || !f || (String(f) >= tri.start && String(f) <= tri.end);
+  return `<article class="informe">
 <h1>${esc(s.profile.explorer_name)}</h1>
 <p class="sub">Expedición Atlas${o.clase ? ' · ' + esc(o.clase) : ''} · ${esc(hoy)}</p>
+<p class="periodo">${tri
+  ? `Este informe habla del <strong>${esc(tri.name)}</strong>, del ${esc(enEspanol(tri.start))}
+     al ${esc(enEspanol(tri.end))}.`
+  : 'Este informe habla de todo lo que lleva hecho.'}</p>
 
+${bloqueNota}
 <h2>Lo que ya le sale</h2>
 ${lista(dominados, 'Está empezando: todavía no ha practicado lo suficiente como para decirlo.')}
 
 <h2>En lo que está trabajando ahora</h2>
 ${flojos.length
-  ? `<ul>${flojos.map(x => `<li>${esc(x)}</li>`).join('')}</ul>
-     <p>Es normal y es justo donde toca practicar; en clase se está trabajando.</p>`
+  ? `<p>Es normal y es justo donde toca practicar; en clase se está trabajando. Si
+       queréis echar una mano desde casa, esto es lo que más ayuda de cada cosa.</p>
+     <dl class="encasa">${flojos.map(x => `<dt>${esc(x.label)}</dt>${
+       x.casa ? `<dd>${esc(x.casa)}</dd>` : ''}`).join('')}</dl>`
   : '<p class="vacio">Ahora mismo no hay nada que se le esté atragantando.</p>'}
 
 <h2>Por dónde va la expedición</h2>
 ${lista(pozos, 'Todavía no ha empezado ningún bloque.')}
 
-<h2>Constancia</h2>
+<h2>Constancia${tri ? ` en el ${esc(tri.name)}` : ''}</h2>
 <div class="cifras">
-  <div class="cifra"><strong>${dias30.length}</strong><span>días trabajados (30 días)</span></div>
-  <div class="cifra"><strong>${minutos}</strong><span>minutos en total</span></div>
-  <div class="cifra"><strong>${(s.logbook && s.logbook.stamps_lifetime) || 0}</strong><span>semanas completas</span></div>
-  <div class="cifra"><strong>${evalu.superadas}</strong><span>pruebas superadas</span></div>
+  <div class="cifra"><strong>${log.length}</strong><span>${log.length === 1 ? 'día trabajado' : 'días trabajados'}</span></div>
+  <div class="cifra"><strong>${minutos}</strong><span>${minutos === 1 ? 'minuto' : 'minutos'} de trabajo</span></div>
+  <div class="cifra"><strong>${sesiones}</strong><span>${sesiones === 1 ? 'expedición' : 'expediciones'}</span></div>
+  <div class="cifra"><strong>${enteroSano(cubo.stamps, 0, 0, 99)}</strong><span>${
+    enteroSano(cubo.stamps, 0, 0, 99) === 1 ? 'semana completa' : 'semanas completas'}</span></div>
+  <div class="cifra"><strong>${enteroSano(cubo.strata, 0, 0, 999)}</strong><span>${
+    enteroSano(cubo.strata, 0, 0, 999) === 1 ? 'bloque dominado' : 'bloques dominados'}</span></div>
 </div>
 
-${camaras.length ? `<h2>Pruebas realizadas</h2>
+${camaras.length ? `<h2>Pruebas${tri ? ' de este trimestre' : ''}</h2>
+<p>Ha superado <strong>${superadasTri} de ${camaras.length}</strong>
+  ${camaras.length === 1 ? 'la prueba que ha hecho' : `las ${camaras.length} que ha hecho`}.
+  Una prueba no superada no es un suspenso: se repasa y se vuelve a intentar tantas veces como
+  haga falta, sin perder nada por el camino.</p>
 <ul>${camaras.map(c => {
-  const ult = c.intentos[c.intentos.length - 1];
-  return `<li><strong>${esc(c.name)}</strong> — ${c.cleared
-    ? `superada${c.clearedAt ? ' el ' + esc(c.clearedAt.split('-').reverse().join('/')) : ''}`
-    : 'todavía no superada'}${c.attempts > 1 ? ` · ${c.attempts} intentos` : ''}${
-    !c.cleared && ult ? '. Volverá a intentarlo tras repasar.' : ''}</li>`;
+  const superadaAqui = c.intentos.some(i => i.passed);
+  const n = c.intentos.length;
+  return `<li><strong>${esc(c.name)}</strong> — ${superadaAqui
+    ? `superada${c.clearedAt && dentro(c.clearedAt) ? ' el ' + esc(enEspanol(c.clearedAt)) : ''}`
+    : 'todavía no superada'}${n > 1 ? ` · ${n} intentos` : ''}${
+    !superadaAqui ? '. Volverá a intentarlo tras repasar.' : ''}</li>`;
 }).join('')}</ul>` : ''}
 
 <p class="nota"><strong>Cómo leer esto.</strong> Aquí no hay notas ni comparaciones con nadie:
 la plataforma no puntúa ni ordena a los niños. Lo que aparece como «en lo que está trabajando»
 no es un suspenso, es lo que toca ahora. Equivocarse forma parte de excavar, y de hecho corregir
-el propio error da premio dentro del juego.</p>
-`;
+el propio error da premio dentro del juego.
+${tri ? `<br><br><strong>Qué periodo cubre cada parte.</strong> «Constancia» y «Pruebas» son de
+este trimestre. «Lo que ya le sale», «en lo que está trabajando» y «por dónde va la expedición»
+cuentan desde que empezó a excavar, porque el aprendizaje no se reinicia en enero.` : ''}</p>
+</article>`;
 }
 
 /* Nombre de archivo que se entiende dentro de seis meses en una carpeta */
@@ -1518,18 +1662,150 @@ async function diarioCompletoDe(clave) {
   return { ok: true, estado: migrateState(r.estado), name: r.name };
 }
 
-/* Genera y descarga el informe de un alumno a partir de su diario completo. */
+/* Genera y descarga el informe de un alumno a partir de su diario completo.
+
+   Antes de generarlo se pregunta qué quiere decirle el docente a esa familia.
+   No es un paso de más: es lo único de la hoja que no sale de un contador, y
+   pedirlo justo aquí —con el informe delante— es cuando se sabe qué decir.
+   Se puede aceptar en blanco y el informe sale sin nota, como siempre. */
 async function descargarInforme(clave) {
+  const previa = ultimaNotaDeAlumno(clave);
+  const nombre = (aulaAlumnos().find(a => diaryKey(a) === clave) || {}).name || 'este alumno';
+  const texto = await askParrafo(
+    `¿Qué quieres decirle a la familia de ${nombre}?`,
+    previa ? previa.texto : '',
+    'Descargar el informe',
+    previa
+      ? `Esto es lo que escribiste el ${esc(String(previa.fecha).split('-').reverse().join('/'))}. `
+        + 'Si lo cambias hoy, se guarda como una nota nueva y la anterior sigue en el informe, con su fecha.'
+      : 'Va lo primero del informe, antes que ninguna cifra. Puedes dejarlo en blanco.');
+  if (texto === null) return;            /* cancelado: no se descarga nada */
+  guardarNotaDeAlumno(clave, texto);
+
   toast('Preparando el informe…');
   const r = await diarioCompletoDe(clave);
   if (!r.ok) { toast(r.texto); return; }
   const st = r.estado;
-  const html = informeFamilia(st, { clase: ATLAS_CONFIG.className });
+  const html = informeFamilia(st, {
+    clase: ATLAS_CONFIG.className,
+    docente: ATLAS_CONFIG.teacherName,
+    notas: notasDeAlumno(clave)
+  });
   if (!html) { toast('No se ha podido generar el informe.'); return; }
   const guardado = await guardarArchivo(informeFileName(st), html, 'text/html');
   toast(guardado && guardado.ok === false
     ? 'No se ha podido descargar. Prueba desde Configuración → Copia de seguridad.'
     : `Informe de ${st.profile.explorer_name} descargado ✓`);
+}
+
+/* Descarga un solo documento con el informe de toda la clase. Va uno a uno
+   porque cada diario hay que traerlo, y se dice por dónde va: con veintidós
+   alumnos y red de centro esto tarda, y una pantalla quieta parece rota. */
+/* ── La evaluación de la clase ──
+   Las dos cifras del PRD §6 se calculaban desde hacía versiones, viajaban en
+   el resumen de cada diario, se sumaban por clase… y no se pintaban en ningún
+   sitio. La segunda es la que de verdad avisa, y no avisa sobre los niños:
+   si la barra de dominio prometía 0,9 y la prueba da 0,5, lo que hay que
+   revisar es el banco de retos de ese pozo, que se ha quedado corto o repite
+   demasiado. Es la métrica que más puede mejorar el contenido. */
+const DIVERGENCIA_RUIDO = 0.15;
+
+function pintarEvaluacion(d) {
+  const caja = $('#class-evaluacion');
+  if (!caja) return;
+  const k = (d && d.kpis) || {};
+  const intentos = k.guardianIntentos || 0;
+  if (!intentos) {           /* nadie ha hecho ninguna prueba todavía */
+    caja.classList.add('hidden');
+    caja.innerHTML = '';
+    return;
+  }
+  caja.classList.remove('hidden');
+  const div = k.divergencia;
+  const alta = div !== null && div > DIVERGENCIA_RUIDO;
+  const pct = x => Math.round(x * 100) + ' %';
+
+  caja.innerHTML = `
+    <h3>${ico('map')} Las Cámaras del Guardián</h3>
+    <p class="class-eval-intro">La prueba sumativa de cada pozo: la única cifra que confirma lo
+    que la barra de dominio va prometiendo.</p>
+    <div class="class-eval-cifras">
+      <div class="class-eval-dato"><strong>${k.guardianSuperadas || 0} de ${k.guardianCamaras || 0}</strong>
+        <span>cámaras superadas</span></div>
+      <div class="class-eval-dato"><strong>${k.guardianPassRate === null ? '—' : pct(k.guardianPassRate)}</strong>
+        <span>intentos que salen bien${intentos ? ` · ${intentos} en total` : ''}</span></div>
+      <div class="class-eval-dato${alta ? ' class-eval-aviso' : ''}">
+        <strong>${div === null ? '—' : (div > 0 ? '+' : '') + pct(div)}</strong>
+        <span>lo que la barra prometía de más</span></div>
+    </div>
+    ${div === null
+      ? '<p class="class-eval-nota">Todavía no hay intentos suficientes para comparar el dominio con la prueba.</p>'
+      : alta
+        ? `<p class="class-eval-nota class-eval-nota-aviso">La barra de dominio va
+           ${pct(div)} por delante de lo que confirman las pruebas. <strong>Eso no es cosa de los
+           niños</strong>: apunta a que el banco de retos de algún pozo es demasiado fácil, o repite
+           demasiado entre sí, y el dominio se gana sin haber aprendido. Mira los pozos donde más
+           se falla la Cámara y añade variedad.</p>`
+        : `<p class="class-eval-nota">El dominio que marca la app y lo que rinden las pruebas van
+           de la mano: por debajo de ${pct(DIVERGENCIA_RUIDO)} es ruido normal. El banco de retos
+           está midiendo lo que dice medir.</p>`}`;
+}
+
+function pintarBotonDeInformes(d) {
+  const caja = $('#class-informes');
+  if (!caja) return;
+  const cuantos = ((d && d.students) || []).filter(s => s.clave || s.id).length;
+  caja.classList.toggle('hidden', !cuantos);
+  if (!cuantos) { caja.innerHTML = ''; return; }
+  caja.innerHTML = '';
+  const btn = document.createElement('button');
+  btn.className = 'btn btn-secondary btn-small';
+  btn.innerHTML = `${ico('logbook')} Informes de toda la clase (${cuantos})`;
+  btn.addEventListener('click', async () => {
+    btn.disabled = true;
+    try { await descargarInformesDeClase(); } finally { btn.disabled = false; }
+  });
+  caja.appendChild(btn);
+  const nota = document.createElement('small');
+  nota.className = 'class-informes-nota';
+  nota.textContent = 'Un archivo con un informe por página, listo para imprimir y repartir. '
+    + 'Para escribirle una nota a una familia concreta, usa el botón de su ficha.';
+  caja.appendChild(nota);
+}
+
+async function descargarInformesDeClase() {
+  const fichas = ((classData && classData.students) || []).filter(s => s.clave || s.id);
+  if (!fichas.length) { toast('No hay ningún diario del que hacer informe.'); return; }
+  if (!(await askConfirm(`Se van a preparar ${fichas.length} informes, uno por página, en un solo
+    archivo para imprimir. Se usa la nota que ya tengas escrita de cada familia; las que falten
+    salen sin ella.`, `Preparar ${fichas.length} informes`))) return;
+
+  const cuerpos = [];
+  const fallos = [];
+  for (let i = 0; i < fichas.length; i++) {
+    const f = fichas[i];
+    toast(`Preparando ${i + 1} de ${fichas.length}: ${f.name}…`, 4000);
+    const r = await diarioCompletoDe(f.clave || f.id);
+    if (!r.ok) { fallos.push(f.name); continue; }
+    const cuerpo = datosDelInforme(r.estado, {
+      clase: ATLAS_CONFIG.className,
+      docente: ATLAS_CONFIG.teacherName,
+      notas: notasDeAlumno(f.clave || f.id)
+    });
+    if (cuerpo) cuerpos.push(cuerpo); else fallos.push(f.name);
+  }
+  if (!cuerpos.length) { toast('No se ha podido preparar ningún informe.'); return; }
+
+  const html = informeDeClase(cuerpos, { clase: ATLAS_CONFIG.className });
+  const nombre = `informes-${String(ATLAS_CONFIG.className || 'clase')
+    .normalize('NFD').replace(/[\u0300-\u036f]/g, '')
+    .replace(/[^A-Za-z0-9]+/g, '-').replace(/^-|-$/g, '').toLowerCase() || 'clase'}-${todayStr()}.html`;
+  const guardado = await guardarArchivo(nombre, html, 'text/html');
+  toast(guardado && guardado.ok === false
+    ? 'No se ha podido descargar. Prueba desde Configuración → Copia de seguridad.'
+    : `${cuerpos.length} informe(s) descargados ✓${fallos.length
+        ? ` No se ha podido con: ${fallos.slice(0, 3).join(', ')}${fallos.length > 3 ? '…' : ''}` : ''}`,
+    fallos.length ? 5200 : 2800);
 }
 
 /* ── Lo que conviene repasar mañana ──
@@ -1562,7 +1838,9 @@ function pintarRepaso(d) {
   caja.innerHTML = `
     <h3>${ico('target')} Lo que conviene repasar</h3>
     <p class="class-repasar-intro">Conceptos que se fallan más de un tercio de las veces, ordenados
-    por a cuántos alumnos les pasa. Sale del primer intento de cada reto, que es el que mide.</p>
+    por a cuántos alumnos les pasa. Sale del primer intento de cada reto, que es el que mide.
+    La etiqueta del nivel dice <strong>dónde</strong> se rompe: fallarlo al aplicar es no tener el
+    procedimiento; fallarlo al analizar es tenerlo y no saber cuándo usarlo. No se prepara igual.</p>
     <div class="repaso-lista">
       ${lista.map(c => {
         const n = c.alumnos.length;
@@ -1571,6 +1849,8 @@ function pintarRepaso(d) {
           <div class="repaso-cabeza">
             <strong>${esc(c.label)}</strong>
             <span class="repaso-area">${esc(c.area)}</span>
+            ${c.estrato ? `<span class="repaso-estrato" title="El nivel en el que se atasca más gente">${
+              ico(ICO_ESTRATO[c.estrato] || 'lens')} ${esc(STRATA_META[c.estrato].label)}</span>` : ''}
           </div>
           <div class="repaso-barra"><div class="repaso-relleno" style="width:${Math.round(c.tasa * 100)}%"></div></div>
           <div class="repaso-pie">

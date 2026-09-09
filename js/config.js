@@ -11,7 +11,7 @@
    copia guardada. Sin este número, «ya está arreglado» y «a mí no me pasa» son
    indistinguibles. Va junto al nombre de la caché del service worker, y una
    prueba comprueba que no se separen. */
-const ATLAS_VERSION = 'v68';
+const ATLAS_VERSION = 'v69';
 
 const ATLAS_DEFAULTS = {
 
@@ -79,6 +79,16 @@ const ATLAS_DEFAULTS = {
      No es un secreto —es un identificador— pero acompaña a la clave, así que
      viaja con ella: se queda en el equipo del docente. */
   iaWorkspace: '',
+
+  /* ── Las notas del docente para las familias ──
+     Clave del diario → lista de { fecha, texto }, la más reciente al final.
+     Es lo único del informe que no escribe una máquina, y por eso es lo que
+     más pesa cuando llega a una casa. Se guarda aquí y no en el diario del
+     niño por dos razones: el diario viaja a su tablet, y una nota que el
+     docente escribe PARA la familia no tiene por qué leerla el crío antes que
+     ella. Nunca sale hacia el alumnado (va en NO_SE_COMPARTE) y sí viaja
+     entre los equipos del docente, por su canal privado. */
+  notasInforme: {},
 
   /* PIN del panel del docente. Este es el que llevan TODAS las tablets: el que
      se cambia desde el panel vale solo para ese equipo, porque el PIN no viaja
@@ -486,8 +496,19 @@ function configEditadaEnLocal() {
    `curriculo` y `iaCola` se añaden por dos motivos distintos: el currículo son
    decenas de miles de caracteres que a un niño no le sirven de nada y que
    viajarían a las veinticinco tablets en cada apertura de clase; la cola es un
-   borrador del docente, y lo que está sin aprobar no se enseña. */
-const NO_SE_COMPARTE = ['appwrite', 'teacherPin', 'curriculo', 'iaCola', 'iaClave', 'iaWorkspace'];
+   borrador del docente, y lo que está sin aprobar no se enseña.
+
+   `notasInforme` son las líneas que el docente escribe para la familia de un
+   niño concreto. Aunque no sean secretas, son sobre UN niño y las leerían sus
+   veinticinco compañeros: van por el canal privado del docente, el mismo que
+   las contraseñas, no por el documento de la clase. */
+const NO_SE_COMPARTE = ['appwrite', 'teacherPin', 'curriculo', 'iaCola', 'iaClave',
+                        'iaWorkspace', 'notasInforme'];
+
+/* Topes de las notas del docente. Viven aquí y no en state.js porque cloud.js
+   los usa al mezclar las de dos equipos, y carga antes que state.js. */
+const NOTAS_TOPE = 6;          /* cuántas se conservan por alumno */
+const NOTA_LARGO = 1200;       /* lo que cabe leerse en un informe */
 
 function configParaCompartir() {
   const o = deepClone(ATLAS_OVERLAY);

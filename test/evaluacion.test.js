@@ -80,14 +80,42 @@ test('el Guardian Pass Rate de la clase sale del resumen de cada alumno', () => 
   ], '2026-08-28');
 
   assert.equal(d.kpis.guardianIntentos, 7);
-  assert.equal(d.kpis.guardianPassRate, 3 / 5, 'tres cámaras superadas de cinco abiertas');
+  /* Cámaras conseguidas e intentos que salen bien son dos medidas distintas y
+     estuvieron con el mismo nombre: la tasa del PRD §6 es la de los intentos.
+     La otra sigue estando, con el suyo. */
+  assert.equal(d.kpis.guardianCamaras, 5);
+  assert.equal(d.kpis.guardianSuperadas, 3, 'tres cámaras conseguidas de cinco abiertas');
+  assert.equal(d.kpis.guardianPassRate, 3 / 7, 'tres intentos buenos de siete hechos');
   assert.ok(Math.abs(d.kpis.divergencia - 0.26) < 0.01);
+});
+
+test('un resumen antiguo, sin los intentos buenos dentro, se apaña con la tasa', () => {
+  /* El sexto número llegó después. Deducirlo de la tasa da lo mismo con
+     números enteros pequeños, y sin eso la clase entera saldría a cero. */
+  const { ev } = cargarApp();
+  const d = ev('buildClassOverview')([
+    { id: 'v', name: 'Vega', summary: { v: 1, xp: 100, evalu: [2, 2, 4, 0.75, 0.1] } }
+  ], '2026-08-28');
+  assert.equal(d.kpis.guardianPassRate, 0.75);
+});
+
+test('y con el número dentro, manda el número', () => {
+  const { ev } = cargarApp();
+  const d = ev('buildClassOverview')([
+    { id: 'v', name: 'Vega', summary: { v: 1, xp: 100, evalu: [2, 2, 4, 0.75, 0.1, 3] } }
+  ], '2026-08-28');
+  assert.equal(d.kpis.guardianSuperadas, 2);
+  assert.equal(d.kpis.guardianPassRate, 3 / 4);
 });
 
 test('el informe a la familia no lleva notas, porcentajes ni comparaciones', () => {
   const ctx = cargarApp();
   ctx.ev('createState')('Vega Serrano');
-  for (let i = 0; i < 6; i++) ctx.ev('recordConcepto')('valor_posicional', true);
+  /* Tres aciertos, «otro día», y tres más: «ya le sale» exige dos días
+     distintos, y seis seguidos del tirón no lo son. */
+  for (let i = 0; i < 3; i++) ctx.ev('recordConcepto')('valor_posicional', true);
+  ctx.ev("S.metrics.errors_by_concept.valor_posicional.ultimo = '2000-01-01'");
+  for (let i = 0; i < 3; i++) ctx.ev('recordConcepto')('valor_posicional', true);
   for (let i = 0; i < 6; i++) ctx.ev('recordConcepto')('suma_llevada', false);
 
   const html = ctx.ev('informeFamilia')(ctx.ev('S'), { clase: '4.º B' });
@@ -109,13 +137,22 @@ test('el informe a la familia no lleva notas, porcentajes ni comparaciones', () 
   const nota = texto.split('Cómo leer esto')[1] || '';
   assert.ok(nota.length > 80, 'la nota explicativa sigue estando');
 
+  /* Lo que la familia puede hacer en casa se cita literalmente del catálogo y
+     a veces lleva dentro un número o un porcentaje —«un 20 % de 30 euros»—.
+     Eso no es una calificación: es un ejemplo. Las prohibiciones de abajo son
+     sobre lo que el informe AFIRMA del niño, así que se miden sin esa parte. */
+  const sinCasa = html.replace(/<dl class="encasa">[\s\S]*?<\/dl>/g, ' ')
+    .replace(/<style>[\s\S]*?<\/style>/g, ' ')
+    .replace(/<[^>]+>/g, ' ').replace(/\s+/g, ' ')
+    .split('Cómo leer esto')[0];
+
   /* Lo que sí: conceptos en castellano llano */
   assert.ok(texto.includes('Valor posicional'), 'lo que ya le sale');
   assert.ok(texto.includes('Suma con llevada'), 'lo que está trabajando');
 
   /* Lo que NO puede aparecer nunca */
-  assert.doesNotMatch(informe, /\d+\s?%/, 'sin porcentajes de dominio');
-  assert.doesNotMatch(informe, /suspenso|aprobad|insuficiente|sobresaliente|calificaci|\bnotas?\b/i,
+  assert.doesNotMatch(sinCasa, /\d+\s?%/, 'sin porcentajes de dominio');
+  assert.doesNotMatch(sinCasa, /suspenso|aprobad|insuficiente|sobresaliente|calificaci|\bnotas?\b/i,
     'sin calificaciones');
   assert.doesNotMatch(informe, /Recordar|Comprender|Aplicar|Analizar/,
     'sin jerga de Bloom: a una familia no le dice nada');

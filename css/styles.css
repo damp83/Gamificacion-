@@ -2255,6 +2255,50 @@ input[type="checkbox"]::after, input[type="radio"]::after {
 }
 #aula-merito-clase.on:hover { background: var(--brass-tint); color: var(--brass); }
 
+/* El campo de varias líneas del diálogo: la nota que el docente escribe para
+   una familia no cabe en una línea, y con una línea se escriben notas de una
+   línea. */
+.modal-area {
+  width: 100%; margin-top: .6rem; padding: .6rem .7rem;
+  font-family: var(--font-text); font-size: var(--t-md); line-height: 1.5;
+  color: var(--ink); background: var(--paper);
+  border: var(--line); border-radius: var(--r-md); resize: vertical;
+}
+.modal-nota { margin: .5rem 0 0; font-size: var(--t-xs); color: var(--ink-soft); text-align: left; }
+
+/* El nivel de Bloom donde se rompe un concepto, junto a su área. */
+.repaso-estrato {
+  display: inline-flex; align-items: center; gap: .25rem;
+  font-size: var(--t-xs); color: var(--leather-dark);
+  background: var(--paper-deep); border-radius: var(--r-sm); padding: .1rem .4rem;
+}
+.repaso-estrato .ico { width: .95rem; height: .95rem; }
+
+/* La evaluación de la clase. Tres cifras, y la tercera es la que avisa. */
+.class-evaluacion { margin: 0 0 var(--s-5); }
+.class-eval-intro { font-size: var(--t-sm); color: var(--ink-soft); margin: 0 0 .7rem; }
+.class-eval-cifras {
+  display: grid; gap: .6rem;
+  grid-template-columns: repeat(auto-fit, minmax(9rem, 1fr));
+}
+.class-eval-dato {
+  background: var(--surface); border: var(--line); border-radius: var(--r-md);
+  padding: .7rem .8rem; display: flex; flex-direction: column; gap: .15rem;
+}
+.class-eval-dato strong { font-size: var(--t-lg); font-variant-numeric: tabular-nums; }
+.class-eval-dato span { font-size: var(--t-xs); color: var(--ink-soft); }
+.class-eval-aviso { border-color: var(--brass); box-shadow: inset 0 0 0 1px var(--brass); }
+.class-eval-aviso strong { color: var(--brass); }
+.class-eval-nota { font-size: var(--t-sm); color: var(--ink-soft); margin: .6rem 0 0; }
+.class-eval-nota-aviso {
+  color: var(--ink); background: var(--brass-tint);
+  border-left: 3px solid var(--brass); padding: .55rem .8rem; border-radius: var(--r-sm);
+}
+
+/* El botón de los informes de toda la clase, con su línea de explicación. */
+.class-informes { display: flex; align-items: center; gap: .6rem; flex-wrap: wrap; margin: 0 0 var(--s-4); }
+.class-informes-nota { font-size: var(--t-xs); color: var(--ink-soft); flex: 1 1 16rem; }
+
 /* La barra del modo elegir. */
 .aula-seleccion {
   display: flex; align-items: center; gap: .5rem; flex-wrap: wrap;

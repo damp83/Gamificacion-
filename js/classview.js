@@ -153,8 +153,15 @@ function textoSeguro(v, tope) {
    el cliente del alumno: se sanea igual que el resto del resumen. */
 function leerEvalu(v) {
   const a = Array.isArray(v) ? v : [];
-  return { camaras: numSeguro(a[0]), superadas: numSeguro(a[1]), intentos: numSeguro(a[2]),
-           passRate: numONulo(a[3]), divergencia: numONulo(a[4]) };
+  const intentos = numSeguro(a[2]);
+  const passRate = numONulo(a[3]);
+  return { camaras: numSeguro(a[0]), superadas: numSeguro(a[1]), intentos,
+           /* Los intentos que salieron bien empezaron a viajar después que el
+              resto. En un resumen antiguo se deducen de la tasa, que es lo
+              mismo con un número entero pequeño. */
+           superados: a[5] !== undefined ? numSeguro(a[5])
+             : (passRate === null ? 0 : Math.round(passRate * intentos)),
+           passRate, divergencia: numONulo(a[4]) };
 }
 
 function numONulo(v) {
@@ -196,7 +203,10 @@ function baseDesdeResumen(sum) {
        en vez de dejar que envenene el agregado de la clase. */
     conceptos: (Array.isArray(sum.conceptos) ? sum.conceptos : []).slice(0, 12)
       .map(c => Array.isArray(c)
-        ? { id: textoSeguro(c[0], 40), errors: numSeguro(c[1]), attempts: numSeguro(c[2]) }
+        ? { id: textoSeguro(c[0], 40), errors: numSeguro(c[1]), attempts: numSeguro(c[2]),
+            /* El estrato donde se rompe llegó después que el resto y lo escribe
+               el cliente del alumno: solo se acepta si es uno de los cuatro. */
+            estrato: STRATA_ORDER.includes(c[3]) ? c[3] : '' }
         : null)
       .filter(c => c && c.id && c.attempts > 0 && c.errors <= c.attempts),
     evalu: leerEvalu(sum.evalu),
@@ -260,7 +270,8 @@ function baseDesdeDiario(s, today) {
     fragments: s.progression.atlas_fragments_recovered || 0,
     stuck,
     conceptos: typeof conceptosFlojosDe === 'function'
-      ? conceptosFlojosDe(s, 6).map(c => ({ id: c.id, errors: c.errors, attempts: c.attempts }))
+      ? conceptosFlojosDe(s, 6).map(c => ({ id: c.id, errors: c.errors, attempts: c.attempts,
+                                            estrato: c.estrato || '' }))
       : [],
     evalu: typeof metricasEvaluacion === 'function'
       ? metricasEvaluacion(s)
@@ -319,11 +330,16 @@ function buildClassOverview(entries, today) {
        dominio por encima de lo que luego confirmó la prueba. Si es alta, el
        árbol está inflado y el dominio formativo está mintiendo. */
     guardianIntentos: students.reduce((a, s) => a + s.evalu.intentos, 0),
+    guardianCamaras: students.reduce((a, s) => a + s.evalu.camaras, 0),
+    guardianSuperadas: students.reduce((a, s) => a + s.evalu.superadas, 0),
+    /* El Guardian Pass Rate del PRD §6: intentos que salieron bien sobre
+       intentos hechos. Estaba calculado como cámaras superadas sobre cámaras
+       intentadas, que es otra medida con el mismo nombre; esa sigue estando,
+       arriba, con su propio nombre. */
     guardianPassRate: (() => {
       const i = students.reduce((a, s) => a + s.evalu.intentos, 0);
       if (!i) return null;
-      return students.reduce((a, s) => a + s.evalu.superadas, 0) /
-             Math.max(1, students.reduce((a, x) => a + x.evalu.camaras, 0));
+      return students.reduce((a, s) => a + s.evalu.superados, 0) / i;
     })(),
     divergencia: (() => {
       const con = students.filter(s => s.evalu.divergencia !== null);
@@ -344,20 +360,36 @@ function buildClassOverview(entries, today) {
   const porConcepto = new Map();
   for (const s of students) {
     for (const c of (s.conceptos || [])) {
-      if (!porConcepto.has(c.id)) porConcepto.set(c.id, { id: c.id, alumnos: [], errors: 0, attempts: 0 });
+      if (!porConcepto.has(c.id)) {
+        porConcepto.set(c.id, { id: c.id, alumnos: [], errors: 0, attempts: 0, porEstrato: {} });
+      }
       const e = porConcepto.get(c.id);
       e.alumnos.push(s.name);
       e.errors += c.errors;
       e.attempts += c.attempts;
+      /* A cuántos alumnos se les rompe en cada nivel. No son fallos sumados:
+         es en qué nivel se atasca cada uno, que es lo que decide si la clase
+         de mañana va de procedimiento o de razonar sobre él. */
+      if (c.estrato) e.porEstrato[c.estrato] = (e.porEstrato[c.estrato] || 0) + 1;
     }
   }
   const info = typeof conceptoInfo === 'function' ? conceptoInfo : (id => ({ area: '—', label: id }));
-  const repasar = [...porConcepto.values()].map(e => ({
-    ...e,
-    label: info(e.id).label,
-    area: info(e.id).area,
-    tasa: e.attempts ? e.errors / e.attempts : 0
-  })).sort((a, b) => b.alumnos.length - a.alumnos.length || b.tasa - a.tasa);
+  const repasar = [...porConcepto.values()].map(e => {
+    /* El nivel en el que se atasca más gente. Empate: gana el más básico, que
+       es por donde hay que empezar a repasar. */
+    let estrato = '', cuantos = 0;
+    for (const sId of STRATA_ORDER) {
+      const n = e.porEstrato[sId] || 0;
+      if (n > cuantos) { cuantos = n; estrato = sId; }
+    }
+    return {
+      ...e,
+      label: info(e.id).label,
+      area: info(e.id).area,
+      estrato, estratoAlumnos: cuantos,
+      tasa: e.attempts ? e.errors / e.attempts : 0
+    };
+  }).sort((a, b) => b.alumnos.length - a.alumnos.length || b.tasa - a.tasa);
 
   /* ── Cuadrillas: aquí SÍ se puede sumar el total real ── */
   const teams = ((ATLAS_CONFIG.teams && ATLAS_CONFIG.teams.list) || []).map(t => {

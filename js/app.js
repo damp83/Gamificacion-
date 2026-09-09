@@ -470,6 +470,8 @@ function wireGlobalListeners() {
   });
 
   $('#modal-ok').addEventListener('click', () => {
+    const area = $('#modal-area');
+    if (area && !area.classList.contains('hidden')) return closeModal(area.value);
     const input = $('#modal-input');
     closeModal(input.classList.contains('hidden') ? true : input.value);
   });

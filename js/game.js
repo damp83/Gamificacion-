@@ -81,7 +81,7 @@ function answerQuestion(optionIndex) {
     /* El concepto se anota acierte o falle: sin los aciertos no hay tasa, y
        sin tasa un concepto muy practicado parecería peor que uno que apenas
        se ha tocado. */
-    recordConcepto(q.skill, correct);
+    recordConcepto(q.skill, correct, q.stratumId || mission.stratumId);
     if (correct) mission.firstTryCorrect++;
     else {
       recordError(mission.branchId, q.stratumId || mission.stratumId);

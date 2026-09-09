@@ -257,13 +257,14 @@ function buildSummaryOf(S) {
        resumen entero tiene que seguir por debajo de 1 KB, porque la vista de
        clase lo lee para TODOS los alumnos del centro de una vez. Seis
        conceptos son de sobra para decidir qué se repasa mañana. */
-    conceptos: conceptosFlojosDe(S, 6).map(c => [c.id, c.errors, c.attempts]),
+    conceptos: conceptosFlojosDe(S, 6).map(c => [c.id, c.errors, c.attempts, c.estrato || '']),
     /* Evaluación: cinco números que permiten calcular por clase el Guardian
        Pass Rate y la divergencia formativo/sumativo del PRD §6. */
     evalu: (() => { const m = metricasEvaluacion(S);
       return [m.camaras, m.superadas, m.intentos,
               m.passRate === null ? null : +m.passRate.toFixed(3),
-              m.divergencia === null ? null : +m.divergencia.toFixed(3)]; })(),
+              m.divergencia === null ? null : +m.divergencia.toFixed(3),
+              m.superados]; })(),
     selfCorrections: (S.metrics && S.metrics.self_corrections) || 0,
     merits: (S.behavior_log || []).length,
     teamContribution: Math.round(S.progression.team_contribution || 0),
@@ -1465,6 +1466,10 @@ function metricasEvaluacion(estado) {
     camaras: hist.length,
     superadas: hist.filter(c => c.cleared).length,
     intentos,
+    /* Dos cosas distintas que se confundían con el mismo nombre: `superadas`
+       son cámaras conseguidas y `superados` intentos que salieron bien. Una
+       cámara superada al tercer intento cuenta 1 arriba y 1 de 3 aquí. */
+    superados,
     passRate: intentos ? superados / intentos : null,
     /* > 0 significa que la barra de dominio prometía más de lo que la prueba
        confirmó. Por debajo de 0.15 es ruido normal. */
@@ -1595,6 +1600,50 @@ function lowQualityFlag() {
   return fast / rt.length > 0.6;
 }
 
+/* ══════════ LAS NOTAS DEL DOCENTE PARA LA FAMILIA ══════════
+
+   Todo lo demás que va en el informe lo escribe una máquina a partir de
+   números. Esto no, y por eso es lo que de verdad se lee en una casa.
+
+   Se guardan por clave de diario —no por nombre: dos niñas pueden llamarse
+   igual— y con la fecha, para que el informe de marzo pueda enseñar lo que se
+   dijo en diciembre y una familia vea el camino, no una foto suelta.
+
+   Viven en los ajustes del docente, fuera de lo que se comparte. Sus topes
+   —cuántas se guardan y cuánto ocupa cada una— están en config.js, porque
+   cloud.js también los necesita y carga antes que este fichero. */
+function notasDeAlumno(clave) {
+  const m = (ATLAS_CONFIG.notasInforme && ATLAS_CONFIG.notasInforme[clave]) || [];
+  return Array.isArray(m) ? m.filter(n => n && n.texto) : [];
+}
+function ultimaNotaDeAlumno(clave) {
+  const l = notasDeAlumno(clave);
+  return l.length ? l[l.length - 1] : null;
+}
+
+/* Guarda una nota nueva. Con el texto en blanco se borra la última, que es
+   lo que quiere decir alguien que vacía el campo y acepta. */
+function guardarNotaDeAlumno(clave, texto) {
+  if (!clave) return null;
+  const todas = deepClone(ATLAS_CONFIG.notasInforme || {});
+  const lista = Array.isArray(todas[clave]) ? todas[clave].filter(n => n && n.texto) : [];
+  const limpio = String(texto || '').trim().slice(0, NOTA_LARGO);
+  if (!limpio) {
+    lista.pop();
+  } else {
+    const hoy = todayStr();
+    /* Dos notas el mismo día son una corrección, no dos momentos: se
+       sustituye en vez de acumular. */
+    if (lista.length && lista[lista.length - 1].fecha === hoy) lista[lista.length - 1] = { fecha: hoy, texto: limpio };
+    else lista.push({ fecha: hoy, texto: limpio });
+  }
+  while (lista.length > NOTAS_TOPE) lista.shift();
+  if (lista.length) todas[clave] = lista; else delete todas[clave];
+  setTeacherConfig('notasInforme', todas);
+  saveTeacherConfig();
+  return lista.length ? lista[lista.length - 1] : null;
+}
+
 /* ── Métricas de aprendizaje ── */
 function recordError(branchId, stratumId) {
   const key = `${branchId}.${stratumId}`;
@@ -1603,13 +1652,29 @@ function recordError(branchId, stratumId) {
 }
 /* Un intento por concepto. Solo se llama en el PRIMER intento de cada reto:
    el segundo llega con la explicación de Kira delante y mediría otra cosa. */
-function recordConcepto(skill, acierto) {
+function recordConcepto(skill, acierto, stratumId) {
   if (!skill) return;
   if (!S.metrics.errors_by_concept) S.metrics.errors_by_concept = {};
   const m = S.metrics.errors_by_concept;
-  if (!m[skill]) m[skill] = { errors: 0, attempts: 0 };
-  m[skill].attempts++;
-  if (!acierto) m[skill].errors++;
+  if (!m[skill]) m[skill] = { errors: 0, attempts: 0, dias: 0, ultimo: '' };
+  const e = m[skill];
+  e.attempts++;
+  if (!acierto) {
+    e.errors++;
+    /* En qué nivel se rompe. «Nueve fallan la resta llevando» y «nueve la
+       fallan al analizar» piden clases distintas: la primera es procedimiento
+       y la segunda es razonar sobre el procedimiento. Solo se cuentan los
+       fallos, que es lo que dice dónde se atasca. */
+    if (stratumId && STRATA_META[stratumId]) {
+      if (!e.estratos) e.estratos = {};
+      e.estratos[stratumId] = (Number(e.estratos[stratumId]) || 0) + 1;
+    }
+  }
+  /* En cuántos DÍAS distintos se ha visto este concepto. Dos números diminutos
+     en vez de una lista de fechas, porque lo único que hay que saber es si lo
+     que sabe se sostiene de un día para otro o fue una tanda con suerte. */
+  const hoy = todayStr();
+  if (e.ultimo !== hoy) { e.dias = (Number(e.dias) || 0) + 1; e.ultimo = hoy; }
 }
 
 /* ── Cuándo un concepto se declara flojo ──
@@ -1630,6 +1695,18 @@ const CONCEPTO_MIN_INTENTOS = 3;
 const CONCEPTO_MIN_FALLOS = 2;
 const CONCEPTO_UMBRAL = 0.30;
 
+/* El estrato donde más se rompe un concepto, si se sabe. */
+function estratoFlojoDe(entrada) {
+  const e = (entrada && entrada.estratos) || null;
+  if (!e) return '';
+  let mejor = '', n = 0;
+  for (const sId of STRATA_ORDER) {
+    const c = Number(e[sId]) || 0;
+    if (c > n) { n = c; mejor = sId; }
+  }
+  return mejor;
+}
+
 function conceptosFlojosDe(estado, tope) {
   const m = (estado && estado.metrics && estado.metrics.errors_by_concept) || {};
   const out = [];
@@ -1638,7 +1715,7 @@ function conceptosFlojosDe(estado, tope) {
     if (attempts < CONCEPTO_MIN_INTENTOS || errors < CONCEPTO_MIN_FALLOS) continue;
     const tasa = errors / attempts;
     if (tasa <= CONCEPTO_UMBRAL) continue;
-    out.push({ id, errors, attempts, tasa });
+    out.push({ id, errors, attempts, tasa, estrato: estratoFlojoDe(m[id]) });
   }
   out.sort((a, b) => b.tasa - a.tasa || b.attempts - a.attempts);
   return tope ? out.slice(0, tope) : out;
@@ -1649,13 +1726,25 @@ function conceptosFlojos(tope) { return conceptosFlojosDe(S, tope); }
    lo que falla da una foto injusta, y «domina Numeración · Analizar» no
    significa nada fuera del aula. «Ya le sale comparar números» sí. */
 const CONCEPTO_DOMINADO = 0.15;
+/* ── Y en cuántos días distintos hay que haberlo visto ──
+   Con solo tres intentos, «ya le sale» podía salir de tres aciertos seguidos
+   en el mismo minuto, y eso no distingue haber aprendido de haber acertado
+   tres veces. Para una frase que va firmada a una casa es poco. Dos días es
+   el mismo criterio que ya usa la barra de dominio, que exige dos sesiones
+   antes de fiarse de una tanda afortunada.
+
+   Los diarios anteriores a esto no llevan la cuenta de días. A esos se les
+   aplica la regla de antes: quitarles de golpe todo lo que ya sabían hacer
+   sería vaciarles el informe por un cambio nuestro. */
+const CONCEPTO_MIN_DIAS = 2;
 
 function conceptosDominadosDe(estado, tope) {
   const m = (estado && estado.metrics && estado.metrics.errors_by_concept) || {};
   const out = [];
   for (const id in m) {
-    const { errors = 0, attempts = 0 } = m[id] || {};
+    const { errors = 0, attempts = 0, dias } = m[id] || {};
     if (attempts < CONCEPTO_MIN_INTENTOS) continue;
+    if (dias !== undefined && (Number(dias) || 0) < CONCEPTO_MIN_DIAS) continue;
     if (errors / attempts > CONCEPTO_DOMINADO) continue;
     out.push({ id, errors, attempts, tasa: errors / attempts });
   }
