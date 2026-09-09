@@ -52,6 +52,9 @@ test('el error al entrar no culpa solo a la contraseña', () => {
 
 test('los errores que sí tienen una causa concreta la siguen diciendo', () => {
   assert.match(ev('friendlyAuthError')(new Error('Password must be at least 8 characters')), /8/);
-  assert.match(ev('friendlyAuthError')(new Error('Failed to fetch')), /conexión/i);
+  /* El de red ya no culpa a la red: dice que no se ha hablado con el servidor
+     y deja el porqué para el diagnóstico, que sí lo sabe. */
+  assert.match(ev('friendlyAuthError')(new Error('Failed to fetch')), /Sociedad Geográfica/);
+  assert.ok(!/revisa la red/i.test(ev('friendlyAuthError')(new Error('Failed to fetch'))));
   assert.match(ev('friendlyAuthError')(new Error('A user with the same id already exists')), /ya existe/i);
 });

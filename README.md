@@ -84,6 +84,7 @@ Cubren lo que ya se ha roto alguna vez, que es de donde salieron:
 | `cuentas.test.js` | Que el panel avise de una contraseña que Appwrite va a rechazar, y de que escribirla no crea la cuenta |
 | `merito-grupo.test.js` | Que dar un mérito a una cuadrilla entera, a la clase o a unos cuantos elegidos a dedo use el mismo tope y el mismo registro que darlo uno a uno, y que se diga a quién no le llegó |
 | `criterios.test.js` | Que la evidencia por criterio se calcule bien, que no se proponga un nivel sin datos suficientes, y que nada de esto llegue nunca al niño ni a su familia |
+| `conexion.test.js` | Que «no hay conexión» diga cuál de las cuatro causas es, y que las cuatro dejen claro que la contraseña no se ha llegado a comprobar |
 | `salud.test.js` | Que todo lo que se pierde en silencio deje de perderse en silencio: quién no sincroniza, qué diario está roto, si la clave de la IA se agotó, y que con todo en orden el panel no invente un problema |
 | `adaptaciones.test.js` | Que las cuatro palancas de una adaptación hagan lo que dicen, que el techo no impida bajar, y sobre todo que abrir la puerta no cambie lo que la app dice que ese alumno ha demostrado |
 | `nombres-unicos.test.js` | Que dos ficheros no declaren una función con el mismo nombre: comparten un solo ámbito global y la segunda pisa a la primera en silencio |
@@ -1192,6 +1193,45 @@ Lo que mira:
 
 Cada aviso dice **qué se pierde** y **qué hacer**, y en qué pantalla se hace. Un
 panel de diagnóstico sin salida es una lista de motivos para cerrarlo.
+
+### «No hay conexión» casi nunca es la conexión
+
+Un alumno intenta entrar y sale *«No hay conexión con la Sociedad Geográfica.
+Revisa la red»*. Se mira el wifi, que está bien. Se prueba otra contraseña, y
+otra. Y el problema no era ninguna de las dos cosas.
+
+Detrás de ese mensaje del navegador —`Failed to fetch`— hay **cuatro causas
+distintas**, y la más común no tiene nada que ver con la red:
+
+| Qué pasa de verdad | Dónde se arregla |
+|---|---|
+| El dispositivo no tiene conexión | Ahí sí, en el wifi |
+| La tiene, pero no se llega al servidor | El filtro de la red del centro, o Appwrite caído |
+| **Se llega perfectamente y el navegador tapa la respuesta** | **Appwrite → Settings → Platforms** |
+| La app se abrió desde un fichero guardado en el móvil | Abrirla desde su dirección de internet |
+
+La tercera es la que más tiempo se lleva. Si el proyecto de Appwrite no tiene
+dada de alta la dirección desde la que se abre la app, Appwrite contesta con
+normalidad y es **el navegador** el que descarta la respuesta por seguridad. La
+app ve exactamente lo mismo que si no hubiera red, con el wifi a tope y todo lo
+demás funcionando.
+
+**Se distinguen, y con una sola petición.** Un `fetch` en modo `no-cors`
+devuelve una respuesta opaca —no se puede leer nada de ella— pero *resuelve* si
+el servidor contestó y falla si no se llegó. Eso es justo la línea entre «no hay
+ruta» y «hay ruta y el navegador tapa lo que vuelve». Es una comprobación, no
+una petición de datos: va sin sesión, sin contraseñas y sin mirar lo que
+responde.
+
+Así que la pantalla de entrada enseña el aviso al instante y lo **afina** en
+cuanto lo sabe, con el nombre de la causa y el sitio donde se arregla. Y las
+cuatro dicen lo mismo primero, porque es lo que hace perder la tarde: **la
+contraseña no se ha llegado a comprobar, no es que esté mal.**
+
+Al docente, que es quien puede arreglarlo, se le dice en dos sitios más:
+**Acceso y nube** enseña la dirección exacta desde la que se abre esta copia de
+la app —para copiarla en vez de teclearla— y **Salud de la clase** hace el mismo
+diagnóstico cuando falla el pulso de los diarios.
 
 ### Lo que hay que ir a preguntar
 

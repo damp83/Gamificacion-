@@ -456,6 +456,7 @@ function motivoDeNube(r) {
    diagnóstico que tarda cuatro segundos en aparecer no se abre nunca. */
 let saludPulso = null;          /* lo último que contestó la nube */
 let saludPulsoEstado = '';      /* '', 'pidiendo', o el motivo del fallo */
+let saludConexion = '';         /* por qué no se llegó, cuando el fallo fue de red */
 
 /* Lo que se puede medir sin salir de este equipo. */
 function datosDeSalud() {
@@ -550,7 +551,8 @@ function cfgSalud(body) {
       ${saludPulsoEstado === 'pidiendo' ? 'Preguntando…' : '📡 Comprobar quién ha sincronizado'}</button>
     ${saludPulso ? `<p class="cfg-hint">Contestaron <strong>${saludPulso.length}</strong> diarios de esta clase.</p>` : ''}
     ${saludPulsoEstado && saludPulsoEstado !== 'pidiendo'
-      ? `<p class="cfg-warn">No se ha podido preguntar: ${esc(motivoDeNube({ reason: saludPulsoEstado }))}</p>` : ''}`;
+      ? `<p class="cfg-warn">No se ha podido preguntar: ${esc(motivoDeNube({ reason: saludPulsoEstado }))}</p>` : ''}
+    ${saludConexion ? `<p class="cfg-warn">${esc(textoDeConexion(saludConexion))}</p>` : ''}`;
 
   const b = $('#salud-pulso');
   if (b) b.addEventListener('click', async () => {
@@ -559,6 +561,12 @@ function cfgSalud(body) {
     const r = await cloudPulsoDeLosDiarios();
     saludPulso = r.ok ? r.diarios : null;
     saludPulsoEstado = r.ok ? '' : (r.reason || 'error');
+    /* «error» a secas no dice nada. Si fue de red, se averigua cuál de las
+       tres cosas es antes de repintar: casi nunca es la red. */
+    saludConexion = '';
+    if (!r.ok && (r.reason === 'error' || r.reason === 'red')) {
+      try { saludConexion = await diagnosticarConexion(); } catch (e) { /* se queda sin */ }
+    }
     renderTeacherConfig();
   });
 }
@@ -3943,6 +3951,10 @@ function cfgAcceso(body) {
     ${field('Collection ID (configuración compartida)', `<input type="text" id="cfg-aw-ccid" value="${esc(a.configCollectionId || '')}">`,
       'Opcional. Sirve para no configurar veinte tablets a mano. Con la colección de aulas puesta no hace falta: los ajustes de cada clase viajan en su documento.')}
     <p class="cfg-warn">Tras cambiar los datos de Appwrite hay que recargar la página para que surtan efecto.</p>
+    <p class="cfg-hint">Esta copia de la app se abre desde <strong>${esc((typeof origenDeLaApp === 'function' && origenDeLaApp()) || 'desconocido')}</strong>.
+    Esa dirección tiene que estar dada de alta en <strong>Appwrite → Settings → Platforms</strong> como plataforma Web.
+    Si no lo está, Appwrite contesta y el navegador tapa la respuesta: la app dice «no hay conexión» con el wifi
+    perfectamente. Es el fallo que más tiempo se lleva porque manda a mirar donde no es.</p>
 
     <h4 class="cfg-h4">¿Está bien puesto?</h4>
     <p class="cfg-hint">Prueba cada colección y dice cuál falla y por qué. El fallo más común es

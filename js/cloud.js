@@ -583,6 +583,60 @@ function limpiarFila(d) {
   };
 }
 
+/* ══════════ POR QUÉ NO SE LLEGA AL SERVIDOR ══════════
+
+   «Failed to fetch» contra Appwrite se decía como «revisa la red», y eso manda
+   a mirar donde casi nunca está el problema. Hay tres causas distintas detrás
+   del mismo mensaje del navegador, y solo una es la red:
+
+     · El dispositivo no tiene conexión.
+     · La tiene, pero algo entre medias no deja llegar al servidor: el filtro
+       de la red del centro, o Appwrite caído.
+     · Se llega perfectamente y es el navegador el que TAPA la respuesta,
+       porque el proyecto de Appwrite no tiene dada de alta la dirección desde
+       la que se abre la app. Es, con diferencia, la más común, y la única que
+       se arregla en un minuto: Appwrite → Settings → Platforms.
+
+   Distinguirlas se puede, y con una sola petición. Un `fetch` en modo
+   `no-cors` devuelve una respuesta opaca —no se puede leer nada de ella— pero
+   RESUELVE si el servidor contestó, y falla si no se llegó. Eso es justo la
+   línea entre «no hay ruta» y «hay ruta y el navegador tapa lo que vuelve».
+
+   Es una comprobación, no una petición de datos: no lleva sesión, no lleva
+   contraseñas y no mira lo que responde. */
+async function diagnosticarConexion() {
+  /* Abierta desde un fichero guardado en el móvil: ningún servidor va a
+     aceptar peticiones de ahí, y no es un problema de red ni de Appwrite. */
+  try {
+    if (typeof location !== 'undefined' && location.protocol === 'file:') return 'fichero';
+  } catch (e) { /* sin location */ }
+
+  try {
+    if (typeof navigator !== 'undefined' && navigator.onLine === false) return 'sin-red';
+  } catch (e) { /* sin navigator */ }
+
+  const ep = String((ATLAS_CONFIG.appwrite && ATLAS_CONFIG.appwrite.endpoint) || '').replace(/\/+$/, '');
+  if (!ep) return 'sin-configurar';
+
+  try {
+    await fetch(ep + '/health/version', { mode: 'no-cors', cache: 'no-store' });
+    return 'bloqueado';
+  } catch (e) { return 'no-responde'; }
+}
+
+/* La dirección desde la que se abre la app, que es lo que hay que dar de alta
+   en Appwrite. Se enseña para poder copiarla en vez de teclearla mal. */
+function origenDeLaApp() {
+  try { return location.origin || ''; } catch (e) { return ''; }
+}
+
+/* ¿El error de entrar fue de red, o de contraseña? Solo el primero merece un
+   diagnóstico: el segundo ya se explica solo. */
+function esFalloDeRed(e) {
+  const m = (e && e.message) || '';
+  return /Failed to fetch|NetworkError|CORS|network/i.test(m);
+}
+
 /* usuario del niño → email interno válido para Appwrite */
 function cloudEmail(username) {
   return username.trim().toLowerCase().replace(/[^a-z0-9._-]/g, '') + '@' + ATLAS_CONFIG.usernameDomain;

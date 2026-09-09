@@ -6003,7 +6003,7 @@ function cruzarVerificacion(retos, respuestas) {
    copia guardada. Sin este número, «ya está arreglado» y «a mí no me pasa» son
    indistinguibles. Va junto al nombre de la caché del service worker, y una
    prueba comprueba que no se separen. */
-const ATLAS_VERSION = 'v77';
+const ATLAS_VERSION = 'v78';
 
 const ATLAS_DEFAULTS = {
 
@@ -7174,6 +7174,60 @@ function limpiarFila(d) {
     hint1: d.hint1, hint2: d.hint2, explanation: d.explanation,
     criterio: d.criterio, origen: d.origen, comprobado: d.comprobado
   };
+}
+
+/* ══════════ POR QUÉ NO SE LLEGA AL SERVIDOR ══════════
+
+   «Failed to fetch» contra Appwrite se decía como «revisa la red», y eso manda
+   a mirar donde casi nunca está el problema. Hay tres causas distintas detrás
+   del mismo mensaje del navegador, y solo una es la red:
+
+     · El dispositivo no tiene conexión.
+     · La tiene, pero algo entre medias no deja llegar al servidor: el filtro
+       de la red del centro, o Appwrite caído.
+     · Se llega perfectamente y es el navegador el que TAPA la respuesta,
+       porque el proyecto de Appwrite no tiene dada de alta la dirección desde
+       la que se abre la app. Es, con diferencia, la más común, y la única que
+       se arregla en un minuto: Appwrite → Settings → Platforms.
+
+   Distinguirlas se puede, y con una sola petición. Un `fetch` en modo
+   `no-cors` devuelve una respuesta opaca —no se puede leer nada de ella— pero
+   RESUELVE si el servidor contestó, y falla si no se llegó. Eso es justo la
+   línea entre «no hay ruta» y «hay ruta y el navegador tapa lo que vuelve».
+
+   Es una comprobación, no una petición de datos: no lleva sesión, no lleva
+   contraseñas y no mira lo que responde. */
+async function diagnosticarConexion() {
+  /* Abierta desde un fichero guardado en el móvil: ningún servidor va a
+     aceptar peticiones de ahí, y no es un problema de red ni de Appwrite. */
+  try {
+    if (typeof location !== 'undefined' && location.protocol === 'file:') return 'fichero';
+  } catch (e) { /* sin location */ }
+
+  try {
+    if (typeof navigator !== 'undefined' && navigator.onLine === false) return 'sin-red';
+  } catch (e) { /* sin navigator */ }
+
+  const ep = String((ATLAS_CONFIG.appwrite && ATLAS_CONFIG.appwrite.endpoint) || '').replace(/\/+$/, '');
+  if (!ep) return 'sin-configurar';
+
+  try {
+    await fetch(ep + '/health/version', { mode: 'no-cors', cache: 'no-store' });
+    return 'bloqueado';
+  } catch (e) { return 'no-responde'; }
+}
+
+/* La dirección desde la que se abre la app, que es lo que hay que dar de alta
+   en Appwrite. Se enseña para poder copiarla en vez de teclearla mal. */
+function origenDeLaApp() {
+  try { return location.origin || ''; } catch (e) { return ''; }
+}
+
+/* ¿El error de entrar fue de red, o de contraseña? Solo el primero merece un
+   diagnóstico: el segundo ya se explica solo. */
+function esFalloDeRed(e) {
+  const m = (e && e.message) || '';
+  return /Failed to fetch|NetworkError|CORS|network/i.test(m);
 }
 
 /* usuario del niño → email interno válido para Appwrite */
@@ -16138,6 +16192,7 @@ function motivoDeNube(r) {
    diagnóstico que tarda cuatro segundos en aparecer no se abre nunca. */
 let saludPulso = null;          /* lo último que contestó la nube */
 let saludPulsoEstado = '';      /* '', 'pidiendo', o el motivo del fallo */
+let saludConexion = '';         /* por qué no se llegó, cuando el fallo fue de red */
 
 /* Lo que se puede medir sin salir de este equipo. */
 function datosDeSalud() {
@@ -16232,7 +16287,8 @@ function cfgSalud(body) {
       ${saludPulsoEstado === 'pidiendo' ? 'Preguntando…' : '📡 Comprobar quién ha sincronizado'}</button>
     ${saludPulso ? `<p class="cfg-hint">Contestaron <strong>${saludPulso.length}</strong> diarios de esta clase.</p>` : ''}
     ${saludPulsoEstado && saludPulsoEstado !== 'pidiendo'
-      ? `<p class="cfg-warn">No se ha podido preguntar: ${esc(motivoDeNube({ reason: saludPulsoEstado }))}</p>` : ''}`;
+      ? `<p class="cfg-warn">No se ha podido preguntar: ${esc(motivoDeNube({ reason: saludPulsoEstado }))}</p>` : ''}
+    ${saludConexion ? `<p class="cfg-warn">${esc(textoDeConexion(saludConexion))}</p>` : ''}`;
 
   const b = $('#salud-pulso');
   if (b) b.addEventListener('click', async () => {
@@ -16241,6 +16297,12 @@ function cfgSalud(body) {
     const r = await cloudPulsoDeLosDiarios();
     saludPulso = r.ok ? r.diarios : null;
     saludPulsoEstado = r.ok ? '' : (r.reason || 'error');
+    /* «error» a secas no dice nada. Si fue de red, se averigua cuál de las
+       tres cosas es antes de repintar: casi nunca es la red. */
+    saludConexion = '';
+    if (!r.ok && (r.reason === 'error' || r.reason === 'red')) {
+      try { saludConexion = await diagnosticarConexion(); } catch (e) { /* se queda sin */ }
+    }
     renderTeacherConfig();
   });
 }
@@ -19625,6 +19687,10 @@ function cfgAcceso(body) {
     ${field('Collection ID (configuración compartida)', `<input type="text" id="cfg-aw-ccid" value="${esc(a.configCollectionId || '')}">`,
       'Opcional. Sirve para no configurar veinte tablets a mano. Con la colección de aulas puesta no hace falta: los ajustes de cada clase viajan en su documento.')}
     <p class="cfg-warn">Tras cambiar los datos de Appwrite hay que recargar la página para que surtan efecto.</p>
+    <p class="cfg-hint">Esta copia de la app se abre desde <strong>${esc((typeof origenDeLaApp === 'function' && origenDeLaApp()) || 'desconocido')}</strong>.
+    Esa dirección tiene que estar dada de alta en <strong>Appwrite → Settings → Platforms</strong> como plataforma Web.
+    Si no lo está, Appwrite contesta y el navegador tapa la respuesta: la app dice «no hay conexión» con el wifi
+    perfectamente. Es el fallo que más tiempo se lleva porque manda a mirar donde no es.</p>
 
     <h4 class="cfg-h4">¿Está bien puesto?</h4>
     <p class="cfg-hint">Prueba cada colección y dice cuál falla y por qué. El fallo más común es
@@ -19938,8 +20004,36 @@ function friendlyAuthError(e) {
   }
   if (/already exists/i.test(m)) return 'Ese usuario ya existe. Prueba con otro o entra con tu contraseña.';
   if (/at least 8/i.test(m)) return 'La contraseña necesita 8 letras o números como mínimo.';
-  if (/Failed to fetch|NetworkError|network/i.test(m)) return 'No hay conexión con la Sociedad Geográfica. Revisa la red.';
+  if (/Failed to fetch|NetworkError|network/i.test(m)) {
+    /* A secas, y sin culpar a la red: la causa se averigua justo después y
+       casi nunca es esa. Lo que sí se dice ya es lo importante, que la
+       contraseña ni se ha llegado a comprobar. */
+    return 'No se ha podido hablar con la Sociedad Geográfica. Comprobando por qué…';
+  }
   return 'No se ha podido entrar: ' + (m || 'error desconocido');
+}
+
+/* ── Por qué no se ha llegado al servidor ──
+   El mensaje de antes decía «revisa la red» siempre, y eso mandaba a mirar el
+   wifi cuando lo normal es que el wifi esté bien: si la app ha cargado, la red
+   va. Cada caso manda a un sitio distinto, y tres de los cuatro los arregla el
+   docente, no quien está intentando entrar. */
+function textoDeConexion(caso) {
+  const origen = (typeof origenDeLaApp === 'function' && origenDeLaApp()) || 'esta dirección';
+  const dichos = {
+    'sin-red': 'Este dispositivo no tiene conexión ahora mismo. La contraseña no se ha llegado a '
+             + 'comprobar: no es que esté mal.',
+    'no-responde': 'Hay conexión, pero no se llega al servidor de la Sociedad Geográfica. Puede ser el '
+             + 'filtro de la red del colegio o una caída del servicio. La contraseña no se ha llegado '
+             + 'a comprobar: no es que esté mal.',
+    'bloqueado': 'El servidor contesta, pero no acepta peticiones desde ' + origen + '. No es tu '
+             + 'contraseña ni tu red: falta dar de alta esa dirección en Appwrite → Settings → '
+             + 'Platforms. Enséñale este mensaje al docente.',
+    'fichero': 'Has abierto la app desde un fichero guardado en el dispositivo, y así no puede entrar '
+             + 'en la nube. Ábrela desde su dirección de internet.',
+    'sin-configurar': 'Esta copia de la app no tiene puesta la conexión con la nube. Avisa al docente.'
+  };
+  return dichos[caso] || 'No se ha podido hablar con la Sociedad Geográfica.';
 }
 
 function showAuth() {
@@ -20428,6 +20522,13 @@ function wireAuthListeners() {
       if (S) startApp(); else showOnboarding();
     } catch (err) {
       authError(friendlyAuthError(err));
+      /* Se enseña lo inmediato y, si fue de red, se afina en cuanto se sepa:
+         el diagnóstico es una petición más y no se puede hacer esperar al
+         niño delante de una pantalla en blanco. */
+      if (typeof esFalloDeRed === 'function' && esFalloDeRed(err)) {
+        try { authError(textoDeConexion(await diagnosticarConexion())); }
+        catch (e2) { /* se queda con el mensaje de antes */ }
+      }
     } finally {
       btn.disabled = false; btn.textContent = 'Entrar a la expedición 🎒';
     }
@@ -20447,6 +20548,10 @@ function wireAuthListeners() {
       startApp();
     } catch (err) {
       authError(friendlyAuthError(err));
+      if (typeof esFalloDeRed === 'function' && esFalloDeRed(err)) {
+        try { authError(textoDeConexion(await diagnosticarConexion())); }
+        catch (e2) { /* se queda con el mensaje de antes */ }
+      }
     } finally {
       btn.disabled = false; btn.textContent = 'Crear mi diario 📔';
     }

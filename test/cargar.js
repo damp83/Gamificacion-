@@ -61,6 +61,10 @@ function cargarApp(ficheros) {
     document: documentoDeMentira(),
     setTimeout, clearTimeout, setInterval, clearInterval,
     navigator: { onLine: true },
+    /* La dirección desde la que se sirve la app. Importa: es la que hay que
+       dar de alta en Appwrite, y el diagnóstico de conexión la enseña. */
+    location: { protocol: 'https:', origin: 'https://damp83.github.io',
+                href: 'https://damp83.github.io/Gamificacion-/' },
     crypto: require('node:crypto').webcrypto,
     /* Navegar entre pantallas sube la página arriba. En las pruebas no hay
        nada que subir, pero sin esto la llamada revienta la prueba entera. */

@@ -28,8 +28,36 @@ function friendlyAuthError(e) {
   }
   if (/already exists/i.test(m)) return 'Ese usuario ya existe. Prueba con otro o entra con tu contraseña.';
   if (/at least 8/i.test(m)) return 'La contraseña necesita 8 letras o números como mínimo.';
-  if (/Failed to fetch|NetworkError|network/i.test(m)) return 'No hay conexión con la Sociedad Geográfica. Revisa la red.';
+  if (/Failed to fetch|NetworkError|network/i.test(m)) {
+    /* A secas, y sin culpar a la red: la causa se averigua justo después y
+       casi nunca es esa. Lo que sí se dice ya es lo importante, que la
+       contraseña ni se ha llegado a comprobar. */
+    return 'No se ha podido hablar con la Sociedad Geográfica. Comprobando por qué…';
+  }
   return 'No se ha podido entrar: ' + (m || 'error desconocido');
+}
+
+/* ── Por qué no se ha llegado al servidor ──
+   El mensaje de antes decía «revisa la red» siempre, y eso mandaba a mirar el
+   wifi cuando lo normal es que el wifi esté bien: si la app ha cargado, la red
+   va. Cada caso manda a un sitio distinto, y tres de los cuatro los arregla el
+   docente, no quien está intentando entrar. */
+function textoDeConexion(caso) {
+  const origen = (typeof origenDeLaApp === 'function' && origenDeLaApp()) || 'esta dirección';
+  const dichos = {
+    'sin-red': 'Este dispositivo no tiene conexión ahora mismo. La contraseña no se ha llegado a '
+             + 'comprobar: no es que esté mal.',
+    'no-responde': 'Hay conexión, pero no se llega al servidor de la Sociedad Geográfica. Puede ser el '
+             + 'filtro de la red del colegio o una caída del servicio. La contraseña no se ha llegado '
+             + 'a comprobar: no es que esté mal.',
+    'bloqueado': 'El servidor contesta, pero no acepta peticiones desde ' + origen + '. No es tu '
+             + 'contraseña ni tu red: falta dar de alta esa dirección en Appwrite → Settings → '
+             + 'Platforms. Enséñale este mensaje al docente.',
+    'fichero': 'Has abierto la app desde un fichero guardado en el dispositivo, y así no puede entrar '
+             + 'en la nube. Ábrela desde su dirección de internet.',
+    'sin-configurar': 'Esta copia de la app no tiene puesta la conexión con la nube. Avisa al docente.'
+  };
+  return dichos[caso] || 'No se ha podido hablar con la Sociedad Geográfica.';
 }
 
 function showAuth() {
@@ -520,6 +548,13 @@ function wireAuthListeners() {
       if (S) startApp(); else showOnboarding();
     } catch (err) {
       authError(friendlyAuthError(err));
+      /* Se enseña lo inmediato y, si fue de red, se afina en cuanto se sepa:
+         el diagnóstico es una petición más y no se puede hacer esperar al
+         niño delante de una pantalla en blanco. */
+      if (typeof esFalloDeRed === 'function' && esFalloDeRed(err)) {
+        try { authError(textoDeConexion(await diagnosticarConexion())); }
+        catch (e2) { /* se queda con el mensaje de antes */ }
+      }
     } finally {
       btn.disabled = false; btn.textContent = 'Entrar a la expedición 🎒';
     }
@@ -539,6 +574,10 @@ function wireAuthListeners() {
       startApp();
     } catch (err) {
       authError(friendlyAuthError(err));
+      if (typeof esFalloDeRed === 'function' && esFalloDeRed(err)) {
+        try { authError(textoDeConexion(await diagnosticarConexion())); }
+        catch (e2) { /* se queda con el mensaje de antes */ }
+      }
     } finally {
       btn.disabled = false; btn.textContent = 'Crear mi diario 📔';
     }
