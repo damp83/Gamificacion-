@@ -5586,7 +5586,7 @@ function cruzarVerificacion(retos, respuestas) {
    copia guardada. Sin este número, «ya está arreglado» y «a mí no me pasa» son
    indistinguibles. Va junto al nombre de la caché del service worker, y una
    prueba comprueba que no se separen. */
-const ATLAS_VERSION = 'v65';
+const ATLAS_VERSION = 'v66';
 
 const ATLAS_DEFAULTS = {
 
@@ -7109,7 +7109,10 @@ async function cloudListAulas() {
     ]);
     return {
       ok: true,
-      aulas: res.documents.map(d => ({
+      /* El documento de credenciales vive en esta misma colección y lleva el
+         mismo `owner`, así que aparece aquí como si fuera una clase más. No lo
+         es: se reconoce por el sufijo del id y se queda fuera de la lista. */
+      aulas: res.documents.filter(d => !esDeCredenciales(d.$id)).map(d => ({
         id: d.$id, name: d.name || 'Clase', teacher: d.teacher || '',
         updated_at: Number(d.updated_at) || 0
       }))
@@ -7132,6 +7135,140 @@ async function cloudCreateAula(nombre) {
     }, permisosDeAula(uid));
     return { ok: true, aula: { id: doc.$id, name: doc.name, teacher: doc.teacher } };
   } catch (e) { return errorNube(e); }
+}
+
+/* ══════════ LAS CREDENCIALES, SOLO PARA SU DOCENTE ══════════
+
+   Las contraseñas del alumnado NO viajan en el documento de la clase, y no es
+   un descuido: ese documento lo lee cualquier cuenta con sesión —tiene que
+   leerlo, o los niños jugarían con la configuración de fábrica—, así que
+   meterlas ahí sería enseñarle a cada niño la contraseña de los demás.
+
+   Pero el docente sí las necesita en sus dos equipos. Las generaba en el
+   portátil, abría la tablet y la hoja de credenciales salía en blanco. Y lo
+   que hacía entonces era peor que quedarse sin ellas: volvía a generarlas, y
+   esas contraseñas nuevas no abren nada, porque cambiar el texto de la lista
+   NO cambia la contraseña de la cuenta de Appwrite.
+
+   Así que van en un documento aparte de la misma colección, con permisos
+   SOLO para la cuenta del docente. Un alumno tiene el rol `users` y nada más:
+   no puede leerlo. Y como usa los mismos atributos que un aula, no hay que
+   añadir ninguna columna en la consola.
+
+   El id es el del aula con un sufijo, para que borrar la clase se lo lleve
+   también y no queden contraseñas de una clase que ya no existe. */
+/* Appwrite corta los ids en 36 caracteres. Los que genera él tienen 20, así
+   que el recorte no toca nada hoy; está para que un id escrito a mano no
+   rompa el canal en silencio. */
+function idDeCredenciales(aulaId) { return String(aulaId || '').slice(0, 30) + '-cred'; }
+function esDeCredenciales(id) { return /-cred$/.test(String(id || '')); }
+
+function permisosDeCredenciales(ownerId) {
+  return [
+    Appwrite.Permission.read(Appwrite.Role.user(ownerId)),
+    Appwrite.Permission.update(Appwrite.Role.user(ownerId)),
+    Appwrite.Permission.delete(Appwrite.Role.user(ownerId))
+  ];
+}
+
+/* Lo que se guarda: usuario → contraseña, y nada más. Ni nombres, ni cursos,
+   ni el resto de la ficha: si algún día este documento se leyera de más, que
+   lo que haya dentro sea lo mínimo. */
+function credencialesDeLaLista() {
+  const out = {};
+  for (const r of (ATLAS_CONFIG.roster || [])) {
+    const u = String(r.username || '').trim().toLowerCase();
+    if (u && r.password) out[u] = r.password;
+  }
+  return out;
+}
+
+/* Los usuarios que hay ahora mismo en la lista de clase. Sirve para no
+   arrastrar para siempre la contraseña de quien ya no está. */
+function usuariosDeLaLista() {
+  const out = new Set();
+  for (const r of (ATLAS_CONFIG.roster || [])) {
+    const u = String(r.username || '').trim().toLowerCase();
+    if (u) out.add(u);
+  }
+  return out;
+}
+
+async function cloudGuardarCredenciales() {
+  if (!aulasOn() || !aulaActiva() || !CLOUD.user) return { ok: false, reason: 'sin-nube' };
+  const c = ATLAS_CONFIG.appwrite;
+  const uid = CLOUD.user.$id;
+  const propias = credencialesDeLaLista();
+  /* Sin contraseñas que guardar no se crea el documento: un equipo que aún no
+     las tiene no puede vaciar el del que sí. */
+  if (!Object.keys(propias).length) return { ok: true, vacio: true };
+
+  /* Se MEZCLA con lo que ya hay, no se reemplaza. Un segundo equipo puede
+     conocer tres contraseñas de veinticinco —las que se pusieron en él—, y
+     guardar solo esas tres se llevaría por delante las otras veintidós. Lo
+     que este equipo sabe manda sobre lo guardado; lo que no sabe, se
+     conserva. Solo se cae lo de quien ya no está en la lista. */
+  const cred = {};
+  const enLista = usuariosDeLaLista();
+  const previo = await cloudTraerCredenciales();
+  if (previo.ok) {
+    for (const [u, pw] of Object.entries(previo.cred || {})) {
+      if (enLista.has(u)) cred[u] = pw;
+    }
+  }
+  Object.assign(cred, propias);
+  const data = {
+    owner: uid,
+    name: 'Credenciales',
+    teacher: ATLAS_CONFIG.teacherName || '',
+    config: JSON.stringify({ v: 1, cred }),
+    updated_at: String(Date.now())
+  };
+  const id = idDeCredenciales(aulaActiva());
+  try {
+    await CLOUD.db.updateDocument(c.databaseId, c.aulasCollectionId, id, data,
+      permisosDeCredenciales(uid));
+    return { ok: true };
+  } catch (e) {
+    try {
+      await CLOUD.db.createDocument(c.databaseId, c.aulasCollectionId, id, data,
+        permisosDeCredenciales(uid));
+      return { ok: true, creado: true };
+    } catch (e2) { return errorNube(e2); }
+  }
+}
+
+async function cloudTraerCredenciales() {
+  if (!aulasOn() || !aulaActiva() || !CLOUD.user) return { ok: false, reason: 'sin-nube' };
+  const c = ATLAS_CONFIG.appwrite;
+  try {
+    const doc = await CLOUD.db.getDocument(c.databaseId, c.aulasCollectionId,
+      idDeCredenciales(aulaActiva()));
+    const p = JSON.parse(doc.config || '{}');
+    return { ok: true, cred: (p && p.cred) || {} };
+  } catch (e) {
+    const msg = (e && e.message) || '';
+    /* Que no exista es lo normal la primera vez. */
+    if (/not be found|not found|404/i.test(msg)) return { ok: true, cred: {} };
+    return errorNube(e);
+  }
+}
+
+/* Rellena en la lista de clase las contraseñas que a ESTE equipo le faltan.
+   Nunca pisa una que ya esté puesta: la de aquí puede ser la buena y la de la
+   nube una copia vieja. */
+async function rellenarCredenciales() {
+  const r = await cloudTraerCredenciales();
+  if (!r.ok) return r;
+  const lista = deepClone(ATLAS_CONFIG.roster || []);
+  let puestas = 0;
+  for (const f of lista) {
+    const u = String(f.username || '').trim().toLowerCase();
+    if (!u || f.password) continue;
+    if (r.cred[u]) { f.password = r.cred[u]; puestas++; }
+  }
+  if (puestas) sinSubir(() => { setTeacherConfig('roster', lista); saveTeacherConfig(); });
+  return { ok: true, puestas };
 }
 
 /* ══════════ LOS AJUSTES, A LA CLASE ══════════
@@ -7176,6 +7313,10 @@ async function subirAjustesAhora() {
   ajustesSubiendo = true;
   try {
     const r = await cloudSaveAulaConfig();
+    /* Las contraseñas van por su propio canal, privado del docente, pero
+       cambian en el mismo momento que los ajustes: al dar de alta la clase.
+       Si fallan, no se toca el estado de los ajustes: son cosas distintas. */
+    try { await cloudGuardarCredenciales(); } catch (e) { /* se reintenta al siguiente cambio */ }
     if (r.ok) { ajustesPendientes = false; ajustesFallo = ''; }
     else {
       /* Se queda pendiente A PROPÓSITO: el próximo cambio o la próxima
@@ -7257,6 +7398,12 @@ async function cloudBorrarAula(aulaId, onProgreso) {
   if (cuenta.fallos) return { ok: false, reason: 'parcial', ...cuenta };
   try { await CLOUD.db.deleteDocument(c.databaseId, c.aulasCollectionId, aulaId); }
   catch (e) { return Object.assign({ ok: false }, errorNube(e), cuenta); }
+
+  /* Y solo entonces sus credenciales: dejarlas sería guardar las contraseñas
+     de una clase que ya no existe, pero borrarlas antes sería quedarse sin
+     ellas en un borrado que se queda a medias y hay que reintentar. */
+  try { await CLOUD.db.deleteDocument(c.databaseId, c.aulasCollectionId, idDeCredenciales(aulaId)); }
+  catch (e) { /* si no había, mejor */ }
   return { ok: true, ...cuenta };
 }
 
@@ -13543,6 +13690,14 @@ const PASS_MINIMO = 8;
 function pegaDeLaCuenta(r) {
   if (!r || !r.name) return 'Sin nombre.';
   if (!r.username) return 'Le falta el usuario.';
+  /* Ojo con el orden: una ficha con cuenta creada y sin contraseña NO es una
+     ficha incompleta, es una cuenta cuya contraseña se puso en otro
+     dispositivo. Decirle «le falta la contraseña» empuja a inventar una
+     nueva, y la nueva no abre la cuenta que ya existe. */
+  if (!r.password && r.account) {
+    return 'Su cuenta existe, pero la contraseña se escribió en otro dispositivo y aquí no está. '
+      + 'Míralas en el equipo donde creaste las cuentas; si escribes otra aquí, no le servirá para entrar.';
+  }
   if (!r.password) return 'Le falta la contraseña.';
   if (String(r.password).length < PASS_MINIMO) {
     return `La contraseña tiene ${String(r.password).length} caracteres y Appwrite exige ${PASS_MINIMO} como mínimo. `
@@ -13559,8 +13714,12 @@ function cfgAlumnado(body) {
   const conCuenta = roster.filter(r => r.account).length;
   const porVincular = roster.filter(r => r.authId).length;
   /* Las fichas escritas a mano —o traídas de una copia antigua— llegan sin
-     usuario o sin contraseña, y sin eso no hay cuenta que crear. */
-  const incompletos = roster.filter(r => r.name && (!r.username || !r.password)).length;
+     usuario o sin contraseña, y sin eso no hay cuenta que crear. Las que ya
+     tienen cuenta quedan fuera: a esas no les falta un dato, les falta que
+     este dispositivo se entere de cuál era. */
+  const incompletos = roster.filter(r => r.name && !r.account && (!r.username || !r.password)).length;
+  /* Cuentas creadas en otro equipo cuya contraseña este no conoce. */
+  const sinClave = roster.filter(r => r.account && !r.password).length;
   /* Cuentas creadas antes de que el alta guardara el id: no se pueden vincular
      directamente, hay que buscar su diario por el nombre. */
   const huerfanos = roster.filter(r => r.account && !r.authId).length;
@@ -13678,12 +13837,17 @@ function cfgAlumnado(body) {
     ${roster.length ? `
       <h4 class="cfg-h4">Hoja de credenciales</h4>
       <p class="cfg-hint">Para repartir en clase. Cada alumno solo necesita su línea.</p>
+      ${sinClave ? `<p class="cfg-warn">🔑 De ${sinClave} alumno(s) con cuenta creada, este
+        dispositivo no conoce la contraseña${nube ? ': se guardan aparte, en un documento que solo tú puedes leer, y se recuperan solas al entrar al panel. Si acabas de configurar la nube aquí, vuelve a entrar al panel.' : '. Al no haber nube configurada, no hay de dónde traerlas: míralas en el equipo donde creaste las cuentas.'}
+        <strong>No escribas una nueva</strong>: cambiarla aquí no cambia la cuenta de Appwrite.</p>` : ''}
       <textarea id="ros-sheet" rows="6" readonly>${roster.map(r =>
         /* Con dos niñas del mismo nombre, una hoja sin el curso es una hoja
            que se reparte mal. Solo se pone donde hace falta. */
         `${esc(r.name)}${repes.has(String(r.name || '').trim().toLowerCase())
           ? ` (${esc(gradeInfo(r.grade || ATLAS_CONFIG.defaultGrade).label)})` : ''
-        }  →  usuario: ${esc(r.username)}   contraseña: ${esc(r.password)}`).join('\n')}</textarea>
+        }  →  usuario: ${esc(r.username)}   contraseña: ${
+          r.password ? esc(r.password)
+            : (r.account ? '(se puso en otro dispositivo — no está aquí)' : '(sin poner)')}`).join('\n')}</textarea>
       <button class="btn btn-secondary btn-small" id="ros-copy">📋 Copiar</button>` : ''}`;
 
   onInput('#cfg-read-aloud', e => cfgSave('readAloud', e.target.value, 'Lectura en voz alta guardada ✓'));
@@ -13696,7 +13860,16 @@ function cfgAlumnado(body) {
   const write = (i, key, val) => { const l = rosterCopy(); l[i][key] = val; cfgSave('roster', l, false); };
   $$('.ros-name').forEach(el => onInput(el, e => write(+e.target.dataset.i, 'name', e.target.value)));
   $$('.ros-user').forEach(el => onInput(el, e => write(+e.target.dataset.i, 'username', e.target.value.trim())));
-  $$('.ros-pass').forEach(el => onInput(el, e => write(+e.target.dataset.i, 'password', e.target.value)));
+  $$('.ros-pass').forEach(el => onInput(el, e => {
+    const i = +e.target.dataset.i;
+    /* Cambiar la contraseña de una cuenta que ya existe cambia el papel, no la
+       cuenta: Atlas no sabe cambiar contraseñas en Appwrite. Callarlo es
+       repartir credenciales que no abren nada, así que se dice en el momento. */
+    const ya = (ATLAS_CONFIG.roster || [])[i];
+    const avisa = ya && ya.account && e.target.value;
+    write(i, 'password', e.target.value);
+    if (avisa) toast('Anotada aquí, pero la cuenta de Appwrite sigue con la anterior: Atlas no la cambia', 5200);
+  }));
   $$('.ros-grade').forEach(el => onInput(el, e => write(+e.target.dataset.i, 'grade', +e.target.value)));
 
   $$('[data-delros]').forEach(el => el.addEventListener('click', async () => {
@@ -13717,6 +13890,10 @@ function cfgAlumnado(body) {
     let n = 0;
     for (const r of l) {
       if (!r.name) continue;
+      /* Nunca a quien ya tiene cuenta: inventarle una contraseña aquí no
+         cambia la de Appwrite, solo tapa el hueco con un dato falso y le
+         entrega al niño una credencial que no abre nada. */
+      if (r.account) continue;
       if (!r.username) { r.username = makeUsername(r.name, taken); taken.push(r.username); n++; }
       if (!r.password) { r.password = makePassword(); n++; }
     }
@@ -16682,6 +16859,16 @@ async function boot() {
        al arrancar. Sin esto, un yacimiento creado en el portátil no aparecía
        en el iPad hasta volver a tocar la clase en «Mis clases». */
     try { await traerAjustesDeAula(); } catch (e) { /* se queda con los suyos */ }
+    /* Y las contraseñas del alumnado, que no viajan con los ajustes porque el
+       documento de la clase lo lee cualquiera: van por su canal privado. Sin
+       esto, el docente abría la tablet y la hoja de credenciales salía en
+       blanco aunque las hubiera generado en el portátil.
+
+       Aquí no se comprueba si es el docente: `rellenarCredenciales()` exige
+       clase ABIERTA, que solo se abre desde «Mis clases», o sea desde el
+       panel. En la tablet de un niño no hay clase abierta y se corta sin
+       pedir nada. Y aunque se pidiera, el documento no le deja leerlo. */
+    try { await rellenarCredenciales(); } catch (e) { /* sin ellas, se dice en la lista */ }
     /* Y los retos escritos de su clase. Si no hay red se juega con la caché
        de la última vez: por eso no se espera a esto para arrancar ni se
        avisa si falla. */

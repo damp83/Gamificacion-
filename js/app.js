@@ -303,6 +303,16 @@ async function boot() {
        al arrancar. Sin esto, un yacimiento creado en el portátil no aparecía
        en el iPad hasta volver a tocar la clase en «Mis clases». */
     try { await traerAjustesDeAula(); } catch (e) { /* se queda con los suyos */ }
+    /* Y las contraseñas del alumnado, que no viajan con los ajustes porque el
+       documento de la clase lo lee cualquiera: van por su canal privado. Sin
+       esto, el docente abría la tablet y la hoja de credenciales salía en
+       blanco aunque las hubiera generado en el portátil.
+
+       Aquí no se comprueba si es el docente: `rellenarCredenciales()` exige
+       clase ABIERTA, que solo se abre desde «Mis clases», o sea desde el
+       panel. En la tablet de un niño no hay clase abierta y se corta sin
+       pedir nada. Y aunque se pidiera, el documento no le deja leerlo. */
+    try { await rellenarCredenciales(); } catch (e) { /* sin ellas, se dice en la lista */ }
     /* Y los retos escritos de su clase. Si no hay red se juega con la caché
        de la última vez: por eso no se espera a esto para arrancar ni se
        avisa si falla. */

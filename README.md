@@ -12,7 +12,7 @@ PWA sin dependencias: HTML + CSS + JavaScript vanilla, funciona offline y se ins
 | **Yacimientos** | Ruinas de Kaldros (Matemáticas, 5 pozos: Sendero, Numeración, Sumas con llevada, Fracciones y Decimales) y Biblioteca de Arena (Lengua, 3 pozos: vocabulario, ortografía y comprensión lectora) |
 | **Cámara del Guardián** | Evaluación sumativa por pozo: se abre con los cuatro estratos dominados, encadena 10 retos de todos ellos y entrega un fragmento del Atlas. Fallar no cuesta nada y el Guardián señala en qué estrato se falló |
 | **Fondo de la Sociedad** | Sumidero cooperativo e infinito de Doblones, con hitos de clase, para cuando el almacén se agota |
-| **Ajustes de todo el equipo** | Un docente publica su configuración y las demás tablets la recogen solas al abrir. Nunca viajan las contraseñas del alumnado, el PIN ni los datos de conexión |
+| **Ajustes de todo el equipo** | Un docente publica su configuración y las demás tablets la recogen solas al abrir. Por ahí nunca viajan las contraseñas del alumnado, el PIN ni los datos de conexión; las contraseñas van por un documento aparte que solo lee la cuenta del docente |
 | **Estratos de Bloom 1–4** | Recordar · Comprender · Aplicar · Analizar, con desbloqueo al demostrar ≥80% de dominio del estrato superior **dos sesiones seguidas** |
 | **Economía doble** | Puntos de Expedición (PE, curva `100 × n^1.55`) + Doblones con fuentes y sumideros del PRD §2.4–2.5 |
 | **Anti-grinding** | PE solo por primer acierto · contenido dominado ≥90% da 10% de PE · fatiga narrativa tras 25 min de excavación diaria (50% PE) · auditoría silenciosa de respuestas <2 s |
@@ -80,6 +80,7 @@ Cubren lo que ya se ha roto alguna vez, que es de donde salieron:
 | `consulta.test.js` | Que ver el cuaderno de un alumno no le cambie ni una coma del diario |
 | `vista-vacia.test.js` | Que la vista de clase sin diarios diga quién falta y qué le falta, en vez de dejar huecos |
 | `cuentas.test.js` | Que el panel avise de una contraseña que Appwrite va a rechazar, y de que escribirla no crea la cuenta |
+| `credenciales.test.js` | Que las contraseñas lleguen al segundo equipo del docente y a nadie más: permisos solo para su cuenta, nunca `users`, y que ningún equipo pueda vaciar lo que otro guardó |
 | `cuaderno-docente.test.js` | Que la lectura pedagógica sobre un alumno solo se abra con el docente al mando |
 | `version.test.js` | Que el número de versión que lee el docente no se separe del de la caché |
 | `usabilidad.test.js` | Que la letra grande escale de verdad, que el Taller se pueda teclear y que nada se salga de la pantalla |
@@ -295,7 +296,9 @@ puede ejecutar mil veces: lo que ya está en la tabla no se vuelve a subir.
 > siempre con la configuración de fábrica por mucho que el docente prepare su
 > clase. Lo que se guarda ahí no incluye contraseñas del alumnado, PIN, datos
 > de Appwrite ni la clave de la API; y una tablet de alumno se deja además la
-> lista de clase al adoptarlo, que el juego no la necesita. Los permisos se
+> lista de clase al adoptarlo, que el juego no la necesita. Las contraseñas
+> viajan aparte, en un documento de esta misma colección con el sufijo `-cred`
+> y permisos solo para la cuenta del docente. Los permisos se
 > refrescan en cada guardado, así que las clases creadas antes de esto se
 > abren solas.
 
@@ -406,6 +409,8 @@ Y no viaja **a propósito**. Los ajustes que se publican para el equipo docente
 los leen todos los alumnos —los necesitan para jugar—, así que el PIN va en la
 lista de lo que nunca se comparte, junto con las contraseñas del alumnado y los
 datos de Appwrite. Si viajara, cualquier niño podría leerlo desde su tablet.
+(Las contraseñas sí llegan al otro equipo del docente, pero por un documento
+que solo puede leer su cuenta, no por los ajustes de la clase.)
 
 O sea que hay dos formas, y conviene elegir a sabiendas:
 
@@ -725,6 +730,14 @@ suya. No viajan a ninguna otra tablet ni a los ajustes compartidos, pero en un
 ordenador de sala de profesores están ahí. Si el equipo es compartido, usa un
 perfil de navegador propio.
 
+**Y en la nube, en claro también, en un documento tuyo.** Es lo que hace que la
+hoja de credenciales esté en tus dos equipos. Lo que lo protege son los permisos
+por documento de Appwrite: `read`, `update` y `delete` solo para tu cuenta. Un
+alumno tiene el rol `users` y nada más, así que no puede leerlo — pero quien
+entre en tu cuenta de Appwrite, o quien administre el proyecto, sí. Es el mismo
+riesgo que ya tenía el documento de la clase, y la misma llave: la contraseña de
+tu cuenta de docente.
+
 **Cerrar sesión no borra los diarios de la clase de ese equipo.** Borra el
 diario personal del dispositivo, no el archivo de la clase dirigida: es
 deliberado —el docente cierra sesión entre clases y no puede perder el trabajo
@@ -819,7 +832,21 @@ Para cargarla entera, pega los nombres —uno por línea— y se generan solos e
 
 Con Appwrite configurado aparece **🎒 Crear cuentas**: da de alta en Appwrite las que aún no existan, **sin tocar tu sesión**. El registro te dice qué pasó con cada alumno; si Appwrite pide bajar el ritmo, se detiene ahí y te lo explica en castellano en lugar de seguir martilleando el servidor. Al terminar tienes una **hoja de credenciales** lista para repartir: cada niño solo necesita su línea.
 
-Si alguna ficha llegó sin usuario o sin contraseña —escrita a mano, o traída de una copia antigua— **🔑 Completar fichas sin credenciales** rellena lo que falte de una vez, sin tocar lo que ya esté puesto.
+Si alguna ficha llegó sin usuario o sin contraseña —escrita a mano, o traída de una copia antigua— **🔑 Completar fichas sin credenciales** rellena lo que falte de una vez, sin tocar lo que ya esté puesto. No se ofrece para quien ya tiene cuenta creada: inventarle ahí una contraseña no cambia la de Appwrite, y el niño se quedaría fuera con un papel en la mano.
+
+### Las contraseñas, en tus dos equipos
+
+Las contraseñas del alumnado **no viajan en el documento de la clase**, porque ese documento lo lee cualquier alumno con sesión: meterlas ahí sería enseñarle a cada niño la de los demás. Pero tú sí las necesitas en el portátil y en la tablet, así que van por un canal aparte: **un documento propio, en la misma colección `aulas`, con permisos solo para tu cuenta**. Su id es el de la clase con el sufijo `-cred`, se sube con cada cambio de la lista y se recupera solo al abrir la app con la clase abierta. En la lista de clases no aparece.
+
+Tres detalles que evitan perderlas:
+
+- Un equipo que **no** las tiene nunca vacía el documento del que sí.
+- Un equipo que conoce tres de veinticinco **mezcla**, no reemplaza: las otras veintidós siguen ahí.
+- Lo que ya está puesto en un equipo **no se pisa** con lo que baje de la nube.
+
+> **Cambiar la contraseña en la lista no cambia la cuenta.** Atlas no sabe cambiar contraseñas en Appwrite: lo que escribes ahí es el papel que repartes, no la credencial de la cuenta. El panel te lo dice en el momento en que editas la de un alumno que ya tiene cuenta. Para cambiarla de verdad, hazlo desde la consola de Appwrite.
+
+Si un alumno aparece con cuenta creada y sin contraseña, es que se puso en otro equipo y este todavía no la ha recuperado: entra al panel con la clase abierta y bajan solas. Sin Appwrite configurado no hay de dónde traerlas, y hay que mirarlas en el equipo donde se crearon.
 
 ### El diario nace cuando el niño entra, y luego se vincula
 

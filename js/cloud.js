@@ -986,7 +986,10 @@ async function cloudListAulas() {
     ]);
     return {
       ok: true,
-      aulas: res.documents.map(d => ({
+      /* El documento de credenciales vive en esta misma colección y lleva el
+         mismo `owner`, así que aparece aquí como si fuera una clase más. No lo
+         es: se reconoce por el sufijo del id y se queda fuera de la lista. */
+      aulas: res.documents.filter(d => !esDeCredenciales(d.$id)).map(d => ({
         id: d.$id, name: d.name || 'Clase', teacher: d.teacher || '',
         updated_at: Number(d.updated_at) || 0
       }))
@@ -1009,6 +1012,140 @@ async function cloudCreateAula(nombre) {
     }, permisosDeAula(uid));
     return { ok: true, aula: { id: doc.$id, name: doc.name, teacher: doc.teacher } };
   } catch (e) { return errorNube(e); }
+}
+
+/* ══════════ LAS CREDENCIALES, SOLO PARA SU DOCENTE ══════════
+
+   Las contraseñas del alumnado NO viajan en el documento de la clase, y no es
+   un descuido: ese documento lo lee cualquier cuenta con sesión —tiene que
+   leerlo, o los niños jugarían con la configuración de fábrica—, así que
+   meterlas ahí sería enseñarle a cada niño la contraseña de los demás.
+
+   Pero el docente sí las necesita en sus dos equipos. Las generaba en el
+   portátil, abría la tablet y la hoja de credenciales salía en blanco. Y lo
+   que hacía entonces era peor que quedarse sin ellas: volvía a generarlas, y
+   esas contraseñas nuevas no abren nada, porque cambiar el texto de la lista
+   NO cambia la contraseña de la cuenta de Appwrite.
+
+   Así que van en un documento aparte de la misma colección, con permisos
+   SOLO para la cuenta del docente. Un alumno tiene el rol `users` y nada más:
+   no puede leerlo. Y como usa los mismos atributos que un aula, no hay que
+   añadir ninguna columna en la consola.
+
+   El id es el del aula con un sufijo, para que borrar la clase se lo lleve
+   también y no queden contraseñas de una clase que ya no existe. */
+/* Appwrite corta los ids en 36 caracteres. Los que genera él tienen 20, así
+   que el recorte no toca nada hoy; está para que un id escrito a mano no
+   rompa el canal en silencio. */
+function idDeCredenciales(aulaId) { return String(aulaId || '').slice(0, 30) + '-cred'; }
+function esDeCredenciales(id) { return /-cred$/.test(String(id || '')); }
+
+function permisosDeCredenciales(ownerId) {
+  return [
+    Appwrite.Permission.read(Appwrite.Role.user(ownerId)),
+    Appwrite.Permission.update(Appwrite.Role.user(ownerId)),
+    Appwrite.Permission.delete(Appwrite.Role.user(ownerId))
+  ];
+}
+
+/* Lo que se guarda: usuario → contraseña, y nada más. Ni nombres, ni cursos,
+   ni el resto de la ficha: si algún día este documento se leyera de más, que
+   lo que haya dentro sea lo mínimo. */
+function credencialesDeLaLista() {
+  const out = {};
+  for (const r of (ATLAS_CONFIG.roster || [])) {
+    const u = String(r.username || '').trim().toLowerCase();
+    if (u && r.password) out[u] = r.password;
+  }
+  return out;
+}
+
+/* Los usuarios que hay ahora mismo en la lista de clase. Sirve para no
+   arrastrar para siempre la contraseña de quien ya no está. */
+function usuariosDeLaLista() {
+  const out = new Set();
+  for (const r of (ATLAS_CONFIG.roster || [])) {
+    const u = String(r.username || '').trim().toLowerCase();
+    if (u) out.add(u);
+  }
+  return out;
+}
+
+async function cloudGuardarCredenciales() {
+  if (!aulasOn() || !aulaActiva() || !CLOUD.user) return { ok: false, reason: 'sin-nube' };
+  const c = ATLAS_CONFIG.appwrite;
+  const uid = CLOUD.user.$id;
+  const propias = credencialesDeLaLista();
+  /* Sin contraseñas que guardar no se crea el documento: un equipo que aún no
+     las tiene no puede vaciar el del que sí. */
+  if (!Object.keys(propias).length) return { ok: true, vacio: true };
+
+  /* Se MEZCLA con lo que ya hay, no se reemplaza. Un segundo equipo puede
+     conocer tres contraseñas de veinticinco —las que se pusieron en él—, y
+     guardar solo esas tres se llevaría por delante las otras veintidós. Lo
+     que este equipo sabe manda sobre lo guardado; lo que no sabe, se
+     conserva. Solo se cae lo de quien ya no está en la lista. */
+  const cred = {};
+  const enLista = usuariosDeLaLista();
+  const previo = await cloudTraerCredenciales();
+  if (previo.ok) {
+    for (const [u, pw] of Object.entries(previo.cred || {})) {
+      if (enLista.has(u)) cred[u] = pw;
+    }
+  }
+  Object.assign(cred, propias);
+  const data = {
+    owner: uid,
+    name: 'Credenciales',
+    teacher: ATLAS_CONFIG.teacherName || '',
+    config: JSON.stringify({ v: 1, cred }),
+    updated_at: String(Date.now())
+  };
+  const id = idDeCredenciales(aulaActiva());
+  try {
+    await CLOUD.db.updateDocument(c.databaseId, c.aulasCollectionId, id, data,
+      permisosDeCredenciales(uid));
+    return { ok: true };
+  } catch (e) {
+    try {
+      await CLOUD.db.createDocument(c.databaseId, c.aulasCollectionId, id, data,
+        permisosDeCredenciales(uid));
+      return { ok: true, creado: true };
+    } catch (e2) { return errorNube(e2); }
+  }
+}
+
+async function cloudTraerCredenciales() {
+  if (!aulasOn() || !aulaActiva() || !CLOUD.user) return { ok: false, reason: 'sin-nube' };
+  const c = ATLAS_CONFIG.appwrite;
+  try {
+    const doc = await CLOUD.db.getDocument(c.databaseId, c.aulasCollectionId,
+      idDeCredenciales(aulaActiva()));
+    const p = JSON.parse(doc.config || '{}');
+    return { ok: true, cred: (p && p.cred) || {} };
+  } catch (e) {
+    const msg = (e && e.message) || '';
+    /* Que no exista es lo normal la primera vez. */
+    if (/not be found|not found|404/i.test(msg)) return { ok: true, cred: {} };
+    return errorNube(e);
+  }
+}
+
+/* Rellena en la lista de clase las contraseñas que a ESTE equipo le faltan.
+   Nunca pisa una que ya esté puesta: la de aquí puede ser la buena y la de la
+   nube una copia vieja. */
+async function rellenarCredenciales() {
+  const r = await cloudTraerCredenciales();
+  if (!r.ok) return r;
+  const lista = deepClone(ATLAS_CONFIG.roster || []);
+  let puestas = 0;
+  for (const f of lista) {
+    const u = String(f.username || '').trim().toLowerCase();
+    if (!u || f.password) continue;
+    if (r.cred[u]) { f.password = r.cred[u]; puestas++; }
+  }
+  if (puestas) sinSubir(() => { setTeacherConfig('roster', lista); saveTeacherConfig(); });
+  return { ok: true, puestas };
 }
 
 /* ══════════ LOS AJUSTES, A LA CLASE ══════════
@@ -1053,6 +1190,10 @@ async function subirAjustesAhora() {
   ajustesSubiendo = true;
   try {
     const r = await cloudSaveAulaConfig();
+    /* Las contraseñas van por su propio canal, privado del docente, pero
+       cambian en el mismo momento que los ajustes: al dar de alta la clase.
+       Si fallan, no se toca el estado de los ajustes: son cosas distintas. */
+    try { await cloudGuardarCredenciales(); } catch (e) { /* se reintenta al siguiente cambio */ }
     if (r.ok) { ajustesPendientes = false; ajustesFallo = ''; }
     else {
       /* Se queda pendiente A PROPÓSITO: el próximo cambio o la próxima
@@ -1134,6 +1275,12 @@ async function cloudBorrarAula(aulaId, onProgreso) {
   if (cuenta.fallos) return { ok: false, reason: 'parcial', ...cuenta };
   try { await CLOUD.db.deleteDocument(c.databaseId, c.aulasCollectionId, aulaId); }
   catch (e) { return Object.assign({ ok: false }, errorNube(e), cuenta); }
+
+  /* Y solo entonces sus credenciales: dejarlas sería guardar las contraseñas
+     de una clase que ya no existe, pero borrarlas antes sería quedarse sin
+     ellas en un borrado que se queda a medias y hay que reintentar. */
+  try { await CLOUD.db.deleteDocument(c.databaseId, c.aulasCollectionId, idDeCredenciales(aulaId)); }
+  catch (e) { /* si no había, mejor */ }
   return { ok: true, ...cuenta };
 }
 

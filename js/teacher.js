@@ -403,6 +403,14 @@ const PASS_MINIMO = 8;
 function pegaDeLaCuenta(r) {
   if (!r || !r.name) return 'Sin nombre.';
   if (!r.username) return 'Le falta el usuario.';
+  /* Ojo con el orden: una ficha con cuenta creada y sin contraseña NO es una
+     ficha incompleta, es una cuenta cuya contraseña se puso en otro
+     dispositivo. Decirle «le falta la contraseña» empuja a inventar una
+     nueva, y la nueva no abre la cuenta que ya existe. */
+  if (!r.password && r.account) {
+    return 'Su cuenta existe, pero la contraseña se escribió en otro dispositivo y aquí no está. '
+      + 'Míralas en el equipo donde creaste las cuentas; si escribes otra aquí, no le servirá para entrar.';
+  }
   if (!r.password) return 'Le falta la contraseña.';
   if (String(r.password).length < PASS_MINIMO) {
     return `La contraseña tiene ${String(r.password).length} caracteres y Appwrite exige ${PASS_MINIMO} como mínimo. `
@@ -419,8 +427,12 @@ function cfgAlumnado(body) {
   const conCuenta = roster.filter(r => r.account).length;
   const porVincular = roster.filter(r => r.authId).length;
   /* Las fichas escritas a mano —o traídas de una copia antigua— llegan sin
-     usuario o sin contraseña, y sin eso no hay cuenta que crear. */
-  const incompletos = roster.filter(r => r.name && (!r.username || !r.password)).length;
+     usuario o sin contraseña, y sin eso no hay cuenta que crear. Las que ya
+     tienen cuenta quedan fuera: a esas no les falta un dato, les falta que
+     este dispositivo se entere de cuál era. */
+  const incompletos = roster.filter(r => r.name && !r.account && (!r.username || !r.password)).length;
+  /* Cuentas creadas en otro equipo cuya contraseña este no conoce. */
+  const sinClave = roster.filter(r => r.account && !r.password).length;
   /* Cuentas creadas antes de que el alta guardara el id: no se pueden vincular
      directamente, hay que buscar su diario por el nombre. */
   const huerfanos = roster.filter(r => r.account && !r.authId).length;
@@ -538,12 +550,17 @@ function cfgAlumnado(body) {
     ${roster.length ? `
       <h4 class="cfg-h4">Hoja de credenciales</h4>
       <p class="cfg-hint">Para repartir en clase. Cada alumno solo necesita su línea.</p>
+      ${sinClave ? `<p class="cfg-warn">🔑 De ${sinClave} alumno(s) con cuenta creada, este
+        dispositivo no conoce la contraseña${nube ? ': se guardan aparte, en un documento que solo tú puedes leer, y se recuperan solas al entrar al panel. Si acabas de configurar la nube aquí, vuelve a entrar al panel.' : '. Al no haber nube configurada, no hay de dónde traerlas: míralas en el equipo donde creaste las cuentas.'}
+        <strong>No escribas una nueva</strong>: cambiarla aquí no cambia la cuenta de Appwrite.</p>` : ''}
       <textarea id="ros-sheet" rows="6" readonly>${roster.map(r =>
         /* Con dos niñas del mismo nombre, una hoja sin el curso es una hoja
            que se reparte mal. Solo se pone donde hace falta. */
         `${esc(r.name)}${repes.has(String(r.name || '').trim().toLowerCase())
           ? ` (${esc(gradeInfo(r.grade || ATLAS_CONFIG.defaultGrade).label)})` : ''
-        }  →  usuario: ${esc(r.username)}   contraseña: ${esc(r.password)}`).join('\n')}</textarea>
+        }  →  usuario: ${esc(r.username)}   contraseña: ${
+          r.password ? esc(r.password)
+            : (r.account ? '(se puso en otro dispositivo — no está aquí)' : '(sin poner)')}`).join('\n')}</textarea>
       <button class="btn btn-secondary btn-small" id="ros-copy">📋 Copiar</button>` : ''}`;
 
   onInput('#cfg-read-aloud', e => cfgSave('readAloud', e.target.value, 'Lectura en voz alta guardada ✓'));
@@ -556,7 +573,16 @@ function cfgAlumnado(body) {
   const write = (i, key, val) => { const l = rosterCopy(); l[i][key] = val; cfgSave('roster', l, false); };
   $$('.ros-name').forEach(el => onInput(el, e => write(+e.target.dataset.i, 'name', e.target.value)));
   $$('.ros-user').forEach(el => onInput(el, e => write(+e.target.dataset.i, 'username', e.target.value.trim())));
-  $$('.ros-pass').forEach(el => onInput(el, e => write(+e.target.dataset.i, 'password', e.target.value)));
+  $$('.ros-pass').forEach(el => onInput(el, e => {
+    const i = +e.target.dataset.i;
+    /* Cambiar la contraseña de una cuenta que ya existe cambia el papel, no la
+       cuenta: Atlas no sabe cambiar contraseñas en Appwrite. Callarlo es
+       repartir credenciales que no abren nada, así que se dice en el momento. */
+    const ya = (ATLAS_CONFIG.roster || [])[i];
+    const avisa = ya && ya.account && e.target.value;
+    write(i, 'password', e.target.value);
+    if (avisa) toast('Anotada aquí, pero la cuenta de Appwrite sigue con la anterior: Atlas no la cambia', 5200);
+  }));
   $$('.ros-grade').forEach(el => onInput(el, e => write(+e.target.dataset.i, 'grade', +e.target.value)));
 
   $$('[data-delros]').forEach(el => el.addEventListener('click', async () => {
@@ -577,6 +603,10 @@ function cfgAlumnado(body) {
     let n = 0;
     for (const r of l) {
       if (!r.name) continue;
+      /* Nunca a quien ya tiene cuenta: inventarle una contraseña aquí no
+         cambia la de Appwrite, solo tapa el hueco con un dato falso y le
+         entrega al niño una credencial que no abre nada. */
+      if (r.account) continue;
       if (!r.username) { r.username = makeUsername(r.name, taken); taken.push(r.username); n++; }
       if (!r.password) { r.password = makePassword(); n++; }
     }

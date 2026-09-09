@@ -88,7 +88,7 @@ test('el fallo se queda pendiente: no se da por subido lo que no subió', () => 
   const cloud = leer('js/cloud.js');
   assert.match(cloud, /if \(paquete\.length > CONFIG_MAX\)/);
   const i = cloud.indexOf('async function subirAjustesAhora');
-  assert.match(cloud.slice(i, i + 700), /ajustesFallo = r\.reason === 'sin-permiso'/);
+  assert.match(cloud.slice(i, i + 1400), /ajustesFallo = r\.reason === 'sin-permiso'/);
 });
 
 /* ── 07 y 08 · el panel, para quien no ve la pantalla y para un dedo ── */
