@@ -976,7 +976,17 @@ function paintClassView() {
   } else if (!d.students.length) {
     nota = notaClaseVacia(ATLAS_CONFIG.sessionMode);
   }
-  classStatus(recuento + nota);
+  /* ── Un diario que este equipo no puede leer ──
+     Se salta al reunirlos, para no perder los demás por uno roto, pero
+     callarlo era lo que hacía que un niño desapareciera de la pantalla sin
+     que nadie supiera por qué. */
+  const rotos = (typeof ilegiblesDeEsteEquipo === 'function') ? ilegiblesDeEsteEquipo() : [];
+  const avisoRotos = rotos.length ? `<div class="class-note">⚠️ <strong>${rotos.length}
+    diario(s) de este equipo no se han podido leer</strong> y no salen abajo. Están guardados,
+    pero con algo dentro que la app no entiende: ${esc(rotos.join(', '))}. Si tienes una copia
+    de seguridad anterior, restaurarla los recupera.</div>` : '';
+
+  classStatus(recuento + nota + avisoRotos);
 
   /* ── Sin diarios todavía ──
      Antes esto borraba media pantalla y dejaba un «no hay ningún diario» a

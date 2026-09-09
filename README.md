@@ -86,6 +86,7 @@ Cubren lo que ya se ha roto alguna vez, que es de donde salieron:
 | `generador.test.js` | Que un reto escrito por IA con la cuenta mal marcada no llegue nunca a un niño |
 | `alta.test.js` | Que el panel no intente crear el diario del alumno —Appwrite no lo permite— y que vincularlo le ponga su clase y su docente |
 | `asistente-yacimientos.test.js` | Que la asistente proponga estructura y **nunca retos**, que lo que vuelve se limpie antes de tocar los ajustes, y que el inspector avise de lo que falla en silencio sin acusar a un yacimiento sano |
+| `robustez.test.js` | Que un diario a medias se complete en vez de reventar, que un equipo que no puede guardar lo diga, y que la economía no admita números imposibles |
 | `ids-unicos.test.js` | Que dos cosas creadas seguidas no nazcan con el mismo id, y que una configuración ya rota se repare al cargarla |
 | `avatar.test.js` | Que el retrato del rol sea el avatar en las cuatro pantallas, y que el sombrero comprado no lo borre |
 | `repaso-genera.test.js` | Que cada concepto flojo caiga en el pozo que habla de eso y deje el generador preparado |
@@ -478,6 +479,12 @@ Se cambia en **Configuración → Alumnado → «Cómo se usa en clase»**:
 Por dentro es exactamente una expedición: mismo motor adaptativo, mismo dominio
 por estratos, mismas reglas anti-grinding. Lo único que cambia es quién toca la
 pantalla.
+
+> **Si la tablet no puede guardar, se dice.** Con el almacenamiento del navegador
+> lleno —o en una ventana privada— cada respuesta parecía guardarse y no se
+> guardaba ninguna, sin que la pantalla cambiara en nada. Ahora sale una barra
+> roja que lo dice y qué hacer, y se retira sola en cuanto vuelve a poder. En
+> clase dirigida esto importa el doble: ahí no hay nube que haga de red.
 
 > **Los diarios viven en ese equipo.** En clase dirigida no hace falta Appwrite:
 > el equipo del docente guarda el diario de cada alumno y la vista general de la

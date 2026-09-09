@@ -59,13 +59,39 @@ function currentTrimesterIndex() { return trimesterIndexFor(todayStr()); }
 function trimesterBucket() { return S.course.trimesters[currentTrimesterIndex()]; }
 
 /* Estados guardados por versiones anteriores: completar lo que les falte */
+/* Los bloques de primer nivel de un diario. Se enumeran aquí porque hay que
+   poder rellenar el que falte sin repetir la lista en cada comprobación. */
+const BLOQUES_DIARIO = ['profile', 'progression', 'daily', 'metrics', 'inventory',
+                        'logbook', 'adaptive', 'dig_sites', 'course'];
+
 function migrateState(s) {
+  if (!s || typeof s !== 'object') return s;
+
+  /* ── Un diario puede llegar a medias ──
+     De una copia hecha con otra versión, de un fichero que alguien tocó a
+     mano, de una escritura que se cortó. Antes se daba por hecho que estaban
+     todos los bloques, y la primera línea que tocara uno que faltase lanzaba
+     —«Cannot read properties of undefined»—. Lo peor no era el fallo: era
+     DÓNDE saltaba. La restauración decía «1 diario restaurado ✓» y quien
+     reventaba después era el niño al abrir el suyo, mientras la vista de
+     clase lo descartaba en silencio y parecía que no existía.
+
+     Se rellena lo que falte desde el estado de fábrica. Un diario incompleto
+     vale infinitamente más que ninguno: se conserva lo que traiga y el resto
+     empieza de cero, que es lo que el niño vería de todas formas. */
+  const base = defaultState((s.profile && s.profile.explorer_name) || 'Explorador');
+  for (const bloque of BLOQUES_DIARIO) {
+    const suyo = s[bloque];
+    if (!suyo || typeof suyo !== 'object' || Array.isArray(suyo)) { s[bloque] = base[bloque]; continue; }
+    for (const k in base[bloque]) if (suyo[k] === undefined) suyo[k] = base[bloque][k];
+  }
+  if (!Array.isArray(s.creations)) s.creations = [];
+
   /* Los diarios anteriores al diagnóstico por concepto no traen el mapa; se
      crea vacío y se va llenando desde la siguiente respuesta. No se intenta
      reconstruirlo del histórico: no hay de dónde, porque antes no se guardaba
      qué concepto trabajaba cada reto. */
-  if (s && s.metrics && !s.metrics.errors_by_concept) s.metrics.errors_by_concept = {};
-  if (!s || typeof s !== 'object') return s;
+  if (!s.metrics.errors_by_concept) s.metrics.errors_by_concept = {};
   if (!s.course || !Array.isArray(s.course.trimesters) || s.course.trimesters.length !== 3) {
     s.course = defaultCourse();
   }
@@ -351,21 +377,61 @@ function loadDiaries() {
   } catch (e) { return {}; }
 }
 function saveDiaries(map) {
-  try { localStorage.setItem(DIARIES_KEY, JSON.stringify({ v: 1, diaries: map })); }
-  catch (e) { /* almacenamiento lleno o no disponible */ }
+  try {
+    localStorage.setItem(DIARIES_KEY, JSON.stringify({ v: 1, diaries: map }));
+    guardadoVaBien();
+  }
+  catch (e) { guardadoHaFallado(e); }
 }
-/* Todos los diarios guardados aquí, ya migrados, listos para la vista de clase */
+
+/* ── Cuando el equipo no puede guardar ──
+   El `catch` estaba vacío, y eso convertía el fallo más caro en el más
+   callado: en clase dirigida —los veintidós diarios en una sola tablet, sin
+   nube— cada respuesta que el docente marca parece guardarse, la pantalla
+   pasa al siguiente reto, y al cerrar no queda nada. Pasa con el
+   almacenamiento lleno y con el modo privado de Safari.
+
+   No se puede arreglar desde aquí, pero sí se puede DECIR, que es lo único
+   que separa perder una sesión de perder un trimestre. */
+let fallaElGuardado = false;
+function guardadoHaFallado(e) {
+  if (fallaElGuardado) return;          /* una vez, no en cada respuesta */
+  fallaElGuardado = true;
+  console.warn('No se puede guardar en este equipo:', (e && e.message) || e);
+  /* El aviso no puede tumbar el guardado: se llama desde dentro de saveState,
+     y si pintar la barra fallara —una pantalla a medio montar, un arranque a
+     medias— el fallo taparía justo lo que venía a contar. */
+  try { if (typeof avisarDeGuardadoRoto === 'function') avisarDeGuardadoRoto(); }
+  catch (e2) { /* sin barra, pero el diario sigue intentando guardarse */ }
+}
+function guardadoVaBien() {
+  if (!fallaElGuardado) return;
+  fallaElGuardado = false;
+  try { if (typeof quitarAvisoDeGuardado === 'function') quitarAvisoDeGuardado(); }
+  catch (e) { /* la barra se irá al repintar */ }
+}
+function elGuardadoFalla() { return fallaElGuardado; }
+/* Todos los diarios guardados aquí, ya migrados, listos para la vista de clase.
+
+   Un diario que no se puede leer se salta —no se pierden los otros veintiuno
+   por uno roto—, pero NO se calla: restarlo de la cuenta sin decir nada es lo
+   que hacía que un niño desapareciera de la pantalla y nadie supiera por qué.
+   Se apuntan sus claves para que la vista de clase las nombre. */
+let diariosIlegibles = [];
 function allDiaries() {
   const map = loadDiaries();
   const out = [];
+  diariosIlegibles = [];
   for (const k in map) {
     try {
       const st = migrateState(map[k]);
       if (st && st.profile) out.push({ id: 'local:' + k, key: k, name: st.profile.explorer_name, state: st });
-    } catch (e) { /* diario ilegible: se ignora, no se pierde el resto */ }
+      else diariosIlegibles.push(k);
+    } catch (e) { diariosIlegibles.push(k); }
   }
   return out;
 }
+function ilegiblesDeEsteEquipo() { return diariosIlegibles.slice(); }
 function diaryExists(quien) { return !!loadDiaries()[diaryKeyExistente(quien)]; }
 
 /* Abre (o crea) el diario de un alumno y lo deja como estado vivo.
@@ -799,7 +865,8 @@ function saveState() {
     if (typeof aulaScheduleSave === 'function') aulaScheduleSave(diarioActivo);
     return;
   }
-  try { localStorage.setItem(STORAGE_KEY, JSON.stringify(S)); } catch (e) { /* almacenamiento no disponible */ }
+  try { localStorage.setItem(STORAGE_KEY, JSON.stringify(S)); guardadoVaBien(); }
+  catch (e) { guardadoHaFallado(e); }
   if (typeof cloudScheduleSave === 'function') cloudScheduleSave();
 }
 function loadState() {
@@ -1009,15 +1076,46 @@ function resolverCreacion(clave, id, aprobado, nota) {
 }
 
 /* ── Economía ── */
+/* ── Números que entran en la economía ──
+   El panel sanea bien lo que se teclea, pero no es la única puerta: restaurar
+   una copia, adoptar los ajustes de una clase creada con otra versión o
+   importar el fichero de un compañero traen lo que traigan. Y lo que sale de
+   ahí no es un número raro que se note, es una bolsa en NaN que se guarda en
+   el diario, se sincroniza, y de la que ya no se sale ni ganando ni gastando.
+
+   Así que el saneado va DONDE SE USA. Un ajuste corrupto puede hacer que un
+   mérito valga menos de lo que el docente quería; lo que no puede es romper
+   la bolsa de un niño. */
+function enteroSano(v, porDefecto, min, max) {
+  /* null y '' se cuelan como 0 por una rareza de Number(), y en un ajuste eso
+     no significa «cero», significa «no está puesto». Un tope de cero apagaría
+     el mérito en silencio. */
+  if (v === null || v === undefined || v === '') return porDefecto;
+  const n = Math.round(Number(v));
+  if (!Number.isFinite(n)) return porDefecto;
+  return Math.min(max === undefined ? Infinity : max, Math.max(min === undefined ? -Infinity : min, n));
+}
+function fraccionSana(v, porDefecto) {
+  const n = Number(v);
+  if (!Number.isFinite(n)) return porDefecto;
+  return Math.min(1, Math.max(0, n));
+}
+
 function earnDoubloons(n) {
-  S.progression.doubloons_balance += n;
-  S.daily.doubloons_earned_today += n;
-  trimesterBucket().doubloons += n;
+  /* Ganar nunca puede restar: un mérito con las monedas en negativo sería un
+     castigo disfrazado de premio, que es justo lo que el PRD no quiere. */
+  const suma = enteroSano(n, 0, 0, 100000);
+  if (!suma) return;
+  S.progression.doubloons_balance = enteroSano(S.progression.doubloons_balance, 0, 0) + suma;
+  S.daily.doubloons_earned_today = enteroSano(S.daily.doubloons_earned_today, 0, 0) + suma;
+  const bolsa = trimesterBucket();
+  bolsa.doubloons = enteroSano(bolsa.doubloons, 0, 0) + suma;
   /* Una fracción se anota como aportación a la meta común de la cuadrilla.
      NO se descuenta de la bolsa del niño: cooperar no cuesta nada (PRD §0.2). */
   const t = ATLAS_CONFIG.teams;
   if (t && t.enabled && myTeam()) {
-    S.progression.team_contribution += n * (t.contributionRate || 0);
+    S.progression.team_contribution =
+      Math.max(0, Number(S.progression.team_contribution) || 0) + suma * fraccionSana(t.contributionRate, 0);
   }
 }
 
@@ -1026,10 +1124,10 @@ function earnDoubloons(n) {
    los PE ni el progreso: no se puede «comprar» aprendizaje ni perderlo. */
 function donateToFund(amount) {
   if (LECTURA) return { ok: false, reason: 'lectura' };
-  const n = Math.floor(Number(amount) || 0);
+  const n = enteroSano(Math.floor(Number(amount)), 0, 0, 1000000);
   if (n <= 0) return { ok: false, reason: 'cantidad' };
   if (!spendDoubloons(n)) return { ok: false, reason: 'sin-fondos' };
-  S.progression.fund_donated += n;
+  S.progression.fund_donated = enteroSano(S.progression.fund_donated, 0, 0) + n;
   saveState();
   return { ok: true, donated: n, total: S.progression.fund_donated };
 }
@@ -1147,8 +1245,13 @@ function teamGoalShare() {
   return Math.round((ATLAS_CONFIG.teams.goalTarget || 0) / n);
 }
 function spendDoubloons(n) {
-  if (S.progression.doubloons_balance < n) return false;
-  S.progression.doubloons_balance -= n;
+  /* Con un precio no numérico la comparación era siempre falsa, así que se
+     «pagaba» y la bolsa quedaba en NaN. Un precio que no se entiende no se
+     cobra: mejor un artículo gratis que una bolsa rota. */
+  const precio = enteroSano(n, 0, 0, 1000000);
+  const bolsa = enteroSano(S.progression.doubloons_balance, 0, 0);
+  if (bolsa < precio) return false;
+  S.progression.doubloons_balance = bolsa - precio;
   return true;
 }
 function earnXp(n) {

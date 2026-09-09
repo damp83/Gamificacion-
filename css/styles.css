@@ -1374,6 +1374,11 @@ body.en-mision #main { padding-bottom: var(--s-5); }
   background: var(--brass-tint); border-bottom: 2px solid var(--danger);
   color: #7d2d1c; padding: .75rem 1rem; font-size: var(--t-sm); text-align: center;
 }
+/* No poder guardar es peor que no tener nube: sin nube el diario al menos
+   está en la tablet, y sin poder escribir no está en ninguna parte. */
+.cloud-warning-grave {
+  background: #fbe3dd; border-bottom-width: 3px; font-weight: 600;
+}
 
 /* ══════════ CUADRILLA ══════════ */
 .team-banner {

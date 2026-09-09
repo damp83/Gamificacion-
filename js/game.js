@@ -477,7 +477,12 @@ function awardBehavior(behaviorId) {
   if (enModoLectura()) return { ok: false, reason: 'lectura' };
   const b = ATLAS_CONFIG.behaviors.find(x => x.id === behaviorId);
   if (!b) return { ok: false, reason: 'no-behavior' };
-  if (behaviorCountToday(behaviorId) >= b.perDay) return { ok: false, reason: 'cap', b };
+  /* Un tope que no es número dejaba la comparación siempre en falso, y el
+     mérito perdía el tope: es justo la protección que impide que una sesión
+     generosa descuadre la economía de la clase. Sin tope legible, uno al día. */
+  if (behaviorCountToday(behaviorId) >= enteroSano(b.perDay, 1, 0, 50)) {
+    return { ok: false, reason: 'cap', b };
+  }
   earnDoubloons(b.coins);
   S.behavior_log.push({ id: b.id, date: todayStr(), ts: Date.now() });
   if (S.behavior_log.length > 300) S.behavior_log.shift(); /* histórico acotado */

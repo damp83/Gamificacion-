@@ -325,6 +325,28 @@ function showCloudWarning() {
   document.body.prepend(bar);
 }
 
+/* ── El aviso de que este equipo no guarda ──
+   Es el mismo sitio y el mismo peso visual que «sin conexión», porque es peor
+   que quedarse sin conexión: sin nube el diario al menos está en la tablet;
+   sin poder escribir no está en ninguna parte. */
+function avisarDeGuardadoRoto() {
+  if (document.getElementById('aviso-guardado')) return;
+  const bar = document.createElement('div');
+  bar.id = 'aviso-guardado';
+  bar.className = 'cloud-warning cloud-warning-grave';
+  bar.setAttribute('role', 'alert');
+  bar.innerHTML = '⛔ <strong>Este equipo no puede guardar.</strong> ' +
+    'Lo que se responda a partir de ahora <strong>no se está quedando</strong>. ' +
+    'Suele ser la memoria del navegador llena o una ventana privada: cierra pestañas, ' +
+    'sal del modo privado y vuelve a entrar. Si tienes clase abierta en la nube, ' +
+    'los diarios sí siguen subiendo.';
+  document.body.prepend(bar);
+}
+function quitarAvisoDeGuardado() {
+  const bar = document.getElementById('aviso-guardado');
+  if (bar) bar.remove();
+}
+
 function showOnboarding() {
   readGrade = renderGradePicker('#grade-picker', '#input-grade') || readGrade;
   $('#screen-home').classList.add('hidden');
