@@ -19,7 +19,10 @@ const ENTRY_TIER_CAP = [3, 4]; /* por nº de sesiones previas en el estrato */
 function entryTier(branchId, stratumId) {
   const st = getStratum(branchId, stratumId);
   const cap = ENTRY_TIER_CAP[st.attempts];
-  return cap === undefined ? S.adaptive.tier : Math.min(S.adaptive.tier, cap);
+  const base = cap === undefined ? S.adaptive.tier : Math.min(S.adaptive.tier, cap);
+  /* Y el techo del alumno, si lo tiene, por encima de todo lo demás. */
+  const a = typeof miAdaptacion === 'function' ? miAdaptacion() : { activa: false };
+  return (a.activa && a.techo) ? Math.min(base, enteroSano(a.techo, 5, 1, 5)) : base;
 }
 
 function startMission(branchId, stratumId, kind) {
@@ -44,7 +47,9 @@ function startMission(branchId, stratumId, kind) {
   const def = branchDef(branchId);
   if (!def || !stratumHasContent(def, stratumId)) { mission = null; return null; }
 
-  const total = mission.kind === 'bazar' ? ECO().bazarQuestions : ECO().missionQuestions;
+  /* Cuántos retos, ya con la adaptación de este alumno aplicada: quien se
+     cansa a los cuatro no aprende nada de los dos últimos. */
+  const total = retosDeExpedicion(mission.kind);
   mission.tier = entryTier(branchId, stratumId);
   mission.usedIdx = [];   /* para no repetir retos del banco dentro de la misión */
   for (let i = 0; i < total; i++) {

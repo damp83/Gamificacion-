@@ -343,6 +343,12 @@ function vozLeer(trozos) {
    encenderlo para toda la clase desde el panel. */
 function vozActiva() {
   if (!VOZ.disponible) return false;
+  /* La adaptación manda sobre la preferencia del niño: si se le ha puesto la
+     lectura porque la necesita, un toque sin querer en su Campamento no puede
+     quitársela para el resto del curso. */
+  const ad = typeof miAdaptacion === 'function' ? miAdaptacion() : { activa: false };
+  if (ad.activa && ad.voz === 'siempre') return true;
+  if (ad.activa && ad.voz === 'nunca') return false;
   const pref = S && S.profile.accessibility ? S.profile.accessibility.read_aloud : undefined;
   if (pref !== undefined) return !!pref;
   if (ATLAS_CONFIG.readAloud === 'todos') return true;

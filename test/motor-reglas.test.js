@@ -107,7 +107,14 @@ test('el listón no ha subido: sigue siendo el 0,8 de siempre', () => {
   const st = require('node:fs').readFileSync(
     require('node:path').join(__dirname, '..', 'js', 'state.js'), 'utf8');
   assert.match(st, /const ALTAS_PARA_ABRIR = 2;/);
-  assert.match(st, /st\.altas = st\.mastery >= 0\.8/);
+  /* La puerta pasa por `dominioParaAbrir`, que devuelve 0,8 para todo el
+     mundo salvo que ese alumno tenga una adaptación. Bajarla para quien la
+     necesita es otra cosa que subirla para todos. */
+  assert.match(st, /st\.altas = st\.mastery >= dominioParaAbrir\(S\)/);
+  const i = st.indexOf('function dominioParaAbrir');
+  const cuerpo = st.slice(i, st.indexOf('\n}\n', i));
+  assert.match(cuerpo, /if \(!a\.activa \|\| !a\.dominio\) return 0\.8;/, 'sin adaptación, 0,8');
+  assert.match(cuerpo, /Math\.min\(0\.8, Math\.max\(0\.5, n\)\)/, 'y nunca por encima de 0,8');
   assert.ok(!/mastery >= 0\.8[5-9]/.test(st), 'nadie ha subido el umbral por la puerta de atrás');
 });
 

@@ -1288,6 +1288,7 @@ function paintClassView() {
     <div class="student-card${s.needsHelp ? ' student-alert' : ''}">
       <div class="student-head">
         <strong>${esc(s.name)}</strong>
+        ${s.adaptado ? `<span class="student-adaptado" title="Tiene una adaptación: sus señales se leen con eso delante">🧩</span>` : ''}
         <span class="student-rank">Nv. ${s.level} · ${s.rank}</span>
       </div>
       <div class="student-bars">

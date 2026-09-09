@@ -84,6 +84,7 @@ Cubren lo que ya se ha roto alguna vez, que es de donde salieron:
 | `cuentas.test.js` | Que el panel avise de una contraseña que Appwrite va a rechazar, y de que escribirla no crea la cuenta |
 | `merito-grupo.test.js` | Que dar un mérito a una cuadrilla entera, a la clase o a unos cuantos elegidos a dedo use el mismo tope y el mismo registro que darlo uno a uno, y que se diga a quién no le llegó |
 | `criterios.test.js` | Que la evidencia por criterio se calcule bien, que no se proponga un nivel sin datos suficientes, y que nada de esto llegue nunca al niño ni a su familia |
+| `adaptaciones.test.js` | Que las cuatro palancas de una adaptación hagan lo que dicen, que el techo no impida bajar, y sobre todo que abrir la puerta no cambie lo que la app dice que ese alumno ha demostrado |
 | `nombres-unicos.test.js` | Que dos ficheros no declaren una función con el mismo nombre: comparten un solo ámbito global y la segunda pisa a la primera en silencio |
 | `datos-alumno.test.js` | Que se pueda ver y borrar todo lo que se guarda de un alumno, que el borrado no se lleve a nadie más, y que lo que la app no puede borrar —su cuenta de Appwrite— se diga en vez de darse por hecho |
 | `credenciales.test.js` | Que las contraseñas lleguen al segundo equipo del docente y a nadie más: permisos solo para su cuenta, nunca `users`, y que ningún equipo pueda vaciar lo que otro guardó |
@@ -1156,6 +1157,54 @@ Se veía así: marcabas alumnos en la segunda cuadrilla y aparecían en la prime
 ### Cuadrillas sin erratas
 
 Cuando hay lista de clase, los miembros de cada cuadrilla se marcan con **casillas** en lugar de escribirse a mano. Así el nombre siempre coincide exactamente con el del alumno, y desaparece el problema de asignar a alguien que no existe por una errata. A quien ya está en una cuadrilla se le deshabilita la casilla en las demás.
+
+## Adaptaciones para el alumnado ACNEAE
+
+En una clase de veintidós hay tres o cuatro con adaptación, y hasta ahora el
+docente no podía decidir **nada** explícito sobre ellos: el motor ajustaba la
+dificultad él solo y ahí se acababa. Peor todavía, el listón de dominio jugaba
+en su contra. El estrato siguiente se abre demostrando un 80 % dos veces, y para
+quien no va a llegar a ese 80 % eso no es un listón exigente: es un techo. Se
+pasa el curso entero en el mismo estrato, jugando lo mismo, mientras la app le
+dice que siga intentándolo.
+
+**Alumnado → 🧩** en la ficha de cada alumno. Cuatro palancas y una nota:
+
+| Palanca | Para qué |
+|---|---|
+| **Retos por expedición** | Quien se cansa al cuarto reto no aprende nada de los dos últimos: los falla por cansancio y la app lo apunta como si no lo supiera |
+| **Lectura en voz alta** | Con «siempre», un toque sin querer en su Campamento no puede quitársela para el resto del curso |
+| **Nivel de dificultad máximo** | Impide que una racha con suerte le suba a un nivel donde se hunde y del que tarda tres sesiones en bajar. **Bajar nunca se le impide** |
+| **Dominio que abre el estrato siguiente** | Entre el 50 % y el 80 %. Es la palanca que más le cambia el curso |
+| **Qué adaptación es** | Texto libre para tu registro. No sale en el informe de la familia ni en ninguna pantalla del alumno |
+
+### Abre la puerta, no cambia lo que significa dominar
+
+Es la línea que no se cruza, y hay pruebas que la fijan. Bajarle la puerta al
+estrato siguiente y mentir sobre su dominio son dos cosas distintas, y aquí solo
+se hace la primera:
+
+- Un alumno que avanza con el 65 % **sigue apareciendo como no dominado** en su
+  informe, en el recuento del trimestre y en la tabla de criterios. Eso es la
+  verdad y es lo que se lleva a la evaluación.
+- El **mapa dibujado** se mide con el 0,8 de todos: si usara su puerta, le diría
+  que ha excavado lo que no ha excavado.
+- La **Cámara del Guardián** sí se le abre con su dominio —si no, no llegaría
+  nunca a la prueba—, pero **el listón para superarla es el mismo para todos**.
+  El fragmento del Atlas significa lo mismo en manos de cualquiera.
+
+### Vive en su diario, no en la lista
+
+Se guarda dentro del diario del alumno por dos razones: **viaja con él** —se
+aplica también cuando juega en casa, que es donde nadie puede ayudarle— y la
+lista de clase ya no sale de tu equipo. Por eso hace falta que su diario esté
+aquí: si no está, la ficha lo dice en vez de crear uno vacío que acabaría siendo
+un segundo documento suyo en la nube.
+
+**El niño no ve nada de esto.** Nota los efectos, nunca la etiqueta: ni la
+palabra, ni el número de retos, ni que juega distinto. En la vista de clase, su
+tarjeta lleva un 🧩 para ti —que sus señales se lean con eso delante— y nada
+más: cuál es la adaptación se queda en su ficha.
 
 ## Vista general de la clase
 

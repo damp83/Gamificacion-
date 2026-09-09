@@ -289,6 +289,11 @@ function buildSummaryOf(S) {
        excepción es el diario que crea el panel al dar de alta la cuenta: ese
        no lo ha estrenado nadie y se queda sin fecha del día, para no decirle
        al docente que ha entrado hoy alguien que no ha entrado nunca. */
+    /* Que este alumno tiene una adaptación, sin decir cuál: en la vista de
+       clase cambia cómo se leen sus señales —menos retos por sesión, techo de
+       dificultad— y sin saberlo el docente las lee como si fueran las de
+       todos. Lo que es la adaptación se queda en su ficha. */
+    adaptado: adaptacionDe(S).activa,
     lastSeen: (S.daily && S.daily.date) ? todayStr() : null,
     updated_at: Date.now()
   };
@@ -1377,7 +1382,10 @@ function updateMastery(branchId, stratumId, sessionAccuracy) {
      distingue una demostración de dominio de una racha con suerte. A quien de
      verdad domina no le cuesta nada: de 100 niños con 85 % de acierto, abrían
      99 y siguen abriendo 98. */
-  st.altas = st.mastery >= 0.8 ? (Number(st.altas) || 0) + 1 : 0;
+  /* La puerta al estrato siguiente usa el dominio de ESTE alumno, que es 0,8
+     salvo que tenga una adaptación. El recuento de dominados, no: ese sigue
+     siendo 0,8 para todos, unas líneas más arriba. */
+  st.altas = st.mastery >= dominioParaAbrir(S) ? (Number(st.altas) || 0) + 1 : 0;
 
   const def = branchDef(branchId);
   const idx = STRATA_ORDER.indexOf(stratumId);
@@ -1505,7 +1513,11 @@ function guardianStatus(branchId) {
   if (!g.enabled || !strata.length) return { estado: 'oculta' };
   if (st.cleared) return { estado: 'superada', fecha: st.clearedAt, intentos: st.attempts };
 
-  const faltan = strata.filter(sId => getStratum(branchId, sId).mastery < 0.8);
+  /* Con adaptación, la Cámara se abre con SU dominio: si no, un alumno que
+     avanza con 0,65 no llegaría nunca a la prueba. Lo que no se toca es el
+     listón para superarla, que es el mismo para todos. */
+  const puerta = dominioParaAbrir(S);
+  const faltan = strata.filter(sId => getStratum(branchId, sId).mastery < puerta);
   if (faltan.length) return { estado: 'cerrada', faltan, strata };
   if (st.needsBazar) return { estado: 'repaso', weak: st.weakStratum, strata, intentos: st.attempts };
   return { estado: 'abierta', strata, intentos: st.attempts };
@@ -1588,8 +1600,14 @@ function recordFirstTry(correct, responseMs) {
 
   const acc = rollingAccuracy();
   if (S.adaptive.last10.length >= 6) {
-    if (acc > 0.85 && S.adaptive.tier < 5) S.adaptive.tier++;
+    /* El techo de la adaptación manda sobre la subida: una racha con suerte no
+       puede dejar a un alumno en un nivel donde se hunde y del que tarda tres
+       sesiones en bajar. Bajar, en cambio, nunca se impide. */
+    const a = miAdaptacion();
+    const tope = (a.activa && a.techo) ? enteroSano(a.techo, 5, 1, 5) : 5;
+    if (acc > 0.85 && S.adaptive.tier < tope) S.adaptive.tier++;
     else if (acc < 0.60 && S.adaptive.tier > 1) S.adaptive.tier--;
+    if (S.adaptive.tier > tope) S.adaptive.tier = tope;
   }
   saveState();
 }
@@ -1668,6 +1686,70 @@ function nombreCorto(nombre) {
     .map(p => p.charAt(0).toUpperCase() + '.')
     .join(' ');
   return `${partes[0]} ${iniciales}`;
+}
+
+/* ══════════ ADAPTACIONES ══════════
+
+   En una clase de veintidós hay tres o cuatro alumnos con adaptación, y hasta
+   ahora la app no sabía nada de ellos. El motor ajusta la dificultad solo, que
+   está bien, pero el docente no podía decidir NADA: ni acortar la sesión de
+   quien se cansa a los cuatro retos, ni dejarle la lectura en voz alta puesta
+   para siempre, ni evitar que una racha con suerte le suba a un nivel donde
+   se hunde.
+
+   Y había una trampa peor. El estrato siguiente se abre al demostrar un 80 %
+   dos veces. Para un alumno que no va a llegar a ese 80 %, eso no es un listón
+   exigente: es un techo. Se pasa el curso entero en el mismo estrato, jugando
+   lo mismo, mientras la app le dice que siga intentándolo.
+
+   La adaptación vive en el DIARIO del alumno, no en la lista de clase, por dos
+   razones: viaja con él —se aplica también cuando juega en casa, que es donde
+   nadie puede ayudarle— y la lista de clase ya no sale de este equipo.
+
+   Lo que el niño NO ve en ninguna parte es que tiene una: se notan los
+   efectos, nunca la etiqueta. */
+const ADAPTACION_DEFECTO = {
+  activa: false,
+  retos: 0,        /* retos por expedición; 0 = los de la clase */
+  voz: '',         /* 'siempre' | 'nunca' | '' = lo que decida él */
+  techo: 0,        /* nivel máximo de dificultad; 0 = sin techo */
+  dominio: 0,      /* el que le abre el estrato siguiente; 0 = el 0,8 de todos */
+  nota: ''         /* qué adaptación es, para el registro del docente */
+};
+
+function adaptacionDe(estado) {
+  const a = (estado && estado.profile && estado.profile.adaptacion) || null;
+  if (!a || !a.activa) return { ...ADAPTACION_DEFECTO };
+  return { ...ADAPTACION_DEFECTO, ...a, activa: true };
+}
+function miAdaptacion() { return adaptacionDe(S); }
+
+/* Cuántos retos tiene una expedición para este alumno. */
+function retosDeExpedicion(kind) {
+  const base = kind === 'bazar' ? ECO().bazarQuestions : ECO().missionQuestions;
+  const a = miAdaptacion();
+  if (!a.activa || !a.retos) return base;
+  /* El Encargo del Bazar es corto de por sí: se acorta en la misma proporción
+     en vez de dejarlo en uno. */
+  return kind === 'bazar'
+    ? Math.max(2, Math.min(base, a.retos - 2))
+    : enteroSano(a.retos, base, 3, 12);
+}
+
+/* El dominio que le abre el estrato siguiente. OJO: esto NO cambia lo que
+   significa «dominado» en los informes ni en la evaluación por criterios, que
+   sigue siendo 0,8 para todos. Cambia solo la puerta: un alumno que avanza con
+   0,65 sigue apareciendo como no dominado, que es la verdad. Bajar la puerta y
+   mentir sobre el dominio serían dos cosas distintas, y solo hacemos la
+   primera. */
+function dominioParaAbrir(estado) {
+  const a = adaptacionDe(estado || S);
+  if (!a.activa || !a.dominio) return 0.8;
+  /* Entre 0,5 y 0,8: por debajo de la mitad no es una adaptación, es abrir
+     el camino a quien todavía no ha aprendido nada de ese estrato. */
+  const n = Number(a.dominio);
+  if (!Number.isFinite(n)) return 0.8;
+  return Math.min(0.8, Math.max(0.5, n));
 }
 
 /* ── Cuántas actividades hay de cada criterio ──

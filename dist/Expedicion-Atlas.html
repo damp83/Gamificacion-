@@ -2328,6 +2328,15 @@ input[type="checkbox"]::after, input[type="radio"]::after {
   margin: .6rem 0 0; padding: .8rem .9rem;
   background: var(--paper-deep); border: var(--line); border-radius: var(--r-md);
 }
+/* La marca de que un alumno tiene adaptación. Es para el docente y solo dice
+   QUE la tiene: cuál es se queda en su ficha. */
+.student-adaptado { font-size: .95rem; line-height: 1; }
+
+/* Los campos de la adaptación se atenúan mientras esté apagada: siguen ahí
+   para poder prepararla, pero se ve que no está haciendo nada. */
+.ad-campos.ad-apagado { opacity: .5; }
+.ad-campos.ad-apagado select, .ad-campos.ad-apagado textarea { pointer-events: none; }
+
 .datos-cab { display: flex; align-items: center; gap: .5rem; margin-bottom: .5rem; }
 .datos-cab strong { font-size: var(--t-sm); color: var(--leather-dark); }
 .datos-cerrar {
@@ -5971,7 +5980,7 @@ function cruzarVerificacion(retos, respuestas) {
    copia guardada. Sin este número, «ya está arreglado» y «a mí no me pasa» son
    indistinguibles. Va junto al nombre de la caché del service worker, y una
    prueba comprueba que no se separen. */
-const ATLAS_VERSION = 'v75';
+const ATLAS_VERSION = 'v76';
 
 const ATLAS_DEFAULTS = {
 
@@ -8745,6 +8754,11 @@ function buildSummaryOf(S) {
        excepción es el diario que crea el panel al dar de alta la cuenta: ese
        no lo ha estrenado nadie y se queda sin fecha del día, para no decirle
        al docente que ha entrado hoy alguien que no ha entrado nunca. */
+    /* Que este alumno tiene una adaptación, sin decir cuál: en la vista de
+       clase cambia cómo se leen sus señales —menos retos por sesión, techo de
+       dificultad— y sin saberlo el docente las lee como si fueran las de
+       todos. Lo que es la adaptación se queda en su ficha. */
+    adaptado: adaptacionDe(S).activa,
     lastSeen: (S.daily && S.daily.date) ? todayStr() : null,
     updated_at: Date.now()
   };
@@ -9833,7 +9847,10 @@ function updateMastery(branchId, stratumId, sessionAccuracy) {
      distingue una demostración de dominio de una racha con suerte. A quien de
      verdad domina no le cuesta nada: de 100 niños con 85 % de acierto, abrían
      99 y siguen abriendo 98. */
-  st.altas = st.mastery >= 0.8 ? (Number(st.altas) || 0) + 1 : 0;
+  /* La puerta al estrato siguiente usa el dominio de ESTE alumno, que es 0,8
+     salvo que tenga una adaptación. El recuento de dominados, no: ese sigue
+     siendo 0,8 para todos, unas líneas más arriba. */
+  st.altas = st.mastery >= dominioParaAbrir(S) ? (Number(st.altas) || 0) + 1 : 0;
 
   const def = branchDef(branchId);
   const idx = STRATA_ORDER.indexOf(stratumId);
@@ -9961,7 +9978,11 @@ function guardianStatus(branchId) {
   if (!g.enabled || !strata.length) return { estado: 'oculta' };
   if (st.cleared) return { estado: 'superada', fecha: st.clearedAt, intentos: st.attempts };
 
-  const faltan = strata.filter(sId => getStratum(branchId, sId).mastery < 0.8);
+  /* Con adaptación, la Cámara se abre con SU dominio: si no, un alumno que
+     avanza con 0,65 no llegaría nunca a la prueba. Lo que no se toca es el
+     listón para superarla, que es el mismo para todos. */
+  const puerta = dominioParaAbrir(S);
+  const faltan = strata.filter(sId => getStratum(branchId, sId).mastery < puerta);
   if (faltan.length) return { estado: 'cerrada', faltan, strata };
   if (st.needsBazar) return { estado: 'repaso', weak: st.weakStratum, strata, intentos: st.attempts };
   return { estado: 'abierta', strata, intentos: st.attempts };
@@ -10044,8 +10065,14 @@ function recordFirstTry(correct, responseMs) {
 
   const acc = rollingAccuracy();
   if (S.adaptive.last10.length >= 6) {
-    if (acc > 0.85 && S.adaptive.tier < 5) S.adaptive.tier++;
+    /* El techo de la adaptación manda sobre la subida: una racha con suerte no
+       puede dejar a un alumno en un nivel donde se hunde y del que tarda tres
+       sesiones en bajar. Bajar, en cambio, nunca se impide. */
+    const a = miAdaptacion();
+    const tope = (a.activa && a.techo) ? enteroSano(a.techo, 5, 1, 5) : 5;
+    if (acc > 0.85 && S.adaptive.tier < tope) S.adaptive.tier++;
     else if (acc < 0.60 && S.adaptive.tier > 1) S.adaptive.tier--;
+    if (S.adaptive.tier > tope) S.adaptive.tier = tope;
   }
   saveState();
 }
@@ -10124,6 +10151,70 @@ function nombreCorto(nombre) {
     .map(p => p.charAt(0).toUpperCase() + '.')
     .join(' ');
   return `${partes[0]} ${iniciales}`;
+}
+
+/* ══════════ ADAPTACIONES ══════════
+
+   En una clase de veintidós hay tres o cuatro alumnos con adaptación, y hasta
+   ahora la app no sabía nada de ellos. El motor ajusta la dificultad solo, que
+   está bien, pero el docente no podía decidir NADA: ni acortar la sesión de
+   quien se cansa a los cuatro retos, ni dejarle la lectura en voz alta puesta
+   para siempre, ni evitar que una racha con suerte le suba a un nivel donde
+   se hunde.
+
+   Y había una trampa peor. El estrato siguiente se abre al demostrar un 80 %
+   dos veces. Para un alumno que no va a llegar a ese 80 %, eso no es un listón
+   exigente: es un techo. Se pasa el curso entero en el mismo estrato, jugando
+   lo mismo, mientras la app le dice que siga intentándolo.
+
+   La adaptación vive en el DIARIO del alumno, no en la lista de clase, por dos
+   razones: viaja con él —se aplica también cuando juega en casa, que es donde
+   nadie puede ayudarle— y la lista de clase ya no sale de este equipo.
+
+   Lo que el niño NO ve en ninguna parte es que tiene una: se notan los
+   efectos, nunca la etiqueta. */
+const ADAPTACION_DEFECTO = {
+  activa: false,
+  retos: 0,        /* retos por expedición; 0 = los de la clase */
+  voz: '',         /* 'siempre' | 'nunca' | '' = lo que decida él */
+  techo: 0,        /* nivel máximo de dificultad; 0 = sin techo */
+  dominio: 0,      /* el que le abre el estrato siguiente; 0 = el 0,8 de todos */
+  nota: ''         /* qué adaptación es, para el registro del docente */
+};
+
+function adaptacionDe(estado) {
+  const a = (estado && estado.profile && estado.profile.adaptacion) || null;
+  if (!a || !a.activa) return { ...ADAPTACION_DEFECTO };
+  return { ...ADAPTACION_DEFECTO, ...a, activa: true };
+}
+function miAdaptacion() { return adaptacionDe(S); }
+
+/* Cuántos retos tiene una expedición para este alumno. */
+function retosDeExpedicion(kind) {
+  const base = kind === 'bazar' ? ECO().bazarQuestions : ECO().missionQuestions;
+  const a = miAdaptacion();
+  if (!a.activa || !a.retos) return base;
+  /* El Encargo del Bazar es corto de por sí: se acorta en la misma proporción
+     en vez de dejarlo en uno. */
+  return kind === 'bazar'
+    ? Math.max(2, Math.min(base, a.retos - 2))
+    : enteroSano(a.retos, base, 3, 12);
+}
+
+/* El dominio que le abre el estrato siguiente. OJO: esto NO cambia lo que
+   significa «dominado» en los informes ni en la evaluación por criterios, que
+   sigue siendo 0,8 para todos. Cambia solo la puerta: un alumno que avanza con
+   0,65 sigue apareciendo como no dominado, que es la verdad. Bajar la puerta y
+   mentir sobre el dominio serían dos cosas distintas, y solo hacemos la
+   primera. */
+function dominioParaAbrir(estado) {
+  const a = adaptacionDe(estado || S);
+  if (!a.activa || !a.dominio) return 0.8;
+  /* Entre 0,5 y 0,8: por debajo de la mitad no es una adaptación, es abrir
+     el camino a quien todavía no ha aprendido nada de ese estrato. */
+  const n = Number(a.dominio);
+  if (!Number.isFinite(n)) return 0.8;
+  return Math.min(0.8, Math.max(0.5, n));
 }
 
 /* ── Cuántas actividades hay de cada criterio ──
@@ -10565,7 +10656,10 @@ const ENTRY_TIER_CAP = [3, 4]; /* por nº de sesiones previas en el estrato */
 function entryTier(branchId, stratumId) {
   const st = getStratum(branchId, stratumId);
   const cap = ENTRY_TIER_CAP[st.attempts];
-  return cap === undefined ? S.adaptive.tier : Math.min(S.adaptive.tier, cap);
+  const base = cap === undefined ? S.adaptive.tier : Math.min(S.adaptive.tier, cap);
+  /* Y el techo del alumno, si lo tiene, por encima de todo lo demás. */
+  const a = typeof miAdaptacion === 'function' ? miAdaptacion() : { activa: false };
+  return (a.activa && a.techo) ? Math.min(base, enteroSano(a.techo, 5, 1, 5)) : base;
 }
 
 function startMission(branchId, stratumId, kind) {
@@ -10590,7 +10684,9 @@ function startMission(branchId, stratumId, kind) {
   const def = branchDef(branchId);
   if (!def || !stratumHasContent(def, stratumId)) { mission = null; return null; }
 
-  const total = mission.kind === 'bazar' ? ECO().bazarQuestions : ECO().missionQuestions;
+  /* Cuántos retos, ya con la adaptación de este alumno aplicada: quien se
+     cansa a los cuatro no aprende nada de los dos últimos. */
+  const total = retosDeExpedicion(mission.kind);
   mission.tier = entryTier(branchId, stratumId);
   mission.usedIdx = [];   /* para no repetir retos del banco dentro de la misión */
   for (let i = 0; i < total; i++) {
@@ -11246,6 +11342,7 @@ function fichaAlumno(entry, base) {
     accuracy: base.accuracy,
     inFlow: base.accuracy !== null && base.accuracy >= 0.7 && base.accuracy <= 0.85,
     errorRate: base.errorRate, lowQuality: base.lowQuality,
+    adaptado: !!base.adaptado,
     selfCorrections: base.selfCorrections,
     merits: base.merits,
     teamContribution: base.teamContribution,
@@ -11315,6 +11412,7 @@ function baseDesdeResumen(sum) {
     accuracy: numONulo(sum.accuracy),
     errorRate: numONulo(sum.errorRate),
     lowQuality: !!sum.lowQuality,
+    adaptado: !!sum.adaptado,
     selfCorrections: numSeguro(sum.selfCorrections),
     merits: numSeguro(sum.merits),
     teamContribution: numSeguro(sum.teamContribution),
@@ -11392,6 +11490,7 @@ function baseDesdeDiario(s, today) {
     accuracy: arr.length ? arr.reduce((a, b) => a + b, 0) / arr.length : null,
     errorRate: tasaReciente !== null ? tasaReciente : (at ? e / at : null),
     lowQuality: rt.length >= 8 && rt.filter(t => t < 2000).length / rt.length > 0.6,
+    adaptado: typeof adaptacionDe === 'function' ? adaptacionDe(s).activa : false,
     selfCorrections: (s.metrics && s.metrics.self_corrections) || 0,
     merits: ((s.behavior_log || []).length),
     teamContribution: Math.round((s.progression.team_contribution) || 0),
@@ -12013,6 +12112,12 @@ function vozLeer(trozos) {
    encenderlo para toda la clase desde el panel. */
 function vozActiva() {
   if (!VOZ.disponible) return false;
+  /* La adaptación manda sobre la preferencia del niño: si se le ha puesto la
+     lectura porque la necesita, un toque sin querer en su Campamento no puede
+     quitársela para el resto del curso. */
+  const ad = typeof miAdaptacion === 'function' ? miAdaptacion() : { activa: false };
+  if (ad.activa && ad.voz === 'siempre') return true;
+  if (ad.activa && ad.voz === 'nunca') return false;
   const pref = S && S.profile.accessibility ? S.profile.accessibility.read_aloud : undefined;
   if (pref !== undefined) return !!pref;
   if (ATLAS_CONFIG.readAloud === 'todos') return true;
@@ -14394,6 +14499,7 @@ function paintClassView() {
     <div class="student-card${s.needsHelp ? ' student-alert' : ''}">
       <div class="student-head">
         <strong>${esc(s.name)}</strong>
+        ${s.adaptado ? `<span class="student-adaptado" title="Tiene una adaptación: sus señales se leen con eso delante">🧩</span>` : ''}
         <span class="student-rank">Nv. ${s.level} · ${s.rank}</span>
       </div>
       <div class="student-bars">
@@ -15614,6 +15720,123 @@ function motivoDeNube(r) {
   return dichos[razon] || (r && r.detail) || razon || 'error desconocido';
 }
 
+/* ══════════ LA ADAPTACIÓN DE UN ALUMNO ══════════
+
+   Tres o cuatro de una clase de veintidós la necesitan, y hasta ahora el
+   docente no podía decidir nada: el motor ajustaba la dificultad solo y ahí
+   se acababa. Esto le da las cuatro palancas que de verdad se usan en un aula,
+   y una nota para dejar escrito de qué adaptación se trata.
+
+   Se guarda en el diario del alumno, no en la lista de clase, para que viaje
+   con él y se aplique también en casa. Por eso hace falta que su diario esté
+   en este equipo: si no está, se dice en vez de crear uno vacío que acabaría
+   siendo un segundo documento suyo en la nube. */
+let adaptacionAbierta = null;    /* clave del alumno con la ficha abierta */
+
+function panelDeAdaptacion(clave, ficha) {
+  const caja = document.createElement('div');
+  caja.className = 'datos-panel';
+
+  if (!diaryExists(ficha)) {
+    caja.innerHTML = `<div class="datos-cab"><strong>Adaptación de ${esc(ficha.name || '')}</strong>
+      <button class="datos-cerrar" aria-label="Cerrar">✕</button></div>
+      <p class="cfg-hint">Su diario no está en este equipo, y la adaptación se guarda dentro de él
+      para que le acompañe también en casa. Abre tu clase en <strong>Mis clases</strong> —eso trae
+      los diarios— o dale un turno en <strong>Dirigir la clase</strong>, y vuelve aquí.</p>`;
+    caja.querySelector('.datos-cerrar').addEventListener('click', () => {
+      adaptacionAbierta = null; renderTeacherConfig();
+    });
+    return caja;
+  }
+
+  const previo = diarioActivo;
+  openDiary(ficha);
+  const a = miAdaptacion();
+  const eco = ECO();
+  if (previo) openDiaryKey(previo); else closeDiary();
+
+  const dominios = [
+    { v: 0, t: 'El de todos: 80 %' },
+    { v: 0.75, t: '75 %' }, { v: 0.7, t: '70 %' }, { v: 0.65, t: '65 %' },
+    { v: 0.6, t: '60 %' }, { v: 0.55, t: '55 %' }, { v: 0.5, t: '50 %' }
+  ];
+
+  caja.innerHTML = `
+    <div class="datos-cab">
+      <strong>Adaptación de ${esc(ficha.name || '')}</strong>
+      <button class="datos-cerrar" aria-label="Cerrar la ficha de adaptación">✕</button>
+    </div>
+    <label class="cfg-field cfg-field-inline">
+      <span class="cfg-label">Tiene una adaptación</span>
+      <input type="checkbox" id="ad-activa"${a.activa ? ' checked' : ''}>
+      <small class="cfg-hint">Mientras esté apagado, todo lo de abajo se ignora y este alumno
+      juega exactamente igual que el resto. <strong>Él no ve nada de esto</strong>: nota los
+      efectos, nunca la etiqueta.</small>
+    </label>
+
+    <div class="ad-campos${a.activa ? '' : ' ad-apagado'}">
+      ${field('Retos por expedición', `<select id="ad-retos">
+        <option value="0"${!a.retos ? ' selected' : ''}>Los de la clase (${eco.missionQuestions})</option>
+        ${[3, 4, 5, 6, 8, 10].map(n => `<option value="${n}"${a.retos === n ? ' selected' : ''}>${n}</option>`).join('')}
+      </select>`, 'Quien se cansa al cuarto reto no aprende nada de los dos últimos: los falla por cansancio y la app lo apunta como si no lo supiera.')}
+
+      ${field('Lectura en voz alta', `<select id="ad-voz">
+        <option value=""${!a.voz ? ' selected' : ''}>Lo que decida él</option>
+        <option value="siempre"${a.voz === 'siempre' ? ' selected' : ''}>Siempre puesta</option>
+        <option value="nunca"${a.voz === 'nunca' ? ' selected' : ''}>Nunca</option>
+      </select>`, 'Con «siempre», un toque sin querer en su Campamento no puede quitársela para el resto del curso.')}
+
+      ${field('Nivel de dificultad máximo', `<select id="ad-techo">
+        <option value="0"${!a.techo ? ' selected' : ''}>Sin techo (1 a 5)</option>
+        ${[1, 2, 3, 4].map(n => `<option value="${n}"${a.techo === n ? ' selected' : ''}>Hasta ${n}</option>`).join('')}
+      </select>`, 'Impide que una racha con suerte le suba a un nivel donde se hunde y del que tarda tres sesiones en bajar. Bajar nunca se le impide.')}
+
+      ${field('Dominio que le abre el estrato siguiente', `<select id="ad-dominio">
+        ${dominios.map(d => `<option value="${d.v}"${a.dominio === d.v ? ' selected' : ''}>${d.t}</option>`).join('')}
+      </select>`, 'Es la palanca que más cambia su curso. Para quien no va a llegar al 80 %, ese listón no es exigente: es un techo, y se pasa el año en el mismo estrato jugando lo mismo.')}
+
+      <p class="cfg-warn">Esto abre la puerta, <strong>no cambia lo que significa dominar</strong>:
+      en su informe y en la tabla de criterios sigue apareciendo lo que de verdad ha demostrado,
+      con el 80 % de todos. Dejarle avanzar y decir la verdad sobre su dominio son dos cosas
+      distintas, y aquí solo se hace la primera.</p>
+
+      ${field('Qué adaptación es', `<textarea id="ad-nota" rows="3"
+        placeholder="Dislexia. Enunciados leídos y sesiones cortas. Acordado en la reunión de octubre.">${esc(a.nota || '')}</textarea>`,
+        'Para tu registro. No sale en el informe de la familia.')}
+    </div>`;
+
+  caja.querySelector('.datos-cerrar').addEventListener('click', () => {
+    adaptacionAbierta = null; renderTeacherConfig();
+  });
+
+  const escribir = (campo, valor) => {
+    const antes = diarioActivo;
+    openDiary(ficha);
+    S.profile.adaptacion = { ...ADAPTACION_DEFECTO, ...(S.profile.adaptacion || {}), [campo]: valor };
+    saveState();
+    if (antes) openDiaryKey(antes); else closeDiary();
+  };
+
+  const act = caja.querySelector('#ad-activa');
+  act.addEventListener('change', e => {
+    escribir('activa', e.target.checked);
+    renderTeacherConfig();
+  });
+  const num = (sel, campo) => {
+    const el = caja.querySelector(sel);
+    if (el) el.addEventListener('change', e => escribir(campo, +e.target.value));
+  };
+  num('#ad-retos', 'retos');
+  num('#ad-techo', 'techo');
+  num('#ad-dominio', 'dominio');
+  const voz = caja.querySelector('#ad-voz');
+  if (voz) voz.addEventListener('change', e => escribir('voz', e.target.value));
+  const nota = caja.querySelector('#ad-nota');
+  if (nota) nota.addEventListener('change', e => escribir('nota', String(e.target.value).slice(0, 400)));
+
+  return caja;
+}
+
 /* ══════════ LA FICHA DE DATOS DE UN ALUMNO ══════════
 
    La portada le promete a la familia dos cosas: que puede pedir ver lo que se
@@ -15879,6 +16102,9 @@ function cfgAlumnado(body) {
         <div class="cfg-card cfg-student">
           <div class="cfg-row">
             <input type="text" class="ros-name" data-i="${i}" value="${esc(r.name || '')}" placeholder="Nombre">
+            <button class="cfg-datos" data-adapta="${esc(diaryKey(r))}"
+              title="Adaptación de ${esc(r.name || 'este alumno')}"
+              aria-label="Adaptación de ${esc(r.name || 'este alumno')}">🧩</button>
             <button class="cfg-datos" data-datos="${esc(diaryKey(r))}"
               title="Qué se guarda de ${esc(r.name || 'este alumno')}"
               aria-label="Ver qué se guarda de ${esc(r.name || 'este alumno')}">🔐</button>
@@ -15901,6 +16127,7 @@ function cfgAlumnado(body) {
                <strong>Lo que los separa es el usuario</strong> (${esc(r.username || 'sin usuario')}),
                así que asegúrate de que el curso de cada uno es el suyo.</p>`
             : ''}
+          ${diaryKey(r) === adaptacionAbierta ? `<div data-panel-adapta="${i}"></div>` : ''}
           ${diaryKey(r) === fichaDeDatos ? '<div data-panel-datos="1"></div>' : ''}
           ${(() => {
             /* Lo que impide que este alumno entre, dicho en su propia ficha.
@@ -16004,10 +16231,22 @@ function cfgAlumnado(body) {
      al alumno del que habla, no en un cajón aparte al final de la lista. */
   const hueco = $('[data-panel-datos]');
   if (hueco && fichaDeDatos) hueco.replaceWith(panelDeDatos(fichaDeDatos));
+  const huecoAd = $('[data-panel-adapta]');
+  if (huecoAd && adaptacionAbierta) {
+    huecoAd.replaceWith(panelDeAdaptacion(adaptacionAbierta, roster[+huecoAd.dataset.panelAdapta] || {}));
+  }
+
+  $$('[data-adapta]').forEach(el => el.addEventListener('click', () => {
+    const k = el.dataset.adapta;
+    adaptacionAbierta = adaptacionAbierta === k ? null : k;
+    fichaDeDatos = null;
+    renderTeacherConfig();
+  }));
 
   $$('[data-datos]').forEach(el => el.addEventListener('click', () => {
     const k = el.dataset.datos;
     fichaDeDatos = fichaDeDatos === k ? null : k;
+    adaptacionAbierta = null;
     renderTeacherConfig();
   }));
 

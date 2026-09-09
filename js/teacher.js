@@ -443,6 +443,123 @@ function motivoDeNube(r) {
   return dichos[razon] || (r && r.detail) || razon || 'error desconocido';
 }
 
+/* ══════════ LA ADAPTACIÓN DE UN ALUMNO ══════════
+
+   Tres o cuatro de una clase de veintidós la necesitan, y hasta ahora el
+   docente no podía decidir nada: el motor ajustaba la dificultad solo y ahí
+   se acababa. Esto le da las cuatro palancas que de verdad se usan en un aula,
+   y una nota para dejar escrito de qué adaptación se trata.
+
+   Se guarda en el diario del alumno, no en la lista de clase, para que viaje
+   con él y se aplique también en casa. Por eso hace falta que su diario esté
+   en este equipo: si no está, se dice en vez de crear uno vacío que acabaría
+   siendo un segundo documento suyo en la nube. */
+let adaptacionAbierta = null;    /* clave del alumno con la ficha abierta */
+
+function panelDeAdaptacion(clave, ficha) {
+  const caja = document.createElement('div');
+  caja.className = 'datos-panel';
+
+  if (!diaryExists(ficha)) {
+    caja.innerHTML = `<div class="datos-cab"><strong>Adaptación de ${esc(ficha.name || '')}</strong>
+      <button class="datos-cerrar" aria-label="Cerrar">✕</button></div>
+      <p class="cfg-hint">Su diario no está en este equipo, y la adaptación se guarda dentro de él
+      para que le acompañe también en casa. Abre tu clase en <strong>Mis clases</strong> —eso trae
+      los diarios— o dale un turno en <strong>Dirigir la clase</strong>, y vuelve aquí.</p>`;
+    caja.querySelector('.datos-cerrar').addEventListener('click', () => {
+      adaptacionAbierta = null; renderTeacherConfig();
+    });
+    return caja;
+  }
+
+  const previo = diarioActivo;
+  openDiary(ficha);
+  const a = miAdaptacion();
+  const eco = ECO();
+  if (previo) openDiaryKey(previo); else closeDiary();
+
+  const dominios = [
+    { v: 0, t: 'El de todos: 80 %' },
+    { v: 0.75, t: '75 %' }, { v: 0.7, t: '70 %' }, { v: 0.65, t: '65 %' },
+    { v: 0.6, t: '60 %' }, { v: 0.55, t: '55 %' }, { v: 0.5, t: '50 %' }
+  ];
+
+  caja.innerHTML = `
+    <div class="datos-cab">
+      <strong>Adaptación de ${esc(ficha.name || '')}</strong>
+      <button class="datos-cerrar" aria-label="Cerrar la ficha de adaptación">✕</button>
+    </div>
+    <label class="cfg-field cfg-field-inline">
+      <span class="cfg-label">Tiene una adaptación</span>
+      <input type="checkbox" id="ad-activa"${a.activa ? ' checked' : ''}>
+      <small class="cfg-hint">Mientras esté apagado, todo lo de abajo se ignora y este alumno
+      juega exactamente igual que el resto. <strong>Él no ve nada de esto</strong>: nota los
+      efectos, nunca la etiqueta.</small>
+    </label>
+
+    <div class="ad-campos${a.activa ? '' : ' ad-apagado'}">
+      ${field('Retos por expedición', `<select id="ad-retos">
+        <option value="0"${!a.retos ? ' selected' : ''}>Los de la clase (${eco.missionQuestions})</option>
+        ${[3, 4, 5, 6, 8, 10].map(n => `<option value="${n}"${a.retos === n ? ' selected' : ''}>${n}</option>`).join('')}
+      </select>`, 'Quien se cansa al cuarto reto no aprende nada de los dos últimos: los falla por cansancio y la app lo apunta como si no lo supiera.')}
+
+      ${field('Lectura en voz alta', `<select id="ad-voz">
+        <option value=""${!a.voz ? ' selected' : ''}>Lo que decida él</option>
+        <option value="siempre"${a.voz === 'siempre' ? ' selected' : ''}>Siempre puesta</option>
+        <option value="nunca"${a.voz === 'nunca' ? ' selected' : ''}>Nunca</option>
+      </select>`, 'Con «siempre», un toque sin querer en su Campamento no puede quitársela para el resto del curso.')}
+
+      ${field('Nivel de dificultad máximo', `<select id="ad-techo">
+        <option value="0"${!a.techo ? ' selected' : ''}>Sin techo (1 a 5)</option>
+        ${[1, 2, 3, 4].map(n => `<option value="${n}"${a.techo === n ? ' selected' : ''}>Hasta ${n}</option>`).join('')}
+      </select>`, 'Impide que una racha con suerte le suba a un nivel donde se hunde y del que tarda tres sesiones en bajar. Bajar nunca se le impide.')}
+
+      ${field('Dominio que le abre el estrato siguiente', `<select id="ad-dominio">
+        ${dominios.map(d => `<option value="${d.v}"${a.dominio === d.v ? ' selected' : ''}>${d.t}</option>`).join('')}
+      </select>`, 'Es la palanca que más cambia su curso. Para quien no va a llegar al 80 %, ese listón no es exigente: es un techo, y se pasa el año en el mismo estrato jugando lo mismo.')}
+
+      <p class="cfg-warn">Esto abre la puerta, <strong>no cambia lo que significa dominar</strong>:
+      en su informe y en la tabla de criterios sigue apareciendo lo que de verdad ha demostrado,
+      con el 80 % de todos. Dejarle avanzar y decir la verdad sobre su dominio son dos cosas
+      distintas, y aquí solo se hace la primera.</p>
+
+      ${field('Qué adaptación es', `<textarea id="ad-nota" rows="3"
+        placeholder="Dislexia. Enunciados leídos y sesiones cortas. Acordado en la reunión de octubre.">${esc(a.nota || '')}</textarea>`,
+        'Para tu registro. No sale en el informe de la familia.')}
+    </div>`;
+
+  caja.querySelector('.datos-cerrar').addEventListener('click', () => {
+    adaptacionAbierta = null; renderTeacherConfig();
+  });
+
+  const escribir = (campo, valor) => {
+    const antes = diarioActivo;
+    openDiary(ficha);
+    S.profile.adaptacion = { ...ADAPTACION_DEFECTO, ...(S.profile.adaptacion || {}), [campo]: valor };
+    saveState();
+    if (antes) openDiaryKey(antes); else closeDiary();
+  };
+
+  const act = caja.querySelector('#ad-activa');
+  act.addEventListener('change', e => {
+    escribir('activa', e.target.checked);
+    renderTeacherConfig();
+  });
+  const num = (sel, campo) => {
+    const el = caja.querySelector(sel);
+    if (el) el.addEventListener('change', e => escribir(campo, +e.target.value));
+  };
+  num('#ad-retos', 'retos');
+  num('#ad-techo', 'techo');
+  num('#ad-dominio', 'dominio');
+  const voz = caja.querySelector('#ad-voz');
+  if (voz) voz.addEventListener('change', e => escribir('voz', e.target.value));
+  const nota = caja.querySelector('#ad-nota');
+  if (nota) nota.addEventListener('change', e => escribir('nota', String(e.target.value).slice(0, 400)));
+
+  return caja;
+}
+
 /* ══════════ LA FICHA DE DATOS DE UN ALUMNO ══════════
 
    La portada le promete a la familia dos cosas: que puede pedir ver lo que se
@@ -708,6 +825,9 @@ function cfgAlumnado(body) {
         <div class="cfg-card cfg-student">
           <div class="cfg-row">
             <input type="text" class="ros-name" data-i="${i}" value="${esc(r.name || '')}" placeholder="Nombre">
+            <button class="cfg-datos" data-adapta="${esc(diaryKey(r))}"
+              title="Adaptación de ${esc(r.name || 'este alumno')}"
+              aria-label="Adaptación de ${esc(r.name || 'este alumno')}">🧩</button>
             <button class="cfg-datos" data-datos="${esc(diaryKey(r))}"
               title="Qué se guarda de ${esc(r.name || 'este alumno')}"
               aria-label="Ver qué se guarda de ${esc(r.name || 'este alumno')}">🔐</button>
@@ -730,6 +850,7 @@ function cfgAlumnado(body) {
                <strong>Lo que los separa es el usuario</strong> (${esc(r.username || 'sin usuario')}),
                así que asegúrate de que el curso de cada uno es el suyo.</p>`
             : ''}
+          ${diaryKey(r) === adaptacionAbierta ? `<div data-panel-adapta="${i}"></div>` : ''}
           ${diaryKey(r) === fichaDeDatos ? '<div data-panel-datos="1"></div>' : ''}
           ${(() => {
             /* Lo que impide que este alumno entre, dicho en su propia ficha.
@@ -833,10 +954,22 @@ function cfgAlumnado(body) {
      al alumno del que habla, no en un cajón aparte al final de la lista. */
   const hueco = $('[data-panel-datos]');
   if (hueco && fichaDeDatos) hueco.replaceWith(panelDeDatos(fichaDeDatos));
+  const huecoAd = $('[data-panel-adapta]');
+  if (huecoAd && adaptacionAbierta) {
+    huecoAd.replaceWith(panelDeAdaptacion(adaptacionAbierta, roster[+huecoAd.dataset.panelAdapta] || {}));
+  }
+
+  $$('[data-adapta]').forEach(el => el.addEventListener('click', () => {
+    const k = el.dataset.adapta;
+    adaptacionAbierta = adaptacionAbierta === k ? null : k;
+    fichaDeDatos = null;
+    renderTeacherConfig();
+  }));
 
   $$('[data-datos]').forEach(el => el.addEventListener('click', () => {
     const k = el.dataset.datos;
     fichaDeDatos = fichaDeDatos === k ? null : k;
+    adaptacionAbierta = null;
     renderTeacherConfig();
   }));
 
