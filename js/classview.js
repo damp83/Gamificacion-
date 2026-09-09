@@ -70,8 +70,20 @@ function errorLectura(e) {
 /* Convierte los documentos crudos en entradas legibles.
    Cada entrada trae {summary} (camino rápido) o {state} (diarios guardados
    antes de que existiera el resumen, o lectura de respaldo). */
+/* Los documentos que esta lectura ha tenido que descartar, con el porqué.
+   Antes se saltaban en silencio y el niño desaparecía de la pantalla sin que
+   nadie supiera que existía: no salía en la vista de clase, no salía en la
+   lista de quien no ha entrado —porque entrar, entró— y su trabajo seguía
+   arriba, ilegible. El panel de salud los nombra. */
+let docsDescartados = [];
+function descartadosDeLaNube() { return docsDescartados.slice(); }
+
 function parseClassDocs(docs) {
   const out = [];
+  docsDescartados = [];
+  const fuera = (d, motivo) => docsDescartados.push({
+    id: d.$id, name: textoSeguro(d.name, 64) || '', motivo
+  });
   for (const d of docs) {
     if (d.summary) {
       let sum = null;
@@ -81,10 +93,11 @@ function parseClassDocs(docs) {
         continue;
       }
     }
-    if (!d.state) continue;                                  /* nada legible */
+    if (!d.state) { fuera(d, 'vacio'); continue; }            /* nada legible */
     let st = null;
-    try { st = JSON.parse(d.state); } catch (e) { continue; } /* diario ilegible */
-    if (!st || !st.profile) continue;
+    try { st = JSON.parse(d.state); }
+    catch (e) { fuera(d, 'ilegible'); continue; }             /* diario ilegible */
+    if (!st || !st.profile) { fuera(d, 'sin-perfil'); continue; }
     out.push({ id: d.$id, name: textoSeguro(d.name || st.profile.explorer_name, 64) || 'Explorador', state: st });
   }
   return out;
@@ -544,4 +557,234 @@ function sortStudents(list, mode) {
     b.signals.length - a.signals.length ||
     a.mastered - b.mastered ||
     a.name.localeCompare(b.name, 'es'));
+}
+
+/* ══════════════════════════════════════════════════════════════════════════
+   SALUD DE LA CLASE
+
+   El fallo más caro de esta plataforma no es un cálculo mal hecho: es que una
+   tablet lleve una semana sin sincronizar y nadie se entere hasta que el
+   trabajo ya no está. Todo lo que se pierde en silencio se pierde por lo
+   mismo —el aviso llega cuando ya no hay nada que hacer— y estaba repartido
+   por seis pantallas distintas: la barra de guardado, el estado de los
+   ajustes, el diálogo de la IA, la fecha de la copia.
+
+   Esto lo reúne en una lista ordenada por lo que cuesta cada cosa. Es una
+   función PURA: recibe lo ya medido y devuelve los hallazgos, para poder
+   probar cada aviso sin red, sin reloj y sin tablet.
+
+   Dos reglas de redacción, porque un panel de avisos que no se puede atender
+   se aprende a ignorar en dos semanas:
+     · Cada hallazgo dice qué se pierde, no qué ha fallado.
+     · Cada hallazgo dice qué hacer, aunque sea «no se puede, y por esto». */
+
+const SALUD_DIAS_CALLADA = 7;      /* sin dar señales, para una tablet propia */
+const SALUD_DIAS_COPIA = 30;       /* sin copia de seguridad */
+const SALUD_SITIO_GRAVE = 0.8;     /* del cupo estimado del navegador */
+const SALUD_SITIO_AVISO = 0.6;
+const SALUD_AJUSTES_AVISO = 0.8;   /* del tope del campo de la clase */
+
+function diasDesde(marca, hoy) {
+  if (!marca) return null;
+  return Math.floor((hoy - Number(marca)) / 86400000);
+}
+
+/* «hace 3 días», «hoy», «hace 2 meses»: la fecha exacta no ayuda a decidir. */
+function haceCuanto(marca, hoy) {
+  const d = diasDesde(marca, hoy);
+  if (d === null) return 'nunca';
+  if (d <= 0) return 'hoy';
+  if (d === 1) return 'ayer';
+  if (d < 60) return `hace ${d} días`;
+  return `hace ${Math.floor(d / 30)} meses`;
+}
+
+function nombresDe(lista, tope) {
+  const n = lista.slice(0, tope || 6).map(x => x.nombre || x.name || x.clave || x.id);
+  return lista.length > n.length ? n.join(', ') + ` y ${lista.length - n.length} más` : n.join(', ');
+}
+
+function analizarSalud(d) {
+  const hoy = Number(d.hoy) || Date.now();
+  const out = [];
+  const add = (nivel, id, titulo, detalle, accion, quienes) =>
+    out.push({ id, nivel, titulo, detalle, accion, quienes: quienes || [] });
+
+  /* ── 1. Este equipo no puede guardar ──
+     Va la primera porque mientras dure, nada de lo demás importa: cada
+     respuesta que el docente marca hoy desaparece al cerrar la pestaña. */
+  if (d.guardadoRoto) {
+    add('grave', 'guardado-roto', 'Este equipo no puede guardar',
+      'Lo que se juegue o se apunte ahora desaparece al cerrar la pestaña. Pasa con el '
+      + 'almacenamiento lleno, en ventana privada, o con el navegador puesto en borrar datos al salir.',
+      'Descarga una copia de seguridad AHORA, antes de tocar nada más, y abre la app en una ventana normal.');
+  }
+
+  /* ── 2. Diarios que no se pueden leer ── */
+  const ilegibles = d.ilegiblesAqui || [];
+  if (ilegibles.length) {
+    add('grave', 'ilegibles-aqui',
+      `${ilegibles.length} ${ilegibles.length === 1 ? 'diario ilegible' : 'diarios ilegibles'} en este equipo`,
+      'Están guardados pero no se pueden abrir, así que ese alumno no sale en la vista de clase '
+      + 'y su progreso no cuenta en ninguna parte: ' + ilegibles.join(', ') + '.',
+      'Si tienes una copia de seguridad anterior, restaúrala: es lo único que los recupera.',
+      ilegibles);
+  }
+  const rotosArriba = (d.descartados || []).filter(x => x.motivo !== 'vacio');
+  if (rotosArriba.length) {
+    add('grave', 'ilegibles-nube',
+      `${rotosArriba.length} ${rotosArriba.length === 1 ? 'diario ilegible' : 'diarios ilegibles'} en la nube`,
+      'La clase los tiene guardados pero no se pueden leer, así que esos alumnos no aparecen en la '
+      + 'vista de clase aunque hayan estado jugando: ' + nombresDe(rotosArriba) + '.',
+      'Si ese alumno todavía tiene su diario en su tablet, que entre con la app: al guardar lo escribe entero otra vez.',
+      rotosArriba.map(x => x.name || x.id));
+  }
+  const vacios = (d.descartados || []).filter(x => x.motivo === 'vacio');
+  if (vacios.length) {
+    add('aviso', 'vacios-nube', `${vacios.length} ${vacios.length === 1 ? 'diario vacío' : 'diarios vacíos'} en la nube`,
+      'Existe el documento pero no tiene nada dentro: ' + nombresDe(vacios) + '. Suele ser una cuenta '
+      + 'creada que todavía no ha jugado, y entonces no es un problema.',
+      'Si ese alumno sí ha jugado, su trabajo está solo en su tablet: que entre con red.',
+      vacios.map(x => x.name || x.id));
+  }
+
+  /* ── 3. Trabajo que no ha salido de este equipo ── */
+  const sinSubir = d.sinSubir || [];
+  if (sinSubir.length && d.claseAbierta) {
+    const dias = diasDesde(sinSubir[0].cambiado, hoy);
+    const viejo = dias !== null && dias >= 1;
+    add(viejo ? 'grave' : 'aviso', 'sin-subir',
+      `${sinSubir.length} ${sinSubir.length === 1 ? 'diario sin subir' : 'diarios sin subir'} a la clase`,
+      `Están guardados aquí y su último cambio no consta arriba. El más antiguo es de ${
+        haceCuanto(sinSubir[0].cambiado, hoy)}: ${nombresDe(sinSubir)}.`
+      + (viejo ? ' Si esta tablet se formatea o se limpia, ese trabajo no está en ningún otro sitio.' : ''),
+      'Con red y la clase abierta se reintenta solo. Si lleva días sin bajar, descarga una copia de seguridad.',
+      sinSubir.map(x => x.nombre));
+  }
+
+  /* ── 4. Tablets que llevan días calladas ──
+     Solo tiene sentido con alumnado que entra con su cuenta: en clase
+     dirigida los diarios están aquí y lo de arriba ya lo cubre. */
+  const calladas = (d.calladas || []).filter(x => {
+    const dd = diasDesde(x.visto, hoy);
+    return dd === null || dd >= SALUD_DIAS_CALLADA;
+  });
+  if (calladas.length) {
+    add('aviso', 'calladas',
+      `${calladas.length} ${calladas.length === 1 ? 'tablet lleva' : 'tablets llevan'} más de ${SALUD_DIAS_CALLADA} días sin sincronizar`,
+      'El último diario suyo que ha llegado a la clase es de ' + haceCuanto(calladas[0].visto, hoy)
+      + `: ${nombresDe(calladas)}. Si han jugado desde entonces, ese trabajo está solo en su tablet.`,
+      'Que abran la app con wifi un momento: al entrar sube lo que tengan. Si no vuelven a conectar, se pierde.',
+      calladas.map(x => x.nombre));
+  }
+
+  /* ── 5. Nada de esto está en la nube ── */
+  if (!d.claseAbierta) {
+    const dias = diasDesde(d.backupAt, hoy);
+    add(dias === null || dias >= SALUD_DIAS_COPIA ? 'grave' : 'aviso', 'sin-nube',
+      'El curso entero vive en este equipo',
+      'No hay clase abierta en la nube, así que los diarios, los méritos y los ajustes están solo aquí. '
+      + 'Un perfil de navegador que se limpia al cerrar sesión —lo normal en un equipo de centro— se lo lleva todo. '
+      + `Última copia de seguridad: ${haceCuanto(d.backupAt, hoy)}.`,
+      'Abre una clase en «Mis clases», o descarga una copia cada viernes.');
+  } else {
+    const dias = diasDesde(d.backupAt, hoy);
+    if (dias === null || dias >= SALUD_DIAS_COPIA) {
+      add('aviso', 'sin-copia', `Sin copia de seguridad desde ${haceCuanto(d.backupAt, hoy)}`,
+        'La nube guarda los diarios y los ajustes, pero no las contraseñas del alumnado en claro: esas '
+        + 'solo están en tu equipo y en la copia. Appwrite guarda un resumen, no la contraseña, así que '
+        + 'si se pierden no hay de dónde sacarlas.',
+        'Configuración → Copia de seguridad → Descargar. Es un fichero y tarda un segundo.');
+    }
+  }
+
+  /* ── 6. Ajustes sin subir ── */
+  if (d.ajustes && d.ajustes.estado === 'pendiente') {
+    add('aviso', 'ajustes-pendientes', 'Los ajustes de la clase no han subido',
+      'Los retos que has aprobado, los comportamientos y el almacén están guardados aquí pero no en la clase, '
+      + 'así que las tablets del alumnado siguen con los de antes'
+      + (d.ajustes.detalle ? ` (${d.ajustes.detalle})` : '') + '.',
+      'Se reintenta solo con red. Si no se quita, comprueba la conexión en «Acceso y nube».');
+  }
+
+  /* ── 7. La IA está parada ── */
+  if (d.falloIA) {
+    const textos = {
+      saldo: 'La cuenta de la API se quedó sin saldo',
+      clave: 'La clave de la API no vale o ha caducado',
+      workspace: 'A la clave le falta su espacio de trabajo'
+    };
+    const acciones = {
+      saldo: 'Recarga en console.anthropic.com → Billing. Hasta entonces, los retos hay que escribirlos a mano.',
+      clave: 'Crea una nueva en console.anthropic.com → API keys y pégala en «Retos con IA».',
+      workspace: 'Pega el ID del espacio en «Retos con IA», debajo de la clave.'
+    };
+    add('grave', 'ia-parada', textos[d.falloIA.motivo] || 'La generación de retos está parada',
+      `Pasó ${haceCuanto(d.falloIA.at, hoy)} y no se arregla solo: hasta que se toque, «Generar retos» va a `
+      + 'fallar igual. Se avisa aquí para que no te enteres el día que la necesites, con la clase delante.',
+      acciones[d.falloIA.motivo] || 'Revisa la clave en «Retos con IA».');
+  }
+
+  /* ── 8. Se está llenando el equipo ── */
+  const sitio = d.sitio;
+  if (sitio && sitio.parte >= SALUD_SITIO_AVISO) {
+    const pct = Math.round(sitio.parte * 100);
+    add(sitio.parte >= SALUD_SITIO_GRAVE ? 'grave' : 'aviso', 'sitio',
+      `Este equipo va por el ${pct} % de su espacio`,
+      'Es una estimación: el navegador no dice cuánto cupo da, y se calcula sobre los 5 MB de costumbre. '
+      + 'Cuando se llena, guardar deja de funcionar sin avisar antes.',
+      'Descarga una copia y luego cierra las clases que ya no uses: eso vacía sus diarios de este equipo.');
+  }
+
+  /* ── 9. Los ajustes no van a caber ── */
+  if (d.tamanoAjustes && d.configMax && d.tamanoAjustes >= d.configMax * SALUD_AJUSTES_AVISO) {
+    const pct = Math.round((d.tamanoAjustes / d.configMax) * 100);
+    add(d.tamanoAjustes >= d.configMax ? 'grave' : 'aviso', 'ajustes-grandes',
+      `Los ajustes ocupan el ${pct} % de lo que admite la clase`,
+      `Lo que más pesa son los ${d.retosEnAjustes || 0} retos escritos a mano que todavía viajan dentro. `
+      + 'Cuando pase del tope, los ajustes dejan de subir y las tablets se quedan con los de antes.',
+      'Los retos nuevos ya van en su propia tabla. Los viejos se pueden borrar de «Yacimientos y pozos» una vez pasados.');
+  }
+
+  /* ── 10. Contraseñas que solo están aquí ── */
+  if (d.hayContrasenas && !d.rosterAt) {
+    add('aviso', 'contrasenas-solo-aqui', 'Las contraseñas del alumnado no están guardadas fuera de este equipo',
+      'Están en la lista de clase de esta tablet y en ningún otro sitio. Si cambias de equipo, o si este se '
+      + 'limpia, hay que volver a repartir contraseñas nuevas a toda la clase.',
+      'Abre una clase en «Mis clases»: la lista se guarda en un documento que solo lee tu cuenta. O descarga una copia.');
+  }
+
+  /* ── 11. Cuentas sin identificador ── */
+  const sinId = d.cuentasSinId || [];
+  if (sinId.length) {
+    add('aviso', 'cuentas-sin-id',
+      `${sinId.length} ${sinId.length === 1 ? 'cuenta creada sin' : 'cuentas creadas sin'} su identificador`,
+      'Se dieron de alta antes de que se guardara el id, y sin él sus diarios no se pueden vincular a esta clase: '
+      + `${nombresDe(sinId)}. Existen y funcionan, pero la vista de clase no sabe que son tuyos.`,
+      'Alumnado → 🔎 Buscar el diario: los empareja por el nombre y rellena lo que falta.',
+      sinId.map(x => x.nombre || x.name));
+  }
+
+  /* ── 12. Quien no ha entrado nunca ──
+     Lo último y como aviso suave: no se pierde nada, pero en octubre conviene
+     saber quién lleva dos meses sin abrir la app. */
+  const sinEntrar = d.sinEntrar || [];
+  if (sinEntrar.length) {
+    add('aviso', 'sin-entrar', `${sinEntrar.length} de la lista no ${sinEntrar.length === 1 ? 'ha' : 'han'} entrado nunca`,
+      'No tienen diario ni aquí ni en la clase: ' + nombresDe(sinEntrar) + '.',
+      'Comprueba que tienen su línea de la hoja de credenciales y que el usuario está bien escrito.',
+      sinEntrar.map(x => x.nombre || x.name));
+  }
+
+  const orden = { grave: 0, aviso: 1 };
+  return out.sort((a, b) => orden[a.nivel] - orden[b.nivel]);
+}
+
+/* Un solo número para la cabecera: lo peor que hay. */
+function veredictoDeSalud(hallazgos) {
+  const graves = hallazgos.filter(h => h.nivel === 'grave').length;
+  const avisos = hallazgos.length - graves;
+  if (graves) return { nivel: 'grave', graves, avisos };
+  if (avisos) return { nivel: 'aviso', graves: 0, avisos };
+  return { nivel: 'bien', graves: 0, avisos: 0 };
 }

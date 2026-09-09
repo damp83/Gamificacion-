@@ -1631,6 +1631,29 @@ body.en-mision #main { padding-bottom: var(--s-5); }
   font-size: var(--t-sm); color: #7d2d1c; background: var(--danger-tint);
   border-left: 4px solid var(--danger); border-radius: var(--r-md); padding: .6rem .8rem;
 }
+
+/* ── Salud de la clase ──
+   Dos colores y nada más. El rojo es «se está perdiendo trabajo ahora» y el
+   latón «va a doler pronto»; con cinco tonos el docente tendría que aprenderse
+   una leyenda para leer un aviso. */
+.salud-veredicto {
+  font-size: var(--t-sm); border-radius: var(--r-md); padding: .7rem .9rem;
+  margin: 0 0 var(--s-4); border-left: 4px solid var(--brass);
+  background: var(--paper-deep); color: var(--leather-dark);
+}
+.salud-veredicto.salud-grave { background: var(--danger-tint); border-left-color: var(--danger); color: #7d2d1c; }
+.salud-veredicto.salud-bien { background: var(--jungle-tint); border-left-color: var(--jungle); color: #2c4f25; }
+
+.salud-item {
+  border-left: 4px solid var(--brass); background: var(--surface);
+  border-radius: var(--r-md); padding: .7rem .9rem; margin: 0 0 var(--s-3);
+}
+.salud-item.salud-grave { border-left-color: var(--danger); background: var(--danger-tint); }
+.salud-titulo { margin: 0 0 .3rem; font-weight: 600; color: var(--leather-dark); }
+.salud-detalle { margin: 0 0 .35rem; font-size: var(--t-sm); line-height: 1.5; }
+/* Lo que hay que hacer se lee aunque el docente solo mire una línea. */
+.salud-accion { margin: 0; font-size: var(--t-sm); line-height: 1.5; color: var(--leather); }
+
 .cfg-body input[type="text"], .cfg-body input[type="number"],
 .cfg-body input[type="date"], .cfg-body input[type="password"],
 .cfg-body select, .cfg-body textarea {
@@ -5980,7 +6003,7 @@ function cruzarVerificacion(retos, respuestas) {
    copia guardada. Sin este número, «ya está arreglado» y «a mí no me pasa» son
    indistinguibles. Va junto al nombre de la caché del service worker, y una
    prueba comprueba que no se separen. */
-const ATLAS_VERSION = 'v76';
+const ATLAS_VERSION = 'v77';
 
 const ATLAS_DEFAULTS = {
 
@@ -6792,6 +6815,10 @@ async function ejecutarConReintento(id, cuerpo, avisar) {
   let ultimo = null;
   for (let intento = 0; intento <= ESPERAS.length; intento++) {
     const r = await ejecutarGenerador(id, cuerpo);
+    /* Un «sin saldo» o una clave caducada no se arreglan solos y dejan muerta
+       la generación de retos hasta que alguien toca algo. Se recuerda para que
+       el panel de salud lo diga hoy y no el día que haga falta generar. */
+    if (typeof apuntarResultadoIA === 'function') apuntarResultadoIA(r);
     if (r.ok || !r.reintentable) return r;
     ultimo = r;
     if (intento < ESPERAS.length) {
@@ -8168,6 +8195,45 @@ async function cloudPullAula(aulaId) {
   } catch (e) { return errorNube(e); }
 }
 
+/* ── Cuándo llegó por última vez el diario de cada uno ──
+   Para el panel de salud, y solo eso: se piden cuatro campos por documento
+   —no el diario, que son 20 KB por alumno— porque la pregunta es «¿cuándo
+   sincronizó esta tablet?» y no «¿qué ha hecho?». En una clase de 25 son
+   dos kilobytes.
+
+   Va aparte de fetchClassDocs() a propósito: aquella lee resúmenes para
+   pintar la clase y no necesita saber la fecha; esta necesita la fecha y no
+   necesita el resumen. Meterlas en una sola habría hecho que la vista de
+   clase se trajera de más en cada apertura. */
+async function cloudPulsoDeLosDiarios() {
+  if (!aulasOn()) return { ok: false, reason: 'sin-nube' };
+  if (!CLOUD.user) return { ok: false, reason: 'sin-sesion' };
+  const aula = aulaActiva();
+  if (!aula) return { ok: false, reason: 'sin-aula' };
+  const c = ATLAS_CONFIG.appwrite;
+  const CAMPOS = ['$id', 'name', 'updated_at', '$updatedAt'];
+  const out = [];
+  try {
+    let cursor = null;
+    for (let p = 0; p < 20; p++) {
+      const q = [Appwrite.Query.equal('aula', aula), Appwrite.Query.limit(AULA_PAGE)];
+      if (Appwrite.Query.select) q.push(Appwrite.Query.select(CAMPOS));
+      if (cursor) q.push(Appwrite.Query.cursorAfter(cursor));
+      const res = await CLOUD.db.listDocuments(c.databaseId, c.collectionId, q);
+      for (const d of res.documents) {
+        /* updated_at lo escribe el diario; $updatedAt lo pone Appwrite. Se
+           usa el mayor: un diario viejo guardado hoy sincronizó hoy. */
+        const propio = Number(d.updated_at) || 0;
+        const suyo = d.$updatedAt ? new Date(d.$updatedAt).getTime() : 0;
+        out.push({ id: d.$id, nombre: d.name || '', visto: Math.max(propio, suyo || 0) });
+      }
+      if (res.documents.length < AULA_PAGE) break;
+      cursor = res.documents[res.documents.length - 1].$id;
+    }
+    return { ok: true, diarios: out };
+  } catch (e) { return errorNube(e); }
+}
+
 /* Reparto estable de una cadena en 13 caracteres base36 (≈67 bits).
    Dos pasadas FNV-1a con constantes distintas: no es criptográfico —no le
    hace falta— y solo tiene que repartir bien y dar SIEMPRE lo mismo en
@@ -8231,11 +8297,13 @@ async function cloudPushDiario(clave, estado) {
   try {
     await CLOUD.db.updateDocument(c.databaseId, c.collectionId, id, data);
     recordarDocId(clave, id);
+    apuntarSubida(clave, data.updated_at);
     return { ok: true, id };
   } catch (e) {
     try {
       await CLOUD.db.createDocument(c.databaseId, c.collectionId, id, data, permisosDeAula(uid));
       recordarDocId(clave, id);
+      apuntarSubida(clave, data.updated_at);
       return { ok: true, id, creado: true };
     } catch (e2) { return errorNube(e2); }
   }
@@ -9068,6 +9136,100 @@ function recordarDocId(clave, docId) {
   saveDocIds(map);
 }
 function docIdConocido(clave) { return loadDocIds()[clave] || ''; }
+
+/* ══════════ QUÉ SE HA SUBIDO Y CUÁNDO ══════════
+
+   Un diario se guarda aquí al instante y sube tres segundos después. Si la
+   subida falla —el wifi del centro, la sesión caducada, la tablet en el
+   armario— se reintenta, y si no vuelve a haber red nadie se entera. El
+   trabajo existe: existe SOLO en este equipo, que es exactamente lo que se
+   pierde cuando la tablet se formatea en enero.
+
+   Esto apunta, por cada diario, la marca de tiempo que sí llegó arriba. Con
+   eso el panel de salud puede decir «lo de Nadia del martes no ha salido de
+   aquí» en vez de que se descubra en junio. */
+const SUBIDAS_KEY = 'atlas_subidas_v1';
+function loadSubidas() {
+  try { return JSON.parse(localStorage.getItem(SUBIDAS_KEY) || '{}') || {}; }
+  catch (e) { return {}; }
+}
+function apuntarSubida(clave, updatedAt) {
+  if (!clave) return;
+  const map = loadSubidas();
+  map[clave] = { upd: Number(updatedAt) || 0, at: Date.now() };
+  try { localStorage.setItem(SUBIDAS_KEY, JSON.stringify(map)); }
+  catch (e) { /* sin almacenamiento: el panel lo dirá por otro lado */ }
+}
+
+/* Los diarios de este equipo cuyo último cambio NO ha llegado a la nube.
+   Un diario del que no hay ninguna subida apuntada cuenta como pendiente:
+   es lo honrado —no consta que haya salido de aquí— y es lo que pasa con
+   todo lo jugado antes de que existiera este registro. */
+function diariosSinSubir() {
+  const map = loadDiaries();
+  const subidas = loadSubidas();
+  const out = [];
+  for (const k in map) {
+    const upd = Number(map[k] && map[k].updated_at) || 0;
+    const s = subidas[k];
+    if (s && Number(s.upd) >= upd) continue;
+    let nombre = k;
+    try { nombre = (map[k].profile && map[k].profile.explorer_name) || k; } catch (e) { /* clave */ }
+    out.push({ clave: k, nombre, cambiado: upd, subido: s ? Number(s.at) || 0 : 0 });
+  }
+  return out.sort((a, b) => a.cambiado - b.cambiado);
+}
+
+/* ══════════ EL ÚLTIMO NO DE LA IA ══════════
+
+   Los fallos de la API se cuentan en el momento y se olvidan al cerrar el
+   diálogo. Pero «la clave no vale» y «la cuenta se ha quedado sin saldo» no
+   son incidencias de un momento: dejan la generación de retos MUERTA hasta
+   que alguien toca algo, y el docente se entera el día que la necesita, con
+   la clase delante. Se recuerda el último, con su fecha, y se borra al primer
+   acierto. */
+const FALLO_IA_KEY = 'atlas_fallo_ia_v1';
+/* Los que no se arreglan solos: el resto —red, ritmo— se reintenta y pasa. */
+const FALLOS_IA_DUROS = ['clave', 'saldo', 'workspace'];
+
+function apuntarResultadoIA(r) {
+  try {
+    if (r && r.ok) { localStorage.removeItem(FALLO_IA_KEY); return; }
+    const motivo = r && r.reason;
+    if (!FALLOS_IA_DUROS.includes(motivo)) return;
+    localStorage.setItem(FALLO_IA_KEY, JSON.stringify({
+      motivo, texto: String((r && r.texto) || '').slice(0, 300), at: Date.now()
+    }));
+  } catch (e) { /* sin almacenamiento */ }
+}
+function ultimoFalloIA() {
+  try {
+    const o = JSON.parse(localStorage.getItem(FALLO_IA_KEY) || 'null');
+    return (o && FALLOS_IA_DUROS.includes(o.motivo)) ? o : null;
+  } catch (e) { return null; }
+}
+
+/* ══════════ CUÁNTO SITIO QUEDA EN ESTE EQUIPO ══════════
+
+   En clase dirigida los veintidós diarios viven en el localStorage de una
+   tablet, y ahí caben unos 5 MB. Cuando se llena, saveState() empieza a
+   fallar: hay una barra que lo avisa, pero avisa cuando YA no se puede
+   guardar. Esto mide antes, para que el aviso llegue con margen para hacer
+   una copia. Es una estimación —el navegador no publica su cupo— y se dice
+   como tal. */
+const CUPO_ESTIMADO = 5 * 1024 * 1024;
+function sitioUsado() {
+  let bytes = 0;
+  try {
+    for (let i = 0; i < localStorage.length; i++) {
+      const k = localStorage.key(i);
+      if (!k) continue;
+      /* UTF-16: cada carácter ocupa dos, clave y valor. */
+      bytes += (k.length + String(localStorage.getItem(k) || '').length) * 2;
+    }
+  } catch (e) { return null; }
+  return { bytes, cupo: CUPO_ESTIMADO, parte: bytes / CUPO_ESTIMADO };
+}
 
 /* ══════════ LOS RETOS ESCRITOS, EN CACHÉ ══════════
 
@@ -11291,8 +11453,20 @@ function errorLectura(e) {
 /* Convierte los documentos crudos en entradas legibles.
    Cada entrada trae {summary} (camino rápido) o {state} (diarios guardados
    antes de que existiera el resumen, o lectura de respaldo). */
+/* Los documentos que esta lectura ha tenido que descartar, con el porqué.
+   Antes se saltaban en silencio y el niño desaparecía de la pantalla sin que
+   nadie supiera que existía: no salía en la vista de clase, no salía en la
+   lista de quien no ha entrado —porque entrar, entró— y su trabajo seguía
+   arriba, ilegible. El panel de salud los nombra. */
+let docsDescartados = [];
+function descartadosDeLaNube() { return docsDescartados.slice(); }
+
 function parseClassDocs(docs) {
   const out = [];
+  docsDescartados = [];
+  const fuera = (d, motivo) => docsDescartados.push({
+    id: d.$id, name: textoSeguro(d.name, 64) || '', motivo
+  });
   for (const d of docs) {
     if (d.summary) {
       let sum = null;
@@ -11302,10 +11476,11 @@ function parseClassDocs(docs) {
         continue;
       }
     }
-    if (!d.state) continue;                                  /* nada legible */
+    if (!d.state) { fuera(d, 'vacio'); continue; }            /* nada legible */
     let st = null;
-    try { st = JSON.parse(d.state); } catch (e) { continue; } /* diario ilegible */
-    if (!st || !st.profile) continue;
+    try { st = JSON.parse(d.state); }
+    catch (e) { fuera(d, 'ilegible'); continue; }             /* diario ilegible */
+    if (!st || !st.profile) { fuera(d, 'sin-perfil'); continue; }
     out.push({ id: d.$id, name: textoSeguro(d.name || st.profile.explorer_name, 64) || 'Explorador', state: st });
   }
   return out;
@@ -11765,6 +11940,236 @@ function sortStudents(list, mode) {
     b.signals.length - a.signals.length ||
     a.mastered - b.mastered ||
     a.name.localeCompare(b.name, 'es'));
+}
+
+/* ══════════════════════════════════════════════════════════════════════════
+   SALUD DE LA CLASE
+
+   El fallo más caro de esta plataforma no es un cálculo mal hecho: es que una
+   tablet lleve una semana sin sincronizar y nadie se entere hasta que el
+   trabajo ya no está. Todo lo que se pierde en silencio se pierde por lo
+   mismo —el aviso llega cuando ya no hay nada que hacer— y estaba repartido
+   por seis pantallas distintas: la barra de guardado, el estado de los
+   ajustes, el diálogo de la IA, la fecha de la copia.
+
+   Esto lo reúne en una lista ordenada por lo que cuesta cada cosa. Es una
+   función PURA: recibe lo ya medido y devuelve los hallazgos, para poder
+   probar cada aviso sin red, sin reloj y sin tablet.
+
+   Dos reglas de redacción, porque un panel de avisos que no se puede atender
+   se aprende a ignorar en dos semanas:
+     · Cada hallazgo dice qué se pierde, no qué ha fallado.
+     · Cada hallazgo dice qué hacer, aunque sea «no se puede, y por esto». */
+
+const SALUD_DIAS_CALLADA = 7;      /* sin dar señales, para una tablet propia */
+const SALUD_DIAS_COPIA = 30;       /* sin copia de seguridad */
+const SALUD_SITIO_GRAVE = 0.8;     /* del cupo estimado del navegador */
+const SALUD_SITIO_AVISO = 0.6;
+const SALUD_AJUSTES_AVISO = 0.8;   /* del tope del campo de la clase */
+
+function diasDesde(marca, hoy) {
+  if (!marca) return null;
+  return Math.floor((hoy - Number(marca)) / 86400000);
+}
+
+/* «hace 3 días», «hoy», «hace 2 meses»: la fecha exacta no ayuda a decidir. */
+function haceCuanto(marca, hoy) {
+  const d = diasDesde(marca, hoy);
+  if (d === null) return 'nunca';
+  if (d <= 0) return 'hoy';
+  if (d === 1) return 'ayer';
+  if (d < 60) return `hace ${d} días`;
+  return `hace ${Math.floor(d / 30)} meses`;
+}
+
+function nombresDe(lista, tope) {
+  const n = lista.slice(0, tope || 6).map(x => x.nombre || x.name || x.clave || x.id);
+  return lista.length > n.length ? n.join(', ') + ` y ${lista.length - n.length} más` : n.join(', ');
+}
+
+function analizarSalud(d) {
+  const hoy = Number(d.hoy) || Date.now();
+  const out = [];
+  const add = (nivel, id, titulo, detalle, accion, quienes) =>
+    out.push({ id, nivel, titulo, detalle, accion, quienes: quienes || [] });
+
+  /* ── 1. Este equipo no puede guardar ──
+     Va la primera porque mientras dure, nada de lo demás importa: cada
+     respuesta que el docente marca hoy desaparece al cerrar la pestaña. */
+  if (d.guardadoRoto) {
+    add('grave', 'guardado-roto', 'Este equipo no puede guardar',
+      'Lo que se juegue o se apunte ahora desaparece al cerrar la pestaña. Pasa con el '
+      + 'almacenamiento lleno, en ventana privada, o con el navegador puesto en borrar datos al salir.',
+      'Descarga una copia de seguridad AHORA, antes de tocar nada más, y abre la app en una ventana normal.');
+  }
+
+  /* ── 2. Diarios que no se pueden leer ── */
+  const ilegibles = d.ilegiblesAqui || [];
+  if (ilegibles.length) {
+    add('grave', 'ilegibles-aqui',
+      `${ilegibles.length} ${ilegibles.length === 1 ? 'diario ilegible' : 'diarios ilegibles'} en este equipo`,
+      'Están guardados pero no se pueden abrir, así que ese alumno no sale en la vista de clase '
+      + 'y su progreso no cuenta en ninguna parte: ' + ilegibles.join(', ') + '.',
+      'Si tienes una copia de seguridad anterior, restaúrala: es lo único que los recupera.',
+      ilegibles);
+  }
+  const rotosArriba = (d.descartados || []).filter(x => x.motivo !== 'vacio');
+  if (rotosArriba.length) {
+    add('grave', 'ilegibles-nube',
+      `${rotosArriba.length} ${rotosArriba.length === 1 ? 'diario ilegible' : 'diarios ilegibles'} en la nube`,
+      'La clase los tiene guardados pero no se pueden leer, así que esos alumnos no aparecen en la '
+      + 'vista de clase aunque hayan estado jugando: ' + nombresDe(rotosArriba) + '.',
+      'Si ese alumno todavía tiene su diario en su tablet, que entre con la app: al guardar lo escribe entero otra vez.',
+      rotosArriba.map(x => x.name || x.id));
+  }
+  const vacios = (d.descartados || []).filter(x => x.motivo === 'vacio');
+  if (vacios.length) {
+    add('aviso', 'vacios-nube', `${vacios.length} ${vacios.length === 1 ? 'diario vacío' : 'diarios vacíos'} en la nube`,
+      'Existe el documento pero no tiene nada dentro: ' + nombresDe(vacios) + '. Suele ser una cuenta '
+      + 'creada que todavía no ha jugado, y entonces no es un problema.',
+      'Si ese alumno sí ha jugado, su trabajo está solo en su tablet: que entre con red.',
+      vacios.map(x => x.name || x.id));
+  }
+
+  /* ── 3. Trabajo que no ha salido de este equipo ── */
+  const sinSubir = d.sinSubir || [];
+  if (sinSubir.length && d.claseAbierta) {
+    const dias = diasDesde(sinSubir[0].cambiado, hoy);
+    const viejo = dias !== null && dias >= 1;
+    add(viejo ? 'grave' : 'aviso', 'sin-subir',
+      `${sinSubir.length} ${sinSubir.length === 1 ? 'diario sin subir' : 'diarios sin subir'} a la clase`,
+      `Están guardados aquí y su último cambio no consta arriba. El más antiguo es de ${
+        haceCuanto(sinSubir[0].cambiado, hoy)}: ${nombresDe(sinSubir)}.`
+      + (viejo ? ' Si esta tablet se formatea o se limpia, ese trabajo no está en ningún otro sitio.' : ''),
+      'Con red y la clase abierta se reintenta solo. Si lleva días sin bajar, descarga una copia de seguridad.',
+      sinSubir.map(x => x.nombre));
+  }
+
+  /* ── 4. Tablets que llevan días calladas ──
+     Solo tiene sentido con alumnado que entra con su cuenta: en clase
+     dirigida los diarios están aquí y lo de arriba ya lo cubre. */
+  const calladas = (d.calladas || []).filter(x => {
+    const dd = diasDesde(x.visto, hoy);
+    return dd === null || dd >= SALUD_DIAS_CALLADA;
+  });
+  if (calladas.length) {
+    add('aviso', 'calladas',
+      `${calladas.length} ${calladas.length === 1 ? 'tablet lleva' : 'tablets llevan'} más de ${SALUD_DIAS_CALLADA} días sin sincronizar`,
+      'El último diario suyo que ha llegado a la clase es de ' + haceCuanto(calladas[0].visto, hoy)
+      + `: ${nombresDe(calladas)}. Si han jugado desde entonces, ese trabajo está solo en su tablet.`,
+      'Que abran la app con wifi un momento: al entrar sube lo que tengan. Si no vuelven a conectar, se pierde.',
+      calladas.map(x => x.nombre));
+  }
+
+  /* ── 5. Nada de esto está en la nube ── */
+  if (!d.claseAbierta) {
+    const dias = diasDesde(d.backupAt, hoy);
+    add(dias === null || dias >= SALUD_DIAS_COPIA ? 'grave' : 'aviso', 'sin-nube',
+      'El curso entero vive en este equipo',
+      'No hay clase abierta en la nube, así que los diarios, los méritos y los ajustes están solo aquí. '
+      + 'Un perfil de navegador que se limpia al cerrar sesión —lo normal en un equipo de centro— se lo lleva todo. '
+      + `Última copia de seguridad: ${haceCuanto(d.backupAt, hoy)}.`,
+      'Abre una clase en «Mis clases», o descarga una copia cada viernes.');
+  } else {
+    const dias = diasDesde(d.backupAt, hoy);
+    if (dias === null || dias >= SALUD_DIAS_COPIA) {
+      add('aviso', 'sin-copia', `Sin copia de seguridad desde ${haceCuanto(d.backupAt, hoy)}`,
+        'La nube guarda los diarios y los ajustes, pero no las contraseñas del alumnado en claro: esas '
+        + 'solo están en tu equipo y en la copia. Appwrite guarda un resumen, no la contraseña, así que '
+        + 'si se pierden no hay de dónde sacarlas.',
+        'Configuración → Copia de seguridad → Descargar. Es un fichero y tarda un segundo.');
+    }
+  }
+
+  /* ── 6. Ajustes sin subir ── */
+  if (d.ajustes && d.ajustes.estado === 'pendiente') {
+    add('aviso', 'ajustes-pendientes', 'Los ajustes de la clase no han subido',
+      'Los retos que has aprobado, los comportamientos y el almacén están guardados aquí pero no en la clase, '
+      + 'así que las tablets del alumnado siguen con los de antes'
+      + (d.ajustes.detalle ? ` (${d.ajustes.detalle})` : '') + '.',
+      'Se reintenta solo con red. Si no se quita, comprueba la conexión en «Acceso y nube».');
+  }
+
+  /* ── 7. La IA está parada ── */
+  if (d.falloIA) {
+    const textos = {
+      saldo: 'La cuenta de la API se quedó sin saldo',
+      clave: 'La clave de la API no vale o ha caducado',
+      workspace: 'A la clave le falta su espacio de trabajo'
+    };
+    const acciones = {
+      saldo: 'Recarga en console.anthropic.com → Billing. Hasta entonces, los retos hay que escribirlos a mano.',
+      clave: 'Crea una nueva en console.anthropic.com → API keys y pégala en «Retos con IA».',
+      workspace: 'Pega el ID del espacio en «Retos con IA», debajo de la clave.'
+    };
+    add('grave', 'ia-parada', textos[d.falloIA.motivo] || 'La generación de retos está parada',
+      `Pasó ${haceCuanto(d.falloIA.at, hoy)} y no se arregla solo: hasta que se toque, «Generar retos» va a `
+      + 'fallar igual. Se avisa aquí para que no te enteres el día que la necesites, con la clase delante.',
+      acciones[d.falloIA.motivo] || 'Revisa la clave en «Retos con IA».');
+  }
+
+  /* ── 8. Se está llenando el equipo ── */
+  const sitio = d.sitio;
+  if (sitio && sitio.parte >= SALUD_SITIO_AVISO) {
+    const pct = Math.round(sitio.parte * 100);
+    add(sitio.parte >= SALUD_SITIO_GRAVE ? 'grave' : 'aviso', 'sitio',
+      `Este equipo va por el ${pct} % de su espacio`,
+      'Es una estimación: el navegador no dice cuánto cupo da, y se calcula sobre los 5 MB de costumbre. '
+      + 'Cuando se llena, guardar deja de funcionar sin avisar antes.',
+      'Descarga una copia y luego cierra las clases que ya no uses: eso vacía sus diarios de este equipo.');
+  }
+
+  /* ── 9. Los ajustes no van a caber ── */
+  if (d.tamanoAjustes && d.configMax && d.tamanoAjustes >= d.configMax * SALUD_AJUSTES_AVISO) {
+    const pct = Math.round((d.tamanoAjustes / d.configMax) * 100);
+    add(d.tamanoAjustes >= d.configMax ? 'grave' : 'aviso', 'ajustes-grandes',
+      `Los ajustes ocupan el ${pct} % de lo que admite la clase`,
+      `Lo que más pesa son los ${d.retosEnAjustes || 0} retos escritos a mano que todavía viajan dentro. `
+      + 'Cuando pase del tope, los ajustes dejan de subir y las tablets se quedan con los de antes.',
+      'Los retos nuevos ya van en su propia tabla. Los viejos se pueden borrar de «Yacimientos y pozos» una vez pasados.');
+  }
+
+  /* ── 10. Contraseñas que solo están aquí ── */
+  if (d.hayContrasenas && !d.rosterAt) {
+    add('aviso', 'contrasenas-solo-aqui', 'Las contraseñas del alumnado no están guardadas fuera de este equipo',
+      'Están en la lista de clase de esta tablet y en ningún otro sitio. Si cambias de equipo, o si este se '
+      + 'limpia, hay que volver a repartir contraseñas nuevas a toda la clase.',
+      'Abre una clase en «Mis clases»: la lista se guarda en un documento que solo lee tu cuenta. O descarga una copia.');
+  }
+
+  /* ── 11. Cuentas sin identificador ── */
+  const sinId = d.cuentasSinId || [];
+  if (sinId.length) {
+    add('aviso', 'cuentas-sin-id',
+      `${sinId.length} ${sinId.length === 1 ? 'cuenta creada sin' : 'cuentas creadas sin'} su identificador`,
+      'Se dieron de alta antes de que se guardara el id, y sin él sus diarios no se pueden vincular a esta clase: '
+      + `${nombresDe(sinId)}. Existen y funcionan, pero la vista de clase no sabe que son tuyos.`,
+      'Alumnado → 🔎 Buscar el diario: los empareja por el nombre y rellena lo que falta.',
+      sinId.map(x => x.nombre || x.name));
+  }
+
+  /* ── 12. Quien no ha entrado nunca ──
+     Lo último y como aviso suave: no se pierde nada, pero en octubre conviene
+     saber quién lleva dos meses sin abrir la app. */
+  const sinEntrar = d.sinEntrar || [];
+  if (sinEntrar.length) {
+    add('aviso', 'sin-entrar', `${sinEntrar.length} de la lista no ${sinEntrar.length === 1 ? 'ha' : 'han'} entrado nunca`,
+      'No tienen diario ni aquí ni en la clase: ' + nombresDe(sinEntrar) + '.',
+      'Comprueba que tienen su línea de la hoja de credenciales y que el usuario está bien escrito.',
+      sinEntrar.map(x => x.nombre || x.name));
+  }
+
+  const orden = { grave: 0, aviso: 1 };
+  return out.sort((a, b) => orden[a.nivel] - orden[b.nivel]);
+}
+
+/* Un solo número para la cabecera: lo peor que hay. */
+function veredictoDeSalud(hallazgos) {
+  const graves = hallazgos.filter(h => h.nivel === 'grave').length;
+  const avisos = hallazgos.length - graves;
+  if (graves) return { nivel: 'grave', graves, avisos };
+  if (avisos) return { nivel: 'aviso', graves: 0, avisos };
+  return { nivel: 'bien', graves: 0, avisos: 0 };
 }
 
 /* ═══════════════════════════════════════════════════════════
@@ -15300,6 +15705,7 @@ const CFG_GRUPOS = [
 const CFG_SECTIONS = [
   /* ── Lo de cualquier martes ── */
   { id: 'alumnado',   icon: '👥', name: 'Alumnado',            grupo: 'diario' },
+  { id: 'salud',      icon: '🩺', name: 'Salud de la clase',  grupo: 'diario' },
   { id: 'premios',    icon: '🏅', name: 'Comportamientos, tareas y actividades', grupo: 'diario' },
   { id: 'yacimient',  icon: '🏛️', name: 'Yacimientos y pozos',  grupo: 'diario' },
   { id: 'ia',         icon: '🤖', name: 'Retos con IA',         grupo: 'diario' },
@@ -15491,7 +15897,7 @@ function renderTeacherConfig() {
     curso: cfgCurso, premios: cfgPremios, alumnado: cfgAlumnado, equipos: cfgEquipos,
     yacimient: cfgYacimientos, almacen: cfgAlmacen, economia: cfgEconomia,
     guardian: cfgGuardian, taller: cfgTaller, ia: cfgIA, fondo: cfgFondo, acceso: cfgAcceso,
-    criterios: cfgCriterios, copia: cfgCopia
+    criterios: cfgCriterios, copia: cfgCopia, salud: cfgSalud
   };
   body.innerHTML = '';
   renderers[cfgSection](body);
@@ -15715,9 +16121,128 @@ function motivoDeNube(r) {
     'sin-estrenar': 'todavía no ha entrado ninguna vez, así que su diario aún no existe.',
     'sin-id': 'su ficha no guarda el identificador de la cuenta.',
     'ritmo': 'Appwrite pide esperar un poco: inténtalo de nuevo en un minuto.',
-    'ilegible': 'su diario está guardado en un formato que no se puede leer.'
+    'ilegible': 'su diario está guardado en un formato que no se puede leer.',
+    'sin-aula': 'no tienes ninguna clase abierta. Ábrela en «Mis clases» y vuelve a pulsar.'
   };
   return dichos[razon] || (r && r.detail) || razon || 'error desconocido';
+}
+
+/* ══════════ SALUD DE LA CLASE ══════════
+
+   Reúne lo que se pierde en silencio. El análisis vive en classview.js y es
+   puro; aquí solo se recoge lo que hace falta medir y se pinta.
+
+   El pulso de la nube es lo único que necesita red, así que va aparte y a
+   petición: el panel abre al instante con todo lo que se sabe sin pedir
+   nada, y el botón añade la parte que hay que ir a buscar. Un panel de
+   diagnóstico que tarda cuatro segundos en aparecer no se abre nunca. */
+let saludPulso = null;          /* lo último que contestó la nube */
+let saludPulsoEstado = '';      /* '', 'pidiendo', o el motivo del fallo */
+
+/* Lo que se puede medir sin salir de este equipo. */
+function datosDeSalud() {
+  const roster = ATLAS_CONFIG.roster || [];
+  const locales = loadDiaries();
+  const ajustes = (typeof ajustesArriba === 'function') ? ajustesArriba() : { estado: 'local' };
+  const claseAbierta = !!(typeof aulaActiva === 'function' && aulaActiva());
+
+  /* Cuánto ocupan los ajustes que suben a la clase. Es el mismo objeto que
+     se manda, no una aproximación. */
+  let tamanoAjustes = 0;
+  try { tamanoAjustes = JSON.stringify(configParaCompartir()).length; } catch (e) { /* raro */ }
+
+  const cuentasSinId = roster.filter(r => r.account && !r.authId)
+    .map(r => ({ nombre: r.name || r.username || '' }));
+
+  /* Quien no tiene diario ni aquí ni arriba. Arriba solo se sabe si se ha
+     pedido el pulso: sin él se pregunta solo por lo de este equipo, que es
+     lo honrado —decir «no ha entrado» de quien juega en su casa sería
+     mentira— y por eso el aviso solo se calcula con el pulso delante. */
+  const idsArriba = new Set((saludPulso || []).map(x => x.id));
+  const sinEntrar = saludPulso ? roster.filter(r => {
+    const k = diaryKey(r);
+    if (locales[k]) return false;
+    const id = docIdConocido(k) || (claseAbierta ? docIdDiario(aulaActiva(), k) : '');
+    return !(id && idsArriba.has(id));
+  }).map(r => ({ nombre: r.name || r.username || '' })) : [];
+
+  /* Las tablets calladas: solo del alumnado que sincroniza por su cuenta.
+     De los diarios que lleva este equipo ya habla «sin subir». */
+  const calladas = (saludPulso || []).filter(x => {
+    const suyo = Object.keys(locales).find(k => (docIdConocido(k) || '') === x.id);
+    return !suyo;   /* no lo llevamos nosotros: sincroniza él */
+  }).sort((a, b) => (a.visto || 0) - (b.visto || 0));
+
+  return {
+    hoy: Date.now(),
+    guardadoRoto: typeof elGuardadoFalla === 'function' && elGuardadoFalla(),
+    sitio: typeof sitioUsado === 'function' ? sitioUsado() : null,
+    sinSubir: typeof diariosSinSubir === 'function' ? diariosSinSubir() : [],
+    ilegiblesAqui: typeof ilegiblesDeEsteEquipo === 'function'
+      ? (allDiaries(), ilegiblesDeEsteEquipo()) : [],
+    descartados: typeof descartadosDeLaNube === 'function' ? descartadosDeLaNube() : [],
+    ajustes,
+    falloIA: typeof ultimoFalloIA === 'function' ? ultimoFalloIA() : null,
+    claseAbierta,
+    backupAt: ATLAS_CONFIG_META.backupAt || 0,
+    rosterAt: ATLAS_CONFIG_META.rosterAt || 0,
+    hayContrasenas: roster.some(r => r.password),
+    cuentasSinId,
+    sinEntrar,
+    calladas,
+    tamanoAjustes,
+    configMax: typeof CONFIG_MAX === 'number' ? CONFIG_MAX : 200000,
+    retosEnAjustes: typeof retosDentroDeLosAjustes === 'function' ? retosDentroDeLosAjustes() : 0
+  };
+}
+
+const SALUD_ICONO = { grave: '🔴', aviso: '🟠', bien: '🟢' };
+
+function cfgSalud(body) {
+  const hallazgos = analizarSalud(datosDeSalud());
+  const v = veredictoDeSalud(hallazgos);
+  const cola = v.avisos ? ` · ${v.avisos} ${v.avisos === 1 ? 'aviso' : 'avisos'} más` : '';
+  const cabeceras = {
+    grave: `${v.graves} ${v.graves === 1 ? 'cosa se está perdiendo' : 'cosas se están perdiendo'} ahora mismo${cola}`,
+    aviso: `Nada se está perdiendo, pero hay ${v.avisos} ${v.avisos === 1 ? 'cosa' : 'cosas'} que conviene mirar`,
+    bien: 'Todo lo que se sabe comprobar está bien'
+  };
+
+  body.innerHTML = `
+    <p class="cfg-intro">Lo que se pierde en esta plataforma no se pierde con un error en pantalla:
+    se pierde en silencio. Una tablet que lleva una semana sin sincronizar, un diario que dejó de
+    poder leerse, la clave de la API agotada. Aquí está todo junto y ordenado por lo que cuesta.</p>
+
+    <p class="salud-veredicto salud-${v.nivel}">${SALUD_ICONO[v.nivel]} <strong>${cabeceras[v.nivel]}</strong></p>
+
+    ${hallazgos.length ? hallazgos.map(h => `
+      <div class="salud-item salud-${h.nivel}">
+        <p class="salud-titulo">${SALUD_ICONO[h.nivel]} ${esc(h.titulo)}</p>
+        <p class="salud-detalle">${esc(h.detalle)}</p>
+        <p class="salud-accion"><strong>Qué hacer:</strong> ${esc(h.accion)}</p>
+      </div>`).join('')
+    : `<p class="cfg-hint">Los diarios de este equipo se leen todos, lo que has cambiado ha subido,
+       y hay copia reciente. Esto no dice que un alumno vaya bien —para eso está la vista de clase—:
+       dice que no se está perdiendo trabajo.</p>`}
+
+    <h4 class="cfg-h4">Las tablets del alumnado</h4>
+    <p class="cfg-hint">Saber cuándo sincronizó por última vez cada uno hay que ir a preguntárselo a la
+    clase. Son cuatro datos por alumno, no los diarios enteros: tarda un segundo y no gasta apenas red.</p>
+    <button class="btn btn-secondary btn-small" id="salud-pulso"${saludPulsoEstado === 'pidiendo' ? ' disabled' : ''}>
+      ${saludPulsoEstado === 'pidiendo' ? 'Preguntando…' : '📡 Comprobar quién ha sincronizado'}</button>
+    ${saludPulso ? `<p class="cfg-hint">Contestaron <strong>${saludPulso.length}</strong> diarios de esta clase.</p>` : ''}
+    ${saludPulsoEstado && saludPulsoEstado !== 'pidiendo'
+      ? `<p class="cfg-warn">No se ha podido preguntar: ${esc(motivoDeNube({ reason: saludPulsoEstado }))}</p>` : ''}`;
+
+  const b = $('#salud-pulso');
+  if (b) b.addEventListener('click', async () => {
+    saludPulsoEstado = 'pidiendo';
+    renderTeacherConfig();
+    const r = await cloudPulsoDeLosDiarios();
+    saludPulso = r.ok ? r.diarios : null;
+    saludPulsoEstado = r.ok ? '' : (r.reason || 'error');
+    renderTeacherConfig();
+  });
 }
 
 /* ══════════ LA ADAPTACIÓN DE UN ALUMNO ══════════

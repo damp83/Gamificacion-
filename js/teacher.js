@@ -23,6 +23,7 @@ const CFG_GRUPOS = [
 const CFG_SECTIONS = [
   /* ── Lo de cualquier martes ── */
   { id: 'alumnado',   icon: '👥', name: 'Alumnado',            grupo: 'diario' },
+  { id: 'salud',      icon: '🩺', name: 'Salud de la clase',  grupo: 'diario' },
   { id: 'premios',    icon: '🏅', name: 'Comportamientos, tareas y actividades', grupo: 'diario' },
   { id: 'yacimient',  icon: '🏛️', name: 'Yacimientos y pozos',  grupo: 'diario' },
   { id: 'ia',         icon: '🤖', name: 'Retos con IA',         grupo: 'diario' },
@@ -214,7 +215,7 @@ function renderTeacherConfig() {
     curso: cfgCurso, premios: cfgPremios, alumnado: cfgAlumnado, equipos: cfgEquipos,
     yacimient: cfgYacimientos, almacen: cfgAlmacen, economia: cfgEconomia,
     guardian: cfgGuardian, taller: cfgTaller, ia: cfgIA, fondo: cfgFondo, acceso: cfgAcceso,
-    criterios: cfgCriterios, copia: cfgCopia
+    criterios: cfgCriterios, copia: cfgCopia, salud: cfgSalud
   };
   body.innerHTML = '';
   renderers[cfgSection](body);
@@ -438,9 +439,128 @@ function motivoDeNube(r) {
     'sin-estrenar': 'todavía no ha entrado ninguna vez, así que su diario aún no existe.',
     'sin-id': 'su ficha no guarda el identificador de la cuenta.',
     'ritmo': 'Appwrite pide esperar un poco: inténtalo de nuevo en un minuto.',
-    'ilegible': 'su diario está guardado en un formato que no se puede leer.'
+    'ilegible': 'su diario está guardado en un formato que no se puede leer.',
+    'sin-aula': 'no tienes ninguna clase abierta. Ábrela en «Mis clases» y vuelve a pulsar.'
   };
   return dichos[razon] || (r && r.detail) || razon || 'error desconocido';
+}
+
+/* ══════════ SALUD DE LA CLASE ══════════
+
+   Reúne lo que se pierde en silencio. El análisis vive en classview.js y es
+   puro; aquí solo se recoge lo que hace falta medir y se pinta.
+
+   El pulso de la nube es lo único que necesita red, así que va aparte y a
+   petición: el panel abre al instante con todo lo que se sabe sin pedir
+   nada, y el botón añade la parte que hay que ir a buscar. Un panel de
+   diagnóstico que tarda cuatro segundos en aparecer no se abre nunca. */
+let saludPulso = null;          /* lo último que contestó la nube */
+let saludPulsoEstado = '';      /* '', 'pidiendo', o el motivo del fallo */
+
+/* Lo que se puede medir sin salir de este equipo. */
+function datosDeSalud() {
+  const roster = ATLAS_CONFIG.roster || [];
+  const locales = loadDiaries();
+  const ajustes = (typeof ajustesArriba === 'function') ? ajustesArriba() : { estado: 'local' };
+  const claseAbierta = !!(typeof aulaActiva === 'function' && aulaActiva());
+
+  /* Cuánto ocupan los ajustes que suben a la clase. Es el mismo objeto que
+     se manda, no una aproximación. */
+  let tamanoAjustes = 0;
+  try { tamanoAjustes = JSON.stringify(configParaCompartir()).length; } catch (e) { /* raro */ }
+
+  const cuentasSinId = roster.filter(r => r.account && !r.authId)
+    .map(r => ({ nombre: r.name || r.username || '' }));
+
+  /* Quien no tiene diario ni aquí ni arriba. Arriba solo se sabe si se ha
+     pedido el pulso: sin él se pregunta solo por lo de este equipo, que es
+     lo honrado —decir «no ha entrado» de quien juega en su casa sería
+     mentira— y por eso el aviso solo se calcula con el pulso delante. */
+  const idsArriba = new Set((saludPulso || []).map(x => x.id));
+  const sinEntrar = saludPulso ? roster.filter(r => {
+    const k = diaryKey(r);
+    if (locales[k]) return false;
+    const id = docIdConocido(k) || (claseAbierta ? docIdDiario(aulaActiva(), k) : '');
+    return !(id && idsArriba.has(id));
+  }).map(r => ({ nombre: r.name || r.username || '' })) : [];
+
+  /* Las tablets calladas: solo del alumnado que sincroniza por su cuenta.
+     De los diarios que lleva este equipo ya habla «sin subir». */
+  const calladas = (saludPulso || []).filter(x => {
+    const suyo = Object.keys(locales).find(k => (docIdConocido(k) || '') === x.id);
+    return !suyo;   /* no lo llevamos nosotros: sincroniza él */
+  }).sort((a, b) => (a.visto || 0) - (b.visto || 0));
+
+  return {
+    hoy: Date.now(),
+    guardadoRoto: typeof elGuardadoFalla === 'function' && elGuardadoFalla(),
+    sitio: typeof sitioUsado === 'function' ? sitioUsado() : null,
+    sinSubir: typeof diariosSinSubir === 'function' ? diariosSinSubir() : [],
+    ilegiblesAqui: typeof ilegiblesDeEsteEquipo === 'function'
+      ? (allDiaries(), ilegiblesDeEsteEquipo()) : [],
+    descartados: typeof descartadosDeLaNube === 'function' ? descartadosDeLaNube() : [],
+    ajustes,
+    falloIA: typeof ultimoFalloIA === 'function' ? ultimoFalloIA() : null,
+    claseAbierta,
+    backupAt: ATLAS_CONFIG_META.backupAt || 0,
+    rosterAt: ATLAS_CONFIG_META.rosterAt || 0,
+    hayContrasenas: roster.some(r => r.password),
+    cuentasSinId,
+    sinEntrar,
+    calladas,
+    tamanoAjustes,
+    configMax: typeof CONFIG_MAX === 'number' ? CONFIG_MAX : 200000,
+    retosEnAjustes: typeof retosDentroDeLosAjustes === 'function' ? retosDentroDeLosAjustes() : 0
+  };
+}
+
+const SALUD_ICONO = { grave: '🔴', aviso: '🟠', bien: '🟢' };
+
+function cfgSalud(body) {
+  const hallazgos = analizarSalud(datosDeSalud());
+  const v = veredictoDeSalud(hallazgos);
+  const cola = v.avisos ? ` · ${v.avisos} ${v.avisos === 1 ? 'aviso' : 'avisos'} más` : '';
+  const cabeceras = {
+    grave: `${v.graves} ${v.graves === 1 ? 'cosa se está perdiendo' : 'cosas se están perdiendo'} ahora mismo${cola}`,
+    aviso: `Nada se está perdiendo, pero hay ${v.avisos} ${v.avisos === 1 ? 'cosa' : 'cosas'} que conviene mirar`,
+    bien: 'Todo lo que se sabe comprobar está bien'
+  };
+
+  body.innerHTML = `
+    <p class="cfg-intro">Lo que se pierde en esta plataforma no se pierde con un error en pantalla:
+    se pierde en silencio. Una tablet que lleva una semana sin sincronizar, un diario que dejó de
+    poder leerse, la clave de la API agotada. Aquí está todo junto y ordenado por lo que cuesta.</p>
+
+    <p class="salud-veredicto salud-${v.nivel}">${SALUD_ICONO[v.nivel]} <strong>${cabeceras[v.nivel]}</strong></p>
+
+    ${hallazgos.length ? hallazgos.map(h => `
+      <div class="salud-item salud-${h.nivel}">
+        <p class="salud-titulo">${SALUD_ICONO[h.nivel]} ${esc(h.titulo)}</p>
+        <p class="salud-detalle">${esc(h.detalle)}</p>
+        <p class="salud-accion"><strong>Qué hacer:</strong> ${esc(h.accion)}</p>
+      </div>`).join('')
+    : `<p class="cfg-hint">Los diarios de este equipo se leen todos, lo que has cambiado ha subido,
+       y hay copia reciente. Esto no dice que un alumno vaya bien —para eso está la vista de clase—:
+       dice que no se está perdiendo trabajo.</p>`}
+
+    <h4 class="cfg-h4">Las tablets del alumnado</h4>
+    <p class="cfg-hint">Saber cuándo sincronizó por última vez cada uno hay que ir a preguntárselo a la
+    clase. Son cuatro datos por alumno, no los diarios enteros: tarda un segundo y no gasta apenas red.</p>
+    <button class="btn btn-secondary btn-small" id="salud-pulso"${saludPulsoEstado === 'pidiendo' ? ' disabled' : ''}>
+      ${saludPulsoEstado === 'pidiendo' ? 'Preguntando…' : '📡 Comprobar quién ha sincronizado'}</button>
+    ${saludPulso ? `<p class="cfg-hint">Contestaron <strong>${saludPulso.length}</strong> diarios de esta clase.</p>` : ''}
+    ${saludPulsoEstado && saludPulsoEstado !== 'pidiendo'
+      ? `<p class="cfg-warn">No se ha podido preguntar: ${esc(motivoDeNube({ reason: saludPulsoEstado }))}</p>` : ''}`;
+
+  const b = $('#salud-pulso');
+  if (b) b.addEventListener('click', async () => {
+    saludPulsoEstado = 'pidiendo';
+    renderTeacherConfig();
+    const r = await cloudPulsoDeLosDiarios();
+    saludPulso = r.ok ? r.diarios : null;
+    saludPulsoEstado = r.ok ? '' : (r.reason || 'error');
+    renderTeacherConfig();
+  });
 }
 
 /* ══════════ LA ADAPTACIÓN DE UN ALUMNO ══════════

@@ -222,6 +222,10 @@ async function ejecutarConReintento(id, cuerpo, avisar) {
   let ultimo = null;
   for (let intento = 0; intento <= ESPERAS.length; intento++) {
     const r = await ejecutarGenerador(id, cuerpo);
+    /* Un «sin saldo» o una clave caducada no se arreglan solos y dejan muerta
+       la generación de retos hasta que alguien toca algo. Se recuerda para que
+       el panel de salud lo diga hoy y no el día que haga falta generar. */
+    if (typeof apuntarResultadoIA === 'function') apuntarResultadoIA(r);
     if (r.ok || !r.reintentable) return r;
     ultimo = r;
     if (intento < ESPERAS.length) {
@@ -1598,6 +1602,45 @@ async function cloudPullAula(aulaId) {
   } catch (e) { return errorNube(e); }
 }
 
+/* ── Cuándo llegó por última vez el diario de cada uno ──
+   Para el panel de salud, y solo eso: se piden cuatro campos por documento
+   —no el diario, que son 20 KB por alumno— porque la pregunta es «¿cuándo
+   sincronizó esta tablet?» y no «¿qué ha hecho?». En una clase de 25 son
+   dos kilobytes.
+
+   Va aparte de fetchClassDocs() a propósito: aquella lee resúmenes para
+   pintar la clase y no necesita saber la fecha; esta necesita la fecha y no
+   necesita el resumen. Meterlas en una sola habría hecho que la vista de
+   clase se trajera de más en cada apertura. */
+async function cloudPulsoDeLosDiarios() {
+  if (!aulasOn()) return { ok: false, reason: 'sin-nube' };
+  if (!CLOUD.user) return { ok: false, reason: 'sin-sesion' };
+  const aula = aulaActiva();
+  if (!aula) return { ok: false, reason: 'sin-aula' };
+  const c = ATLAS_CONFIG.appwrite;
+  const CAMPOS = ['$id', 'name', 'updated_at', '$updatedAt'];
+  const out = [];
+  try {
+    let cursor = null;
+    for (let p = 0; p < 20; p++) {
+      const q = [Appwrite.Query.equal('aula', aula), Appwrite.Query.limit(AULA_PAGE)];
+      if (Appwrite.Query.select) q.push(Appwrite.Query.select(CAMPOS));
+      if (cursor) q.push(Appwrite.Query.cursorAfter(cursor));
+      const res = await CLOUD.db.listDocuments(c.databaseId, c.collectionId, q);
+      for (const d of res.documents) {
+        /* updated_at lo escribe el diario; $updatedAt lo pone Appwrite. Se
+           usa el mayor: un diario viejo guardado hoy sincronizó hoy. */
+        const propio = Number(d.updated_at) || 0;
+        const suyo = d.$updatedAt ? new Date(d.$updatedAt).getTime() : 0;
+        out.push({ id: d.$id, nombre: d.name || '', visto: Math.max(propio, suyo || 0) });
+      }
+      if (res.documents.length < AULA_PAGE) break;
+      cursor = res.documents[res.documents.length - 1].$id;
+    }
+    return { ok: true, diarios: out };
+  } catch (e) { return errorNube(e); }
+}
+
 /* Reparto estable de una cadena en 13 caracteres base36 (≈67 bits).
    Dos pasadas FNV-1a con constantes distintas: no es criptográfico —no le
    hace falta— y solo tiene que repartir bien y dar SIEMPRE lo mismo en
@@ -1661,11 +1704,13 @@ async function cloudPushDiario(clave, estado) {
   try {
     await CLOUD.db.updateDocument(c.databaseId, c.collectionId, id, data);
     recordarDocId(clave, id);
+    apuntarSubida(clave, data.updated_at);
     return { ok: true, id };
   } catch (e) {
     try {
       await CLOUD.db.createDocument(c.databaseId, c.collectionId, id, data, permisosDeAula(uid));
       recordarDocId(clave, id);
+      apuntarSubida(clave, data.updated_at);
       return { ok: true, id, creado: true };
     } catch (e2) { return errorNube(e2); }
   }

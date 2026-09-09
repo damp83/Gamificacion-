@@ -604,6 +604,100 @@ function recordarDocId(clave, docId) {
 }
 function docIdConocido(clave) { return loadDocIds()[clave] || ''; }
 
+/* ══════════ QUÉ SE HA SUBIDO Y CUÁNDO ══════════
+
+   Un diario se guarda aquí al instante y sube tres segundos después. Si la
+   subida falla —el wifi del centro, la sesión caducada, la tablet en el
+   armario— se reintenta, y si no vuelve a haber red nadie se entera. El
+   trabajo existe: existe SOLO en este equipo, que es exactamente lo que se
+   pierde cuando la tablet se formatea en enero.
+
+   Esto apunta, por cada diario, la marca de tiempo que sí llegó arriba. Con
+   eso el panel de salud puede decir «lo de Nadia del martes no ha salido de
+   aquí» en vez de que se descubra en junio. */
+const SUBIDAS_KEY = 'atlas_subidas_v1';
+function loadSubidas() {
+  try { return JSON.parse(localStorage.getItem(SUBIDAS_KEY) || '{}') || {}; }
+  catch (e) { return {}; }
+}
+function apuntarSubida(clave, updatedAt) {
+  if (!clave) return;
+  const map = loadSubidas();
+  map[clave] = { upd: Number(updatedAt) || 0, at: Date.now() };
+  try { localStorage.setItem(SUBIDAS_KEY, JSON.stringify(map)); }
+  catch (e) { /* sin almacenamiento: el panel lo dirá por otro lado */ }
+}
+
+/* Los diarios de este equipo cuyo último cambio NO ha llegado a la nube.
+   Un diario del que no hay ninguna subida apuntada cuenta como pendiente:
+   es lo honrado —no consta que haya salido de aquí— y es lo que pasa con
+   todo lo jugado antes de que existiera este registro. */
+function diariosSinSubir() {
+  const map = loadDiaries();
+  const subidas = loadSubidas();
+  const out = [];
+  for (const k in map) {
+    const upd = Number(map[k] && map[k].updated_at) || 0;
+    const s = subidas[k];
+    if (s && Number(s.upd) >= upd) continue;
+    let nombre = k;
+    try { nombre = (map[k].profile && map[k].profile.explorer_name) || k; } catch (e) { /* clave */ }
+    out.push({ clave: k, nombre, cambiado: upd, subido: s ? Number(s.at) || 0 : 0 });
+  }
+  return out.sort((a, b) => a.cambiado - b.cambiado);
+}
+
+/* ══════════ EL ÚLTIMO NO DE LA IA ══════════
+
+   Los fallos de la API se cuentan en el momento y se olvidan al cerrar el
+   diálogo. Pero «la clave no vale» y «la cuenta se ha quedado sin saldo» no
+   son incidencias de un momento: dejan la generación de retos MUERTA hasta
+   que alguien toca algo, y el docente se entera el día que la necesita, con
+   la clase delante. Se recuerda el último, con su fecha, y se borra al primer
+   acierto. */
+const FALLO_IA_KEY = 'atlas_fallo_ia_v1';
+/* Los que no se arreglan solos: el resto —red, ritmo— se reintenta y pasa. */
+const FALLOS_IA_DUROS = ['clave', 'saldo', 'workspace'];
+
+function apuntarResultadoIA(r) {
+  try {
+    if (r && r.ok) { localStorage.removeItem(FALLO_IA_KEY); return; }
+    const motivo = r && r.reason;
+    if (!FALLOS_IA_DUROS.includes(motivo)) return;
+    localStorage.setItem(FALLO_IA_KEY, JSON.stringify({
+      motivo, texto: String((r && r.texto) || '').slice(0, 300), at: Date.now()
+    }));
+  } catch (e) { /* sin almacenamiento */ }
+}
+function ultimoFalloIA() {
+  try {
+    const o = JSON.parse(localStorage.getItem(FALLO_IA_KEY) || 'null');
+    return (o && FALLOS_IA_DUROS.includes(o.motivo)) ? o : null;
+  } catch (e) { return null; }
+}
+
+/* ══════════ CUÁNTO SITIO QUEDA EN ESTE EQUIPO ══════════
+
+   En clase dirigida los veintidós diarios viven en el localStorage de una
+   tablet, y ahí caben unos 5 MB. Cuando se llena, saveState() empieza a
+   fallar: hay una barra que lo avisa, pero avisa cuando YA no se puede
+   guardar. Esto mide antes, para que el aviso llegue con margen para hacer
+   una copia. Es una estimación —el navegador no publica su cupo— y se dice
+   como tal. */
+const CUPO_ESTIMADO = 5 * 1024 * 1024;
+function sitioUsado() {
+  let bytes = 0;
+  try {
+    for (let i = 0; i < localStorage.length; i++) {
+      const k = localStorage.key(i);
+      if (!k) continue;
+      /* UTF-16: cada carácter ocupa dos, clave y valor. */
+      bytes += (k.length + String(localStorage.getItem(k) || '').length) * 2;
+    }
+  } catch (e) { return null; }
+  return { bytes, cupo: CUPO_ESTIMADO, parte: bytes / CUPO_ESTIMADO };
+}
+
 /* ══════════ LOS RETOS ESCRITOS, EN CACHÉ ══════════
 
    La verdad de un reto está en Appwrite, en la tabla `retos`. Aquí solo hay

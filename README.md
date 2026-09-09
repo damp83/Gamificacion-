@@ -84,6 +84,7 @@ Cubren lo que ya se ha roto alguna vez, que es de donde salieron:
 | `cuentas.test.js` | Que el panel avise de una contraseña que Appwrite va a rechazar, y de que escribirla no crea la cuenta |
 | `merito-grupo.test.js` | Que dar un mérito a una cuadrilla entera, a la clase o a unos cuantos elegidos a dedo use el mismo tope y el mismo registro que darlo uno a uno, y que se diga a quién no le llegó |
 | `criterios.test.js` | Que la evidencia por criterio se calcule bien, que no se proponga un nivel sin datos suficientes, y que nada de esto llegue nunca al niño ni a su familia |
+| `salud.test.js` | Que todo lo que se pierde en silencio deje de perderse en silencio: quién no sincroniza, qué diario está roto, si la clave de la IA se agotó, y que con todo en orden el panel no invente un problema |
 | `adaptaciones.test.js` | Que las cuatro palancas de una adaptación hagan lo que dicen, que el techo no impida bajar, y sobre todo que abrir la puerta no cambie lo que la app dice que ese alumno ha demostrado |
 | `nombres-unicos.test.js` | Que dos ficheros no declaren una función con el mismo nombre: comparten un solo ámbito global y la segunda pisa a la primera en silencio |
 | `datos-alumno.test.js` | Que se pueda ver y borrar todo lo que se guarda de un alumno, que el borrado no se lleve a nadie más, y que lo que la app no puede borrar —su cuenta de Appwrite— se diga en vez de darse por hecho |
@@ -1157,6 +1158,66 @@ Se veía así: marcabas alumnos en la segunda cuadrilla y aparecían en la prime
 ### Cuadrillas sin erratas
 
 Cuando hay lista de clase, los miembros de cada cuadrilla se marcan con **casillas** en lugar de escribirse a mano. Así el nombre siempre coincide exactamente con el del alumno, y desaparece el problema de asignar a alguien que no existe por una errata. A quien ya está en una cuadrilla se le deshabilita la casilla en las demás.
+
+## Salud de la clase
+
+Lo que se pierde en esta plataforma no se pierde con un error en pantalla: se
+pierde en silencio. Una tablet que lleva una semana sin sincronizar, un diario
+que dejó de poder leerse, la clave de la API agotada. Todo eso ya se sabía en
+alguna parte —la barra de guardado, el estado de los ajustes, el diálogo de la
+IA, la fecha de la copia— repartido por seis pantallas distintas, y el aviso
+llegaba cuando ya no había nada que hacer.
+
+**Configuración → 🩺 Salud de la clase.** Una sola lista, ordenada por lo que
+cuesta cada cosa. Dos colores: rojo es «se está perdiendo trabajo ahora» y
+naranja «va a doler pronto». Con todo en orden **no dice nada**, que es lo que
+mantiene el panel legible: un aviso que sale siempre se aprende a ignorar en dos
+semanas.
+
+Lo que mira:
+
+| | Qué avisa |
+|---|---|
+| **Este equipo no puede guardar** | Va la primera: mientras dure, cada respuesta que marques desaparece al cerrar la pestaña |
+| **Diarios ilegibles** | Aquí y en la nube. Un alumno que no sale en la vista de clase aunque haya estado jugando |
+| **Trabajo sin subir** | Diarios cuyo último cambio no consta arriba, con la antigüedad del más viejo |
+| **Tablets calladas** | Quién lleva más de una semana sin que llegue nada suyo a la clase |
+| **El curso solo aquí** | Sin clase en la nube y sin copia reciente, un perfil de navegador que se limpia se lo lleva todo |
+| **Ajustes sin subir** | Los retos que aprobaste no han llegado a las tablets del alumnado |
+| **La IA parada** | «Sin saldo» y «clave caducada» no se arreglan solos, y se descubrían con la clase delante |
+| **El equipo llenándose** | Antes de que guardar deje de funcionar, no después |
+| **Los ajustes sin sitio** | Cuántos retos escritos a mano viajan todavía dentro, que es el número que se puede arreglar |
+| **Contraseñas solo aquí** | Appwrite guarda un resumen, no la contraseña: si se pierden hay que repartir de nuevo a toda la clase |
+| **Cuentas sin identificador** | Existen y funcionan, pero sus diarios no se pueden vincular |
+
+Cada aviso dice **qué se pierde** y **qué hacer**, y en qué pantalla se hace. Un
+panel de diagnóstico sin salida es una lista de motivos para cerrarlo.
+
+### Lo que hay que ir a preguntar
+
+Saber cuándo sincronizó cada alumno solo lo sabe la clase, así que va aparte y a
+petición: el panel abre al instante con todo lo que se sabe sin red, y **📡
+Comprobar quién ha sincronizado** añade lo demás. Se piden cuatro campos por
+alumno —id, nombre y fecha—, no los diarios enteros: en una clase de
+veinticinco son dos kilobytes en vez de medio mega. Un diagnóstico que tarda
+cuatro segundos en aparecer no se abre nunca.
+
+### Dos cosas que dejaron de callarse
+
+**Lo que se sube se apunta.** Cada diario que llega arriba deja constancia de la
+marca de tiempo que subió. Así «pendiente» pasa a ser una comprobación en vez de
+una suposición, y un diario del que no consta ninguna subida cuenta como
+pendiente: es lo honrado, no consta que haya salido de este equipo.
+
+**Lo que la nube descartaba.** Al leer la clase, un documento sin nada dentro o
+con el diario roto se saltaba en silencio. Ese niño no salía en la vista de
+clase, tampoco en la lista de quien no ha entrado —porque entrar, entró— y su
+trabajo seguía arriba, ilegible, sin que nadie lo supiera. Ahora se nombran, con
+el motivo, y se distingue el documento vacío —casi siempre una cuenta recién
+creada, y entonces no es un problema— del diario que de verdad está roto.
+
+> El panel de salud es fontanería, no evaluación. No dice si un alumno va bien
+> —para eso está la vista de clase—: dice que no se está perdiendo su trabajo.
 
 ## Adaptaciones para el alumnado ACNEAE
 

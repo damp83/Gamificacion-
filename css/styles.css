@@ -1628,6 +1628,29 @@ body.en-mision #main { padding-bottom: var(--s-5); }
   font-size: var(--t-sm); color: #7d2d1c; background: var(--danger-tint);
   border-left: 4px solid var(--danger); border-radius: var(--r-md); padding: .6rem .8rem;
 }
+
+/* ── Salud de la clase ──
+   Dos colores y nada más. El rojo es «se está perdiendo trabajo ahora» y el
+   latón «va a doler pronto»; con cinco tonos el docente tendría que aprenderse
+   una leyenda para leer un aviso. */
+.salud-veredicto {
+  font-size: var(--t-sm); border-radius: var(--r-md); padding: .7rem .9rem;
+  margin: 0 0 var(--s-4); border-left: 4px solid var(--brass);
+  background: var(--paper-deep); color: var(--leather-dark);
+}
+.salud-veredicto.salud-grave { background: var(--danger-tint); border-left-color: var(--danger); color: #7d2d1c; }
+.salud-veredicto.salud-bien { background: var(--jungle-tint); border-left-color: var(--jungle); color: #2c4f25; }
+
+.salud-item {
+  border-left: 4px solid var(--brass); background: var(--surface);
+  border-radius: var(--r-md); padding: .7rem .9rem; margin: 0 0 var(--s-3);
+}
+.salud-item.salud-grave { border-left-color: var(--danger); background: var(--danger-tint); }
+.salud-titulo { margin: 0 0 .3rem; font-weight: 600; color: var(--leather-dark); }
+.salud-detalle { margin: 0 0 .35rem; font-size: var(--t-sm); line-height: 1.5; }
+/* Lo que hay que hacer se lee aunque el docente solo mire una línea. */
+.salud-accion { margin: 0; font-size: var(--t-sm); line-height: 1.5; color: var(--leather); }
+
 .cfg-body input[type="text"], .cfg-body input[type="number"],
 .cfg-body input[type="date"], .cfg-body input[type="password"],
 .cfg-body select, .cfg-body textarea {
