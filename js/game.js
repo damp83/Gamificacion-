@@ -491,6 +491,64 @@ function awardBehavior(behaviorId) {
   return { ok: true, b };
 }
 
+/* ══════════ UN MÉRITO A TODA UNA CUADRILLA ══════════
+
+   «Los Jaguares han recogido el campamento» es una frase que se dice una vez,
+   y darla de alta costaba seis paradas: abrir la bolsa de cada niño, pulsar el
+   mérito, cerrar, buscar al siguiente. Con veintidós críos mirando, eso no se
+   hace: se deja para luego y luego no se hace.
+
+   Lo que se concede es EL MISMO mérito que uno a uno. No hay una vía rápida
+   con reglas propias: se abre el diario de cada uno y se llama a
+   `awardBehavior()`, así que el tope diario, los doblones y el recuento del
+   trimestre son exactamente los suyos. Un niño que ya llegó a su tope hoy se
+   queda fuera y SE DICE quién: un premio de grupo que calla a quién no le ha
+   llegado es un premio que el docente cree haber dado.
+
+   El diario activo se devuelve como estaba al terminar. Si el docente estaba
+   en el turno de alguien, sigue en el turno de ese alguien. */
+
+/* A quién le cabe todavía este mérito hoy. Lee el archivo de diarios sin
+   abrir ninguno: sirve para escribir «a 5 de 6» en el botón ANTES de pulsar,
+   que es lo que evita la sorpresa. */
+function puedenRecibirMerito(gente, behaviorId) {
+  const b = (ATLAS_CONFIG.behaviors || []).find(x => x.id === behaviorId);
+  if (!b) return [];
+  const tope = enteroSano(b.perDay, 1, 0, 50);
+  const map = loadDiaries();
+  const hoy = todayStr();
+  return (gente || []).filter(a => {
+    const st = map[diaryKeyExistente(a)];
+    if (!st) return true;            /* sin diario todavía: no ha recibido nada */
+    const log = Array.isArray(st.behavior_log) ? st.behavior_log : [];
+    return log.filter(e => e.id === behaviorId && e.date === hoy).length < tope;
+  });
+}
+
+function awardBehaviorAVarios(gente, behaviorId) {
+  if (enModoLectura()) return { ok: false, reason: 'lectura' };
+  const b = (ATLAS_CONFIG.behaviors || []).find(x => x.id === behaviorId);
+  if (!b) return { ok: false, reason: 'no-behavior' };
+  const lista = (gente || []).filter(a => a && (a.name || a.username));
+  if (!lista.length) return { ok: false, reason: 'sin-gente' };
+
+  /* Dónde estaba el docente antes de esto, para devolverlo ahí. */
+  const habia = diarioActivo;
+  const dados = [];
+  const llenos = [];
+  for (const a of lista) {
+    openDiary(a);
+    const r = awardBehavior(behaviorId);
+    if (r.ok) dados.push(a.name || a.username);
+    else llenos.push(a.name || a.username);
+  }
+  /* Volver donde estaba: al diario que hubiera abierto, o al propio del
+     dispositivo si no había ninguno. */
+  closeDiary();
+  if (habia) openDiaryKey(habia);
+  return { ok: !!dados.length, b, dados, llenos, total: lista.length };
+}
+
 /* ── Almacén ── */
 function buyItem(itemId) {
   if (enModoLectura()) return { ok: false, reason: 'lectura' };

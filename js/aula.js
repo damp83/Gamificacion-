@@ -333,6 +333,11 @@ function renderAulaBar() {
 
 let aulaTema = 'auto';        /* 'auto' o un id de pozo */
 let aulaAlumno = null;        /* { name, grade } del turno en curso */
+/* Qué grupo tiene abierto el panel de méritos: el id de una cuadrilla,
+   'todos' para la clase entera, o null si no hay ninguno. Vive fuera de
+   `renderAula()` porque conceder repinta la lista y el panel tiene que
+   seguir abierto: en clase se dan dos o tres seguidos. */
+let meritoGrupo = null;
 
 /* La lista de a quién se puede preguntar: la clase, más quien ya tenga
    diario en este equipo aunque se le haya quitado de la lista. */
@@ -355,6 +360,101 @@ function aulaAlumnos() {
     out.push({ name: d.name, grade: d.state.profile.grade, enLista: false, clave: d.key });
   }
   return out;
+}
+
+/* ══════════ UN MÉRITO A VARIOS DE UNA VEZ ══════════
+
+   «Los Jaguares han recogido el campamento» se dice una vez y se daba seis:
+   abrir la bolsa de cada niño, pulsar, cerrar, buscar al siguiente. Con la
+   clase delante eso no se hace, se deja para luego, y luego no se hace.
+
+   El panel se abre pegado al grupo al que va —bajo el título de la cuadrilla,
+   o arriba del todo si es la clase entera—, porque un panel lejos de su grupo
+   es un panel que se pulsa sobre el equipo equivocado. Cada botón dice a
+   cuántos les cabe todavía hoy ANTES de pulsarlo, y después se dice a quién
+   no le llegó: un premio de grupo que calla eso es un premio que el docente
+   cree haber dado. */
+function panelDeMeritoGrupo(gente, titulo, icono) {
+  const caja = document.createElement('div');
+  caja.className = 'aula-merito-grupo';
+  caja.setAttribute('role', 'group');
+  caja.setAttribute('aria-label', `Dar un mérito a ${titulo}`);
+
+  const cab = document.createElement('div');
+  cab.className = 'amg-cab';
+  cab.innerHTML = `<span class="amg-icono">${esc(icono)}</span>
+    <strong>Mérito para ${esc(titulo)}</strong>
+    <span class="amg-cuenta">${gente.length} explorador(es)</span>`;
+  const cerrar = document.createElement('button');
+  cerrar.className = 'amg-cerrar';
+  cerrar.setAttribute('aria-label', 'Cerrar el panel de méritos');
+  cerrar.textContent = '✕';
+  cerrar.addEventListener('click', () => { meritoGrupo = null; renderAula(); });
+  cab.appendChild(cerrar);
+  caja.appendChild(cab);
+
+  const lista = document.createElement('div');
+  lista.className = 'award-list';
+  const behaviors = ATLAS_CONFIG.behaviors || [];
+  for (const b of behaviors) {
+    const caben = puedenRecibirMerito(gente, b.id);
+    const btn = document.createElement('button');
+    btn.className = 'award-btn' + (caben.length ? '' : ' award-full');
+    btn.disabled = !caben.length;
+    btn.innerHTML = `<span class="award-icon">${esc(b.icon)}</span>
+      <span class="award-name">${esc(b.name)}</span>
+      <span class="award-meta">+${b.coins} ${ico('coin')} · ${caben.length === gente.length
+        ? `a los ${gente.length}` : `a ${caben.length} de ${gente.length}`}</span>`;
+    btn.addEventListener('click', () => {
+      const r = awardBehaviorAVarios(gente, b.id);
+      if (!r.ok) {
+        toast(r.reason === 'lectura'
+          ? 'Esto es una consulta: no se puede conceder nada desde aquí.'
+          : `Hoy ya no le queda «${b.name}» a nadie de ${titulo}.`);
+        return;
+      }
+      const aQuien = r.llenos.length ? `a ${r.dados.length} de ${r.total}` : `a los ${r.total}`;
+      toast(`${b.icon} ${titulo} · ${b.name}: +${b.coins} doblones ${aQuien}`
+        + (r.llenos.length ? `. Hoy ya no le quedaba a ${nombresCortos(r.llenos)}.` : ''),
+        r.llenos.length ? 4600 : 2800);
+      renderAula();
+    });
+    lista.appendChild(btn);
+  }
+  caja.appendChild(lista);
+
+  if (!behaviors.length) {
+    lista.innerHTML = '<p class="empty-note">No hay reconocimientos configurados. ' +
+      'Se crean en Configuración → Comportamientos, tareas y actividades.</p>';
+  } else {
+    const nota = document.createElement('p');
+    nota.className = 'amg-nota';
+    nota.textContent = 'Se concede a quien todavía le quepa hoy, con el mismo tope diario '
+      + 'que si se diera uno a uno. A quien ya llegó a su tope no se le cuenta dos veces.';
+    caja.appendChild(nota);
+  }
+  return caja;
+}
+
+/* Tres nombres y luego «y N más»: una lista de doce en un aviso no se lee. */
+function nombresCortos(nombres) {
+  if (nombres.length <= 3) return nombres.join(', ');
+  return nombres.slice(0, 3).join(', ') + ` y ${nombres.length - 3} más`;
+}
+
+/* El botón que abre el panel de un grupo. Cerrarlo es volver a pulsarlo. */
+function botonDeMeritoGrupo(id, etiqueta) {
+  const btn = document.createElement('button');
+  btn.className = 'aula-grupo-merito' + (meritoGrupo === id ? ' on' : '');
+  btn.setAttribute('aria-label', etiqueta);
+  btn.setAttribute('aria-expanded', meritoGrupo === id ? 'true' : 'false');
+  btn.title = etiqueta;
+  btn.innerHTML = ico('medal');
+  btn.addEventListener('click', () => {
+    meritoGrupo = meritoGrupo === id ? null : id;
+    renderAula();
+  });
+  return btn;
 }
 
 function renderAula() {
@@ -386,6 +486,21 @@ function renderAula() {
 
   const vacia = $('#aula-vacia');
   const lista = $('#aula-lista');
+
+  /* «Toda la clase ha trabajado en silencio» es lo que más se dice y lo que
+     más caro salía: veintidós bolsas. El botón está en la barra de arriba
+     porque no pertenece a ninguna cuadrilla. */
+  const btnClase = $('#aula-merito-clase');
+  if (btnClase) {
+    btnClase.disabled = !alumnos.length;
+    btnClase.classList.toggle('on', meritoGrupo === 'todos');
+    btnClase.setAttribute('aria-expanded', meritoGrupo === 'todos' ? 'true' : 'false');
+    btnClase.onclick = () => {
+      meritoGrupo = meritoGrupo === 'todos' ? null : 'todos';
+      renderAula();
+    };
+  }
+
   if (!alumnos.length) {
     lista.innerHTML = '';
     vacia.classList.remove('hidden');
@@ -398,6 +513,11 @@ function renderAula() {
   $('#aula-siguiente').disabled = false;
 
   lista.innerHTML = '';
+  /* El panel de la clase entera va arriba del todo, antes de la primera
+     ficha: es a quien afecta. */
+  if (meritoGrupo === 'todos') {
+    lista.appendChild(panelDeMeritoGrupo(alumnos, 'toda la clase', '👥'));
+  }
 
   /* ── Por cuadrillas, o todos seguidos ──
      Con veintidós nombres en una rejilla plana, encontrar a quien buscas es
@@ -463,14 +583,18 @@ function renderAula() {
     porCuadrilla.get(cu.id).gente.push(a);
   }
 
-  const grupo = (titulo, icono, gente) => {
+  const grupo = (id, titulo, icono, gente) => {
     const salidos = gente.filter(a => (turnos[diaryKey(a)] || {}).rondas).length;
     const cab = document.createElement('div');
     cab.className = 'aula-grupo-cab';
     cab.innerHTML = `<span class="aula-grupo-icono">${esc(icono)}</span>
       <strong>${esc(titulo)}</strong>
       <span class="aula-grupo-meta">${salidos} de ${gente.length} hoy</span>`;
+    cab.appendChild(botonDeMeritoGrupo(id, `Dar un mérito a ${titulo}`));
     lista.appendChild(cab);
+    /* Pegado a su título, no en un cajón aparte: con cinco cuadrillas
+       abiertas, un panel suelto se pulsa sobre la que no es. */
+    if (meritoGrupo === id) lista.appendChild(panelDeMeritoGrupo(gente, titulo, icono));
     const caja = document.createElement('div');
     caja.className = 'aula-grupo-gente';
     for (const a of gente) pintarAlumno(a, caja);
@@ -479,9 +603,9 @@ function renderAula() {
 
   for (const t of (ATLAS_CONFIG.teams.list || [])) {
     const g = porCuadrilla.get(t.id);
-    if (g) grupo(g.cuadrilla.name, g.cuadrilla.icon || '🛖', g.gente);
+    if (g) grupo(t.id, g.cuadrilla.name, g.cuadrilla.icon || '🛖', g.gente);
   }
-  if (sueltos.length) grupo('Sin cuadrilla', '👤', sueltos);
+  if (sueltos.length) grupo('sin-cuadrilla', 'Sin cuadrilla', '👤', sueltos);
 
   pintarSelectorDeVista(hayCuadrillas, agrupar);
 }
@@ -497,6 +621,9 @@ function pintarSelectorDeVista(hayCuadrillas, agrupar) {
     <button class="aula-vista-btn${agrupar ? ' on' : ''}" data-vista="grupos">🛖 Por cuadrillas</button>
     <button class="aula-vista-btn${agrupar ? '' : ' on'}" data-vista="lista">👥 Todos</button>`;
   zona.querySelectorAll('[data-vista]').forEach(b => b.addEventListener('click', () => {
+    /* Un panel abierto sobre una cuadrilla no tiene sitio en la vista plana:
+       se quedaría abierto sin verse y al volver aparecería solo. */
+    if (meritoGrupo && meritoGrupo !== 'todos') meritoGrupo = null;
     setTeacherConfig('aulaAgrupar', b.dataset.vista === 'grupos');
     renderAula();
   }));

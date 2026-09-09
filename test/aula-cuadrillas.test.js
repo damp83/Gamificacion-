@@ -60,7 +60,7 @@ test('quien no tiene cuadrilla no se pierde: va en su propio grupo', () => {
   /* Es el fallo que se cuela solo: agrupar por equipos y dejar fuera de la
      pantalla a los que no tienen. */
   const aula = leer('js/aula.js');
-  assert.match(aula, /if \(sueltos\.length\) grupo\('Sin cuadrilla'/);
+  assert.match(aula, /if \(sueltos\.length\) grupo\('sin-cuadrilla', 'Sin cuadrilla'/);
 });
 
 test('una cuadrilla sin nadie de esta clase no pinta un título vacío', () => {

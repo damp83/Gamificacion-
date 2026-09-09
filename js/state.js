@@ -455,6 +455,21 @@ function openDiary(quien, grade) {
   saveState();
   return S;
 }
+/* Reabre por la clave exacta, sin volver a deducirla del nombre. Lo usa quien
+   ha tenido que pasearse por varios diarios y necesita dejar abierto el que
+   estaba: deducir la clave otra vez podría dar otra si en medio cambió la
+   lista. Devuelve null si esa clave ya no tiene diario, y entonces quien
+   llama decide, que aquí no hay nada sensato que inventar. */
+function openDiaryKey(clave) {
+  const k = String(clave || '');
+  if (!k) return null;
+  const map = loadDiaries();
+  if (!map[k]) return null;
+  S = migrateState(map[k]);
+  diarioActivo = k;
+  return S;
+}
+
 /* ══════════ CONSULTA: VER EL DIARIO DE UN ALUMNO SIN TOCARLO ══════════
    El docente necesita ver lo que ve el niño —para sentarse cinco minutos con
    él, o para preparar una reunión con su familia—. La maquinaria ya estaba:

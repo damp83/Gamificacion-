@@ -2235,6 +2235,45 @@ input[type="checkbox"]::after, input[type="radio"]::after {
 .aula-grupo-icono { font-size: 1.3rem; line-height: 1; }
 .aula-grupo-meta { margin-left: auto; font-size: var(--t-xs); color: var(--ink-soft); font-weight: 400; }
 
+/* El botón de mérito de un grupo: pequeño, al final del título, para que no
+   compita con el nombre de la cuadrilla pero se alcance con el pulgar. */
+.aula-grupo-merito {
+  min-width: 44px; min-height: 36px; padding: .2rem .5rem; margin-left: .4rem;
+  display: inline-flex; align-items: center; justify-content: center;
+  background: var(--surface); border: var(--line); border-radius: var(--r-md);
+  color: var(--leather-dark); cursor: pointer;
+}
+.aula-grupo-meta + .aula-grupo-merito { margin-left: .4rem; }
+.aula-grupo-merito:hover { background: var(--paper-deep); }
+.aula-grupo-merito.on { background: var(--leather-dark); color: #fff6e2; border-color: var(--leather-dark); }
+.aula-grupo-merito .ico { width: 1.1rem; height: 1.1rem; }
+/* Abierto se hunde y se aclara: el botón sigue siendo el mismo, pero se ve
+   cuál de los paneles es el suyo cuando hay varios títulos por medio. */
+#aula-merito-clase.on {
+  background: var(--brass-tint); color: var(--brass);
+  box-shadow: inset 0 2px 5px rgba(107, 86, 56, .25);
+}
+#aula-merito-clase.on:hover { background: var(--brass-tint); color: var(--brass); }
+
+/* El panel de méritos de un grupo, pegado bajo el título al que pertenece. */
+.aula-merito-grupo {
+  background: var(--paper-deep); border: var(--line); border-radius: var(--r-lg);
+  padding: .7rem .8rem .2rem; margin: 0 0 var(--s-4);
+}
+.amg-cab {
+  display: flex; align-items: center; gap: .45rem; margin-bottom: .6rem;
+  font-size: var(--t-sm); color: var(--leather-dark);
+}
+.amg-icono { font-size: 1.2rem; line-height: 1; }
+.amg-cuenta { font-size: var(--t-xs); color: var(--ink-soft); font-weight: 400; }
+.amg-cerrar {
+  margin-left: auto; min-width: 36px; min-height: 36px;
+  background: none; border: none; border-radius: var(--r-md);
+  color: var(--ink-soft); font-size: var(--t-md); cursor: pointer;
+}
+.amg-cerrar:hover { background: var(--surface); color: var(--ink); }
+.amg-nota { margin: 0 0 .6rem; font-size: var(--t-xs); color: var(--ink-soft); }
+
 /* El interruptor entre las dos vistas. */
 .aula-vista { display: flex; gap: .4rem; margin-bottom: .6rem; flex-wrap: wrap; }
 .aula-vista-btn {
