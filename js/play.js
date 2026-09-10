@@ -432,6 +432,10 @@ function openBranch(branchId) {
   const list = $('#strata-list');
   list.innerHTML = '';
   const strata = branchState(branchId).strata;
+  /* Por dónde entrar. Las dos capas abiertas se veían igual, y dos puertas
+     idénticas son media puerta: es el mismo destino que propone el mapa, dicho
+     otra vez donde se decide. */
+  const frente = dondeSeguir();
 
   STRATA_ORDER.forEach((sId, i) => {
     const meta = STRATA_META[sId];
@@ -441,7 +445,8 @@ function openBranch(branchId) {
     const locked = st.status === 'locked';
     const row = document.createElement('button');
     row.className = 'stratum-row' + (locked || !hasContent ? ' locked' : '')
-      + (st.mastery >= 0.8 ? ' excavado' : '');
+      + (st.mastery >= 0.8 ? ' excavado' : '')
+      + (frente && frente.branchId === branchId && frente.stratumId === sId ? ' frente' : '');
     row.disabled = locked || !hasContent;
     const masteryPct = Math.round(st.mastery * 100);
 

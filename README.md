@@ -1409,6 +1409,43 @@ En la misma tarjeta, la explicación del fallo era el texto más pequeño y más
 pantalla, justo al revés de lo que hace falta: el titular consuela, la explicación
 enseña. Al fallar pasa a ser el elemento dominante.
 
+### El pozo, visto como un pozo
+
+La pantalla del pozo ya era la mejor de las ocho: cuatro estratos apilados, los
+cerrados con trama y candado, la cota a la izquierda. Y aun así la metáfora vivía solo
+en el texto. Eran cuatro filas de una lista con la palabra «estrato» delante, cuatro
+blancos casi iguales, y ninguna pista de por dónde entrar cuando había dos capas
+abiertas.
+
+**Las capas bajan de tono con la profundidad**, de arena de superficie a arcilla
+profunda, y con recorrido de sobra para que la caída se vea de un vistazo. Hasta ahí
+llega el efecto: el tono más hondo se queda por encima de 7:1 con la tinta, y hay una
+prueba que lo calcula. La legibilidad manda.
+
+**Y cada capa tiene su grano, no solo su tono.** Arena fina arriba, gravilla suelta en
+medio, arcilla veteada abajo: cuatro materiales distintos, que es lo que hace que una
+pared de excavación se lea como capas y no como rayas de colores.
+
+Encima de todo, la **boca del pozo**: una franja de superficie con el borde roto. Sin
+ella la primera capa flotaba y no se sabía desde dónde se baja. A la izquierda de cada
+número, una **cota**, como en el dibujo de sección de una excavación de verdad.
+
+### Por dónde entrar
+
+Cuando había dos capas abiertas se veían igual, y **dos puertas idénticas son media
+puerta**. Ahora el estrato que la app propone lleva el filo verde y una chapa que dice
+**Aquí**. Es exactamente el mismo destino que propone «Sigue por aquí» en el mapa,
+porque decirlo dos veces distinto sería peor que no decirlo: el niño no sabría a cuál
+hacer caso.
+
+Un estrato ya dominado nunca se marca así, aunque toque: sería mandarle a repetir lo que
+ya sabe llamándolo avanzar.
+
+> Un detalle que costó un rato entender: la veladura de las capas enterradas iba en
+> `box-shadow`, la misma propiedad que el filo de latón de lo excavado, así que la
+> segunda ganaba. Una capa dominada que se quedara sin retos perdía su marca. Ahora la
+> veladura va en su propia capa y las dos conviven.
+
 ### El mapa que sí es un mapa
 
 La pantalla se llamaba «El Mapa del Atlas», decía «4 % del mundo dibujado», y lo que
@@ -1480,9 +1517,9 @@ quien usa lector.
 
 ### Lo que queda
 
-Por orden de lo que más cambiaría la app: la **excavación es una palabra y no un
-dibujo**, las **cuatro respuestas son cuatro manchas iguales**, y la **bitácora recibe a
-todos con un muro de ceros**.
+Dos cosas, y ninguna crítica: las **cuatro respuestas son cuatro manchas iguales** con
+un tercio de pantalla vacío encima, y la **bitácora recibe a todos con un muro de
+ceros**.
 
 > Nada de esto es motivo para meter marcadores, rankings ni rachas que castiguen faltar.
 > La racha se apaga en silencio a propósito. Lo que separa esto de las plataformas

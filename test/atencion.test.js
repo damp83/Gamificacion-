@@ -500,3 +500,103 @@ test('tocar un sitio lleva a su parte de la lista, no abre un pozo al azar', () 
   assert.ok(!/startMission|openBranch/.test(trozo));
   assert.match(leer('js/play.js'), /header\.dataset\.site = site\.id/, 'la lista tiene que dejarse apuntar');
 });
+
+/* ══ El pozo, visto como un pozo ══
+
+   La pantalla del pozo ya era la mejor de las ocho: cuatro estratos apilados,
+   los cerrados con trama y candado, la cota a la izquierda. Y aun así la
+   metáfora vivía solo en el texto: cuatro filas de una lista con la palabra
+   «estrato» delante, cuatro blancos casi iguales, y ninguna pista de por dónde
+   entrar cuando había dos capas abiertas. */
+
+test('el frente de excavación es el mismo destino que propone el mapa', () => {
+  /* Decirlo dos veces distinto sería peor que no decirlo: el niño no sabría a
+     cuál hacer caso. */
+  const t = leer('js/play.js');
+  const i = t.indexOf('function openBranch');
+  const trozo = t.slice(i, i + 1400);
+  assert.match(trozo, /const frente = dondeSeguir\(\)/);
+  assert.match(trozo, /frente\.branchId === branchId && frente\.stratumId === sId \? ' frente' : ''/);
+});
+
+test('solo se marca una capa, y solo en el pozo al que apunta', () => {
+  const c = cargarApp();
+  c.ev('openDiary')({ name: 'Nadia', username: 'nadia' }, 3);
+  const ramas = c.ev('playableBranchIds()');
+  const orden = c.ev('STRATA_ORDER');
+  for (let i = 0; i < 4; i++) c.ev('updateMastery')(ramas[0], orden[0], 1);
+  c.ev('updateMastery')(ramas[0], orden[1], 0.5);
+  const d = c.ev('dondeSeguir()');
+  assert.equal(d.branchId, ramas[0]);
+  assert.equal(d.stratumId, orden[1], 'el frente es la capa a medias, no la dominada');
+});
+
+test('las capas bajan de tono con la profundidad, y con recorrido de sobra', () => {
+  /* Eran cuatro blancos casi iguales: la palabra «estrato» hacía todo el
+     trabajo y el dibujo no decía nada. */
+  const css = leer('css/styles.css');
+  const tonos = [1, 2, 3, 4].map(n => {
+    const m = css.match(new RegExp(`\\.stratum-row:nth-child\\(${n}\\) \\{\\s*background-color: (#[0-9a-f]{6})`, 'i'));
+    assert.ok(m, `el estrato ${n} no declara su tierra`);
+    return parseInt(m[1].slice(1, 3), 16);
+  });
+  for (let i = 1; i < 4; i++) {
+    assert.ok(tonos[i] < tonos[i - 1], `el estrato ${i + 1} no es más profundo que el ${i}`);
+  }
+  assert.ok(tonos[0] - tonos[3] > 25, 'la caída es tan corta que no se ve');
+});
+
+test('y ninguna se oscurece tanto que deje de leerse', () => {
+  /* La legibilidad manda sobre el efecto: el más profundo tiene que aguantar
+     la tinta encima. */
+  const css = leer('css/styles.css');
+  const m = css.match(/\.stratum-row:nth-child\(4\) \{\s*background-color: (#[0-9a-f]{6})/i);
+  const [r, g, b] = [1, 3, 5].map(i => parseInt(m[1].slice(i, i + 2), 16) / 255);
+  const lin = x => (x <= 0.03928 ? x / 12.92 : Math.pow((x + 0.055) / 1.055, 2.4));
+  const L = 0.2126 * lin(r) + 0.7152 * lin(g) + 0.0722 * lin(b);
+  /* Contra la tinta de siempre (#33240f). */
+  const Lt = 0.2126 * lin(0x33 / 255) + 0.7152 * lin(0x24 / 255) + 0.0722 * lin(0x0f / 255);
+  const ratio = (Math.max(L, Lt) + 0.05) / (Math.min(L, Lt) + 0.05);
+  assert.ok(ratio >= 7, `la capa más honda queda en ${ratio.toFixed(1)}:1 y hace falta 7`);
+});
+
+test('cada capa tiene su grano, no solo su tono', () => {
+  /* Cuatro materiales distintos es lo que hace que una pared de excavación se
+     lea como capas y no como rayas de colores. */
+  const css = leer('css/styles.css');
+  const granos = [1, 2, 3, 4].map(n => {
+    const i = css.indexOf(`.stratum-row:nth-child(${n}) {`);
+    const trozo = css.slice(i, css.indexOf('}', i));
+    const m = trozo.match(/background-image:([\s\S]*?);/);
+    return m ? m[1].replace(/\s+/g, ' ').trim() : '';
+  });
+  for (const g of granos) assert.ok(g, 'una capa sin grano');
+  assert.equal(new Set(granos).size, 4, 'dos capas del mismo material');
+});
+
+test('el pozo tiene boca: sin ella la capa de arriba flota', () => {
+  assert.match(leer('index.html'), /class="strata-boca"[^>]*><i>Superficie<\/i>/);
+  assert.match(leer('css/styles.css'), /\.strata-boca \{/);
+});
+
+test('la veladura de lo enterrado no pisa el filo de lo excavado', () => {
+  /* Las dos eran `box-shadow` y la segunda ganaba: una capa dominada que se
+     quedara sin retos perdía su marca de latón. */
+  const css = leer('css/styles.css');
+  const i = css.indexOf('.stratum-row.locked {');
+  const trozo = css.slice(i, css.indexOf('}', i));
+  assert.ok(!/box-shadow/.test(trozo), 'la veladura sigue en box-shadow');
+  assert.match(css, /\.stratum-row\.locked::after \{[\s\S]{0,200}background: rgba/);
+});
+
+test('la chapa del frente no se come el título', () => {
+  assert.match(leer('css/styles.css'),
+    /\.stratum-row\.frente \.stratum-info strong \{ padding-right/);
+});
+
+test('un estrato ya dominado no se marca como frente', () => {
+  /* Sería mandarle a repetir lo que ya sabe llamándolo avanzar. */
+  const css = leer('css/styles.css');
+  assert.match(css, /\.stratum-row\.frente\.excavado::after \{ display: none; \}/);
+  assert.match(css, /\.stratum-row\.frente\.excavado \{ box-shadow: inset 5px 0 0 var\(--gold\)/);
+});

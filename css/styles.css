@@ -734,9 +734,30 @@ body.en-mision #main { padding-bottom: var(--s-5); }
    es una capa de tierra con su propio tono, más clara arriba (arena de la
    superficie) y más oscura y arcillosa según se baja. Antes eran cuatro
    filas blancas iguales y la palabra «estrato» no significaba nada. */
+/* ── La boca del pozo ──
+   Una franja de superficie con el borde roto, encima de la primera capa. Es lo
+   que convierte la lista en un corte de terreno: sin ella, la capa de arriba
+   flota y no se sabe desde dónde se baja. */
+.strata-boca {
+  height: 1.5rem; border-radius: var(--r-lg) var(--r-lg) 0 0;
+  background-color: #cdae7c;
+  background-image: linear-gradient(180deg, #e0c79b 0%, #cdae7c 100%);
+  position: relative; box-shadow: inset 0 0 0 1px rgba(122, 74, 33, .18);
+}
+.strata-boca::after {
+  content: ''; position: absolute; left: 0; right: 0; bottom: -1px; height: 6px;
+  background: repeating-linear-gradient(90deg,
+    #cdae7c 0 6px, transparent 6px 9px, #cdae7c 9px 17px, transparent 17px 21px);
+}
+.strata-boca i {
+  position: absolute; left: .9rem; top: 50%; transform: translateY(-50%);
+  font-style: normal; font-size: .62rem; font-weight: 800;
+  letter-spacing: .12em; text-transform: uppercase; color: #5e451f;
+}
+
 .strata-list {
   display: flex; flex-direction: column;
-  border-radius: var(--r-lg); overflow: hidden;
+  border-radius: 0 0 var(--r-lg) var(--r-lg); overflow: hidden;
   background: var(--surface);
   box-shadow:
     var(--e-3),
@@ -759,20 +780,81 @@ body.en-mision #main { padding-bottom: var(--s-5); }
       rgba(122, 74, 33, .30) 37%, rgba(122, 74, 33, .12) 58%,
       rgba(122, 74, 33, .28) 76%, rgba(122, 74, 33, .13) 100%);
 }
-/* Tonos de tierra por profundidad. */
-.stratum-row:nth-child(1) { background: #fffaee; }
-.stratum-row:nth-child(2) { background: #fbf2df; }
-.stratum-row:nth-child(3) { background: #f6ead0; }
-.stratum-row:nth-child(4) { background: #f1e1c2; }
+/* ── Tonos de tierra por profundidad ──
+   Eran cuatro blancos casi iguales: la palabra «estrato» hacía todo el trabajo
+   y el dibujo no decía nada. Ahora bajan de arena de superficie a arcilla
+   profunda, con bastante recorrido para que se vea la caída de un vistazo. El
+   más oscuro sigue por encima de 7:1 con la tinta, que es lo que marca el
+   límite de cuánto se puede oscurecer: la legibilidad manda sobre el efecto.
 
-/* Una capa aún enterrada: apagada y con grano, como tierra sin tocar. */
+   Y cada capa tiene su GRANO, no solo su tono. Arena fina arriba, gravilla
+   suelta en medio, arcilla veteada abajo: cuatro materiales distintos, que es
+   lo que hace que una pared de excavación se lea como capas y no como rayas. */
+.stratum-row:nth-child(1) {
+  background-color: #fbf0d8;
+  background-image: radial-gradient(circle at 12% 30%, rgba(160, 125, 70, .10) 0 1px, transparent 1px),
+                    radial-gradient(circle at 62% 72%, rgba(160, 125, 70, .09) 0 1px, transparent 1px);
+  background-size: 14px 14px, 19px 19px;
+}
+.stratum-row:nth-child(2) {
+  background-color: #f2e0bd;
+  background-image: radial-gradient(circle at 30% 40%, rgba(140, 104, 54, .13) 0 1.6px, transparent 1.6px),
+                    radial-gradient(circle at 78% 18%, rgba(140, 104, 54, .10) 0 1.2px, transparent 1.2px);
+  background-size: 17px 17px, 23px 23px;
+}
+.stratum-row:nth-child(3) {
+  background-color: #e7cfa1;
+  background-image: repeating-linear-gradient(102deg,
+                      rgba(120, 88, 44, .10) 0 2px, transparent 2px 9px),
+                    radial-gradient(circle at 45% 60%, rgba(120, 88, 44, .13) 0 2px, transparent 2px);
+  background-size: auto, 21px 21px;
+}
+.stratum-row:nth-child(4) {
+  background-color: #d9bf94;
+  background-image: repeating-linear-gradient(96deg,
+                      rgba(104, 74, 36, .13) 0 3px, transparent 3px 11px),
+                    repeating-linear-gradient(-84deg,
+                      rgba(104, 74, 36, .07) 0 2px, transparent 2px 14px);
+}
+
+/* Una capa aún enterrada: apagada y con grano grueso, como tierra sin tocar.
+   No se aclara —lo enterrado no está más limpio, está más compacto— así que
+   se le echa una veladura de sombra por encima. */
 .stratum-row.locked {
   color: var(--ink-soft);
   background-image:
     repeating-linear-gradient(114deg,
-      rgba(107, 86, 56, .07) 0 3px, transparent 3px 7px);
+      rgba(107, 86, 56, .10) 0 3px, transparent 3px 7px);
+}
+/* La veladura va en una capa aparte y no en `box-shadow`: ahí pisaría el filo
+   de latón de lo excavado y el del frente, que son la misma propiedad. */
+.stratum-row.locked::after {
+  content: ''; position: absolute; inset: 0; pointer-events: none;
+  background: rgba(96, 74, 44, .10);
 }
 .stratum-row.locked .stratum-icon { color: var(--ink-faint); }
+
+/* ── El frente de excavación ──
+   El estrato que la app propone en «Sigue por aquí». Antes las dos capas
+   abiertas se veían igual y no había forma de saber por dónde entrar: dos
+   puertas idénticas son media puerta. Se marca con el filo del pico a la
+   izquierda y una capa de polvo levantado. */
+.stratum-row.frente {
+  box-shadow: inset 5px 0 0 var(--jungle-light);
+}
+/* El título deja sitio a la chapa para no pasar por debajo. */
+.stratum-row.frente .stratum-info strong { padding-right: 3.4rem; }
+.stratum-row.frente::after {
+  content: 'Aquí'; position: absolute; right: .8rem; top: .55rem;
+  font-family: var(--font-display); font-size: var(--t-xs);
+  letter-spacing: .07em; text-transform: uppercase;
+  color: #2c4f25; background: var(--jungle-tint);
+  padding: .1rem .45rem; border-radius: var(--r-pill);
+  box-shadow: inset 0 0 0 1px rgba(55, 98, 47, .35);
+}
+/* Si además está dominado manda el latón: ya no es por donde hay que entrar. */
+.stratum-row.frente.excavado { box-shadow: inset 5px 0 0 var(--gold); }
+.stratum-row.frente.excavado::after { display: none; }
 
 /* Una capa excavada: limpia, con el filo de latón a la izquierda. */
 .stratum-row.excavado { box-shadow: inset 4px 0 0 var(--gold); }
@@ -789,9 +871,16 @@ body.en-mision #main { padding-bottom: var(--s-5); }
    debajo, como la cota de una pared de excavación. En una sola línea el
    texto se salía de la columna. */
 .stratum-depth {
+  position: relative;
   flex-shrink: 0; width: 3.1rem;
   display: flex; flex-direction: column; align-items: center; line-height: 1;
   color: var(--brass);
+}
+/* La cota de la pared: una marca a la izquierda de cada número, como en el
+   dibujo de sección de una excavación de verdad. */
+.stratum-depth::before {
+  content: ''; position: absolute; left: -.55rem; top: 50%; width: .42rem; height: 1px;
+  background: currentColor; opacity: .55;
 }
 .stratum-depth i {
   font-style: normal; font-size: .6rem; font-weight: 800;
