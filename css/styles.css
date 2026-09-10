@@ -1338,6 +1338,9 @@ img.feedback-quien {
   font-size: 1.4rem; background: var(--paper); border-radius: var(--r-sm);
   padding: .2rem .45rem; box-shadow: 0 0 0 1px rgba(138, 90, 11, .25);
 }
+/* Lo que lleva puesto, dibujado y no en emoji: es lo que ha comprado con su
+   trabajo y donde antes había un icono de teclado ahora hay una cosa suya. */
+.gear-chip .icono-dibujo { width: 2.2rem; height: 2.2rem; }
 /* ── El campamento dibujado ──
    Era una línea de emoji sueltos que no se distinguía de un texto cualquiera.
    Ahora es un SITIO: cielo, dos dunas y suelo, y lo comprado puesto encima en
@@ -1401,7 +1404,10 @@ img.feedback-quien {
    entera y había que hacer scroll para ver el catálogo completo. */
 .shop-list {
   display: grid; gap: .6rem;
-  grid-template-columns: repeat(auto-fill, minmax(17rem, 1fr));
+  /* 19 rem y no 17: desde que cada artículo enseña su dibujo, el hueco de la
+     izquierda ocupa lo suyo y a 17 los nombres se partían en tres renglones
+     —«Jeep / de la / expedición»— con el botón encima. */
+  grid-template-columns: repeat(auto-fill, minmax(19rem, 1fr));
 }
 .shop-item {
   display: flex; align-items: center; gap: .75rem;
@@ -1437,7 +1443,7 @@ img.feedback-quien {
 .shop-item .btn-secondary {
   background: transparent; color: var(--brass);
   box-shadow: inset 0 0 0 2px rgba(138, 90, 11, .35);
-  flex-shrink: 0;
+  flex-shrink: 0; white-space: nowrap;
 }
 .shop-item .btn-secondary:hover:not(:disabled) { background: var(--brass); color: #fff; box-shadow: var(--e-1); }
 .shop-item .btn-secondary:disabled { box-shadow: inset 0 0 0 2px rgba(107, 86, 56, .25); color: var(--ink-soft); }

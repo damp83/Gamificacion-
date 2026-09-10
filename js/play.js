@@ -902,7 +902,7 @@ function renderCamp() {
   equipped.innerHTML = S.inventory.gear_equipped.length
     ? S.inventory.gear_equipped.map(id => {
         const item = shopCatalog().find(i => i.id === id);
-        return `<span class="gear-chip" title="${esc(item.name)}">${esc(item.icon)}</span>`;
+        return `<span class="gear-chip" title="${esc(item.name)}">${iconoDeFicha(item)}</span>`;
       }).join('')
     : '<small>Aún sin equipo. ¡Visita el almacén!</small>';
 
@@ -925,7 +925,10 @@ function renderCamp() {
       btn.textContent = equippedNow ? 'Quitar' : 'Ponérselo';
       btn.addEventListener('click', () => { toggleEquip(item.id); renderCamp(); });
     } else if (owned) {
-      btn.textContent = 'En el campamento';
+      /* «Montado» y no «En el campamento»: es la etiqueta más larga de las
+         cuatro y, en una ficha que ahora lleva dibujo, empujaba el nombre del
+         artículo a partirse en tres renglones. */
+      btn.textContent = 'Montado';
       btn.disabled = true;
     } else {
       btn.textContent = 'Comprar';
