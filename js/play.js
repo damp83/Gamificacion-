@@ -141,7 +141,7 @@ function renderMap() {
    cuadrado: estirar una ilustración para que quepa en otra proporción se nota
    siempre, y recortarla se llevaría los bordes rotos del pergamino, que son la
    mitad de su gracia. */
-const CARTA_ALTO = 54.5;   /* 499 × 272 del dibujo, en unidades de 100 de ancho */
+const CARTA_ALTO = 54.55;  /* 1100 × 600 del dibujo, en unidades de 100 de ancho */
 const PUNTOS_CARTA = [
   { x: 30, y: 26 }, { x: 72, y: 38 }, { x: 48, y: 14 },
   { x: 17, y: 45 }, { x: 86, y: 17 }, { x: 57, y: 49 },
@@ -217,7 +217,7 @@ function pintarCartaDeExpedicion(sites) {
            excavación no descubre otro mundo, quita la arena de este. -->
       <image href="${CARTA_FONDO}" x="0" y="0" width="100" height="${CARTA_ALTO}"
              preserveAspectRatio="xMidYMid slice"/>
-      <rect x="0" y="0" width="100" height="${CARTA_ALTO}" fill="#c9b088" opacity=".78"/>
+      <rect x="0" y="0" width="100" height="${CARTA_ALTO}" fill="#cbb083" opacity=".84"/>
       <g mask="url(#atlas-claros)">
         <image href="${CARTA_FONDO}" x="0" y="0" width="100" height="${CARTA_ALTO}"
                preserveAspectRatio="xMidYMid slice"/>

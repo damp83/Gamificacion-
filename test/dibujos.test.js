@@ -143,8 +143,8 @@ test('el lienzo tiene la proporción del dibujo, no una inventada', () => {
   /* WebP: el tamaño va en la cabecera VP8L/VP8X; basta con que exista. */
   assert.ok(png.length > 1000);
   const alto = c.ev('CARTA_ALTO');
-  assert.ok(Math.abs(100 / alto - 499 / 272) < 0.05, `el lienzo va a ${(100/alto).toFixed(2)}:1`);
-  assert.match(leer('css/styles.css'), /aspect-ratio: 499 \/ 272/);
+  assert.ok(Math.abs(100 / alto - 11 / 6) < 0.03, `el lienzo va a ${(100/alto).toFixed(2)}:1`);
+  assert.match(leer('css/styles.css'), /aspect-ratio: 11 \/ 6/);
 });
 
 /* ── El fallo que costó una pantalla ── */

@@ -594,7 +594,7 @@ img.site-icon.site-img {
 /* La proporción es la del dibujo, y `meet` en vez de `slice`: los bordes rotos
    del pergamino son la mitad de su gracia y recortarlos sería tirarlos. */
 .carta {
-  display: block; width: 100%; aspect-ratio: 499 / 272;
+  display: block; width: 100%; aspect-ratio: 11 / 6;
   filter: drop-shadow(0 2px 6px rgba(51, 36, 15, .18));
 }
 /* El punto de cada yacimiento se puede tocar y se puede tabular: es un botón,

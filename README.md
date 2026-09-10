@@ -1449,6 +1449,17 @@ otro mundo, quita la arena de este.
 El lienzo tiene la proporción exacta del dibujo. Estirar una ilustración se nota siempre,
 y recortarla se llevaría los bordes rotos del pergamino, que son la mitad de su gracia.
 
+**La arena tapa un 84 %.** Es el número que decide si esto significa algo: con menos, el
+mapa se ve entero desde el primer día y excavar deja de descubrir nada; con más, no se
+intuye que hay algo debajo y no da ganas de llegar. Se ajustó mirándolo, no calculándolo.
+
+**Y el rótulo inventado se quita.** El generador escribe letras deformes cuando le pides
+un mapa, y este trajo dos líneas de garabato sobre la arena. Difuminarlas dejaba fantasma
+—la letra se seguía adivinando— y taparlas con un parche se llevaba por delante la
+columna de al lado. Lo que funciona es rellenar **solo el trazo**, por pasadas: en cada
+una, cada píxel oscuro toma la mediana ancha de su entorno, que en arena plana es la
+propia arena.
+
 ### Cómo entran las imágenes nuevas
 
 Las que llegan de un generador vienen en JPEG con el **damero de transparencia pegado en
@@ -1462,7 +1473,7 @@ desde el borde no llegaba nunca. Para eso hay una segunda pasada que no usa la c
 sino el color exacto: solo desaparece lo que es gris *y* coincide con uno de los tonos
 del propio damero. La piedra del dibujo es ocre, no gris, y no se toca.
 
-Después van a WebP. Los diez ocupan **210 KB en total**; en PNG serían más de un mega.
+Después van a WebP. Los diez ocupan **287 KB en total**; en PNG serían más de dos megas.
 Cada uno tiene que entrar en tres sitios y hay pruebas que lo fijan:
 
 - El **código**, o el guion del archivo suelto falla al construir.
