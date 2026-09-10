@@ -119,6 +119,7 @@ function showHome() {
   aplicarModoSesion();
   $('#screen-home').classList.remove('hidden');
   renderHomeSites();
+  renderHomeRoles();
   renderTeacherSignature();
   window.scrollTo(0, 0);
 }
@@ -155,6 +156,37 @@ function renderHomeSites() {
         </div>
       </div>`).join('')
     : '<p class="empty-note">El profesor aún está preparando los yacimientos.</p>';
+}
+
+/* Los papeles de la cuadrilla, contados en la portada como se cuenta el
+   elenco: mismo tipo de tarjeta y mismo tipo de retrato.
+
+   No es adorno. Un niño que llega a la app sabe que va a excavar, pero no que
+   dentro de su grupo va a tener un encargo concreto —guiar, cronometrar,
+   guardar los doblones— y que ese encargo va rotando. Verlo antes de entrar,
+   con la cara de quien lo hace, es lo que convierte «trabajad en grupo» en
+   algo que se entiende y se espera.
+
+   Se pinta desde ROLES_CUADRILLA y no a mano en el HTML por lo de siempre: el
+   día que un rol cambie de nombre o entre uno nuevo, cambia en un sitio. Y el
+   bloque entero se esconde si el docente ha apagado las cuadrillas, porque
+   entonces esos papeles no existen y prometerlos sería mentir. */
+function renderHomeRoles() {
+  const bloque = $('#home-roles-block');
+  if (!bloque) return;
+  const hay = !!(ATLAS_CONFIG.teams && ATLAS_CONFIG.teams.enabled);
+  bloque.classList.toggle('hidden', !hay);
+  if (!hay) return;
+  $('#home-roles').innerHTML = ROLES_CUADRILLA.map(r => `
+    <div class="cast-card${r.especial ? ' cast-encargo' : ''}">
+      ${r.img
+        ? `<img class="cast-face rol-face" src="${esc(r.img)}" alt="" loading="lazy">`
+        : `<span class="cast-face" aria-hidden="true">${esc(r.icon)}</span>`}
+      <strong>${esc(r.personaje)}</strong>
+      <span class="cast-rol">${esc(r.rol)}</span>
+      <small>${esc(r.desc)}</small>
+      ${r.especial ? '<span class="cast-encargo-nota">Encargo de clase, no de cuadrilla</span>' : ''}
+    </div>`).join('');
 }
 
 /* Entrada del alumno: al acceso con cuentas, o al onboarding si es modo local */

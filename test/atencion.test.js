@@ -791,3 +791,54 @@ test('una sola tarjeta no se estira de lado a lado', () => {
   const i = css.indexOf('.logbook-summary {');
   assert.match(css.slice(i, css.indexOf('}', i)), /auto-fill/);
 });
+
+/* ══ Los papeles de la cuadrilla, en la portada ══
+
+   Un niño que abre la app sabe que va a excavar. Lo que no sabe es que dentro
+   de su grupo va a tener un encargo concreto y que ese encargo va rotando.
+   Contarlo antes de entrar, con la cara de quien lo hace, es lo que convierte
+   «trabajad en grupo» en algo que se entiende y se espera. */
+
+test('los seis papeles salen en la portada, con su retrato y su encargo', () => {
+  const c = cargarApp();
+  c.ev('renderHomeRoles()');
+  const h = c.ev("$('#home-roles')").innerHTML;
+  for (const r of c.ev('ROLES_CUADRILLA')) {
+    assert.ok(h.includes(r.personaje), `${r.id} no sale en la portada`);
+    assert.ok(h.includes(r.rol), `${r.id} sale sin decir de qué se encarga`);
+    assert.ok(h.includes(r.img), `${r.id} sale sin retrato`);
+  }
+});
+
+test('y si el docente apaga las cuadrillas, el bloque entero desaparece', () => {
+  /* Prometer un papel que luego no existe es peor que no contarlo. */
+  const c = cargarApp();
+  c.ev('ATLAS_CONFIG.teams.enabled = false');
+  c.ev('renderHomeRoles()');
+  assert.ok(c.ev("$('#home-roles-block')").classList.contains('hidden'));
+  c.ev('ATLAS_CONFIG.teams.enabled = true');
+  c.ev('renderHomeRoles()');
+  assert.ok(!c.ev("$('#home-roles-block')").classList.contains('hidden'));
+});
+
+test('el Intendente sale marcado: es de la clase, no de una cuadrilla', () => {
+  const c = cargarApp();
+  c.ev('renderHomeRoles()');
+  const h = c.ev("$('#home-roles')").innerHTML;
+  assert.match(h, /cast-encargo/, 'el encargo especial no se distingue de los demás');
+  /* Y solo uno: si mañana hay dos especiales, esta marca deja de significar
+     «este es el distinto» y hay que repensarla. */
+  const especiales = c.ev('ROLES_CUADRILLA').filter(r => r.especial);
+  assert.equal(especiales.length, 1);
+});
+
+test('la portada lee la lista de roles, no la copia a mano', () => {
+  /* Escritos en el HTML, el día que un rol cambie de nombre habría dos
+     verdades: la del panel del docente y la de la portada. */
+  const html = leer('index.html');
+  const c = cargarApp();
+  for (const r of c.ev('ROLES_CUADRILLA')) {
+    assert.ok(!html.includes(r.personaje), `${r.id} está escrito a mano en index.html`);
+  }
+  assert.match(leer('js/app.js'), /ROLES_CUADRILLA\.map/);
+});

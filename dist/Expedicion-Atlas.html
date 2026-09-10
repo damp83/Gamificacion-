@@ -2359,6 +2359,12 @@ img.feedback-quien {
   padding: clamp(1.1rem, 3vw, 1.8rem); margin-bottom: var(--s-4);
 }
 .home-block h2 { font-size: var(--t-xl); color: var(--leather-dark); margin-bottom: var(--s-4); }
+/* La entradilla de un bloque, que no es la de la cabecera: esta va alineada a
+   la izquierda con el resto del bloque y no centrada como la del héroe. */
+.home-block-lead {
+  margin: calc(var(--s-4) * -1 + .2rem) 0 var(--s-4);
+  font-size: var(--t-sm); color: var(--ink-soft); line-height: 1.55;
+}
 .home-dialog { margin: 0 0 var(--s-4); }
 .home-rule {
   background: var(--jungle-tint); border-left: 4px solid var(--jungle); border-radius: var(--r-md);
@@ -2395,6 +2401,41 @@ img.feedback-quien {
 img.cast-face { padding: 0; overflow: hidden; }
 .cast-card strong { color: var(--leather-dark); font-size: var(--t-sm); font-weight: 800; }
 .cast-card small { font-size: var(--t-xs); color: var(--ink-soft); line-height: 1.45; }
+
+/* ── Los papeles de la cuadrilla ──
+   Misma tarjeta que el elenco, a propósito: para un niño, su encargo dentro
+   del grupo es tan parte del reparto como Kira o Tobías. */
+.cast-rol {
+  font-size: var(--t-xs); color: var(--brass); font-weight: 800;
+  text-transform: uppercase; letter-spacing: .05em; line-height: 1.35;
+}
+/* Los retratos de rol son de medio cuerpo: encuadrados por el centro se veía
+   la cazadora y no la cara. Se sube el encuadre y se llena el círculo. */
+/* Seis tarjetas y no cuatro: con la medida del elenco salían cuatro y dos, y
+   la fila coja dejaba medio bloque en blanco. A 13 rem caben tres y tres. */
+.home-roles { grid-template-columns: repeat(auto-fit, minmax(13rem, 1fr)); }
+/* Y el retrato más grande que el del elenco. No es capricho: los del elenco
+   son primeros planos y estos son de medio cuerpo, así que a 3,2 rem la cara
+   —que es lo que un niño busca— quedaba del tamaño de una uña. */
+/* `contain` y no `cover`: el círculo recortaba justo lo que identifica a cada
+   uno —el ala del sombrero de Leo, la mochila de Nico— y al niño le llegaba
+   media cara sin sus cosas. Cabiendo entero se pierde algo de tamaño y se
+   gana el personaje. */
+img.cast-face.rol-face {
+  width: 4.6rem; height: 4.6rem;
+  object-fit: contain; object-position: 50% 50%;
+}
+/* El Intendente no es de una cuadrilla, es de la clase entera. Se marca en
+   dorado, que aquí es el color de lo que se gana, y no en rojo, que es el de
+   Vera. */
+.cast-card.cast-encargo {
+  border-color: rgba(138, 90, 11, .4); background: var(--brass-tint);
+}
+.cast-encargo-nota {
+  font-size: var(--t-xs); font-weight: 800; color: var(--leather-dark);
+  background: var(--surface); border-radius: var(--r-sm);
+  padding: .1rem .4rem; margin-top: .15rem; align-self: center;
+}
 
 /* Yacimientos */
 img.home-site-icon.home-site-img {
@@ -3711,6 +3752,17 @@ body.en-consulta #shop-list button { display: none !important; }
             coleccionistas. Se equivoca en sus cuentas… ¿sabrás pillarla?</small>
           </div>
         </div>
+      </section>
+
+      <!-- ── Los papeles de la cuadrilla ──
+           Se pinta desde ROLES_CUADRILLA y se esconde entero si el docente ha
+           apagado las cuadrillas: prometer un papel que luego no existe es
+           peor que no contarlo. -->
+      <section class="home-block hidden" id="home-roles-block">
+        <h2><svg class="ico" viewBox="0 0 24 24" aria-hidden="true"><use href="#i-group"/></svg> Y tú, ¿qué haces en tu cuadrilla?</h2>
+        <p class="home-block-lead">Cada expedición reparte el trabajo. El Prof. Ocaña te da un papel
+        y lo va cambiando, para que todos pasen por todos.</p>
+        <div id="home-roles" class="home-cast home-roles"></div>
       </section>
 
       <!-- ── Los yacimientos ── -->
@@ -6503,7 +6555,7 @@ function cruzarVerificacion(retos, respuestas) {
    copia guardada. Sin este número, «ya está arreglado» y «a mí no me pasa» son
    indistinguibles. Va junto al nombre de la caché del service worker, y una
    prueba comprueba que no se separen. */
-const ATLAS_VERSION = 'v91';
+const ATLAS_VERSION = 'v92';
 
 const ATLAS_DEFAULTS = {
 
@@ -21293,6 +21345,7 @@ function showHome() {
   aplicarModoSesion();
   $('#screen-home').classList.remove('hidden');
   renderHomeSites();
+  renderHomeRoles();
   renderTeacherSignature();
   window.scrollTo(0, 0);
 }
@@ -21329,6 +21382,37 @@ function renderHomeSites() {
         </div>
       </div>`).join('')
     : '<p class="empty-note">El profesor aún está preparando los yacimientos.</p>';
+}
+
+/* Los papeles de la cuadrilla, contados en la portada como se cuenta el
+   elenco: mismo tipo de tarjeta y mismo tipo de retrato.
+
+   No es adorno. Un niño que llega a la app sabe que va a excavar, pero no que
+   dentro de su grupo va a tener un encargo concreto —guiar, cronometrar,
+   guardar los doblones— y que ese encargo va rotando. Verlo antes de entrar,
+   con la cara de quien lo hace, es lo que convierte «trabajad en grupo» en
+   algo que se entiende y se espera.
+
+   Se pinta desde ROLES_CUADRILLA y no a mano en el HTML por lo de siempre: el
+   día que un rol cambie de nombre o entre uno nuevo, cambia en un sitio. Y el
+   bloque entero se esconde si el docente ha apagado las cuadrillas, porque
+   entonces esos papeles no existen y prometerlos sería mentir. */
+function renderHomeRoles() {
+  const bloque = $('#home-roles-block');
+  if (!bloque) return;
+  const hay = !!(ATLAS_CONFIG.teams && ATLAS_CONFIG.teams.enabled);
+  bloque.classList.toggle('hidden', !hay);
+  if (!hay) return;
+  $('#home-roles').innerHTML = ROLES_CUADRILLA.map(r => `
+    <div class="cast-card${r.especial ? ' cast-encargo' : ''}">
+      ${r.img
+        ? `<img class="cast-face rol-face" src="${esc(r.img)}" alt="" loading="lazy">`
+        : `<span class="cast-face" aria-hidden="true">${esc(r.icon)}</span>`}
+      <strong>${esc(r.personaje)}</strong>
+      <span class="cast-rol">${esc(r.rol)}</span>
+      <small>${esc(r.desc)}</small>
+      ${r.especial ? '<span class="cast-encargo-nota">Encargo de clase, no de cuadrilla</span>' : ''}
+    </div>`).join('');
 }
 
 /* Entrada del alumno: al acceso con cuentas, o al onboarding si es modo local */

@@ -2356,6 +2356,12 @@ img.feedback-quien {
   padding: clamp(1.1rem, 3vw, 1.8rem); margin-bottom: var(--s-4);
 }
 .home-block h2 { font-size: var(--t-xl); color: var(--leather-dark); margin-bottom: var(--s-4); }
+/* La entradilla de un bloque, que no es la de la cabecera: esta va alineada a
+   la izquierda con el resto del bloque y no centrada como la del héroe. */
+.home-block-lead {
+  margin: calc(var(--s-4) * -1 + .2rem) 0 var(--s-4);
+  font-size: var(--t-sm); color: var(--ink-soft); line-height: 1.55;
+}
 .home-dialog { margin: 0 0 var(--s-4); }
 .home-rule {
   background: var(--jungle-tint); border-left: 4px solid var(--jungle); border-radius: var(--r-md);
@@ -2392,6 +2398,41 @@ img.feedback-quien {
 img.cast-face { padding: 0; overflow: hidden; }
 .cast-card strong { color: var(--leather-dark); font-size: var(--t-sm); font-weight: 800; }
 .cast-card small { font-size: var(--t-xs); color: var(--ink-soft); line-height: 1.45; }
+
+/* ── Los papeles de la cuadrilla ──
+   Misma tarjeta que el elenco, a propósito: para un niño, su encargo dentro
+   del grupo es tan parte del reparto como Kira o Tobías. */
+.cast-rol {
+  font-size: var(--t-xs); color: var(--brass); font-weight: 800;
+  text-transform: uppercase; letter-spacing: .05em; line-height: 1.35;
+}
+/* Los retratos de rol son de medio cuerpo: encuadrados por el centro se veía
+   la cazadora y no la cara. Se sube el encuadre y se llena el círculo. */
+/* Seis tarjetas y no cuatro: con la medida del elenco salían cuatro y dos, y
+   la fila coja dejaba medio bloque en blanco. A 13 rem caben tres y tres. */
+.home-roles { grid-template-columns: repeat(auto-fit, minmax(13rem, 1fr)); }
+/* Y el retrato más grande que el del elenco. No es capricho: los del elenco
+   son primeros planos y estos son de medio cuerpo, así que a 3,2 rem la cara
+   —que es lo que un niño busca— quedaba del tamaño de una uña. */
+/* `contain` y no `cover`: el círculo recortaba justo lo que identifica a cada
+   uno —el ala del sombrero de Leo, la mochila de Nico— y al niño le llegaba
+   media cara sin sus cosas. Cabiendo entero se pierde algo de tamaño y se
+   gana el personaje. */
+img.cast-face.rol-face {
+  width: 4.6rem; height: 4.6rem;
+  object-fit: contain; object-position: 50% 50%;
+}
+/* El Intendente no es de una cuadrilla, es de la clase entera. Se marca en
+   dorado, que aquí es el color de lo que se gana, y no en rojo, que es el de
+   Vera. */
+.cast-card.cast-encargo {
+  border-color: rgba(138, 90, 11, .4); background: var(--brass-tint);
+}
+.cast-encargo-nota {
+  font-size: var(--t-xs); font-weight: 800; color: var(--leather-dark);
+  background: var(--surface); border-radius: var(--r-sm);
+  padding: .1rem .4rem; margin-top: .15rem; align-self: center;
+}
 
 /* Yacimientos */
 img.home-site-icon.home-site-img {
