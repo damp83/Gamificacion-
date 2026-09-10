@@ -1114,12 +1114,11 @@ function wireTaller() {
 function renderLogbook() {
   renderHud();
   const lb = S.logbook;
-  $('#logbook-summary').innerHTML = `
-    <div class="logbook-stat"><strong>${lb.stamps_lifetime}</strong><span>sellos ganados</span></div>
-    <div class="logbook-stat"><strong>${lb.current_weeks}</strong><span>semanas seguidas</span></div>
-    <div class="logbook-stat"><strong>${lb.active_days_this_week.length}/3</strong><span>días esta semana</span></div>
-    <div class="logbook-stat"><strong>${(lb.free_rope_used_this_week ? 0 : 1) + lb.rescue_ropes}</strong><span>cuerdas de rescate</span></div>
-    <div class="logbook-stat"><strong>${fragmentsRecovered()}</strong><span>fragmentos del Atlas</span></div>`;
+  pintarSemanaDeLaBitacora();
+
+  const cifras = cifrasDeLaBitacora(S);
+  $('#logbook-summary').innerHTML = cifras.map(c =>
+    `<div class="logbook-stat"><strong>${c.valor}</strong><span>${esc(c.etiqueta)}</span></div>`).join('');
 
   const stamps = $('#logbook-stamps');
   const history = lb.history.slice(-12);
@@ -1129,6 +1128,92 @@ function renderLogbook() {
     (history.length ? '<span class="route-line"></span>' : '') +
     `<span class="stamp stamp-current" title="Semana actual">${lb.active_days_this_week.length >= 3 ? '📍' : '⏳'}</span>` +
     '</div>';
+  /* Una ruta con un solo sello por dibujar no es una ruta: se dice qué va a
+     ser. Y sustituye a la regla en vez de sumarse: quien todavía no tiene
+     ninguna semana no necesita el detalle de qué pasa cuando se falla una. */
+  const pie = $('#logbook-ruta-pie');
+  const regla = $('#logbook-regla');
+  if (pie && regla) {
+    const vacia = !history.length;
+    pie.textContent = 'Aquí se irá dibujando tu ruta: una marca por cada semana '
+      + 'con tres días de expedición.';
+    pie.classList.toggle('hidden', !vacia);
+    regla.classList.toggle('hidden', vacia);
+  }
+}
+
+/* ══════════ LA BITÁCORA QUE MIRA HACIA DELANTE ══════════
+
+   Recibía a todo el mundo con cinco tarjetas: 0 sellos, 0 semanas, 0/3 días, 0
+   fragmentos. Para quien acaba de empezar —que es la clase entera en
+   septiembre— la primera visita a su bitácora era una pantalla que le decía
+   cinco veces que no ha hecho nada.
+
+   Y es el sitio equivocado para decirlo. La bitácora existe para sostener el
+   hábito, no para auditarlo: lo que tiene que enseñar es lo que está a punto
+   de pasar. Los mismos datos, mirando hacia delante.
+
+   Dos cambios y ninguna cifra inventada:
+
+     · La semana en curso va la primera y dibujada. Tres días es el sello, así
+       que se dibujan tres casillas: es lo único de esta pantalla que el niño
+       puede cambiar hoy.
+
+     · Las cifras aparecen cuando tienen algo que contar. Un cero no es
+       información, es un hueco con tipografía grande. La bitácora crece con
+       quien la escribe, que es lo que hace una bitácora de verdad. */
+
+const DIAS_PARA_SELLO = 3;
+
+function semanaDeLaBitacora(estado) {
+  const lb = (estado || S).logbook;
+  const hechos = Math.min(DIAS_PARA_SELLO, (lb.active_days_this_week || []).length);
+  const faltan = Math.max(0, DIAS_PARA_SELLO - hechos);
+  const primero = !lb.stamps_lifetime;
+  return {
+    hechos, faltan, total: DIAS_PARA_SELLO,
+    logrado: faltan === 0,
+    titulo: faltan === 0
+      ? (primero ? '¡Tu primer sello es tuyo!' : 'Sello de esta semana conseguido')
+      : (primero ? 'Tu primer sello' : 'El sello de esta semana'),
+    dice: faltan === 0
+      ? 'Se estampa al cerrar la semana. Los sellos no se borran nunca.'
+      : faltan === 1
+        ? 'Te falta un día de expedición esta semana.'
+        : `Te faltan ${faltan} días de expedición esta semana.`
+  };
+}
+
+/* Las cifras que tienen algo que contar. La cuerda de rescate sale siempre
+   porque no es un logro: es algo que YA se tiene el primer día, y saber que
+   está ahí es justo lo que evita el disgusto de perder una racha. */
+function cifrasDeLaBitacora(estado) {
+  const S0 = estado || S;
+  const lb = S0.logbook;
+  const cuerdas = (lb.free_rope_used_this_week ? 0 : 1) + (lb.rescue_ropes || 0);
+  const frags = typeof fragmentsRecovered === 'function' ? fragmentsRecovered() : 0;
+  const todas = [
+    { valor: lb.stamps_lifetime, etiqueta: 'sellos ganados', siempre: false },
+    { valor: lb.current_weeks, etiqueta: 'semanas seguidas', siempre: false },
+    { valor: cuerdas, etiqueta: 'cuerdas de rescate', siempre: true },
+    { valor: frags, etiqueta: 'fragmentos del Atlas', siempre: false }
+  ];
+  return todas.filter(c => c.siempre || c.valor > 0);
+}
+
+function pintarSemanaDeLaBitacora() {
+  const caja = $('#logbook-semana');
+  if (!caja) return;
+  const s = semanaDeLaBitacora(S);
+  caja.className = 'logbook-semana' + (s.logrado ? ' semana-lograda' : '');
+  caja.innerHTML = `
+    <p class="semana-titulo">${esc(s.titulo)}</p>
+    <div class="semana-dias" role="img"
+         aria-label="${s.hechos} de ${s.total} días de expedición esta semana">
+      ${Array.from({ length: s.total }, (_, i) =>
+        `<span class="semana-dia${i < s.hechos ? ' dia-hecho' : ''}" aria-hidden="true"></span>`).join('')}
+    </div>
+    <p class="semana-dice">${esc(s.dice)}</p>`;
 }
 
 /* ── Dashboard docente ── */

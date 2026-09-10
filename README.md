@@ -84,7 +84,7 @@ Cubren lo que ya se ha roto alguna vez, que es de donde salieron:
 | `cuentas.test.js` | Que el panel avise de una contraseña que Appwrite va a rechazar, y de que escribirla no crea la cuenta |
 | `merito-grupo.test.js` | Que dar un mérito a una cuadrilla entera, a la clase o a unos cuantos elegidos a dedo use el mismo tope y el mismo registro que darlo uno a uno, y que se diga a quién no le llegó |
 | `criterios.test.js` | Que la evidencia por criterio se calcule bien, que no se proponga un nivel sin datos suficientes, y que nada de esto llegue nunca al niño ni a su familia |
-| `atencion.test.js` | Que la app diga por dónde seguir en vez de dejar elegir a ciegas, que la racha empiece donde hay algo que perder, que dos yacimientos nunca sean del mismo color, y que nada de esto castigue el error ni se le imponga a quien pidió menos movimiento |
+| `atencion.test.js` | Los diez arreglos de la auditoría estética: que la app diga por dónde seguir, que la racha empiece donde hay algo que perder, que dos yacimientos nunca sean del mismo color, que la escena del campamento solo dibuje, que los claros del mapa se sumen, que la capa más honda del pozo siga siendo legible, que las cuatro opciones lleven la misma tinta, que la bitácora no enseñe ceros, y que nada de esto castigue el error ni se le imponga a quien pidió menos movimiento |
 | `pin.test.js` | Que no quede ni un sitio donde teclear el PIN en la pantalla de un alumno, que al portal se entre por una sola puerta, y que salir de él lo vuelva a cerrar |
 | `conexion.test.js` | Que «no hay conexión» diga cuál de las cuatro causas es, y que las cuatro dejen claro que la contraseña no se ha llegado a comprobar |
 | `salud.test.js` | Que todo lo que se pierde en silencio deje de perderse en silencio: quién no sincroniza, qué diario está roto, si la clave de la IA se agotó, y que con todo en orden el panel no invente un problema |
@@ -1409,6 +1409,35 @@ En la misma tarjeta, la explicación del fallo era el texto más pequeño y más
 pantalla, justo al revés de lo que hace falta: el titular consuela, la explicación
 enseña. Al fallar pasa a ser el elemento dominante.
 
+### La bitácora que mira hacia delante
+
+Recibía a todo el mundo con cinco tarjetas: **0 sellos, 0 semanas, 0/3 días, 0
+fragmentos**. Para quien acaba de empezar —que es la clase entera en septiembre— la
+primera visita a su bitácora era una pantalla que le decía cinco veces que no ha hecho
+nada.
+
+Y es el sitio equivocado para decirlo. La bitácora existe para **sostener el hábito, no
+para auditarlo**: lo que tiene que enseñar es lo que está a punto de pasar. Los mismos
+datos, mirando hacia delante.
+
+**La semana en curso va la primera y dibujada.** Tres días es un sello, así que son tres
+casillas, y el hueco tiene el mismo tamaño que la marca para que se vea *cuánto* falta y
+no solo que falta algo. Es lo único de esa pantalla que el niño puede cambiar hoy. Así
+«0 sellos» pasa a ser **«te falta un día»**, y quien todavía no tiene ninguno lee «Tu
+primer sello» en vez de un cero.
+
+**Las cifras aparecen cuando tienen algo que contar.** Un cero no es información, es un
+hueco con tipografía grande. La bitácora crece con quien la escribe, que es lo que hace
+una bitácora de verdad.
+
+La única excepción es la **cuerda de rescate**, que se enseña desde el primer día aunque
+no sea un logro: es algo que *ya* se tiene, y saber que está ahí es justo lo que evita el
+disgusto de perder una racha.
+
+Y la ruta vacía dice qué va a ser en vez de enseñar un reloj de arena solo. Sustituye a
+la regla en lugar de sumarse a ella: quien no tiene ninguna semana todavía no necesita
+el detalle de qué pasa cuando se falla una.
+
 ### Dónde empieza el reto
 
 La pantalla del reto estaba centrada dentro de una banda fija de 42 rem. En una tablet
@@ -1543,10 +1572,11 @@ quien usa lector.
 > convierte en una mejora de juego por la puerta de atrás, y hay una prueba que fija que
 > esa función solo dibuja.
 
-### Lo que queda
+### Los diez, hechos
 
-Una, y menor: la **bitácora recibe a todos con un muro de ceros**. Cinco tarjetas que le
-dicen cinco veces a quien acaba de empezar que no ha hecho nada.
+La auditoría se cerró entera: por dónde seguir, el color de cada yacimiento, el premio
+que se cuenta, la racha, los personajes visibles, el campamento, el mapa, el pozo, dónde
+empieza el reto y la bitácora.
 
 > Nada de esto es motivo para meter marcadores, rankings ni rachas que castiguen faltar.
 > La racha se apaga en silencio a propósito. Lo que separa esto de las plataformas

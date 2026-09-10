@@ -654,3 +654,123 @@ test('las opciones entran escalonadas, y no si se ha pedido menos movimiento', (
   assert.match(t.slice(i, t.indexOf('\n}', i)), /escalonar\(\[\.\.\.optionsEl\.children\]\)/);
   /* `escalonar` ya se calla con prefers-reduced-motion; se comprueba arriba. */
 });
+
+/* ══ La bitácora que mira hacia delante ══
+
+   Recibía a todo el mundo con cinco tarjetas: 0 sellos, 0 semanas, 0/3 días, 0
+   fragmentos. Para quien acaba de empezar —que es la clase entera en
+   septiembre— la primera visita a su bitácora era una pantalla que le decía
+   cinco veces que no ha hecho nada. Y es el sitio equivocado para decirlo: la
+   bitácora existe para sostener el hábito, no para auditarlo. */
+
+function bitacora(c, cambios) {
+  c.ev('openDiary')({ name: 'Nadia', username: 'nadia' }, 3);
+  c.ev('S.logbook = ' + JSON.stringify(Object.assign({
+    week_id: 'x', active_days_this_week: [], current_weeks: 0,
+    stamps_lifetime: 0, history: [], free_rope_used_this_week: false, rescue_ropes: 0
+  }, cambios || {})));
+  c.ev('saveState()');
+  return c;
+}
+
+test('a quien empieza no se le enseñan cinco ceros', () => {
+  const c = bitacora(cargarApp());
+  const cifras = c.ev('cifrasDeLaBitacora')(c.ev('S'));
+  assert.ok(cifras.every(x => x.valor > 0 || x.siempre), 'un cero no es información');
+  assert.ok(cifras.length <= 1, 'el primer día solo hay una cosa que contar');
+});
+
+test('la cuerda de rescate se enseña desde el primer día, aunque no sea un logro', () => {
+  /* Es algo que YA se tiene, y saber que está ahí es lo que evita el disgusto
+     de perder una racha. */
+  const c = bitacora(cargarApp());
+  const cuerda = c.ev('cifrasDeLaBitacora')(c.ev('S')).find(x => /cuerdas/.test(x.etiqueta));
+  assert.ok(cuerda);
+  assert.equal(cuerda.valor, 1);
+});
+
+test('y las cifras van apareciendo según hay algo que contar', () => {
+  const c = bitacora(cargarApp(), { stamps_lifetime: 4, current_weeks: 2 });
+  const et = c.ev('cifrasDeLaBitacora')(c.ev('S')).map(x => x.etiqueta);
+  assert.ok(et.includes('sellos ganados'));
+  assert.ok(et.includes('semanas seguidas'));
+  assert.ok(!et.includes('fragmentos del Atlas'), 'lo que sigue a cero no ocupa sitio');
+});
+
+test('la semana en curso va la primera: es lo único que puede cambiar hoy', () => {
+  const html = leer('index.html');
+  const i = html.indexOf('id="screen-logbook"');
+  const trozo = html.slice(i, i + 1200);
+  assert.ok(trozo.indexOf('logbook-semana') < trozo.indexOf('logbook-summary'));
+});
+
+test('«0 sellos» pasa a ser «te falta un día»', () => {
+  const c = bitacora(cargarApp(), { active_days_this_week: ['a', 'b'] });
+  const s = c.ev('semanaDeLaBitacora')(c.ev('S'));
+  assert.equal(s.faltan, 1);
+  assert.match(s.dice, /Te falta un día/);
+  assert.match(s.titulo, /primer sello/, 'sin sellos todavía, el que viene es el primero');
+});
+
+test('y en plural cuando toca', () => {
+  const c = bitacora(cargarApp());
+  assert.match(c.ev('semanaDeLaBitacora')(c.ev('S')).dice, /Te faltan 3 días/);
+});
+
+test('con la semana hecha lo dice, y no promete lo que no toca', () => {
+  const c = bitacora(cargarApp(), { active_days_this_week: ['a', 'b', 'c'] });
+  const s = c.ev('semanaDeLaBitacora')(c.ev('S'));
+  assert.equal(s.logrado, true);
+  assert.match(s.titulo, /primer sello es tuyo/);
+  assert.match(s.dice, /al cerrar la semana/, 'el sello se estampa al cerrar, no ahora');
+});
+
+test('quien ya tiene sellos no lee «tu primer sello»', () => {
+  const c = bitacora(cargarApp(), { stamps_lifetime: 4, active_days_this_week: ['a'] });
+  const s = c.ev('semanaDeLaBitacora')(c.ev('S'));
+  assert.ok(!/primer/.test(s.titulo));
+  assert.match(s.titulo, /esta semana/);
+});
+
+test('los días de más no desbordan las tres casillas', () => {
+  const c = bitacora(cargarApp(), { active_days_this_week: ['a', 'b', 'c', 'd', 'e'] });
+  const s = c.ev('semanaDeLaBitacora')(c.ev('S'));
+  assert.equal(s.hechos, 3);
+  assert.equal(s.faltan, 0);
+});
+
+test('se dibujan tres casillas, y el hueco es del tamaño de la marca', () => {
+  /* Para que se vea CUÁNTO falta y no solo que falta algo. */
+  const c = bitacora(cargarApp(), { active_days_this_week: ['a'] });
+  c.ev('pintarSemanaDeLaBitacora()');
+  const h = c.ev("$('#logbook-semana')").innerHTML;
+  assert.equal((h.match(/class="semana-dia[ "]/g) || []).length, 3);
+  assert.equal((h.match(/dia-hecho/g) || []).length, 1);
+  const css = leer('css/styles.css');
+  const i = css.indexOf('.semana-dia {');
+  assert.match(css.slice(i, css.indexOf('}', i)), /width: 2\.3rem; height: 2\.3rem/);
+});
+
+test('la semana se cuenta también para quien no la ve', () => {
+  const c = bitacora(cargarApp(), { active_days_this_week: ['a', 'b'] });
+  c.ev('pintarSemanaDeLaBitacora()');
+  const h = c.ev("$('#logbook-semana')").innerHTML;
+  assert.match(h, /aria-label="2 de 3 días de expedición esta semana"/);
+  assert.match(h, /semana-dia[^>]*aria-hidden="true"/);
+});
+
+test('la ruta vacía dice qué va a ser, y sustituye a la regla en vez de sumarse', () => {
+  /* Quien todavía no tiene ninguna semana no necesita el detalle de qué pasa
+     cuando se falla una. */
+  const t = leer('js/play.js');
+  const i = t.indexOf('function renderLogbook');
+  const trozo = t.slice(i, t.indexOf('\n}', i));
+  assert.match(trozo, /pie\.classList\.toggle\('hidden', !vacia\)/);
+  assert.match(trozo, /regla\.classList\.toggle\('hidden', vacia\)/);
+});
+
+test('una sola tarjeta no se estira de lado a lado', () => {
+  const css = leer('css/styles.css');
+  const i = css.indexOf('.logbook-summary {');
+  assert.match(css.slice(i, css.indexOf('}', i)), /auto-fill/);
+});

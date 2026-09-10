@@ -963,10 +963,16 @@
       <!-- ══════════ BITÁCORA ══════════ -->
       <section id="screen-logbook" class="screen hidden">
         <h2><svg class="ico" viewBox="0 0 24 24" aria-hidden="true"><use href="#i-logbook"/></svg> Bitácora de Expedición</h2>
+        <!-- La semana en curso va la primera: es lo único de esta pantalla
+             que el niño puede cambiar hoy. -->
+        <div id="logbook-semana" class="logbook-semana"></div>
         <div id="logbook-summary" class="logbook-summary"></div>
         <h3><svg class="ico" viewBox="0 0 24 24" aria-hidden="true"><use href="#i-route"/></svg> Ruta de sellos</h3>
         <div id="logbook-stamps" class="logbook-stamps"></div>
-        <p class="logbook-note">Un <strong>sello</strong> se estampa cada semana con 3 o más días de expedición.
+        <!-- Dos notas diciendo lo mismo son una de más: la de la ruta vacía
+             sustituye a la regla, no se suma a ella. -->
+        <p id="logbook-ruta-pie" class="logbook-note hidden"></p>
+        <p id="logbook-regla" class="logbook-note">Un <strong>sello</strong> se estampa cada semana con 3 o más días de expedición.
         Los sellos nunca se borran: si una semana no se completa, solo queda un tramo de ruta sin dibujar.</p>
       </section>
 

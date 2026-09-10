@@ -11,7 +11,7 @@
    copia guardada. Sin este número, «ya está arreglado» y «a mí no me pasa» son
    indistinguibles. Va junto al nombre de la caché del service worker, y una
    prueba comprueba que no se separen. */
-const ATLAS_VERSION = 'v85';
+const ATLAS_VERSION = 'v86';
 
 const ATLAS_DEFAULTS = {
 
