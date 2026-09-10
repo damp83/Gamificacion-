@@ -1409,10 +1409,43 @@ En la misma tarjeta, la explicación del fallo era el texto más pequeño y más
 pantalla, justo al revés de lo que hace falta: el titular consuela, la explicación
 enseña. Al fallar pasa a ser el elemento dominante.
 
+### El campamento que se ve
+
+Un niño ahorraba noventa doblones, se compraba las botas todoterreno, y no las veía
+nunca. Ni la tienda de rayas, ni el jeep, ni la hoguera. Excavar daba doblones, los
+doblones compraban cosas, y las cosas no cambiaban nada de lo que el niño veía: **el
+circuito no cerraba por ninguna parte.** La pantalla que debía ser el premio de todo lo
+demás era una lista de la compra de quince líneas, con un formulario encima, y la
+«escena» era una línea de emoji sueltos que no se distinguía de un texto cualquiera.
+
+Ahora hay un **sitio dibujado** —cielo, dos dunas y suelo— y lo comprado está *puesto*
+en él: la tienda a un lado, el jeep al fondo, el tendedero detrás, la hoguera delante
+junto al explorador, y Tobías al lado. Cada compra cambia algo que se ve.
+
+Tres decisiones que importan:
+
+- **Los sitios están escritos, no repartidos al azar.** Un campamento cuya tienda cambia
+  de sitio cada vez que entras no es un sitio, es un collage. Lo comprado se queda donde
+  estaba.
+- **Lo que el docente añada al almacén también aparece.** Los iconos los teclea él y
+  viajan con los ajustes de la clase, así que hay huecos libres para lo que no
+  conocemos: un artículo nuevo se ve desde el primer día sin tocar una línea de código.
+  Y se escapa al pintarlo, como todo lo que viene de fuera.
+- **El campamento vacío mira hacia delante.** En vez de decirle que no tiene nada, dice
+  qué es lo más barato del almacén y cuánto cuesta: es lo que está a menos excavaciones
+  de distancia.
+
+La escena lleva su texto alternativo con el nombre de cada cosa, y los emoji van
+marcados como decorativos: un dibujo sin alternativa es una pantalla en blanco para
+quien usa lector.
+
+> Sigue sin dar ninguna ventaja. La escena hace **visible** la recompensa; no la
+> convierte en una mejora de juego por la puerta de atrás, y hay una prueba que fija que
+> esa función solo dibuja.
+
 ### Lo que queda
 
-Por orden de lo que más cambiaría la app: el **campamento no enseña ningún campamento**
-—se compran las botas y no se ven nunca—, el **mapa no es un mapa** aunque diga «4 % del
+Por orden de lo que más cambiaría la app: el **mapa no es un mapa** aunque diga «4 % del
 mundo dibujado», la **excavación es una palabra y no un dibujo**, las **cuatro respuestas
 son cuatro manchas iguales**, y la **bitácora recibe a todos con un muro de ceros**.
 

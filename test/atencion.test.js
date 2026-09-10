@@ -242,3 +242,127 @@ test('al fallar, la explicación pesa más que el titular', () => {
   assert.match(css, /\.feedback-card\.feedback-ensena \.feedback-explain \{[\s\S]{0,200}font-size: var\(--t-lg\)/);
   assert.match(leer('js/play.js'), /feedback-ensena', !res\.correct/);
 });
+
+/* ══ El campamento que se ve ══
+
+   Un niño ahorraba noventa doblones, se compraba las botas todoterreno, y no
+   las veía nunca. Ni la tienda, ni el jeep, ni la hoguera. Excavar daba
+   doblones, los doblones compraban cosas, y las cosas no cambiaban nada de lo
+   que el niño veía: el circuito no cerraba por ninguna parte. */
+
+function conCampamento(c, cosas) {
+  c.ev('openDiary')({ name: 'Nadia', username: 'nadia' }, 3);
+  c.ev('S.progression.doubloons_balance = 3000');
+  c.ev('saveState()');
+  for (const id of (cosas || [])) c.ev('buyItem')(id);
+  return c;
+}
+
+test('cada cosa comprada aparece en la escena, en su sitio', () => {
+  const c = conCampamento(cargarApp(), ['tienda_rayas', 'hoguera_grande', 'jeep_oxidado']);
+  c.ev('pintarEscenaDelCampamento()');
+  const h = c.ev("$('#camp-scene')").innerHTML;
+  for (const icono of ['⛺', '🔥', '🚙']) {
+    assert.ok(h.includes(icono), `${icono} no está en la escena`);
+  }
+});
+
+test('los sitios están escritos, no repartidos al azar', () => {
+  /* Un campamento cuya tienda cambia de sitio cada vez que entras no es un
+     sitio, es un collage. */
+  const c = conCampamento(cargarApp(), ['tienda_rayas', 'hoguera_grande']);
+  c.ev('pintarEscenaDelCampamento()');
+  const a = c.ev("$('#camp-scene')").innerHTML;
+  c.ev('pintarEscenaDelCampamento()');
+  assert.equal(c.ev("$('#camp-scene')").innerHTML, a);
+});
+
+test('nada flota en el cielo: todo se posa por debajo del horizonte', () => {
+  const c = cargarApp();
+  const sitios = Object.values(c.ev('SITIOS_CAMPAMENTO')).concat(c.ev('HUECOS_LIBRES'));
+  for (const s of sitios) {
+    assert.ok(s.y >= 10 && s.y <= 60, `un sitio en y=${s.y} sale flotando o se cae del borde`);
+    assert.ok(s.x >= 5 && s.x <= 95, `un sitio en x=${s.x} se sale por el lado`);
+  }
+});
+
+test('lo que el docente añada al almacén también se ve, sin tocar código', () => {
+  /* Los iconos de la tienda los teclea él y viajan con los ajustes de la
+     clase: un artículo nuevo tiene que verse desde el primer día. */
+  const c = cargarApp();
+  const tienda = c.ev('deepClone')(c.ev('ATLAS_CONFIG.shop'));
+  tienda.push({ id: 'farol_kaldros', name: 'Farol de Kaldros', icon: '🏮', cost: 40, type: 'camp' });
+  c.ev('setTeacherConfig')('shop', tienda);
+  conCampamento(c, ['farol_kaldros']);
+  c.ev('pintarEscenaDelCampamento()');
+  assert.ok(c.ev("$('#camp-scene')").innerHTML.includes('🏮'));
+});
+
+test('el campamento vacío mira hacia delante, no le dice que no tiene nada', () => {
+  const c = cargarApp();
+  c.ev('openDiary')({ name: 'Nadia', username: 'nadia' }, 3);
+  c.ev('pintarEscenaDelCampamento()');
+  const h = c.ev("$('#camp-scene')").innerHTML;
+  assert.match(h, /por montar/);
+  assert.match(h, /Golosina para Tobías/, 'dice lo más barato: es lo que está a menos excavaciones');
+  assert.match(h, /30/);
+});
+
+test('lo siguiente es siempre lo más barato que le falte', () => {
+  const c = conCampamento(cargarApp(), ['golosina_tobias']);
+  /* Las golosinas se pueden comprar más de una vez, así que siguen contando. */
+  assert.equal(c.ev('loSiguienteDelAlmacen()').id, 'golosina_tobias');
+  const c2 = cargarApp();
+  const tienda = c2.ev('deepClone')(c2.ev('ATLAS_CONFIG.shop')).filter(i => i.type !== 'treat');
+  c2.ev('setTeacherConfig')('shop', tienda);
+  conCampamento(c2, []);
+  assert.equal(c2.ev('loSiguienteDelAlmacen()').id, 'cantimplora', 'el de 50, que es el más barato que queda');
+});
+
+test('Tobías cambia según lo que le hayan dado', () => {
+  const c = cargarApp();
+  assert.match(c.ev('estadoDeTobias')(0).dice, /husmea/);
+  assert.match(c.ev('estadoDeTobias')(1).dice, /feliz/);
+  assert.match(c.ev('estadoDeTobias')(5).dice, /no se mueve/);
+});
+
+test('la escena se cuenta también para quien no la ve', () => {
+  /* Un dibujo sin texto alternativo es una pantalla en blanco para quien usa
+     lector. Los emoji sueltos van marcados como decorativos y el nombre de
+     cada cosa viaja en la etiqueta de la escena entera. */
+  const c = conCampamento(cargarApp(), ['tienda_rayas']);
+  c.ev('pintarEscenaDelCampamento()');
+  const h = c.ev("$('#camp-scene')").innerHTML;
+  assert.match(h, /role="img"/);
+  assert.match(h, /aria-label="Tu campamento con Tienda a rayas"/);
+  assert.match(h, /escena-cosa[^>]*aria-hidden="true"/);
+});
+
+test('y sin nada comprado también se dice qué es', () => {
+  const c = cargarApp();
+  c.ev('openDiary')({ name: 'Nadia', username: 'nadia' }, 3);
+  c.ev('pintarEscenaDelCampamento()');
+  assert.match(c.ev("$('#camp-scene')").innerHTML, /aria-label="Tu campamento todavía vacío"/);
+});
+
+test('comprar cambia la escena, que es de lo que iba todo esto', () => {
+  const c = cargarApp();
+  c.ev('openDiary')({ name: 'Nadia', username: 'nadia' }, 3);
+  c.ev('S.progression.doubloons_balance = 3000');
+  c.ev('saveState()');
+  c.ev('pintarEscenaDelCampamento()');
+  const antes = c.ev("$('#camp-scene')").innerHTML;
+  c.ev('buyItem')('tienda_rayas');
+  c.ev('pintarEscenaDelCampamento()');
+  assert.notEqual(c.ev("$('#camp-scene')").innerHTML, antes);
+});
+
+test('nada de lo que se compra da ventaja: sigue siendo todo decorativo', () => {
+  /* La escena hace visible la recompensa; no puede convertirla en una mejora
+     de juego por la puerta de atrás. */
+  const t = leer('js/play.js');
+  const i = t.indexOf('function pintarEscenaDelCampamento');
+  const trozo = t.slice(i, t.indexOf('\n}', i));
+  assert.ok(!/S\.progression|S\.adaptive|updateMastery|addXp|addDoubloons/.test(trozo),
+    'la escena solo dibuja: no toca nada del progreso');
+});

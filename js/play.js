@@ -150,6 +150,115 @@ function pintarSeguir(destino) {
   caja.classList.remove('hidden');
 }
 
+/* ══════════ EL CAMPAMENTO QUE SE VE ══════════
+
+   Un niño ahorraba noventa doblones, se compraba las botas todoterreno, y no
+   las veía nunca. Ni la tienda de rayas, ni el jeep, ni la hoguera. La
+   pantalla que debería ser el premio de todo lo demás era una lista de la
+   compra de quince líneas con un formulario encima, y la «escena» era una
+   línea de emoji sueltos que no se distinguía de un texto cualquiera.
+
+   Es el agujero más grande que tenía la app: la moneda existía, el catálogo
+   existía, y la recompensa no se veía por ninguna parte. Excavar da doblones,
+   los doblones compran cosas y las cosas no cambian nada de lo que el niño ve.
+   El circuito no cerraba.
+
+   Aquí cierra. Hay un sitio dibujado —dunas, cielo y suelo— y lo comprado
+   está PUESTO en él, cada cosa en su lugar: la tienda a un lado, el jeep al
+   fondo, la hoguera en el centro, el explorador delante con lo que lleva
+   encima. Cada compra cambia algo que se ve.
+
+   Dos decisiones que importan:
+
+     · Los sitios están escritos, no repartidos al azar. Un campamento cuya
+       tienda cambia de sitio cada vez que entras no es un sitio, es un
+       collage. Lo comprado se queda donde estaba.
+
+     · Lo que el docente añada al almacén también aparece. Los iconos de la
+       tienda los teclea él y viajan con los ajustes de la clase, así que hay
+       huecos libres para lo que no conocemos: un artículo nuevo se ve desde el
+       primer día sin tocar una línea de código. */
+
+/* Dónde va cada cosa: izquierda y base en % de la escena, y el tamaño
+   relativo. `z` ordena la profundidad —lo de atrás, más pequeño y más alto. */
+const SITIOS_CAMPAMENTO = {
+  /* Al fondo, sobre la duna lejana y pequeño. */
+  jeep_oxidado:    { x: 80, y: 52, escala: .85, z: 1 },
+  /* Plano medio: la tienda a un lado y el tendedero detrás del fuego. */
+  tienda_rayas:    { x: 17, y: 34, escala: 1.5, z: 2 },
+  tendedero_mapas: { x: 46, y: 40, escala: .95, z: 2 },
+  /* Delante, junto al explorador: es donde se hace la vida. */
+  hoguera_grande:  { x: 65, y: 14, escala: 1.2, z: 5 }
+};
+/* Huecos para lo que el docente añada. Van todos por debajo de la línea del
+   horizonte —nada flota en el cielo— y de atrás hacia delante, para que un
+   artículo nuevo se coloque sin pisar al explorador. */
+const HUECOS_LIBRES = [
+  { x: 32, y: 44, escala: .9, z: 2 },
+  { x: 90, y: 34, escala: 1, z: 3 },
+  { x:  8, y: 16, escala: 1, z: 5 },
+  { x: 80, y: 16, escala: .95, z: 5 }
+];
+
+/* Lo que Tobías está haciendo, según las golosinas que le hayan dado. */
+function estadoDeTobias(golosinas) {
+  const n = Number(golosinas) || 0;
+  if (n >= 3) return { cara: '🐕', dice: 'Tobías no se mueve de tu lado. Sospechoso.' };
+  if (n > 0)  return { cara: '🐕', dice: 'Tobías está feliz con sus golosinas.' };
+  return { cara: '🐕', dice: 'Tobías husmea buscando golosinas…' };
+}
+
+/* Lo siguiente que podría comprarse, para que la escena vacía mire hacia
+   delante en vez de decirle que no tiene nada. Se elige lo más barato que le
+   falte: es lo que está a menos excavaciones de distancia. */
+function loSiguienteDelAlmacen() {
+  const tiene = new Set((S.inventory.gear_owned || []).concat(S.inventory.camp_items || []));
+  let mejor = null;
+  for (const it of shopCatalog()) {
+    if (it.type !== 'treat' && tiene.has(it.id)) continue;
+    if (!mejor || it.cost < mejor.cost) mejor = it;
+  }
+  return mejor;
+}
+
+function pintarEscenaDelCampamento() {
+  const scene = $('#camp-scene');
+  if (!scene) return;
+  const catalogo = shopCatalog();
+  const deId = id => catalogo.find(i => i.id === id) || null;
+
+  const piezas = [];
+  let libre = 0;
+  for (const id of (S.inventory.camp_items || [])) {
+    const it = deId(id);
+    if (!it) continue;
+    const sitio = SITIOS_CAMPAMENTO[id] || HUECOS_LIBRES[libre++ % HUECOS_LIBRES.length];
+    piezas.push({ icon: it.icon || '📦', name: it.name || '', sitio });
+  }
+
+  const tobias = estadoDeTobias(S.inventory.treats_given);
+  const siguiente = loSiguienteDelAlmacen();
+  const vacio = !piezas.length;
+
+  scene.innerHTML = `
+    <div class="escena" role="img" aria-label="Tu campamento${
+      piezas.length ? ' con ' + esc(piezas.map(p => p.name).join(', ')) : ' todavía vacío'}">
+      <div class="escena-cielo"></div>
+      <div class="escena-duna escena-duna-lejos"></div>
+      <div class="escena-duna escena-duna-cerca"></div>
+      <div class="escena-suelo"></div>
+      ${piezas.map(p => `<span class="escena-cosa" title="${esc(p.name)}" aria-hidden="true"
+        style="left:${p.sitio.x}%;bottom:${p.sitio.y}%;font-size:${(p.sitio.escala * 2.1).toFixed(2)}rem;z-index:${p.sitio.z}">${esc(p.icon)}</span>`).join('')}
+      <span class="escena-yo" aria-hidden="true">${avatarDelExplorador()}</span>
+      <span class="escena-perro" aria-hidden="true" title="${esc(tobias.dice)}">${tobias.cara}</span>
+    </div>
+    <p class="escena-pie">${vacio
+      ? (siguiente
+        ? `Tu campamento está por montar. Lo más barato del almacén es <strong>${esc(siguiente.name)}</strong> por ${siguiente.cost} ${ico('coin')}.`
+        : 'Tu campamento está por montar.')
+      : esc(tobias.dice)}</p>`;
+}
+
 /* ── Pozo / estratos ── */
 let currentBranch = null;
 function openBranch(branchId) {
@@ -622,14 +731,7 @@ function renderCamp() {
       }).join('')
     : '<small>Aún sin equipo. ¡Visita el almacén!</small>';
 
-  const scene = $('#camp-scene');
-  /* El icono lo teclea el docente en el almacén y viaja con los ajustes de la
-     clase: aquí se pintaba crudo, y solo se veía cuando el niño ya tenía
-     comprado ese mueble. */
-  const campIcons = S.inventory.camp_items.map(id =>
-    esc((shopCatalog().find(i => i.id === id) || { icon: '📦' }).icon));
-  scene.innerHTML = `<div class="camp-scene-row">⛺ ${campIcons.join(' ')} ${S.inventory.treats_given > 0 ? '🐕' + '🦴'.repeat(Math.min(3, S.inventory.treats_given)) : '🐕'}</div>
-    <small>${S.inventory.treats_given > 0 ? 'Tobías está feliz con sus golosinas.' : 'Tobías husmea buscando golosinas…'}</small>`;
+  pintarEscenaDelCampamento();
 
   renderFund();
 

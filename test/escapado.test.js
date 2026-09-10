@@ -114,8 +114,14 @@ test('los miembros y la meta de la cuadrilla se escapan', () => {
 
 test('los iconos del campamento comprado se escapan', () => {
   /* Este solo se veía con el mueble YA comprado: por eso no salía mirando la
-     pantalla, solo inyectando. */
-  assert.match(LEER('play.js'), /campIcons = S\.inventory\.camp_items\.map\(id =>\s*esc\(/);
+     pantalla, solo inyectando. El icono lo teclea el docente en el almacén y
+     viaja con los ajustes de la clase, así que llega a la escena desde fuera. */
+  const t = LEER('play.js');
+  const i = t.indexOf('function pintarEscenaDelCampamento');
+  const trozo = t.slice(i, t.indexOf('\n}', i));
+  assert.match(trozo, /\$\{esc\(p\.icon\)\}/, 'el icono del mueble, sin escapar');
+  assert.match(trozo, /title="\$\{esc\(p\.name\)\}"/, 'el nombre del mueble, sin escapar');
+  assert.match(trozo, /esc\(siguiente\.name\)/, 'y el del artículo que se propone comprar');
 });
 
 test('el PIN y los datos de Appwrite se escapan dentro de sus atributos', () => {
