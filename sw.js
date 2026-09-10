@@ -1,5 +1,5 @@
 /* Expedición Atlas — service worker: caché de la app shell para uso sin conexión */
-const CACHE = 'atlas-shell-v90';
+const CACHE = 'atlas-shell-v91';
 const ASSETS = [
   './',
   './index.html',
@@ -38,6 +38,29 @@ const ASSETS = [
   './img/campamento.webp',
   './img/guardian.webp',
   './img/sello.webp',
+  './img/vera.webp',
+  './img/fragmento.webp',
+  /* El almacén y las medallas de rango. Van a la caché por lo mismo que los
+     compañeros: lo que se compra con doblones tiene que verse el día que
+     el wifi del centro se cae, que es cualquier día. */
+  './img/almacen/sombrero_ala_ancha.webp',
+  './img/almacen/salacot.webp',
+  './img/almacen/chaqueta_kaldros.webp',
+  './img/almacen/mochila_lona.webp',
+  './img/almacen/botas_barro.webp',
+  './img/almacen/linterna_laton.webp',
+  './img/almacen/cantimplora.webp',
+  './img/almacen/catalejo.webp',
+  './img/almacen/hoguera_grande.webp',
+  './img/almacen/tienda_rayas.webp',
+  './img/almacen/jeep_oxidado.webp',
+  './img/almacen/tendedero_mapas.webp',
+  './img/almacen/golosina_tobias.webp',
+  './img/rangos/aprendiz.webp',
+  './img/rangos/rastreador.webp',
+  './img/rangos/cartografo.webp',
+  './img/rangos/arqueologo.webp',
+  './img/rangos/leyenda.webp',
   /* Las tipografías forman parte de la app shell: sin ellas, en un aula sin
      red la plataforma se vería con la fuente del sistema. */
   './fonts/nunito-latin.woff2',

@@ -28,8 +28,10 @@ function dibujos(dir) {
 test('cada dibujo que el código nombra existe de verdad', () => {
   const c = cargarApp();
   const rutas = Object.values(c.ev('RETRATOS')).map(r => r.img)
-    .concat([c.ev('CARTA_FONDO')])
-    .concat(c.ev('ROLES_CUADRILLA').map(r => r.img).filter(Boolean));
+    .concat([c.ev('CARTA_FONDO'), c.ev('FRAGMENTO_ATLAS')])
+    .concat(c.ev('ROLES_CUADRILLA').map(r => r.img).filter(Boolean))
+    .concat(c.ev('shopCatalog()').map(i => i.img).filter(Boolean))
+    .concat(c.ev('RANKS').map(r => r.img).filter(Boolean));
   for (const r of rutas) {
     assert.ok(fs.existsSync(path.join(RAIZ, r)), `${r} no está en el repositorio`);
   }
@@ -38,8 +40,8 @@ test('cada dibujo que el código nombra existe de verdad', () => {
 test('y cada dibujo del repositorio lo usa alguien', () => {
   /* Un fichero que no usa nadie viaja igual en la caché y en el archivo
      suelto: pesa lo mismo y no se ve nunca. */
-  const codigo = ['js/content.js', 'js/play.js', 'js/ui.js', 'js/aula.js', 'index.html', 'css/styles.css']
-    .map(leer).join('\n');
+  const codigo = ['js/content.js', 'js/config.js', 'js/play.js', 'js/ui.js', 'js/aula.js',
+    'index.html', 'css/styles.css'].map(leer).join('\n');
   for (const f of dibujos()) {
     assert.ok(codigo.includes(f), `${f} está en img/ y no lo usa nadie`);
   }
@@ -218,9 +220,24 @@ test('la casilla del día conseguido no encierra el sello en un cuadrado', () =>
   assert.match(trozo, /box-shadow: none/);
 });
 
-test('los diez dibujos están, y la carpeta sigue cabiendo en una tablet', () => {
+test('están los dibujos de los dos encargos, y la carpeta sigue cabiendo en una tablet', () => {
   const webp = dibujos().filter(f => f.endsWith('.webp'));
-  assert.equal(webp.length, 10, 'faltan o sobran dibujos de los diez encargados');
+  /* Diez del primer encargo —los compañeros, los sitios, la carta— más los
+     veinte del segundo: la villana, el fragmento, los trece del almacén y
+     las cinco medallas de rango. */
+  assert.equal(webp.length, 30, 'faltan o sobran dibujos de los dos encargos');
+});
+
+test('cada artículo del almacén de fábrica tiene su dibujo, y cada rango su medalla', () => {
+  /* Un almacén a medias —ocho dibujos y cinco emoji— se ve peor que uno
+     entero de emoji: parece que la app está rota, no que falta arte. */
+  const c = cargarApp();
+  for (const it of c.ev('shopCatalog()')) {
+    assert.ok(it.img, `${it.id} se quedó sin dibujo`);
+  }
+  for (const r of c.ev('RANKS')) {
+    assert.ok(r.img, `el rango ${r.id} se quedó sin medalla`);
+  }
 });
 
 /* ══ Que no se quede ninguna pantalla atrás ══
@@ -259,9 +276,93 @@ test('los yacimientos enseñan su dibujo también en la portada', () => {
 });
 
 test('quien no tiene dibujo todavía sigue con su emoji, y se ve bien', () => {
-  /* Vera Kovak, la villana, aún no tiene ilustración. Es el mismo respaldo que
-     usan los roles y los yacimientos, y tiene que seguir existiendo. */
-  const html = leer('index.html');
-  assert.match(html, /<span class="cast-face">🐦‍⬛<\/span>/);
+  /* Ya están dibujados los cuatro del reparto, pero el respaldo no se retira:
+     el Taller sigue sin ilustración y los roles de cuadrilla también, y un
+     artículo que el docente añada al almacén nunca la tendrá. */
+  const c = cargarApp();
+  assert.ok(!c.ev('sitesAll()').find(s => s.id === 'taller').img,
+    'si el Taller ya tiene dibujo, este respaldo hay que probarlo con otra cosa');
+  const salida = c.ev("iconoDeFicha({ id: 'inventado', icon: '🛖' })");
+  assert.match(salida, /🛖/, 'sin dibujo tiene que salir el emoji');
+  assert.ok(!salida.includes('<img'), 'se ha inventado un dibujo que no existe');
   assert.match(leer('css/styles.css'), /img\.cast-face \{/);
+});
+
+/* ══ El segundo encargo: el almacén, los rangos y el fragmento ══
+
+   Trece artículos, cinco medallas y un trozo de mapa. Lo que se fija aquí no
+   es el dibujo, que eso no se prueba, sino que cada uno llegue a la pantalla
+   donde tiene sentido y que ninguna de esas pantallas se rompa el día que un
+   fichero no esté. */
+
+test('el almacén enseña la mercancía, no la lista de emoji', () => {
+  const c = cargarApp();
+  c.ev('openDiary')({ name: 'Nadia', username: 'nadia' }, 3);
+  c.ev('renderCamp()');
+  /* Cada artículo es un hijo que se cuelga de la lista, no un trozo de
+     `innerHTML`: hay que recorrerlos. */
+  const h = c.ev("$('#shop-list')").hijos.map(n => n.innerHTML).join('\n');
+  for (const it of c.ev('shopCatalog()')) {
+    assert.ok(h.includes(it.img), `${it.id} no sale dibujado en el almacén`);
+  }
+});
+
+test('y el panel del docente enseña la misma mercancía', () => {
+  /* El docente compra por el alumno desde su bolsa. Si ahí siguieran los
+     emoji, los dos estarían mirando almacenes distintos. */
+  const t = leer('js/aula.js');
+  assert.match(t, /class="award-icon">\$\{iconoDeFicha\(item\)\}/);
+});
+
+test('la medalla del rango sale junto al nombre, y se cambia al subir', () => {
+  const c = cargarApp();
+  c.ev('openDiary')({ name: 'Nadia', username: 'nadia' }, 3);
+  c.ev('renderHud()');
+  const m = c.ev("$('#hud-medal')");
+  assert.equal(m.getAttribute('src'), c.ev('RANKS')[0].img);
+  assert.equal(m.hidden, false);
+  /* Con PE de sobra para el último rango, la medalla tiene que ser otra. */
+  c.ev('S.progression.xp_total = xpForLevel(30)');
+  c.ev('renderHud()');
+  assert.equal(m.getAttribute('src'), c.ev('RANKS')[c.ev('RANKS').length - 1].img);
+});
+
+test('y si un rango no tuviera medalla, se esconde en vez de dejar el hueco roto', () => {
+  const c = cargarApp();
+  c.ev('openDiary')({ name: 'Nadia', username: 'nadia' }, 3);
+  c.ev('RANKS.forEach(r => { delete r.img; })');
+  c.ev('renderHud()');
+  assert.equal(c.ev("$('#hud-medal')").hidden, true);
+  assert.ok(c.ev("$('#hud-rank')").textContent, 'el nombre del rango sigue estando');
+});
+
+test('el fragmento del Atlas se ve al ganarle al Guardián', () => {
+  const t = leer('js/play.js');
+  const i = t.indexOf('function renderGuardianResult');
+  const trozo = t.slice(i, t.indexOf('\n}', i));
+  assert.match(trozo, /r\.fragment \?/, 'el trofeo solo si de verdad se ganó');
+  assert.match(trozo, /esc\(FRAGMENTO_ATLAS\)/);
+  assert.match(trozo, /r\.fragmentsTotal/, 'y dice cuántos lleva');
+});
+
+test('subir de rango enseña la medalla nueva, y sin ella no enseña nada', () => {
+  const c = cargarApp();
+  assert.match(c.ev('medallaDeRango')(1), /img\/rangos\/aprendiz\.webp/);
+  c.ev('RANKS.forEach(r => { delete r.img; })');
+  assert.equal(c.ev('medallaDeRango')(1), '',
+    'sin dibujo no se pone un emoji de repuesto: el texto de al lado ya dice el rango');
+});
+
+test('la escena del campamento coloca por ancho, que es lo que conserva las proporciones', () => {
+  /* Con emoji bastaba el tamaño de letra. Con dibujos no: la tienda y el jeep
+     tienen que guardar entre sí la proporción que tienen en la vida, y eso lo
+     da el ancho del hueco, no el cuerpo de una letra que ya no se pinta. */
+  const c = cargarApp();
+  c.ev('openDiary')({ name: 'Nadia', username: 'nadia' }, 3);
+  c.ev('S.progression.doubloons_balance = 3000');
+  c.ev('buyItem')('tienda_rayas');
+  c.ev('buyItem')('jeep_oxidado');
+  c.ev('pintarEscenaDelCampamento()');
+  const h = c.ev("$('#camp-scene')").innerHTML;
+  assert.match(h, /class="escena-cosa"[^>]*width:[\d.]+%/, 'la cosa comprada no tiene ancho');
 });

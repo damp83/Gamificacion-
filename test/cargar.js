@@ -38,7 +38,17 @@ function almacenDeMentira() {
    `dataset` y el mismo `style`: lo que escribía uno lo leía otro. */
 function nodoDeMentira() {
   const clases = new Set();
+  /* Los atributos se guardan de verdad. Antes `setAttribute` no hacía nada y
+     `getAttribute` devolvía siempre null, así que una prueba no podía mirar
+     un `src` que el código acababa de poner —la medalla del rango, sin ir más
+     lejos— y no quedaba más remedio que probarlo leyendo el fuente. */
+  const atributos = new Map();
+  /* Y los hijos se apuntan. Lo que se pinta con `appendChild` —el almacén, los
+     botones de méritos— no aparecía en ningún `innerHTML` y era invisible
+     desde aquí. No se construye un árbol: basta con poder recorrerlos. */
+  const hijos = [];
   const nodo = {
+    hijos,
     classList: {
       add: (...c) => c.forEach(x => clases.add(x)),
       remove: (...c) => c.forEach(x => clases.delete(x)),
@@ -46,17 +56,27 @@ function nodoDeMentira() {
                            if (v) clases.add(c); else clases.delete(c); return v; },
       contains: c => clases.has(c)
     },
-    addEventListener() {}, appendChild() {}, replaceWith() {},
+    addEventListener() {}, replaceWith() {},
+    appendChild(h) { hijos.push(h); return h; },
     querySelector: () => nodo, querySelectorAll: () => [],
     focus() {}, click() {}, select() {},
-    setAttribute() {}, removeAttribute() {}, getAttribute: () => null,
-    hasAttribute: () => false,
+    setAttribute(k, v) { atributos.set(k, String(v)); },
+    removeAttribute(k) { atributos.delete(k); },
+    getAttribute: k => (atributos.has(k) ? atributos.get(k) : null),
+    hasAttribute: k => atributos.has(k),
     dataset: {},
     style: { valores: {}, setProperty(k, v) { this.valores[k] = v; },
              removeProperty(k) { delete this.valores[k]; },
              getPropertyValue(k) { return this.valores[k] || ''; } },
     innerHTML: '', textContent: '', value: '', disabled: false, offsetWidth: 0
   };
+  /* Vaciar el hueco vacía también la lista de hijos, como en el navegador:
+     una pantalla que se repinta no puede acumular lo de la vez anterior. */
+  let dentro = '';
+  Object.defineProperty(nodo, 'innerHTML', {
+    get: () => dentro,
+    set: v => { dentro = String(v); if (dentro === '') hijos.length = 0; }
+  });
   /* `className` refleja lo que hay en classList, que es como se lee en el
      navegador y como lo comprueban las pruebas. */
   Object.defineProperty(nodo, 'className', {

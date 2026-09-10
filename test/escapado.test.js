@@ -119,9 +119,21 @@ test('los iconos del campamento comprado se escapan', () => {
   const t = LEER('play.js');
   const i = t.indexOf('function pintarEscenaDelCampamento');
   const trozo = t.slice(i, t.indexOf('\n}', i));
-  assert.match(trozo, /\$\{esc\(p\.icon\)\}/, 'el icono del mueble, sin escapar');
+  assert.match(trozo, /\$\{iconoDeFicha\(p\.ficha\)\}/, 'el icono del mueble se pinta a mano');
   assert.match(trozo, /title="\$\{esc\(p\.name\)\}"/, 'el nombre del mueble, sin escapar');
   assert.match(trozo, /esc\(siguiente\.name\)/, 'y el del artículo que se propone comprar');
+});
+
+test('y lo que escapa por ellos es iconoDeFicha, para todos a la vez', () => {
+  /* El almacén, la escena y el panel del docente pintan lo mismo desde aquí.
+     Escaparlo en un solo sitio es lo que evita que el próximo sitio que lo
+     use se olvide: tanto la ruta del dibujo como el emoji los teclea el
+     docente y viajan con los ajustes de la clase. */
+  const t = LEER('content.js');
+  const i = t.indexOf('function iconoDeFicha');
+  const trozo = t.slice(i, t.indexOf('\n}', i));
+  assert.match(trozo, /esc\(ficha\.img\)/, 'la ruta del dibujo, sin escapar');
+  assert.match(trozo, /esc\(\(ficha && ficha\.icon\)/, 'el emoji de respaldo, sin escapar');
 });
 
 test('el PIN y los datos de Appwrite se escapan dentro de sus atributos', () => {

@@ -392,7 +392,7 @@
             cero cerebro. Le encantan las golosinas.</small>
           </div>
           <div class="cast-card cast-villain">
-            <span class="cast-face">🐦‍⬛</span>
+            <span class="cast-face" data-retrato="vera"></span>
             <strong>Vera Kovak</strong>
             <small>Jefa de los Saqueadores del Cuervo. Quiere vender los tesoros a
             coleccionistas. Se equivoca en sus cuentas… ¿sabrás pillarla?</small>
@@ -539,7 +539,12 @@
         <span id="hud-avatar" class="hud-avatar">🧒</span>
         <div class="hud-identity">
           <span id="hud-name">Explorador</span>
-          <span id="hud-rank" class="hud-rank">Aprendiz de Mochila</span>
+          <!-- La medalla del rango junto a su nombre: el rango dejó de ser una
+               palabra en gris y pasó a ser algo que se colecciona. -->
+          <span class="hud-rank-line">
+            <img id="hud-medal" class="hud-medal" src="" alt="" hidden>
+            <span id="hud-rank" class="hud-rank">Aprendiz de Mochila</span>
+          </span>
         </div>
       </div>
       <div class="hud-right">

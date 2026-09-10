@@ -1016,7 +1016,7 @@ function renderBolsa() {
     const btn = document.createElement('button');
     btn.className = 'award-btn' + (suyo || falta > 0 ? ' award-full' : '');
     btn.disabled = suyo || falta > 0;
-    btn.innerHTML = `<span class="award-icon">${esc(item.icon)}</span>
+    btn.innerHTML = `<span class="award-icon">${iconoDeFicha(item)}</span>
       <span class="award-name">${esc(item.name)}</span>
       <span class="award-meta">${suyo ? 'ya lo tiene'
         : falta > 0 ? `le faltan ${falta} ${ico('coin')}`

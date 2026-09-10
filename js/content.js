@@ -1237,12 +1237,15 @@ const RETRATOS = {
   bruno:   { img: 'img/bruno.webp',          alt: 'El profesor Bruno Ocaña',    emoji: '🧔🏻‍♂️' },
   kira:    { img: 'img/kira.webp',           alt: 'Kira, la escarabaja',        emoji: '🪲' },
   tobias:  { img: 'img/tobias-calma.webp',   alt: 'Tobías, el perro',           emoji: '🐕' },
-  tobiasFiesta: { img: 'img/tobias-fiesta.webp', alt: 'Tobías dando un salto',  emoji: '🐕' }
+  tobiasFiesta: { img: 'img/tobias-fiesta.webp', alt: 'Tobías dando un salto',  emoji: '🐕' },
+  vera:    { img: 'img/vera.webp',           alt: 'Vera Kovak, la rival',       emoji: '🐦‍⬛' }
 };
 
 /* El dibujo del mapa. Va aquí y no dentro del SVG que lo pinta por lo mismo
    que los retratos: el día que cambie, cambia en un sitio. */
 const CARTA_FONDO = 'img/carta.webp';
+/* El trozo de Atlas que se recupera al vencer al Guardián. */
+const FRAGMENTO_ATLAS = 'img/fragmento.webp';
 /* El paisaje del campamento y la cara del Guardián. Aquí por lo mismo: el día
    que cambien, cambian en un sitio. */
 const FONDO_CAMPAMENTO = 'img/campamento.webp';
@@ -1260,6 +1263,20 @@ function retrato(quien, clase) {
   return r.img
     ? `<img class="retrato${c}" src="${esc(r.img)}" alt="${esc(r.alt)}" loading="lazy">`
     : `<span class="retrato-emoji${c}" aria-hidden="true">${esc(r.emoji)}</span>`;
+}
+
+/* Lo mismo que `retrato`, pero para las cosas: artículos del almacén y
+   medallas de rango. La ficha manda —si trae `img` sale el dibujo y si no,
+   su emoji— y eso es justo lo que hace falta aquí, porque el docente puede
+   añadir artículos suyos desde el panel y esos nunca tendrán dibujo. Un
+   almacén con doce fotos y un emoji suelto se ve raro; un almacén roto
+   porque falta un fichero se ve peor. */
+function iconoDeFicha(ficha, clase) {
+  const c = clase ? ' ' + clase : '';
+  if (ficha && ficha.img) {
+    return `<img class="icono-dibujo${c}" src="${esc(ficha.img)}" alt="" loading="lazy" decoding="async">`;
+  }
+  return `<span class="icono-emoji${c}" aria-hidden="true">${esc((ficha && ficha.icon) || '📦')}</span>`;
 }
 
 /* ══════════ LOS ROLES DE LA CUADRILLA ══════════
@@ -1445,9 +1462,9 @@ function servirDelBanco(branch, bank, idx, usedIdx) {
 function shopCatalog() { return ATLAS_CONFIG.shop; }
 
 const RANKS = [
-  { min: 1,  max: 4,  id: 'aprendiz',   name: 'Aprendiz de Mochila' },
-  { min: 5,  max: 9,  id: 'rastreador', name: 'Rastreador' },
-  { min: 10, max: 17, id: 'cartografo', name: 'Cartógrafo' },
-  { min: 18, max: 29, id: 'arqueologo', name: 'Arqueólogo' },
-  { min: 30, max: 999, id: 'leyenda',   name: 'Leyenda del Atlas' }
+  { min: 1,  max: 4,  id: 'aprendiz',   name: 'Aprendiz de Mochila', img: 'img/rangos/aprendiz.webp' },
+  { min: 5,  max: 9,  id: 'rastreador', name: 'Rastreador',          img: 'img/rangos/rastreador.webp' },
+  { min: 10, max: 17, id: 'cartografo', name: 'Cartógrafo',          img: 'img/rangos/cartografo.webp' },
+  { min: 18, max: 29, id: 'arqueologo', name: 'Arqueólogo',          img: 'img/rangos/arqueologo.webp' },
+  { min: 30, max: 999, id: 'leyenda',   name: 'Leyenda del Atlas',   img: 'img/rangos/leyenda.webp' }
 ];

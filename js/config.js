@@ -11,7 +11,7 @@
    copia guardada. Sin este número, «ya está arreglado» y «a mí no me pasa» son
    indistinguibles. Va junto al nombre de la caché del service worker, y una
    prueba comprueba que no se separen. */
-const ATLAS_VERSION = 'v90';
+const ATLAS_VERSION = 'v91';
 
 const ATLAS_DEFAULTS = {
 
@@ -283,19 +283,19 @@ const ATLAS_DEFAULTS = {
 
   /* ── Almacén: todo cosmético, nunca ventaja pedagógica ── */
   shop: [
-    { id: 'sombrero_ala_ancha', name: 'Sombrero de ala ancha', icon: '👒', cost: 80,  type: 'gear' },
-    { id: 'salacot',            name: 'Salacot de explorador', icon: '⛑️', cost: 120, type: 'gear' },
-    { id: 'chaqueta_kaldros',   name: 'Chaqueta de Kaldros',   icon: '🧥', cost: 150, type: 'gear' },
-    { id: 'mochila_lona',       name: 'Mochila de lona',       icon: '🎒', cost: 100, type: 'gear' },
-    { id: 'botas_barro',        name: 'Botas todoterreno',     icon: '🥾', cost: 90,  type: 'gear' },
-    { id: 'linterna_laton',     name: 'Linterna de latón',     icon: '🔦', cost: 60,  type: 'gear' },
-    { id: 'cantimplora',        name: 'Cantimplora grabada',   icon: '🫙', cost: 50,  type: 'gear' },
-    { id: 'catalejo',           name: 'Catalejo dorado',       icon: '🔭', cost: 200, type: 'gear' },
-    { id: 'hoguera_grande',     name: 'Hoguera grande',        icon: '🔥', cost: 150, type: 'camp' },
-    { id: 'tienda_rayas',       name: 'Tienda a rayas',        icon: '⛺', cost: 200, type: 'camp' },
-    { id: 'jeep_oxidado',       name: 'Jeep de la expedición', icon: '🚙', cost: 400, type: 'camp' },
-    { id: 'tendedero_mapas',    name: 'Tendedero de mapas',    icon: '🗺️', cost: 120, type: 'camp' },
-    { id: 'golosina_tobias',    name: 'Golosina para Tobías',  icon: '🦴', cost: 30,  type: 'treat' }
+    { id: 'sombrero_ala_ancha', name: 'Sombrero de ala ancha', icon: '👒', cost: 80,  type: 'gear', img: 'img/almacen/sombrero_ala_ancha.webp' },
+    { id: 'salacot',            name: 'Salacot de explorador', icon: '⛑️', cost: 120, type: 'gear', img: 'img/almacen/salacot.webp' },
+    { id: 'chaqueta_kaldros',   name: 'Chaqueta de Kaldros',   icon: '🧥', cost: 150, type: 'gear', img: 'img/almacen/chaqueta_kaldros.webp' },
+    { id: 'mochila_lona',       name: 'Mochila de lona',       icon: '🎒', cost: 100, type: 'gear', img: 'img/almacen/mochila_lona.webp' },
+    { id: 'botas_barro',        name: 'Botas todoterreno',     icon: '🥾', cost: 90,  type: 'gear', img: 'img/almacen/botas_barro.webp' },
+    { id: 'linterna_laton',     name: 'Linterna de latón',     icon: '🔦', cost: 60,  type: 'gear', img: 'img/almacen/linterna_laton.webp' },
+    { id: 'cantimplora',        name: 'Cantimplora grabada',   icon: '🫙', cost: 50,  type: 'gear', img: 'img/almacen/cantimplora.webp' },
+    { id: 'catalejo',           name: 'Catalejo dorado',       icon: '🔭', cost: 200, type: 'gear', img: 'img/almacen/catalejo.webp' },
+    { id: 'hoguera_grande',     name: 'Hoguera grande',        icon: '🔥', cost: 150, type: 'camp', img: 'img/almacen/hoguera_grande.webp' },
+    { id: 'tienda_rayas',       name: 'Tienda a rayas',        icon: '⛺', cost: 200, type: 'camp', img: 'img/almacen/tienda_rayas.webp' },
+    { id: 'jeep_oxidado',       name: 'Jeep de la expedición', icon: '🚙', cost: 400, type: 'camp', img: 'img/almacen/jeep_oxidado.webp' },
+    { id: 'tendedero_mapas',    name: 'Tendedero de mapas',    icon: '🗺️', cost: 120, type: 'camp', img: 'img/almacen/tendedero_mapas.webp' },
+    { id: 'golosina_tobias',    name: 'Golosina para Tobías',  icon: '🦴', cost: 30,  type: 'treat', img: 'img/almacen/golosina_tobias.webp' }
   ]
 };
 

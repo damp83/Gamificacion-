@@ -379,7 +379,7 @@ function pintarEscenaDelCampamento() {
     const it = deId(id);
     if (!it) continue;
     const sitio = SITIOS_CAMPAMENTO[id] || HUECOS_LIBRES[libre++ % HUECOS_LIBRES.length];
-    piezas.push({ icon: it.icon || '📦', name: it.name || '', sitio });
+    piezas.push({ ficha: it, name: it.name || '', sitio });
   }
 
   const tobias = estadoDeTobias(S.inventory.treats_given);
@@ -391,7 +391,7 @@ function pintarEscenaDelCampamento() {
       piezas.length ? ' con ' + esc(piezas.map(p => p.name).join(', ')) : ' todavía vacío'}">
       <img class="escena-fondo" src="${esc(FONDO_CAMPAMENTO)}" alt="" loading="lazy">
       ${piezas.map(p => `<span class="escena-cosa" title="${esc(p.name)}" aria-hidden="true"
-        style="left:${p.sitio.x}%;bottom:${p.sitio.y}%;font-size:${(p.sitio.escala * 2.1).toFixed(2)}rem;z-index:${p.sitio.z}">${esc(p.icon)}</span>`).join('')}
+        style="left:${p.sitio.x}%;bottom:${p.sitio.y}%;width:${(p.sitio.escala * 17).toFixed(1)}%;font-size:${(p.sitio.escala * 2.1).toFixed(2)}rem;z-index:${p.sitio.z}">${iconoDeFicha(p.ficha)}</span>`).join('')}
       <span class="escena-yo" aria-hidden="true">${avatarDelExplorador()}</span>
       <span class="escena-perro" title="${esc(tobias.dice)}">${retrato(tobias.quien)}</span>
     </div>
@@ -794,7 +794,8 @@ function renderResult(r) {
     <div class="reward-row"><span>${ico('coin')} Doblones</span><strong data-contar="${r.coins}">+${r.coins}</strong></div>
     ${r.restored ? `<div class="reward-row"><span>${ico('vessel')} Hallazgos restaurados</span><strong>${r.restored}</strong></div>` : ''}
     ${r.notes.map(n => `<div class="reward-note">${n}</div>`).join('')}
-    ${r.leveledUp ? `<div class="reward-levelup">🎉 ¡Has subido al nivel ${r.newLevel}! Ahora eres ${rankForLevel(r.newLevel).name}.</div>` : ''}
+    ${r.leveledUp ? `<div class="reward-levelup reward-rango">${medallaDeRango(r.newLevel)}
+      <p>🎉 ¡Has subido al nivel ${r.newLevel}! Ahora eres <strong>${esc(rankForLevel(r.newLevel).name)}</strong>.</p></div>` : ''}
     ${r.nowMastered ? `<div class="reward-levelup">🗺️ ¡El mapa del Atlas se dibuja un poco más!</div>` : ''}
     ${r.reabreGuardian ? `<div class="reward-levelup">🗿 La Cámara del Guardián vuelve a estar abierta.</div>` : ''}`;
 
@@ -837,6 +838,14 @@ function selloFeedback(nombre, tono) {
   el.innerHTML = ico(nombre, 'ico-lg');
 }
 
+/* La medalla del rango recién ganado. Sin dibujo no sale nada y se queda el
+   texto de al lado, que ya dice el rango: un hueco vacío se lee mejor que un
+   emoji de repuesto que no significa nada. */
+function medallaDeRango(nivel) {
+  const r = rankForLevel(nivel);
+  return r && r.img ? `<img class="medalla-subida" src="${esc(r.img)}" alt="" loading="lazy">` : '';
+}
+
 /* ── Resultado de la Cámara del Guardián ──
    Ganar da un fragmento del Atlas; perder no quita nada. Lo que sí hace el
    Guardián en las dos es decir DÓNDE se falló: una evaluación que no explica
@@ -864,8 +873,11 @@ function renderGuardianResult(r) {
     ${r.pe ? `<div class="reward-row"><span>${ico('star')} Puntos de Expedición</span><strong>+${r.pe}</strong></div>` : ''}
     ${r.coins ? `<div class="reward-row"><span>${ico('coin')} Doblones</span><strong>+${r.coins}</strong></div>` : ''}
     ${r.restored ? `<div class="reward-row"><span>${ico('vessel')} Hallazgos restaurados</span><strong>${r.restored}</strong></div>` : ''}
-    ${r.leveledUp ? `<div class="reward-levelup">🎉 ¡Has subido al nivel ${r.newLevel}! Ahora eres ${rankForLevel(r.newLevel).name}.</div>` : ''}
-    ${r.fragment ? `<div class="reward-levelup">${ico('map')} Llevas ${r.fragmentsTotal} fragmento(s) del Atlas de Ossian.</div>` : ''}
+    ${r.leveledUp ? `<div class="reward-levelup reward-rango">${medallaDeRango(r.newLevel)}
+      <p>🎉 ¡Has subido al nivel ${r.newLevel}! Ahora eres <strong>${esc(rankForLevel(r.newLevel).name)}</strong>.</p></div>` : ''}
+    ${r.fragment ? `<div class="reward-trofeo">
+      <img class="trofeo-img" src="${esc(FRAGMENTO_ATLAS)}" alt="Un fragmento dorado del Atlas de Ossian" loading="lazy">
+      <p>Llevas <strong>${r.fragmentsTotal}</strong> fragmento(s) del Atlas de Ossian.</p></div>` : ''}
     ${!r.superada ? `<div class="reward-note">No has perdido nada: ni PE, ni Doblones, ni dominio.
       El Guardián quiere que repases <strong>${STRATA_META[r.weakStratum] ? STRATA_META[r.weakStratum].label : ''}</strong>
       en un Encargo del Bazar y vuelvas.</div>` : ''}`;
@@ -905,7 +917,7 @@ function renderCamp() {
     const equippedNow = S.inventory.gear_equipped.includes(item.id);
     const row = document.createElement('div');
     row.className = 'shop-item';
-    row.innerHTML = `<span class="shop-icon">${esc(item.icon)}</span>
+    row.innerHTML = `<span class="shop-icon">${iconoDeFicha(item)}</span>
       <div class="shop-info"><strong>${esc(item.name)}</strong><small>${item.cost} ${ico('coin')}</small></div>`;
     const btn = document.createElement('button');
     btn.className = 'btn btn-secondary btn-small';

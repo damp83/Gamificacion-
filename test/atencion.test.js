@@ -262,9 +262,23 @@ test('cada cosa comprada aparece en la escena, en su sitio', () => {
   const c = conCampamento(cargarApp(), ['tienda_rayas', 'hoguera_grande', 'jeep_oxidado']);
   c.ev('pintarEscenaDelCampamento()');
   const h = c.ev("$('#camp-scene')").innerHTML;
-  for (const icono of ['⛺', '🔥', '🚙']) {
-    assert.ok(h.includes(icono), `${icono} no está en la escena`);
+  /* Se mira el dibujo de cada artículo, no su emoji: desde que el almacén
+     tiene ilustraciones, el emoji ya no llega a la escena. */
+  for (const id of ['tienda_rayas', 'hoguera_grande', 'jeep_oxidado']) {
+    assert.ok(h.includes(`img/almacen/${id}.webp`), `${id} no está en la escena`);
   }
+});
+
+test('un artículo que el docente inventa se planta igual, con su emoji', () => {
+  /* El panel deja añadir artículos al almacén y esos nunca tendrán dibujo.
+     La escena no puede quedarse con un hueco por eso. */
+  const c = cargarApp();
+  c.ev("ATLAS_CONFIG.shop.push({ id: 'choza_propia', name: 'Choza', icon: '🛖', cost: 10, type: 'camp' })");
+  conCampamento(c, ['choza_propia']);
+  c.ev('pintarEscenaDelCampamento()');
+  const h = c.ev("$('#camp-scene')").innerHTML;
+  assert.ok(h.includes('🛖'), 'la choza del docente no sale');
+  assert.ok(!h.includes('almacen/choza_propia'), 'se ha inventado un dibujo que no existe');
 });
 
 test('los sitios están escritos, no repartidos al azar', () => {

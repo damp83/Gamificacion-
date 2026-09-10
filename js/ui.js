@@ -257,6 +257,17 @@ function renderHud() {
   const rank = rankForLevel(level);
   $('#hud-name').textContent = S.profile.explorer_name;
   $('#hud-rank').textContent = rank.name;
+  /* La medalla del rango. Si el dibujo no está —un rango que el docente
+     inventara, o un fichero que no llegó— se esconde y queda el texto, que
+     es lo que había antes. */
+  const medalla = $('#hud-medal');
+  if (medalla) {
+    if (rank.img) {
+      if (medalla.getAttribute('src') !== rank.img) medalla.setAttribute('src', rank.img);
+      medalla.title = rank.name;
+      medalla.hidden = false;
+    } else medalla.hidden = true;
+  }
   /* El saldo sube contando cuando crece. Es el número que un niño mira más
      veces al día, y verlo cambiar es la mitad del premio. Cuando baja
      —acaba de comprar algo— se pone y ya: contar hacia atrás lo que se gasta
