@@ -608,7 +608,7 @@
         <div id="fatigue-banner" class="fatigue-banner hidden">
           <span class="dialog-avatar" data-retrato="bruno"></span>
           <p>«Uf… llevamos muchas expediciones hoy. Mañana seguimos, ¡que Tobías tiene hambre!
-          (Las expediciones extra dan la mitad de PE.)» 🐕</p>
+          (Las expediciones extra dan la mitad de PE.)»<span class="linea-retrato" data-retrato="tobias"></span></p>
         </div>
         <div id="site-list" class="site-list"></div>
         <div id="bazar-card" class="bazar-card"></div>
@@ -801,7 +801,12 @@
             <div class="dialog-text"><strong>Kira</strong><p id="kira-text"></p></div>
           </div>
           <div class="mission-tools">
-            <button id="btn-hint" class="btn btn-hint">🪲 Pista de Kira</button>
+            <!-- El icono de línea, igual que los dos botones de al lado: los tres
+                 son una barra de herramientas y Kira ya sale con su cara en la
+                 burbuja de aquí arriba. Esto es además lo que escribe el guion
+                 al pintar cada reto; antes ponía un emoji que no se veía nunca. -->
+            <button id="btn-hint" class="btn btn-hint">
+              <svg class="ico" viewBox="0 0 24 24" aria-hidden="true"><use href="#i-beetle"/></svg> Pista de Kira</button>
             <!-- Escuchar el reto. Nace oculto: solo aparece para quien lo
                  tenga activado y si el navegador tiene voces. -->
             <button id="btn-voz" type="button" class="btn btn-secondary hidden" aria-label="Escuchar el reto">

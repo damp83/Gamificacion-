@@ -202,6 +202,13 @@ button:disabled { cursor: not-allowed; opacity: .55; }
 .btn-back:hover, .btn-quit:hover { background: rgba(122, 74, 33, .09); box-shadow: none; }
 .btn-quit { color: var(--ink-soft); font-size: var(--t-sm); }
 .btn-hint { background: var(--brass-tint); color: var(--leather-dark); box-shadow: var(--e-inset); }
+/* Un retrato metido en mitad de una frase, en el sitio del emoji que
+   sustituye. Alto de línea y medio como mucho: más grande empuja el renglón
+   y se ve como algo pegado encima del texto en vez de dentro. */
+.linea-retrato {
+  width: 1.5rem; height: 1.5rem; vertical-align: -.4em;
+  object-fit: contain; margin-left: .3rem;
+}
 .btn-hint:hover { background: #f0dcb0; box-shadow: var(--e-inset); }
 .btn-restore { background: var(--brass-light); color: var(--leather-dark); margin-bottom: var(--s-3); }
 
@@ -1633,6 +1640,17 @@ img.feedback-quien {
   box-shadow: var(--e-3); max-width: min(90vw, 30rem); text-align: center;
   border: 1px solid rgba(240, 195, 60, .3);
 }
+/* Con cara, el aviso deja de ser un rótulo centrado y pasa a ser alguien
+   diciendo algo: el retrato a la izquierda y el texto alineado a su lado. */
+.toast-con-cara {
+  display: flex; align-items: center; gap: .6rem; text-align: left;
+  padding: .55rem 1rem .55rem .6rem;
+}
+.toast-retrato {
+  width: 2.4rem; height: 2.4rem; flex-shrink: 0;
+  border-radius: var(--r-pill); background: rgba(255, 245, 220, .12);
+  object-fit: cover; object-position: 50% 12%;
+}
 
 /* ── Animaciones ── */
 @keyframes pulse { 0%,100% { transform: scale(1); } 50% { transform: scale(1.12); } }
@@ -1713,6 +1731,17 @@ img.feedback-quien {
 .empty-note {
   color: var(--ink-soft); font-size: var(--t-sm); padding: var(--s-4);
   background: var(--paper-deep); border-radius: var(--r-md); text-align: center;
+}
+/* Una pantalla vacía con la cara de quien te está esperando se lee muy
+   distinta de una pantalla vacía con una frase. */
+.nota-con-cara {
+  display: flex; align-items: center; justify-content: center;
+  gap: .7rem; text-align: left;
+}
+.nota-retrato {
+  width: 3rem; height: 3rem; flex-shrink: 0;
+  border-radius: var(--r-pill); background: var(--surface);
+  box-shadow: var(--e-1); object-fit: cover; object-position: 50% 10%;
 }
 
 /* Panel del docente (méritos) */
@@ -3969,7 +3998,7 @@ body.en-consulta #shop-list button { display: none !important; }
         <div id="fatigue-banner" class="fatigue-banner hidden">
           <span class="dialog-avatar" data-retrato="bruno"></span>
           <p>«Uf… llevamos muchas expediciones hoy. Mañana seguimos, ¡que Tobías tiene hambre!
-          (Las expediciones extra dan la mitad de PE.)» 🐕</p>
+          (Las expediciones extra dan la mitad de PE.)»<span class="linea-retrato" data-retrato="tobias"></span></p>
         </div>
         <div id="site-list" class="site-list"></div>
         <div id="bazar-card" class="bazar-card"></div>
@@ -4162,7 +4191,12 @@ body.en-consulta #shop-list button { display: none !important; }
             <div class="dialog-text"><strong>Kira</strong><p id="kira-text"></p></div>
           </div>
           <div class="mission-tools">
-            <button id="btn-hint" class="btn btn-hint">🪲 Pista de Kira</button>
+            <!-- El icono de línea, igual que los dos botones de al lado: los tres
+                 son una barra de herramientas y Kira ya sale con su cara en la
+                 burbuja de aquí arriba. Esto es además lo que escribe el guion
+                 al pintar cada reto; antes ponía un emoji que no se veía nunca. -->
+            <button id="btn-hint" class="btn btn-hint">
+              <svg class="ico" viewBox="0 0 24 24" aria-hidden="true"><use href="#i-beetle"/></svg> Pista de Kira</button>
             <!-- Escuchar el reto. Nace oculto: solo aparece para quien lo
                  tenga activado y si el navegador tiene voces. -->
             <button id="btn-voz" type="button" class="btn btn-secondary hidden" aria-label="Escuchar el reto">
@@ -6580,7 +6614,7 @@ function cruzarVerificacion(retos, respuestas) {
    copia guardada. Sin este número, «ya está arreglado» y «a mí no me pasa» son
    indistinguibles. Va junto al nombre de la caché del service worker, y una
    prueba comprueba que no se separen. */
-const ATLAS_VERSION = 'v93';
+const ATLAS_VERSION = 'v94';
 
 const ATLAS_DEFAULTS = {
 
@@ -13123,7 +13157,28 @@ function applyTextSize() {
 
 function toast(msg, ms) {
   const t = $('#toast');
+  /* `textContent` y no `innerHTML`: por aquí pasan nombres que teclea el
+     docente y que viajan a cada tablet dentro de los ajustes de la clase. */
   t.textContent = msg;
+  t.classList.remove('hidden');
+  clearTimeout(t._timer);
+  t._timer = setTimeout(() => t.classList.add('hidden'), ms || 2600);
+}
+
+/* El mismo aviso, pero con la cara de quien habla.
+
+   Kira y Tobías decían cosas en los avisos y firmaban con un emoji de teclado
+   —un escarabajo cualquiera, un perro cualquiera— teniendo los dos su dibujo
+   desde hace dos versiones. Un aviso es un personaje hablando, y la cara es
+   la mitad de lo que se entiende.
+
+   El retrato sale de RETRATOS, que es una lista cerrada del código; el texto
+   sigue escapándose, porque ahí sí llegan nombres tecleados por el docente. */
+function toastDe(quien, msg, ms) {
+  const t = $('#toast');
+  const cara = retrato(quien, 'toast-retrato');
+  t.innerHTML = cara ? `${cara}<span>${esc(msg)}</span>` : esc(msg);
+  t.classList.toggle('toast-con-cara', !!cara);
   t.classList.remove('hidden');
   clearTimeout(t._timer);
   t._timer = setTimeout(() => t.classList.add('hidden'), ms || 2600);
@@ -14177,7 +14232,7 @@ function onRestore() {
   $('#feedback-card').classList.add('hidden');
   $('#question-card').classList.remove('hidden');
   renderQuestion();
-  toast('Kira: «Mismo tesoro, nuevo intento. ¡Tú puedes!» 🪲');
+  toastDe('kira', 'Kira: «Mismo tesoro, nuevo intento. ¡Tú puedes!»');
 }
 
 function onHint() {
@@ -14353,7 +14408,8 @@ function renderCamp() {
       btn.addEventListener('click', () => {
         const res = buyItem(item.id);
         if (res.ok) {
-          toast(item.type === 'treat' ? '¡Tobías da volteretas de alegría! 🐕' : `¡${item.name} conseguido! ${item.icon}`);
+          if (item.type === 'treat') toastDe('tobiasFiesta', '¡Tobías da volteretas de alegría!');
+          else toast(`¡${item.name} conseguido!`);
           renderCamp();
         } else {
           toast('No tienes Doblones suficientes.');
@@ -14850,7 +14906,8 @@ function renderMerits() {
         return `<div class="history-day"><span class="history-date">${formatDay(d)}</span>
           <span class="history-icons">${icons}</span></div>`;
       }).join('')
-    : '<p class="empty-note">Aún no hay méritos. ¡El Prof. Ocaña está observando! 🧔🏻‍♂️</p>';
+    : `<p class="empty-note nota-con-cara">${retrato('bruno', 'nota-retrato')}
+      <span>Aún no hay méritos. ¡El Prof. Ocaña está observando!</span></p>`;
 }
 
 function formatDay(d) {

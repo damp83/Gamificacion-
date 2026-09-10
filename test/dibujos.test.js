@@ -247,14 +247,56 @@ test('cada artículo del almacén de fábrica tiene su dibujo, y cada rango su m
    `dialog-avatar`— y el barrido que rellenaba el HTML no los veía. Esto lo
    caza sin tener que acordarse de mirar pantalla por pantalla. */
 
-test('ningún compañero dibujado se queda como emoji en el HTML', () => {
-  const html = leer('index.html');
+test('ningún compañero dibujado se queda como emoji en ninguna pantalla', () => {
+  /* La primera versión de esto solo buscaba el emoji SOLO dentro de su
+     etiqueta —`>🐕<`— y por eso se le escaparon cinco: los que estaban
+     metidos en mitad de una frase, dentro del texto de un botón o cosidos a
+     un aviso. Ahora se busca el emoji esté donde esté.
+
+     Se miran las pantallas y lo que las pinta, nunca content.js: ahí viven
+     RETRATOS y los roles de cuadrilla, y ese emoji es el respaldo legítimo
+     para cuando el dibujo no llegue. */
+  const sitios = ['index.html', 'js/play.js', 'js/aula.js', 'js/ui.js', 'js/app.js',
+                  'js/teacher.js', 'js/classview.js', 'js/game.js'];
   const c = cargarApp();
   for (const [nombre, r] of Object.entries(c.ev('RETRATOS'))) {
     if (!r.img) continue;
-    assert.ok(!html.includes(`>${r.emoji}<`),
-      `${nombre} sigue puesto a mano como emoji en index.html; usa data-retrato`);
+    for (const f of sitios) {
+      assert.ok(!leer(f).includes(r.emoji),
+        `${nombre} sigue puesto a mano como emoji en ${f}; usa retrato() o data-retrato`);
+    }
   }
+});
+
+test('y cuando un personaje habla en un aviso, sale con su cara', () => {
+  const c = cargarApp();
+  c.ev('toastDe')('kira', 'Mismo tesoro, nuevo intento.');
+  const t = c.ev("$('#toast')");
+  assert.match(t.innerHTML, /img\/kira\.webp/, 'Kira habla sin cara');
+  assert.match(t.innerHTML, /Mismo tesoro/);
+  assert.ok(t.classList.contains('toast-con-cara'));
+  assert.ok(!t.classList.contains('hidden'));
+});
+
+test('el aviso con cara sigue escapando lo que le pasan', () => {
+  /* Por los avisos pasan nombres que teclea el docente y que viajan a cada
+     tablet dentro de los ajustes de la clase. El retrato sale de una lista
+     cerrada del código; el texto, no. */
+  const c = cargarApp();
+  c.ev('toastDe')('kira', '<img src=x onerror=alert(1)>');
+  const h = c.ev("$('#toast')").innerHTML;
+  assert.ok(!h.includes('<img src=x'), 'el texto entra como etiqueta, sin escapar');
+  assert.ok(h.includes('&lt;img src=x'), 'el texto tiene que salir escapado, no desaparecer');
+  /* Y el retrato, que es la ÚNICA etiqueta que sí debe haber, sigue puesto. */
+  assert.match(h, /<img class="retrato toast-retrato"/);
+});
+
+test('y un aviso de nadie sigue siendo un aviso normal', () => {
+  const c = cargarApp();
+  c.ev('toastDe')('quien_no_existe', 'Guardado.');
+  const t = c.ev("$('#toast')");
+  assert.ok(!t.classList.contains('toast-con-cara'));
+  assert.match(t.innerHTML, /Guardado\./);
 });
 
 test('el hueco conserva su clase al rellenarse, que cada uno tiene su medida', () => {

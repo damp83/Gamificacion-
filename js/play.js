@@ -760,7 +760,7 @@ function onRestore() {
   $('#feedback-card').classList.add('hidden');
   $('#question-card').classList.remove('hidden');
   renderQuestion();
-  toast('Kira: «Mismo tesoro, nuevo intento. ¡Tú puedes!» 🪲');
+  toastDe('kira', 'Kira: «Mismo tesoro, nuevo intento. ¡Tú puedes!»');
 }
 
 function onHint() {
@@ -936,7 +936,8 @@ function renderCamp() {
       btn.addEventListener('click', () => {
         const res = buyItem(item.id);
         if (res.ok) {
-          toast(item.type === 'treat' ? '¡Tobías da volteretas de alegría! 🐕' : `¡${item.name} conseguido! ${item.icon}`);
+          if (item.type === 'treat') toastDe('tobiasFiesta', '¡Tobías da volteretas de alegría!');
+          else toast(`¡${item.name} conseguido!`);
           renderCamp();
         } else {
           toast('No tienes Doblones suficientes.');
@@ -1433,7 +1434,8 @@ function renderMerits() {
         return `<div class="history-day"><span class="history-date">${formatDay(d)}</span>
           <span class="history-icons">${icons}</span></div>`;
       }).join('')
-    : '<p class="empty-note">Aún no hay méritos. ¡El Prof. Ocaña está observando! 🧔🏻‍♂️</p>';
+    : `<p class="empty-note nota-con-cara">${retrato('bruno', 'nota-retrato')}
+      <span>Aún no hay méritos. ¡El Prof. Ocaña está observando!</span></p>`;
 }
 
 function formatDay(d) {

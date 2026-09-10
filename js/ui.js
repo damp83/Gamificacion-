@@ -199,7 +199,28 @@ function applyTextSize() {
 
 function toast(msg, ms) {
   const t = $('#toast');
+  /* `textContent` y no `innerHTML`: por aquí pasan nombres que teclea el
+     docente y que viajan a cada tablet dentro de los ajustes de la clase. */
   t.textContent = msg;
+  t.classList.remove('hidden');
+  clearTimeout(t._timer);
+  t._timer = setTimeout(() => t.classList.add('hidden'), ms || 2600);
+}
+
+/* El mismo aviso, pero con la cara de quien habla.
+
+   Kira y Tobías decían cosas en los avisos y firmaban con un emoji de teclado
+   —un escarabajo cualquiera, un perro cualquiera— teniendo los dos su dibujo
+   desde hace dos versiones. Un aviso es un personaje hablando, y la cara es
+   la mitad de lo que se entiende.
+
+   El retrato sale de RETRATOS, que es una lista cerrada del código; el texto
+   sigue escapándose, porque ahí sí llegan nombres tecleados por el docente. */
+function toastDe(quien, msg, ms) {
+  const t = $('#toast');
+  const cara = retrato(quien, 'toast-retrato');
+  t.innerHTML = cara ? `${cara}<span>${esc(msg)}</span>` : esc(msg);
+  t.classList.toggle('toast-con-cara', !!cara);
   t.classList.remove('hidden');
   clearTimeout(t._timer);
   t._timer = setTimeout(() => t.classList.add('hidden'), ms || 2600);
