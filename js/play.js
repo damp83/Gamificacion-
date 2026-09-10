@@ -408,7 +408,10 @@ function openBranch(branchId) {
   currentBranch = branchId;
   const b = branchDef(branchId);
   if (!b) { show('map'); return; }
-  $('#branch-title').textContent = `${b.icon} ${b.name}`;
+  /* El nombre del pozo con su dibujo delante. Va por `innerHTML` porque el
+     dibujo es una etiqueta, así que el nombre —que lo teclea el docente y
+     viaja con los ajustes de la clase— hay que escaparlo aquí. */
+  $('#branch-title').innerHTML = `${iconoDeFicha(b, 'titulo-img')} ${esc(b.name)}`;
   $('#branch-desc').textContent = (b.desc || '') + ' Cuanto más profundo excaves, mayor es el tesoro.';
   const list = $('#strata-list');
   list.innerHTML = '';
@@ -586,8 +589,17 @@ function ponerFondoDeReto() {
   const sitio = (mission && mission.kind === 'expedition')
     ? siteOfBranch(mission.branchId) : null;
   const fondo = sitio && sitio.fondo;
-  if (fondo) document.body.style.setProperty('--fondo-reto', `url("${fondo}")`);
-  else document.body.style.removeProperty('--fondo-reto');
+  document.body.classList.toggle('con-camara', !!fondo);
+  if (!fondo) { document.body.style.removeProperty('--fondo-reto'); return; }
+  /* La ruta se resuelve contra el DOCUMENTO y no se pasa tal cual.
+     Una `url()` dentro de una variable de CSS la resuelve el navegador contra
+     la hoja de estilos, no contra la página: `img/fondos/kaldros.webp` se
+     convertía en `css/img/fondos/kaldros.webp` y no cargaba nada. Y no vale
+     poner una barra delante, porque esto vive en un subdirectorio de GitHub
+     Pages. En el archivo suelto la ruta ya es un `data:`, que es absoluto, y
+     `new URL` lo devuelve tal cual. */
+  const entera = new URL(fondo, document.baseURI).href;
+  document.body.style.setProperty('--fondo-reto', `url("${entera}")`);
 }
 
 function renderMissionScreen() {
@@ -1032,7 +1044,7 @@ function renderFund() {
     <div class="fund-bar"><div class="fund-bar-fill" style="width:${pct}%"></div></div>
     <div class="fund-bar-legend">
       <strong>${total} ${ico('coin')}</strong> reunidos entre toda la clase
-      ${siguiente ? `<span>· faltan <strong>${Math.max(0, hasta - total)}</strong> para ${esc(siguiente.icon)} ${esc(siguiente.name)}</span>` : ''}
+      ${siguiente ? `<span>· faltan <strong>${Math.max(0, hasta - total)}</strong> para ${iconoDeFicha(siguiente, 'hito-linea')} ${esc(siguiente.name)}</span>` : ''}
     </div>`;
 
   const hitos = (f.milestones || []).concat(

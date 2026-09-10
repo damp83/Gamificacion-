@@ -321,14 +321,22 @@ body::before {
   pointer-events: none;
   background-image: var(--fondo-reto, none);
   background-size: cover;
-  background-position: 50% 42%;
+  /* Anclado arriba y no al centro: la cámara es apaisada y la pantalla de una
+     tablet en vertical es todo lo contrario, así que `cover` se come los
+     lados, que es donde están los engranajes y las estanterías. Subiendo el
+     encuadre se salva la parte que dice dónde estás: el arco, la bóveda y el
+     haz de luz. */
+  background-position: 50% 18%;
   opacity: 0;
   transition: opacity .45s ease;
 }
-body.en-mision::before { opacity: .28; }
+body.en-mision::before { opacity: .5; }
 /* En misión el horizonte estorba: el reto se queda solo con el pergamino, y
-   más aún si detrás hay una cámara dibujada. */
+   si detrás hay una cámara dibujada, las dunas sobran del todo. */
 body.en-mision::after { opacity: .35; }
+/* Y del todo cuando de verdad hay cámara: dos paisajes superpuestos no son
+   un sitio, son un borrón. La clase la pone el guion al elegir el fondo. */
+body.con-camara.en-mision::after { opacity: 0; }
 
 /* ── Iconos dibujados ──
    Un solo trazo, `currentColor` y tamaño en `em`: el mismo símbolo sirve
@@ -985,6 +993,9 @@ img.site-icon.site-img {
 /* El estrato dibujado. El candado y la caja siguen siendo iconos de línea:
    no son un estrato, son el estado en que está. */
 .estrato-img { width: 2.2rem; height: 2.2rem; }
+/* El dibujo del pozo delante de su nombre, a la altura del título. */
+#branch-title { display: flex; align-items: center; gap: .5rem; }
+.titulo-img { width: 2.6rem; height: 2.6rem; flex-shrink: 0; }
 .stratum-info { flex: 1; min-width: 0; }
 /* título en su propia línea: en los estratos bloqueados no hay barra de
    dominio que lo separe del texto de ayuda y quedaban pegados */
@@ -1535,6 +1546,8 @@ img.feedback-quien {
   width: 3.4rem; height: 3.4rem; background: none;
 }
 .hito-img { width: 100%; height: 100%; }
+/* El hito que viene, dentro de una frase: a la altura de la letra. */
+.hito-linea { display: inline-block; width: 1.5rem; height: 1.5rem; vertical-align: -.4em; }
 .fund-milestone strong { display: block; font-size: var(--t-sm); font-weight: 800; color: var(--ink); }
 .fund-milestone small { color: var(--ink-soft); font-size: var(--t-xs); }
 .fund-donate {
@@ -1776,6 +1789,10 @@ img.feedback-quien {
 .espera {
   display: flex; flex-direction: column; align-items: center; gap: var(--s-3);
   padding: var(--s-5) var(--s-4); text-align: center;
+  /* Centrado por sí mismo: se planta dentro de contenedores que están
+     alineados a la izquierda y con el ancho tasado, y ahí un dibujo pegado a
+     un lado se lee como un fallo de maquetación. */
+  width: 100%; max-width: 34rem; margin-inline: auto;
 }
 .espera-img { width: min(15rem, 60%); height: auto; opacity: .92; }
 .espera p {
@@ -4484,7 +4501,10 @@ body.en-consulta #shop-list button { display: none !important; }
         <div id="logbook-stamps" class="logbook-stamps"></div>
         <!-- Dos notas diciendo lo mismo son una de más: la de la ruta vacía
              sustituye a la regla, no se suma a ella. -->
-        <p id="logbook-ruta-pie" class="logbook-note hidden"></p>
+        <!-- Un <div> y no un <p>: aquí dentro va el dibujo de espera con su
+             frase, y un bloque dentro de un párrafo el navegador lo saca
+             fuera y lo descoloca. -->
+        <div id="logbook-ruta-pie" class="hidden"></div>
         <p id="logbook-regla" class="logbook-note">Un <strong>sello</strong> se estampa cada semana con 3 o más días de expedición.
         Los sellos nunca se borran: si una semana no se completa, solo queda un tramo de ruta sin dibujar.</p>
       </section>
@@ -6759,7 +6779,7 @@ function cruzarVerificacion(retos, respuestas) {
    copia guardada. Sin este número, «ya está arreglado» y «a mí no me pasa» son
    indistinguibles. Va junto al nombre de la caché del service worker, y una
    prueba comprueba que no se separen. */
-const ATLAS_VERSION = 'v95';
+const ATLAS_VERSION = 'v96';
 
 const ATLAS_DEFAULTS = {
 
@@ -14080,7 +14100,10 @@ function openBranch(branchId) {
   currentBranch = branchId;
   const b = branchDef(branchId);
   if (!b) { show('map'); return; }
-  $('#branch-title').textContent = `${b.icon} ${b.name}`;
+  /* El nombre del pozo con su dibujo delante. Va por `innerHTML` porque el
+     dibujo es una etiqueta, así que el nombre —que lo teclea el docente y
+     viaja con los ajustes de la clase— hay que escaparlo aquí. */
+  $('#branch-title').innerHTML = `${iconoDeFicha(b, 'titulo-img')} ${esc(b.name)}`;
   $('#branch-desc').textContent = (b.desc || '') + ' Cuanto más profundo excaves, mayor es el tesoro.';
   const list = $('#strata-list');
   list.innerHTML = '';
@@ -14258,8 +14281,17 @@ function ponerFondoDeReto() {
   const sitio = (mission && mission.kind === 'expedition')
     ? siteOfBranch(mission.branchId) : null;
   const fondo = sitio && sitio.fondo;
-  if (fondo) document.body.style.setProperty('--fondo-reto', `url("${fondo}")`);
-  else document.body.style.removeProperty('--fondo-reto');
+  document.body.classList.toggle('con-camara', !!fondo);
+  if (!fondo) { document.body.style.removeProperty('--fondo-reto'); return; }
+  /* La ruta se resuelve contra el DOCUMENTO y no se pasa tal cual.
+     Una `url()` dentro de una variable de CSS la resuelve el navegador contra
+     la hoja de estilos, no contra la página: `img/fondos/kaldros.webp` se
+     convertía en `css/img/fondos/kaldros.webp` y no cargaba nada. Y no vale
+     poner una barra delante, porque esto vive en un subdirectorio de GitHub
+     Pages. En el archivo suelto la ruta ya es un `data:`, que es absoluto, y
+     `new URL` lo devuelve tal cual. */
+  const entera = new URL(fondo, document.baseURI).href;
+  document.body.style.setProperty('--fondo-reto', `url("${entera}")`);
 }
 
 function renderMissionScreen() {
@@ -14704,7 +14736,7 @@ function renderFund() {
     <div class="fund-bar"><div class="fund-bar-fill" style="width:${pct}%"></div></div>
     <div class="fund-bar-legend">
       <strong>${total} ${ico('coin')}</strong> reunidos entre toda la clase
-      ${siguiente ? `<span>· faltan <strong>${Math.max(0, hasta - total)}</strong> para ${esc(siguiente.icon)} ${esc(siguiente.name)}</span>` : ''}
+      ${siguiente ? `<span>· faltan <strong>${Math.max(0, hasta - total)}</strong> para ${iconoDeFicha(siguiente, 'hito-linea')} ${esc(siguiente.name)}</span>` : ''}
     </div>`;
 
   const hitos = (f.milestones || []).concat(
@@ -17250,7 +17282,7 @@ function paintClassFund(d) {
     <h3>🌍 ${esc(f.name || 'Fondo de la Sociedad')}</h3>
     <p class="class-meta">Donado de verdad entre todos: <strong>${real} ${ico('coin')}</strong> ·
       anotado en la configuración: <strong>${anotado} ${ico('coin')}</strong>
-      ${siguiente ? `· siguiente hito: ${esc(siguiente.icon)} ${esc(siguiente.name)} (${siguiente.at} ${ico('coin')})` : ''}</p>
+      ${siguiente ? `· siguiente hito: ${iconoDeFicha(siguiente, 'hito-linea')} ${esc(siguiente.name)} (${siguiente.at} ${ico('coin')})` : ''}</p>
     ${real !== anotado
       ? `<button class="btn btn-secondary btn-small" id="class-fund-sync">${ico('pin')} Anotar ${real} ${ico('coin')} para que lo vea la clase</button>`
       : '<p class="cfg-hint">La clase ya ve el total correcto.</p>'}`;

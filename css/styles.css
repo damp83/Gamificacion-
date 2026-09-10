@@ -318,14 +318,22 @@ body::before {
   pointer-events: none;
   background-image: var(--fondo-reto, none);
   background-size: cover;
-  background-position: 50% 42%;
+  /* Anclado arriba y no al centro: la cámara es apaisada y la pantalla de una
+     tablet en vertical es todo lo contrario, así que `cover` se come los
+     lados, que es donde están los engranajes y las estanterías. Subiendo el
+     encuadre se salva la parte que dice dónde estás: el arco, la bóveda y el
+     haz de luz. */
+  background-position: 50% 18%;
   opacity: 0;
   transition: opacity .45s ease;
 }
-body.en-mision::before { opacity: .28; }
+body.en-mision::before { opacity: .5; }
 /* En misión el horizonte estorba: el reto se queda solo con el pergamino, y
-   más aún si detrás hay una cámara dibujada. */
+   si detrás hay una cámara dibujada, las dunas sobran del todo. */
 body.en-mision::after { opacity: .35; }
+/* Y del todo cuando de verdad hay cámara: dos paisajes superpuestos no son
+   un sitio, son un borrón. La clase la pone el guion al elegir el fondo. */
+body.con-camara.en-mision::after { opacity: 0; }
 
 /* ── Iconos dibujados ──
    Un solo trazo, `currentColor` y tamaño en `em`: el mismo símbolo sirve
@@ -982,6 +990,9 @@ img.site-icon.site-img {
 /* El estrato dibujado. El candado y la caja siguen siendo iconos de línea:
    no son un estrato, son el estado en que está. */
 .estrato-img { width: 2.2rem; height: 2.2rem; }
+/* El dibujo del pozo delante de su nombre, a la altura del título. */
+#branch-title { display: flex; align-items: center; gap: .5rem; }
+.titulo-img { width: 2.6rem; height: 2.6rem; flex-shrink: 0; }
 .stratum-info { flex: 1; min-width: 0; }
 /* título en su propia línea: en los estratos bloqueados no hay barra de
    dominio que lo separe del texto de ayuda y quedaban pegados */
@@ -1532,6 +1543,8 @@ img.feedback-quien {
   width: 3.4rem; height: 3.4rem; background: none;
 }
 .hito-img { width: 100%; height: 100%; }
+/* El hito que viene, dentro de una frase: a la altura de la letra. */
+.hito-linea { display: inline-block; width: 1.5rem; height: 1.5rem; vertical-align: -.4em; }
 .fund-milestone strong { display: block; font-size: var(--t-sm); font-weight: 800; color: var(--ink); }
 .fund-milestone small { color: var(--ink-soft); font-size: var(--t-xs); }
 .fund-donate {
@@ -1773,6 +1786,10 @@ img.feedback-quien {
 .espera {
   display: flex; flex-direction: column; align-items: center; gap: var(--s-3);
   padding: var(--s-5) var(--s-4); text-align: center;
+  /* Centrado por sí mismo: se planta dentro de contenedores que están
+     alineados a la izquierda y con el ancho tasado, y ahí un dibujo pegado a
+     un lado se lee como un fallo de maquetación. */
+  width: 100%; max-width: 34rem; margin-inline: auto;
 }
 .espera-img { width: min(15rem, 60%); height: auto; opacity: .92; }
 .espera p {

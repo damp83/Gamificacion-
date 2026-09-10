@@ -124,6 +124,13 @@ test('los iconos del campamento comprado se escapan', () => {
   assert.match(trozo, /esc\(siguiente\.name\)/, 'y el del artículo que se propone comprar');
 });
 
+test('el nombre del pozo se escapa al ponerle su dibujo delante', () => {
+  /* Pasó a `innerHTML` para poder meter la etiqueta del dibujo, y el nombre
+     lo teclea el docente y viaja con los ajustes de la clase. */
+  const t = LEER('play.js');
+  assert.match(t, /#branch-title'\)\.innerHTML = `\$\{iconoDeFicha\(b, 'titulo-img'\)\} \$\{esc\(b\.name\)\}`/);
+});
+
 test('y lo que escapa por ellos es iconoDeFicha, para todos a la vez', () => {
   /* El almacén, la escena y el panel del docente pintan lo mismo desde aquí.
      Escaparlo en un solo sitio es lo que evita que el próximo sitio que lo

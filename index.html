@@ -1006,7 +1006,10 @@
         <div id="logbook-stamps" class="logbook-stamps"></div>
         <!-- Dos notas diciendo lo mismo son una de más: la de la ruta vacía
              sustituye a la regla, no se suma a ella. -->
-        <p id="logbook-ruta-pie" class="logbook-note hidden"></p>
+        <!-- Un <div> y no un <p>: aquí dentro va el dibujo de espera con su
+             frase, y un bloque dentro de un párrafo el navegador lo saca
+             fuera y lo descoloca. -->
+        <div id="logbook-ruta-pie" class="hidden"></div>
         <p id="logbook-regla" class="logbook-note">Un <strong>sello</strong> se estampa cada semana con 3 o más días de expedición.
         Los sellos nunca se borran: si una semana no se completa, solo queda un tramo de ruta sin dibujar.</p>
       </section>

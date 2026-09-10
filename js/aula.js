@@ -2051,7 +2051,7 @@ function paintClassFund(d) {
     <h3>🌍 ${esc(f.name || 'Fondo de la Sociedad')}</h3>
     <p class="class-meta">Donado de verdad entre todos: <strong>${real} ${ico('coin')}</strong> ·
       anotado en la configuración: <strong>${anotado} ${ico('coin')}</strong>
-      ${siguiente ? `· siguiente hito: ${esc(siguiente.icon)} ${esc(siguiente.name)} (${siguiente.at} ${ico('coin')})` : ''}</p>
+      ${siguiente ? `· siguiente hito: ${iconoDeFicha(siguiente, 'hito-linea')} ${esc(siguiente.name)} (${siguiente.at} ${ico('coin')})` : ''}</p>
     ${real !== anotado
       ? `<button class="btn btn-secondary btn-small" id="class-fund-sync">${ico('pin')} Anotar ${real} ${ico('coin')} para que lo vea la clase</button>`
       : '<p class="cfg-hint">La clase ya ve el total correcto.</p>'}`;

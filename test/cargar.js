@@ -96,7 +96,10 @@ function documentoDeMentira() {
     createElement: () => nodoDeMentira(),
     addEventListener() {},
     body: nodo,
-    documentElement: nodo
+    documentElement: nodo,
+    /* De dónde cuelgan las rutas relativas. Hace falta desde que el fondo del
+       reto se resuelve contra el documento y no contra la hoja de estilos. */
+    baseURI: 'https://ejemplo.test/atlas/'
   };
 }
 
@@ -106,6 +109,9 @@ function cargarApp(ficheros) {
   const lista = ficheros || ORDEN;
   const ctx = {
     console,
+    /* `URL` es un global del navegador y del propio Node, pero un contexto de
+       vm nace vacío: hay que pasárselo a mano. */
+    URL,
     localStorage: almacenDeMentira(),
     document: documentoDeMentira(),
     setTimeout, clearTimeout, setInterval, clearInterval,
