@@ -120,8 +120,19 @@ function showHome() {
   $('#screen-home').classList.remove('hidden');
   renderHomeSites();
   renderHomeRoles();
+  renderAutor();
   renderTeacherSignature();
   window.scrollTo(0, 0);
+}
+
+/* Quién ha hecho la plataforma. No es lo mismo que la firma de abajo: esa
+   dice qué maestro dirige ESTA clase y la pone él desde su panel; esta dice
+   quién construyó la app y es siempre la misma. */
+function renderAutor() {
+  const el = $('#home-autor');
+  if (!el) return;
+  el.innerHTML = `Creado por <strong>${esc(AUTOR_ATLAS.nombre)}</strong><br>
+    ${esc(AUTOR_ATLAS.oficio)} · ${esc(AUTOR_ATLAS.lugar)}`;
 }
 
 /* Quién dirige esta expedición: solo se muestra si el docente lo ha puesto */

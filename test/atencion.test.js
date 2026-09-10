@@ -842,3 +842,42 @@ test('la portada lee la lista de roles, no la copia a mano', () => {
   }
   assert.match(leer('js/app.js'), /ROLES_CUADRILLA\.map/);
 });
+
+/* ══ Quién ha hecho esto ══ */
+
+test('la portada dice quién creó la plataforma', () => {
+  const c = cargarApp();
+  c.ev('renderAutor()');
+  const h = c.ev("$('#home-autor')").innerHTML;
+  const a = c.ev('AUTOR_ATLAS');
+  assert.ok(h.includes(a.nombre), 'falta el nombre');
+  assert.ok(h.includes(a.oficio), 'falta el oficio');
+  assert.ok(h.includes(a.lugar), 'falta el lugar');
+});
+
+test('y la autoría se escribe una vez, no en cada pantalla', () => {
+  /* Sale en el pie de la portada y en la línea de versión del panel. Escrita
+     dos veces, es una autoría que un día deja de coincidir. */
+  const c = cargarApp();
+  const nombre = c.ev('AUTOR_ATLAS').nombre;
+  /* La excepción es la etiqueta `meta author` de la cabecera, que la leen los
+     buscadores y el navegador ANTES de que corra ningún guion: ahí no vale
+     rellenarla desde el código. En el cuerpo de la página no puede estar. */
+  const html = leer('index.html');
+  const cuerpo = html.slice(html.indexOf('<body'));
+  assert.ok(!cuerpo.includes(nombre), 'está escrito a mano en el cuerpo de index.html');
+  assert.match(html, new RegExp(`<meta name="author" content="${nombre}">`),
+    'sin meta author no hay autoría para quien no ejecuta el guion');
+  assert.match(leer('js/app.js'), /AUTOR_ATLAS\.nombre/);
+  assert.match(leer('js/teacher.js'), /AUTOR_ATLAS\.nombre/);
+});
+
+test('sin correo ni forma de contacto en la portada', () => {
+  /* La portada la abre el aula entera y las familias. Una dirección puesta
+     ahí acaba en sitios donde nadie la puso. */
+  const c = cargarApp();
+  const a = c.ev('AUTOR_ATLAS');
+  for (const v of Object.values(a)) {
+    assert.ok(!/@|https?:/.test(v), `la ficha de autoría lleva un contacto: ${v}`);
+  }
+});

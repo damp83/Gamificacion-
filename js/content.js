@@ -1241,6 +1241,21 @@ const RETRATOS = {
   vera:    { img: 'img/vera.webp',           alt: 'Vera Kovak, la rival',       emoji: '🐦‍⬛' }
 };
 
+/* Quién ha hecho esto.
+
+   Va aquí, en un sitio y no escrito a mano en cada pantalla, porque sale en
+   dos: el pie de la portada y la línea de versión del panel del docente. Una
+   autoría escrita dos veces es una autoría que un día deja de coincidir.
+
+   Sin correo ni forma de contacto a propósito: la portada la abre el aula
+   entera y las familias, y una dirección puesta ahí acaba en sitios donde
+   nadie la puso. Quien tenga que localizarle ya sabe dónde. */
+const AUTOR_ATLAS = {
+  nombre: 'Diego Alberto Moya Puerta',
+  oficio: 'Maestro de Educación Primaria y Educación Física',
+  lugar: 'Murcia'
+};
+
 /* El dibujo del mapa. Va aquí y no dentro del SVG que lo pinta por lo mismo
    que los retratos: el día que cambie, cambia en un sitio. */
 const CARTA_FONDO = 'img/carta.webp';

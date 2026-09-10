@@ -2482,6 +2482,14 @@ img.home-site-icon.home-site-img {
   font-size: var(--t-xs); color: var(--ink-faint);
   text-transform: uppercase; letter-spacing: .12em;
 }
+/* La autoría, justo debajo del pie. Sin versalitas ni espaciado de rótulo:
+   ahí abajo hay un nombre de persona y un nombre se lee, no se decora. */
+.home-autor {
+  text-align: center; margin-top: var(--s-3);
+  font-size: var(--t-xs); color: var(--ink-faint); line-height: 1.6;
+}
+.home-autor strong { color: var(--ink-soft); }
+
 #teacher-exit { display: block; margin: 0 auto; }
 
 /* Modo docente: sin HUD de alumno ni pestañas de juego */

@@ -1,5 +1,7 @@
 # 🧭 Expedición Atlas: Los Diarios Perdidos
 
+Creado por **Diego Alberto Moya Puerta**, maestro de Educación Primaria y Educación Física. Murcia.
+
 Plataforma educativa gamificada de aventura arqueológica para **toda la primaria: 1.º a 6.º (6 a 12 años)**.
 PWA sin dependencias: HTML + CSS + JavaScript vanilla, funciona offline y se instala en tablet.
 

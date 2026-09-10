@@ -3981,6 +3981,8 @@ function cfgAcceso(body) {
                       : 'Configurado, pero el SDK de Appwrite no ha cargado.');
   body.innerHTML = `
     <p class="cfg-intro">Estado: <strong>${estado}</strong> · versión <strong>${esc(ATLAS_VERSION)}</strong></p>
+    <p class="cfg-hint">Expedición Atlas · creado por ${esc(AUTOR_ATLAS.nombre)} · ${
+      esc(AUTOR_ATLAS.oficio)} · ${esc(AUTOR_ATLAS.lugar)}.</p>
     <p class="cfg-hint">Si la versión no coincide con la que se acaba de publicar, este navegador está
     sirviendo una copia guardada: recarga forzando (Ctrl+May+R, o mantén pulsado el botón de recargar).</p>
     ${field('PIN del panel', `<input type="text" id="cfg-pin" value="${esc(ATLAS_CONFIG.teacherPin)}" maxlength="8" inputmode="numeric">`,
