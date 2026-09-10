@@ -307,6 +307,9 @@ async function boot() {
   /* Los diarios guardados antes de que la clave fuera el usuario están bajo el
      nombre. Se mudan una vez, al arrancar, antes de que nadie los busque. */
   migrarClavesDeDiarios();
+  /* Los retratos que están escritos en el HTML. Se rellenan aquí y no a mano
+     en cada sitio para que cambiar un dibujo sea cambiar UN fichero. */
+  $$('[data-retrato]').forEach(el => { el.outerHTML = retrato(el.dataset.retrato, 'dialog-avatar'); });
   vozInit();
   prepararDescargas();
   wireGlobalListeners();

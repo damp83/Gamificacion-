@@ -84,6 +84,7 @@ Cubren lo que ya se ha roto alguna vez, que es de donde salieron:
 | `cuentas.test.js` | Que el panel avise de una contraseña que Appwrite va a rechazar, y de que escribirla no crea la cuenta |
 | `merito-grupo.test.js` | Que dar un mérito a una cuadrilla entera, a la clase o a unos cuantos elegidos a dedo use el mismo tope y el mismo registro que darlo uno a uno, y que se diga a quién no le llegó |
 | `criterios.test.js` | Que la evidencia por criterio se calcule bien, que no se proponga un nivel sin datos suficientes, y que nada de esto llegue nunca al niño ni a su familia |
+| `dibujos.test.js` | Que cada dibujo exista, lo use alguien, quepa en una tablet, llegue a la caché y al archivo suelto, y que si falta uno salga su emoji en vez de un hueco |
 | `atencion.test.js` | Los diez arreglos de la auditoría estética: que la app diga por dónde seguir, que la racha empiece donde hay algo que perder, que dos yacimientos nunca sean del mismo color, que la escena del campamento solo dibuje, que los claros del mapa se sumen, que la capa más honda del pozo siga siendo legible, que las cuatro opciones lleven la misma tinta, que la bitácora no enseñe ceros, y que nada de esto castigue el error ni se le imponga a quien pidió menos movimiento |
 | `pin.test.js` | Que no quede ni un sitio donde teclear el PIN en la pantalla de un alumno, que al portal se entre por una sola puerta, y que salir de él lo vuelva a cerrar |
 | `conexion.test.js` | Que «no hay conexión» diga cuál de las cuatro causas es, y que las cuatro dejen claro que la contraseña no se ha llegado a comprobar |
@@ -1408,6 +1409,56 @@ necesita ver que alguien sigue ahí.
 En la misma tarjeta, la explicación del fallo era el texto más pequeño y más gris de la
 pantalla, justo al revés de lo que hace falta: el titular consuela, la explicación
 enseña. Al fallar pasa a ser el elemento dominante.
+
+### Los dibujos
+
+Bruno, Kira y Tobías salían **nombrados** en los textos —«Tobías te mira con cara de yo
+también me equivoco»— y no aparecían por ninguna parte: eran tres emoji. Y la pantalla
+se llamaba «El Mapa del Atlas» sin mapa. Ahora están dibujados.
+
+| Dibujo | Dónde sale |
+|---|---|
+| **Prof. Bruno Ocaña** | Final de expedición, Cámara del Guardián, portada, mapa vacío |
+| **Kira** | Sus pistas dentro del reto y en el Taller |
+| **Tobías** | Dos caras: acompaña al fallar, celebra al acertar, y vive en el campamento |
+| **La carta** | Fondo del mapa |
+
+**Todos viven en un solo sitio del código** (`RETRATOS` y `CARTA_FONDO`, en `content.js`),
+porque a cada uno lo llaman tres o cuatro pantallas distintas y el día que cambie un
+dibujo tiene que cambiar en todas a la vez. Los que están escritos en el HTML se rellenan
+al arrancar, por lo mismo.
+
+**Si falta un dibujo, sale su emoji y la pantalla sigue entera.** Es lo mismo que ya hacían
+los retratos de la cuadrilla.
+
+### El mapa se dibuja dos veces
+
+La carta usa la misma ilustración dos veces: abajo, enterrada bajo una capa de arena;
+arriba, limpia, y **solo asomando por donde se ha excavado**. La excavación no descubre
+otro mundo, quita la arena de este.
+
+El lienzo tiene la proporción exacta del dibujo. Estirar una ilustración se nota siempre,
+y recortarla se llevaría los bordes rotos del pergamino, que son la mitad de su gracia.
+
+### Cómo entran las imágenes nuevas
+
+Las que llegan de un generador vienen en JPEG con el **damero de transparencia pegado en
+los píxeles**: lo que era un aviso pasa a ser parte del dibujo. Se le quita con color más
+conexión —solo desaparece lo gris que se alcanza desde el borde sin cruzar el dibujo— y
+así el perro conserva el pecho blanco y Bruno las gafas.
+
+Después van a WebP. Los cinco primeros ocupan **115 KB en total**; en PNG serían 495.
+Cada uno tiene que entrar en tres sitios y hay pruebas que lo fijan:
+
+- El **código**, o el guion del archivo suelto falla al construir.
+- La **caché del service worker**, o en un aula sin wifi sale el hueco de una imagen rota.
+- Y **por debajo de 120 KB**, con 700 KB de tope para la carpeta entera: se descarga en
+  cada tablet.
+
+> Un fallo que costó una pantalla y merece quedar escrito: la clase `.retrato` declaraba
+> un ancho, y por ir después en la hoja de estilos le ganaba a la clase del sitio donde
+> iba. Bruno salía a pantalla completa en la ficha de resultado. Ahora el retrato declara
+> solo cómo encaja, y la medida la pone cada sitio.
 
 ### La bitácora que mira hacia delante
 

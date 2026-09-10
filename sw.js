@@ -1,5 +1,5 @@
 /* Expedición Atlas — service worker: caché de la app shell para uso sin conexión */
-const CACHE = 'atlas-shell-v86';
+const CACHE = 'atlas-shell-v87';
 const ASSETS = [
   './',
   './index.html',
@@ -26,6 +26,13 @@ const ASSETS = [
   './img/roles/cronometradora.png',
   './img/roles/ilustrador.png',
   './img/roles/intendente.png',
+  /* Los tres compañeros y el mapa. Sin esto, en un aula sin wifi el niño ve el
+     hueco de una imagen rota donde va Tobías. */
+  './img/bruno.webp',
+  './img/kira.webp',
+  './img/tobias-calma.webp',
+  './img/tobias-fiesta.webp',
+  './img/carta.webp',
   /* Las tipografías forman parte de la app shell: sin ellas, en un aula sin
      red la plataforma se vería con la fuente del sistema. */
   './fonts/nunito-latin.woff2',

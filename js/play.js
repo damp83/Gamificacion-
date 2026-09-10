@@ -26,7 +26,7 @@ function renderMap() {
 
   const sites = sitesEnabled().filter(site => branchesEnabledOf(site).length);
   if (!sites.length) {
-    siteList.innerHTML = `<div class="dialog bruno"><span class="dialog-avatar">🧔🏻‍♂️</span>
+    siteList.innerHTML = `<div class="dialog bruno">${retrato('bruno', 'dialog-avatar')}
       <div class="dialog-text"><strong>Prof. Bruno Ocaña</strong>
       <p>«Todavía no hay ningún yacimiento abierto… ¡habré perdido los mapas otra vez!
       En cuanto el docente prepare uno, aparecerá aquí.»</p></div></div>`;
@@ -135,10 +135,15 @@ function renderMap() {
 
 /* Sitios sobre la carta, en % del lienzo. Están repartidos a mano para que con
    dos, con tres o con seis nunca se solapen ni se amontonen en una esquina. */
+/* El lienzo tiene la forma del dibujo del mapa (unos 100 × 55), no un
+   cuadrado: estirar una ilustración para que quepa en otra proporción se nota
+   siempre, y recortarla se llevaría los bordes rotos del pergamino, que son la
+   mitad de su gracia. */
+const CARTA_ALTO = 54.5;   /* 499 × 272 del dibujo, en unidades de 100 de ancho */
 const PUNTOS_CARTA = [
-  { x: 30, y: 38 }, { x: 72, y: 55 }, { x: 48, y: 20 },
-  { x: 17, y: 66 }, { x: 86, y: 25 }, { x: 57, y: 71 },
-  { x: 12, y: 26 }, { x: 88, y: 68 }
+  { x: 30, y: 26 }, { x: 72, y: 38 }, { x: 48, y: 14 },
+  { x: 17, y: 45 }, { x: 86, y: 17 }, { x: 57, y: 49 },
+  { x: 12, y: 18 }, { x: 88, y: 47 }
 ];
 
 /* Cuánto se lleva excavado de un yacimiento: estratos dominados sobre los que
@@ -160,8 +165,8 @@ function progresoDeYacimiento(site) {
 /* El claro que ha abierto un yacimiento, en % del ancho de la carta. Nunca es
    cero: el sitio se ve desde el primer día, porque saber que existe es parte de
    querer llegar. Y nunca lo tapa todo: al 100 % sigue habiendo mundo fuera. */
-const CLARO_MINIMO = 9;
-const CLARO_MAXIMO = 30;
+const CLARO_MINIMO = 7;
+const CLARO_MAXIMO = 21;
 function claroDeYacimiento(parte) {
   const p = Math.max(0, Math.min(1, Number(parte) || 0));
   return CLARO_MINIMO + (CLARO_MAXIMO - CLARO_MINIMO) * p;
@@ -186,7 +191,7 @@ function pintarCartaDeExpedicion(sites) {
     `<circle cx="${m.x}" cy="${m.y}" r="${m.r.toFixed(1)}" fill="url(#atlas-claro)"/>`).join('');
 
   caja.innerHTML = `
-    <svg class="carta" viewBox="0 0 100 80" preserveAspectRatio="xMidYMid slice"
+    <svg class="carta" viewBox="0 0 100 ${CARTA_ALTO}" preserveAspectRatio="xMidYMid meet"
          role="img" aria-label="Carta de la expedición: ${esc(marcas.map(m =>
            `${m.site.name}, ${m.pr.hechos} de ${m.pr.total} estratos`).join('; '))}">
       <defs>
@@ -196,56 +201,31 @@ function pintarCartaDeExpedicion(sites) {
           <stop offset="52%" stop-color="#fff"/>
           <stop offset="100%" stop-color="#fff" stop-opacity="0"/>
         </radialGradient>
-        <!-- Blanco = terreno visible. Los claros SE SUMAN: dos yacimientos
+        <!-- Blanco = mapa limpio. Los claros SE SUMAN: dos yacimientos
              cercanos abren un claro mayor en vez de taparse el uno al otro,
-             que es lo que pasaría enmascarando la arena en vez del terreno. -->
+             que es lo que pasaría enmascarando la arena en vez del mapa. -->
         <mask id="atlas-claros">
-          <rect x="0" y="0" width="100" height="80" fill="#000"/>
+          <rect x="0" y="0" width="100" height="${CARTA_ALTO}" fill="#000"/>
           ${claros}
         </mask>
       </defs>
 
-      <!-- La arena sin levantar. Es el suelo de la carta, no una capa encima, y
-           va bastante más apagada que el terreno: si los dos tonos se parecen,
-           el claro no se ve y todo el dibujo deja de contar nada. -->
-      <rect x="0" y="0" width="100" height="80" fill="#cbb389"/>
-      <path d="M0 63 q 22 -5 44 2 t 56 3 L100 80 L0 80 Z" fill="#c2a97e"/>
-      <path d="M0 30 q 26 -6 52 3 t 48 2" fill="none" stroke="#c0a67c" stroke-width=".7"/>
-
-      <!-- El terreno dibujado, que solo asoma por los claros. Lleva cosas
-           repartidas —ruinas, cauces, rocas— para que abrir un claro más grande
-           no sea solo más papel claro: sea encontrar algo. -->
+      <!-- El mapa, dos veces. Abajo, enterrado bajo la arena; arriba, limpio,
+           y solo asomando por donde se ha excavado. Es el mismo dibujo: la
+           excavación no descubre otro mundo, quita la arena de este. -->
+      <image href="${CARTA_FONDO}" x="0" y="0" width="100" height="${CARTA_ALTO}"
+             preserveAspectRatio="xMidYMid slice"/>
+      <rect x="0" y="0" width="100" height="${CARTA_ALTO}" fill="#c9b088" opacity=".78"/>
       <g mask="url(#atlas-claros)">
-        <rect x="0" y="0" width="100" height="80" fill="#f6e7c6"/>
-        <path d="M0 58 Q 18 50 32 56 T 62 54 T 100 60 L100 80 L0 80 Z" fill="#e2c894"/>
-        <path d="M0 69 Q 26 63 48 69 T 100 71 L100 80 L0 80 Z" fill="#cfae72"/>
-        <g fill="none" stroke="#a8854e" stroke-width=".9" stroke-linecap="round">
-          <path d="M4 24 q 11 -9 22 0 q 11 9 22 0"/>
-          <path d="M54 14 q 13 -7 24 2"/>
-          <path d="M60 74 q 14 -5 28 2"/>
-          <path d="M10 50 q 16 7 30 -3 q 14 -10 28 0" stroke-dasharray="2.5 2.5"/>
-          <path d="M76 34 q 9 -6 18 1"/>
-        </g>
-        <!-- Ruinas: tres columnas y un dintel, del tamaño de una uña -->
-        <g fill="#b08d55">
-          <rect x="20" y="28" width="1.4" height="5" rx=".4"/>
-          <rect x="23" y="27" width="1.4" height="6" rx=".4"/>
-          <rect x="26" y="28.5" width="1.4" height="4.5" rx=".4"/>
-          <rect x="19.4" y="25.6" width="9" height="1.3" rx=".5"/>
-          <rect x="63" y="46" width="1.4" height="5" rx=".4"/>
-          <rect x="66" y="45" width="1.4" height="6" rx=".4"/>
-          <rect x="62.4" y="43.6" width="6" height="1.3" rx=".5"/>
-          <circle cx="41" cy="59" r="1.5"/><circle cx="44.5" cy="60.5" r="1"/>
-          <circle cx="83" cy="62" r="1.4"/><circle cx="86" cy="63.5" r=".9"/>
-          <circle cx="13" cy="45" r="1.2"/>
-        </g>
+        <image href="${CARTA_FONDO}" x="0" y="0" width="100" height="${CARTA_ALTO}"
+               preserveAspectRatio="xMidYMid slice"/>
       </g>
 
       ${marcas.map(m => `
         <g class="carta-sitio" data-sitio="${esc(m.site.id)}" tabindex="0" role="button"
            aria-label="${esc(m.site.name)}: ${m.pr.hechos} de ${m.pr.total} estratos dominados">
-          <circle cx="${m.x}" cy="${m.y}" r="3.6" fill="${m.col.fondo}" stroke="${m.col.tinta}" stroke-width="1.1"/>
-          <circle cx="${m.x}" cy="${m.y}" r="1.3" fill="${m.col.tinta}"/>
+          <circle cx="${m.x}" cy="${m.y}" r="3.2" fill="${m.col.fondo}" stroke="${m.col.tinta}" stroke-width="1"/>
+          <circle cx="${m.x}" cy="${m.y}" r="1.15" fill="${m.col.tinta}"/>
         </g>`).join('')}
     </svg>
     <div class="carta-leyenda">
@@ -365,9 +345,11 @@ const HUECOS_LIBRES = [
 /* Lo que Tobías está haciendo, según las golosinas que le hayan dado. */
 function estadoDeTobias(golosinas) {
   const n = Number(golosinas) || 0;
-  if (n >= 3) return { cara: '🐕', dice: 'Tobías no se mueve de tu lado. Sospechoso.' };
-  if (n > 0)  return { cara: '🐕', dice: 'Tobías está feliz con sus golosinas.' };
-  return { cara: '🐕', dice: 'Tobías husmea buscando golosinas…' };
+  /* Con golosinas está de fiesta; sin ellas, husmeando. Es el mismo perro y
+     son sus dos caras: la del campamento no tiene por qué ser siempre igual. */
+  if (n >= 3) return { quien: 'tobiasFiesta', dice: 'Tobías no se mueve de tu lado. Sospechoso.' };
+  if (n > 0)  return { quien: 'tobiasFiesta', dice: 'Tobías está feliz con sus golosinas.' };
+  return { quien: 'tobias', dice: 'Tobías husmea buscando golosinas…' };
 }
 
 /* Lo siguiente que podría comprarse, para que la escena vacía mire hacia
@@ -412,7 +394,7 @@ function pintarEscenaDelCampamento() {
       ${piezas.map(p => `<span class="escena-cosa" title="${esc(p.name)}" aria-hidden="true"
         style="left:${p.sitio.x}%;bottom:${p.sitio.y}%;font-size:${(p.sitio.escala * 2.1).toFixed(2)}rem;z-index:${p.sitio.z}">${esc(p.icon)}</span>`).join('')}
       <span class="escena-yo" aria-hidden="true">${avatarDelExplorador()}</span>
-      <span class="escena-perro" aria-hidden="true" title="${esc(tobias.dice)}">${tobias.cara}</span>
+      <span class="escena-perro" title="${esc(tobias.dice)}">${retrato(tobias.quien)}</span>
     </div>
     <p class="escena-pie">${vacio
       ? (siguiente
@@ -547,7 +529,7 @@ function openGuardianHall(branchId) {
   /* el rostro del Guardián ya está justo encima: repetir el emoji en el título
      solo hacía la línea más larga */
   $('#guardian-title').textContent = `Cámara del Guardián · ${b.name}`;
-  $('#guardian-dialog').innerHTML = `<span class="dialog-avatar">🧔🏻‍♂️</span>
+  $('#guardian-dialog').innerHTML = `${retrato('bruno', 'dialog-avatar')}
     <div class="dialog-text"><strong>Prof. Bruno Ocaña</strong>
     <p>«${est.intentos
       ? 'El Guardián ya te vio una vez. No te preocupes: a mí me echó cuatro veces seguidas, y a la quinta me dejó pasar por pena.'
@@ -707,21 +689,20 @@ function onAnswer(index, btn) {
    niño de ocho años que se equivoca no necesita un aspaviento, necesita ver
    que alguien sigue ahí. */
 const ANIMOS_BIEN = [
-  { quien: '🪲', texto: '¡Hallazgo descubierto!' },
-  { quien: '⛏️', texto: '¡Excavación perfecta!' },
-  { quien: '🪲', texto: '¡Kira aplaude con las antenas!' },
-  { quien: '🐕', texto: '¡Tobías ladra de alegría!' }
+  { quien: 'kira',         texto: '¡Hallazgo descubierto!' },
+  { quien: 'tobiasFiesta', texto: '¡Excavación perfecta!' },
+  { quien: 'kira',         texto: '¡Kira aplaude con las antenas!' },
+  { quien: 'tobiasFiesta', texto: '¡Tobías ladra de alegría!' }
 ];
 const ANIMOS_MAL = [
-  { quien: '🧔🏻‍♂️', texto: '¡Trampa! Bruno ya había caído en esa misma…' },
-  { quien: '🧔🏻‍♂️', texto: '¡Zas! Una reja… y Bruno dentro, contando chistes.' },
-  { quien: '🐕', texto: 'La losa se hundió. Tobías te mira con cara de «yo también me equivoco».' }
+  { quien: 'bruno',  texto: '¡Trampa! Bruno ya había caído en esa misma…' },
+  { quien: 'bruno',  texto: '¡Zas! Una reja… y Bruno dentro, contando chistes.' },
+  { quien: 'tobias', texto: 'La losa se hundió. Tobías te mira con cara de «yo también me equivoco».' }
 ];
 function ponerTitulo(animo) {
   const el = $('#feedback-title');
   const a = (animo && animo.texto) ? animo : { quien: '', texto: String(animo || '') };
-  el.innerHTML = (a.quien ? `<span class="feedback-quien" aria-hidden="true">${esc(a.quien)}</span>` : '')
-    + esc(a.texto);
+  el.innerHTML = (a.quien ? retrato(a.quien, 'feedback-quien') : '') + esc(a.texto);
 }
 
 function showFeedback(res, extra) {
@@ -831,7 +812,7 @@ function renderResult(r) {
   else if (r.reabreGuardian) brunoSays = '«¡Repaso hecho! El Guardián ya no tiene excusa: su cámara vuelve a estar abierta para ti.»';
   else if (r.restored > 0) brunoSays = '«¿Sabes qué distingue a un gran explorador? Que vuelve a mirar donde se equivocó. ¡Y tú lo has hecho!»';
   else brunoSays = '«Tranquilo, en esa trampa caí yo dos veces… el mismo día. Mañana esa cámara seguirá ahí esperándote.»';
-  dialog.innerHTML = `<span class="dialog-avatar">🧔🏻‍♂️</span>
+  dialog.innerHTML = `${retrato('bruno', 'dialog-avatar')}
     <div class="dialog-text"><strong>Prof. Bruno Ocaña</strong><p>${brunoSays}</p></div>`;
   renderHud();
 }
@@ -890,7 +871,7 @@ function renderGuardianResult(r) {
        Yo tardé tres expediciones… y en la primera me quedé encerrado dentro.»`
     : `«¡Uf! El Guardián ha dicho que no. A mí me dijo que no tantas veces que me aprendí su cara de memoria.
        Mira dónde has fallado, hazte un Encargo del Bazar y vuelve. Sigue estando todo tuyo: no has perdido ni un Doblón.»`;
-  $('#result-dialog').innerHTML = `<span class="dialog-avatar">🧔🏻‍♂️</span>
+  $('#result-dialog').innerHTML = `${retrato('bruno', 'dialog-avatar')}
     <div class="dialog-text"><strong>Prof. Bruno Ocaña</strong><p>${bruno}</p></div>`;
   renderHud();
 }
@@ -1321,7 +1302,7 @@ function renderTeam() {
   }
   const team = myTeam();
   if (!team) {
-    body.innerHTML = `<div class="dialog bruno"><span class="dialog-avatar">🧔🏻‍♂️</span>
+    body.innerHTML = `<div class="dialog bruno">${retrato('bruno', 'dialog-avatar')}
       <div class="dialog-text"><strong>Prof. Bruno Ocaña</strong>
       <p>«Todavía no te he asignado cuadrilla, ${esc(S.profile.explorer_name)}. ¡Paciencia!
       En cuanto lo haga, aparecerá aquí tu equipo.»</p></div></div>`;

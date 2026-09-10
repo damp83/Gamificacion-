@@ -425,8 +425,11 @@ test('cada yacimiento se coloca en su sitio y nunca dos en el mismo', () => {
   const p = c.ev('PUNTOS_CARTA');
   assert.ok(p.length >= 6);
   assert.equal(new Set(p.map(x => x.x + ',' + x.y)).size, p.length);
+  /* El lienzo tiene la forma del dibujo del mapa, no un cuadrado. */
+  const alto = c.ev('CARTA_ALTO');
   for (const x of p) {
-    assert.ok(x.x >= 10 && x.x <= 90 && x.y >= 15 && x.y <= 75, 'un punto se sale del lienzo');
+    assert.ok(x.x >= 10 && x.x <= 90, `un punto en x=${x.x} se sale por el lado`);
+    assert.ok(x.y >= 10 && x.y <= alto - 5, `un punto en y=${x.y} se sale por arriba o abajo`);
   }
 });
 

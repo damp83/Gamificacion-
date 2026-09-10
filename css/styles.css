@@ -233,6 +233,24 @@ button:disabled { cursor: not-allowed; opacity: .55; }
   background: var(--surface); border-radius: var(--r-pill);
   box-shadow: var(--e-1);
 }
+/* ── Los retratos de los compañeros ──
+   `contain` y no `cover`: son dibujos con fondo transparente, y recortarlos
+   para llenar un círculo le cortaría a Bruno el sombrero. Y `object-position`
+   los sube porque los tres tienen la cara arriba: centrados, el hueco enseñaría
+   medio pecho.
+
+   OJO con el tamaño: aquí NO se pone. El retrato lleva dos clases —la suya y la
+   del sitio donde va— y si esta declarara un ancho, ganaría por ir después en
+   la hoja y reventaría el tamaño de cada sitio. Pasó: Bruno salía a pantalla
+   completa en la ficha de resultado. Cada sitio pone su medida. */
+.retrato { object-fit: contain; object-position: 50% 16%; }
+
+/* En la burbuja de diálogo, el retrato ES el avatar: mismo hueco redondo que
+   tenía el emoji, y el dibujo dentro. */
+img.dialog-avatar {
+  display: block; width: 2.7rem; height: 2.7rem; padding: 0;
+  border-radius: var(--r-pill); overflow: hidden;
+}
 /* Solo el nombre del personaje va en su propia línea. Con el selector
    descendiente, cualquier negrita dentro del párrafo se volvía bloque y
    partía la frase por la mitad. */
@@ -566,10 +584,11 @@ body.en-mision #main { padding-bottom: var(--s-5); }
    dice de un vistazo algo que la barra de porcentaje no podía decir: dónde has
    estado y dónde no. */
 .map-carta { margin: 0 0 var(--s-4); }
+/* La proporción es la del dibujo, y `meet` en vez de `slice`: los bordes rotos
+   del pergamino son la mitad de su gracia y recortarlos sería tirarlos. */
 .carta {
-  display: block; width: 100%; aspect-ratio: 5 / 4; max-height: 15rem;
-  border-radius: var(--r-lg);
-  box-shadow: inset 0 0 0 1px rgba(122, 74, 33, .3), var(--e-inset);
+  display: block; width: 100%; aspect-ratio: 499 / 272;
+  filter: drop-shadow(0 2px 6px rgba(51, 36, 15, .18));
 }
 /* El punto de cada yacimiento se puede tocar y se puede tabular: es un botón,
    aunque esté dibujado. */
@@ -1120,7 +1139,12 @@ body.en-mision #main { padding-bottom: var(--s-5); }
 .feedback-card .btn { margin-top: .3rem; }
 /* Quien habla se ve. El emoji va delante del titular, en su tamaño, para que
    se sepa si celebra Kira o acompaña Tobías. */
-.feedback-quien { font-size: 1.5rem; line-height: 1; margin-right: .4rem; vertical-align: -.15em; }
+/* Quien habla, delante del titular. Va en línea con el texto: es quien lo
+   dice, no una ilustración aparte. */
+img.feedback-quien {
+  display: inline-block; width: 3rem; height: 3rem;
+  margin-right: .45rem; vertical-align: -.85em;
+}
 
 /* Al fallar, lo que hay que leer es la explicación. Era el texto más pequeño y
    más gris de la pantalla, justo al revés de lo que hace falta. */
@@ -1302,7 +1326,8 @@ body.en-mision #main { padding-bottom: var(--s-5); }
 /* El avatar de rol trae su propio medallón: aquí se queda a la escala de la
    escena, que si no tapa media duna. */
 .escena-yo .rol-medallon { width: 2.6rem; height: 2.6rem; }
-.escena-perro { left: 56%; bottom: 10%; font-size: 1.6rem; z-index: 7; }
+.escena-perro { left: 55%; bottom: 9%; width: 3rem; z-index: 7; }
+.escena-perro .retrato { display: block; width: 100%; height: auto; object-position: center; }
 .escena-pie {
   margin: .5rem 0 0; font-size: var(--t-sm); color: var(--ink-soft); text-align: center;
 }

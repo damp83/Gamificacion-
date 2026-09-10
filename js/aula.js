@@ -1096,7 +1096,7 @@ function wireAula() {
       return;
     }
     caja.classList.remove('hidden');
-    caja.innerHTML = `<span class="dialog-avatar">🪲</span>
+    caja.innerHTML = `${retrato('kira', 'dialog-avatar')}
       <div class="dialog-text"><strong>Kira</strong><p>${r.text}</p>
       ${r.cost ? `<small>(−${r.cost} ${ico('coin')})</small>` : ''}</div>`;
   });

@@ -64,17 +64,21 @@ for nombre in ('bree-serif-latin', 'nunito-latin', 'nunito-italic-latin'):
     if css == antes:
         sys.exit(f'ERROR: no se encontró la referencia a {nombre}.woff2 en styles.css')
 
-# Los retratos de los roles viajan igual que las tipografías: un archivo suelto
-# no tiene carpeta img/ al lado, y sin esto el niño vería el hueco de una imagen
-# rota donde está su personaje. Se recorre lo que HAY en la carpeta, así que
-# añadir un retrato nuevo no obliga a tocar este guion.
-for ruta in sorted((RAIZ / 'img' / 'roles').glob('*.png')):
-    ref = f"img/roles/{ruta.name}"
-    if ref not in js:
+# Las imágenes viajan igual que las tipografías: un archivo suelto no tiene
+# carpeta img/ al lado, y sin esto el niño vería el hueco de una imagen rota
+# donde está su personaje. Se recorre lo que HAY en la carpeta —a cualquier
+# profundidad— así que añadir un dibujo nuevo no obliga a tocar este guion.
+TIPOS = {'.png': 'image/png', '.webp': 'image/webp', '.jpg': 'image/jpeg',
+         '.jpeg': 'image/jpeg', '.svg': 'image/svg+xml'}
+for ruta in sorted((RAIZ / 'img').rglob('*')):
+    if not ruta.is_file() or ruta.suffix.lower() not in TIPOS:
+        continue
+    ref = ruta.relative_to(RAIZ).as_posix()
+    if f"'{ref}'" not in js:
         sys.exit(f'ERROR: {ref} está en la carpeta pero no lo usa nadie. '
-                 'Sobra, o falta ponerlo en ROLES_CUADRILLA.')
+                 'Sobra, o falta enchufarlo en el código.')
     b64 = base64.b64encode(ruta.read_bytes()).decode('ascii')
-    js = js.replace(f"'{ref}'", f"'data:image/png;base64,{b64}'")
+    js = js.replace(f"'{ref}'", f"'data:{TIPOS[ruta.suffix.lower()]};base64,{b64}'")
 
 # Las tres etiquetas que pedían las tipografías a Google se han quitado: son
 # de antes de servirlas desde fonts/, y ya solo hacían daño. Sin red —en un

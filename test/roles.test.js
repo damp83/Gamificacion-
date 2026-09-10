@@ -265,8 +265,11 @@ test('ningún retrato pesa tanto que estorbe en una tablet', () => {
 });
 
 test('la versión de un solo archivo se lleva los retratos dentro', () => {
-  /* Un HTML suelto no tiene carpeta img/ al lado. */
+  /* Un HTML suelto no tiene carpeta img/ al lado. Ahora recorre img/ entera
+     —los retratos de rol están en una subcarpeta— y elige el tipo por la
+     extensión: un webp incrustado como png no se ve. */
   const b = leer('tools/build-standalone.py');
-  assert.match(b, /RAIZ \/ 'img' \/ 'roles'/);
-  assert.match(b, /data:image\/png;base64,/);
+  assert.match(b, /RAIZ \/ 'img'\)\.rglob\('\*'\)/);
+  assert.match(b, /'\.png': 'image\/png'/);
+  assert.match(b, /data:\{TIPOS\[ruta\.suffix\.lower\(\)\]\};base64,/);
 });

@@ -1215,6 +1215,43 @@ function defaultSites() {
 
 /* ── Consultas sobre la estructura configurada ── */
 function sitesAll()     { return ATLAS_CONFIG.sites || []; }
+/* ══════════ LOS TRES COMPAÑEROS ══════════
+
+   Bruno, Kira y Tobías salían NOMBRADOS en los textos —«Tobías te mira con
+   cara de yo también me equivoco»— y no aparecían por ninguna parte: eran tres
+   emoji. Un compañero al que solo se le cita no acompaña a nadie.
+
+   Están aquí y no repartidos por las pantallas porque a cada uno lo llaman
+   tres o cuatro sitios distintos, y el día que cambie un dibujo tiene que
+   cambiar en todos a la vez. `alt` va al lado del fichero por lo mismo: quien
+   usa lector oye lo que hay, no un nombre de archivo.
+
+   Tobías tiene dos caras y no es un capricho. La de acertar celebra; la de
+   fallar acompaña. Un niño de ocho años que se equivoca no necesita un
+   aspaviento, necesita ver que alguien sigue ahí. */
+const RETRATOS = {
+  bruno:   { img: 'img/bruno.webp',          alt: 'El profesor Bruno Ocaña',    emoji: '🧔🏻‍♂️' },
+  kira:    { img: 'img/kira.webp',           alt: 'Kira, la escarabaja',        emoji: '🪲' },
+  tobias:  { img: 'img/tobias-calma.webp',   alt: 'Tobías, el perro',           emoji: '🐕' },
+  tobiasFiesta: { img: 'img/tobias-fiesta.webp', alt: 'Tobías dando un salto',  emoji: '🐕' }
+};
+
+/* El dibujo del mapa. Va aquí y no dentro del SVG que lo pinta por lo mismo
+   que los retratos: el día que cambie, cambia en un sitio. */
+const CARTA_FONDO = 'img/carta.webp';
+
+/* El retrato de un compañero, listo para meter en cualquier sitio. Si algún
+   día falta el dibujo, sale su emoji y la pantalla sigue entera: es lo mismo
+   que hacen los roles de la cuadrilla. */
+function retrato(quien, clase) {
+  const r = RETRATOS[quien];
+  if (!r) return '';
+  const c = clase ? ' ' + clase : '';
+  return r.img
+    ? `<img class="retrato${c}" src="${esc(r.img)}" alt="${esc(r.alt)}" loading="lazy">`
+    : `<span class="retrato-emoji${c}" aria-hidden="true">${esc(r.emoji)}</span>`;
+}
+
 /* ══════════ LOS ROLES DE LA CUADRILLA ══════════
 
    Cinco papeles dentro de cada cuadrilla, cada uno con su personaje. No es
