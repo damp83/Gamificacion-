@@ -1409,6 +1409,41 @@ En la misma tarjeta, la explicación del fallo era el texto más pequeño y más
 pantalla, justo al revés de lo que hace falta: el titular consuela, la explicación
 enseña. Al fallar pasa a ser el elemento dominante.
 
+### El mapa que sí es un mapa
+
+La pantalla se llamaba «El Mapa del Atlas», decía «4 % del mundo dibujado», y lo que
+había era una lista con una barra de progreso encima. La promesa más fuerte de toda la
+app —dibujar un mundo excavando— no se cumplía visualmente en ninguna pantalla, y el
+4 % no estaba en ninguna parte: era un número sobre una barra.
+
+Ahora hay una **carta de expedición** arriba del todo, y está dibujada de la única
+forma que significa algo: **el terreno no se revela por un porcentaje global, sino
+alrededor de cada yacimiento y en proporción a lo que se lleva excavado de él.** Así la
+carta dice algo que la barra no podía decir: *dónde has estado y dónde no*. Un niño que
+solo ha tocado matemáticas ve un claro alrededor de Kaldros y arena en todo lo demás,
+que es exactamente la verdad.
+
+Debajo de la arena hay cosas —ruinas, un cauce, rocas— para que abrir un claro más
+grande no sea solo más papel claro: sea **encontrar algo**. Un yacimiento sin tocar ya
+se ve, pero apenas: saber que existe es parte de querer llegar, y verlo entero sin haber
+excavado sería regalar el mapa. Y al 100 % sigue habiendo mundo fuera del claro.
+
+Tres detalles del dibujo que no son cosméticos:
+
+- **Se enmascara el terreno, no la arena.** Al revés, el borde de un claro volvería a
+  enterrar el del yacimiento de al lado. Así los claros **se suman**: dos sitios cercanos
+  abren un claro mayor.
+- **El orden de la carta es el de la lista de abajo**, no el de una huella. Es lo
+  contrario que el color de cada yacimiento, y a propósito: el color identifica y tiene
+  que aguantar aunque se añadan sitios, pero la carta y la lista cuentan la misma
+  historia y tienen que contarla en el mismo orden.
+- **Tocar un sitio lleva a su parte de la lista**, no abre un pozo. La carta orienta; la
+  lista actúa. Dos caminos distintos para lo mismo se pisan, y en una tablet el dedo
+  acierta más en una tarjeta grande que en un punto de doce píxeles.
+
+La carta lleva su texto alternativo con los estratos de cada yacimiento, cada sitio es
+un botón alcanzable con el teclado, y la leyenda de abajo es la zona de toque de verdad.
+
 ### El campamento que se ve
 
 Un niño ahorraba noventa doblones, se compraba las botas todoterreno, y no las veía
@@ -1445,9 +1480,9 @@ quien usa lector.
 
 ### Lo que queda
 
-Por orden de lo que más cambiaría la app: el **mapa no es un mapa** aunque diga «4 % del
-mundo dibujado», la **excavación es una palabra y no un dibujo**, las **cuatro respuestas
-son cuatro manchas iguales**, y la **bitácora recibe a todos con un muro de ceros**.
+Por orden de lo que más cambiaría la app: la **excavación es una palabra y no un
+dibujo**, las **cuatro respuestas son cuatro manchas iguales**, y la **bitácora recibe a
+todos con un muro de ceros**.
 
 > Nada de esto es motivo para meter marcadores, rankings ni rachas que castiguen faltar.
 > La racha se apaga en silencio a propósito. Lo que separa esto de las plataformas

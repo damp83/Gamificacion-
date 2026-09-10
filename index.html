@@ -578,10 +578,12 @@
             <span id="map-reveal-pct">0% del mundo dibujado</span>
           </div>
         </div>
-        <!-- La tarjeta que dice por dónde seguir. Va la primera de todo
-             porque es la respuesta a la única pregunta que se hace un niño al
-             abrir la app, y antes había que deducirla de seis tarjetas
-             iguales. -->
+        <!-- La carta va primero porque es lo que hace que esta pantalla sea
+             un mapa: dónde has estado y dónde no. El terreno se abre alrededor
+             de cada yacimiento, en proporción a lo excavado de ÉL. -->
+        <div id="map-carta" class="map-carta hidden"></div>
+        <!-- Y justo debajo, la respuesta a la única pregunta que se hace un
+             niño al abrir la app: por dónde sigo. La carta orienta, esto actúa. -->
         <div id="seguir-card" class="seguir-card hidden"></div>
         <div id="daily-banner" class="daily-banner hidden"></div>
         <div id="fatigue-banner" class="fatigue-banner hidden">

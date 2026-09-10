@@ -366,3 +366,137 @@ test('nada de lo que se compra da ventaja: sigue siendo todo decorativo', () => 
   assert.ok(!/S\.progression|S\.adaptive|updateMastery|addXp|addDoubloons/.test(trozo),
     'la escena solo dibuja: no toca nada del progreso');
 });
+
+/* ══ La carta de expedición ══
+
+   La pantalla se llamaba «El Mapa del Atlas», decía «4 % del mundo dibujado», y
+   lo que había era una lista con una barra encima. La promesa más fuerte de la
+   app —dibujar un mundo excavando— no se cumplía en ninguna pantalla, y el 4 %
+   no estaba en ninguna parte: era un número sobre una barra. */
+
+test('el terreno se abre alrededor de cada yacimiento, no por un porcentaje global', () => {
+  /* Es lo que hace que la carta diga algo que la barra no podía decir: dónde
+     has estado y dónde no. Un niño que solo ha tocado matemáticas ve un claro
+     en Kaldros y arena en todo lo demás, que es exactamente la verdad. */
+  const c = cargarApp();
+  c.ev('openDiary')({ name: 'Nadia', username: 'nadia' }, 3);
+  const sites = c.ev('sitesEnabled()');
+  const rama = c.ev('branchesEnabledOf')(sites[0])[0];
+  for (const est of c.ev('STRATA_ORDER')) for (let i = 0; i < 4; i++) c.ev('updateMastery')(rama.id, est, 1);
+
+  const a = c.ev('progresoDeYacimiento')(sites[0]);
+  const b = c.ev('progresoDeYacimiento')(sites[1]);
+  assert.ok(a.hechos > 0);
+  assert.equal(b.hechos, 0, 'el otro yacimiento no se abre por excavar en este');
+  assert.ok(c.ev('claroDeYacimiento')(a.parte) > c.ev('claroDeYacimiento')(b.parte));
+});
+
+test('un yacimiento sin tocar ya se ve, pero apenas', () => {
+  /* Saber que existe es parte de querer llegar; verlo entero sin haber
+     excavado sería regalar el mapa. */
+  const c = cargarApp();
+  const cero = c.ev('claroDeYacimiento')(0);
+  const todo = c.ev('claroDeYacimiento')(1);
+  assert.ok(cero > 0, 'un sitio invisible no se puede desear');
+  assert.ok(todo > cero * 2);
+  assert.ok(todo < 50, 'al 100 % sigue habiendo mundo fuera del claro');
+});
+
+test('el claro nunca se sale de la escala aunque el progreso venga roto', () => {
+  const c = cargarApp();
+  for (const v of [-3, 2.5, NaN, null, 'mucho']) {
+    const r = c.ev('claroDeYacimiento')(v);
+    assert.ok(r >= c.ev('CLARO_MINIMO') && r <= c.ev('CLARO_MAXIMO'), `con ${v} sale ${r}`);
+  }
+});
+
+test('los claros se SUMAN: dos sitios cercanos no se tapan el uno al otro', () => {
+  /* Se enmascara el terreno, no la arena. Al revés, el borde de un claro
+     volvería a enterrar el de al lado. */
+  const t = leer('js/play.js');
+  const i = t.indexOf('function pintarCartaDeExpedicion');
+  const trozo = t.slice(i, i + 4200);
+  assert.match(trozo, /<g mask="url\(#atlas-claros\)">/);
+  assert.match(trozo, /mask id="atlas-claros"[\s\S]{0,120}fill="#000"/);
+});
+
+test('cada yacimiento se coloca en su sitio y nunca dos en el mismo', () => {
+  const c = cargarApp();
+  const p = c.ev('PUNTOS_CARTA');
+  assert.ok(p.length >= 6);
+  assert.equal(new Set(p.map(x => x.x + ',' + x.y)).size, p.length);
+  for (const x of p) {
+    assert.ok(x.x >= 10 && x.x <= 90 && x.y >= 15 && x.y <= 75, 'un punto se sale del lienzo');
+  }
+});
+
+test('el orden de la carta es el de la lista de abajo, no el de una huella', () => {
+  /* Al revés que el color: el color identifica y tiene que aguantar, pero la
+     carta y la lista cuentan la misma historia y tienen que contarla en el
+     mismo orden. Si no, el docente reordena y el mapa deja de coincidir. */
+  const t = leer('js/play.js');
+  const i = t.indexOf('function pintarCartaDeExpedicion');
+  const trozo = t.slice(i, i + 1200);
+  assert.match(trozo, /lista\.map\(\(site, i\) => \{[\s\S]{0,80}PUNTOS_CARTA\[i\]/);
+  assert.ok(!/huellaDeId/.test(trozo));
+});
+
+test('la carta se cuenta entera para quien no la ve', () => {
+  const c = cargarApp();
+  c.ev('openDiary')({ name: 'Nadia', username: 'nadia' }, 3);
+  c.ev('pintarCartaDeExpedicion')(c.ev('sitesEnabled()'));
+  const h = c.ev("$('#map-carta')").innerHTML;
+  assert.match(h, /role="img"/);
+  assert.match(h, /aria-label="Carta de la expedición: [^"]*estratos/);
+  assert.match(h, /role="button"/, 'cada sitio es un botón, aunque esté dibujado');
+  assert.match(h, /tabindex="0"/, 'y se alcanza con el teclado');
+});
+
+test('la leyenda dice cuántos estratos lleva de cada sitio', () => {
+  const c = cargarApp();
+  c.ev('openDiary')({ name: 'Nadia', username: 'nadia' }, 3);
+  c.ev('pintarCartaDeExpedicion')(c.ev('sitesEnabled()'));
+  const h = c.ev("$('#map-carta')").innerHTML;
+  assert.match(h, /carta-chip/);
+  assert.match(h, /<b>0\/\d+<\/b>/);
+});
+
+test('sin yacimientos no se dibuja una carta vacía', () => {
+  const c = cargarApp();
+  c.ev('openDiary')({ name: 'Nadia', username: 'nadia' }, 3);
+  c.ev('pintarCartaDeExpedicion')([]);
+  const caja = c.ev("$('#map-carta')");
+  assert.equal(caja.innerHTML, '');
+  assert.ok(caja.classList.contains('hidden'));
+});
+
+test('con más yacimientos que puntos, no se pintan dos en el mismo sitio', () => {
+  const c = cargarApp();
+  c.ev('openDiary')({ name: 'Nadia', username: 'nadia' }, 3);
+  const muchos = Array.from({ length: 12 }, (_, i) => ({ id: 's' + i, name: 'Sitio ' + i, branches: [] }));
+  c.ev('pintarCartaDeExpedicion')(muchos);
+  const h = c.ev("$('#map-carta')").innerHTML;
+  const n = (h.match(/class="carta-sitio"/g) || []).length;
+  assert.equal(n, c.ev('PUNTOS_CARTA').length, 'se pintan los que caben, no doce encima');
+});
+
+test('el nombre de un yacimiento se escapa al pintarlo', () => {
+  /* El docente teclea el nombre y viaja con los ajustes de la clase. */
+  const c = cargarApp();
+  c.ev('openDiary')({ name: 'Nadia', username: 'nadia' }, 3);
+  c.ev('pintarCartaDeExpedicion')([{ id: 'x', name: '<img src=x onerror=alert(1)>', branches: [] }]);
+  const h = c.ev("$('#map-carta')").innerHTML;
+  assert.ok(!h.includes('<img src=x'), 'el nombre entra crudo en la carta');
+  assert.ok(h.includes('&lt;img'));
+});
+
+test('tocar un sitio lleva a su parte de la lista, no abre un pozo al azar', () => {
+  /* Dos caminos distintos para lo mismo se pisan, y en una tablet el dedo
+     acierta más en una tarjeta grande que en un punto de doce píxeles. */
+  const t = leer('js/play.js');
+  const i = t.indexOf('function pintarCartaDeExpedicion');
+  const trozo = t.slice(i, i + 5200);
+  assert.match(trozo, /scrollIntoView/);
+  assert.ok(!/startMission|openBranch/.test(trozo));
+  assert.match(leer('js/play.js'), /header\.dataset\.site = site\.id/, 'la lista tiene que dejarse apuntar');
+});

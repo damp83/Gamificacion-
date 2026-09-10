@@ -563,6 +563,42 @@ body.en-mision #main { padding-bottom: var(--s-5); }
 .site-header { border-left: 5px solid var(--acento, var(--brass)); }
 .site-header .site-icon { box-shadow: inset 0 0 0 2px var(--acento, transparent); }
 
+/* ── La carta de expedición ──
+   Lo que hace que esta pantalla sea un mapa. El terreno se abre alrededor de
+   cada yacimiento y la arena se queda donde no se ha excavado, así que la carta
+   dice de un vistazo algo que la barra de porcentaje no podía decir: dónde has
+   estado y dónde no. */
+.map-carta { margin: 0 0 var(--s-4); }
+.carta {
+  display: block; width: 100%; aspect-ratio: 5 / 4; max-height: 15rem;
+  border-radius: var(--r-lg);
+  box-shadow: inset 0 0 0 1px rgba(122, 74, 33, .3), var(--e-inset);
+}
+/* El punto de cada yacimiento se puede tocar y se puede tabular: es un botón,
+   aunque esté dibujado. */
+.carta-sitio { cursor: pointer; }
+.carta-sitio:focus-visible circle:first-child { stroke-width: 2; }
+.carta-sitio:hover circle:first-child { stroke-width: 1.8; }
+
+/* La leyenda es la que se toca de verdad. En una tablet el dedo acierta más en
+   una etiqueta con nombre que en un punto de doce píxeles, y de paso pone el
+   número: cuántos estratos de ese sitio están dominados. */
+.carta-leyenda { display: flex; flex-wrap: wrap; gap: .4rem; margin-top: .55rem; }
+.carta-chip {
+  display: inline-flex; align-items: center; gap: .4rem;
+  font-family: inherit; font-size: var(--t-sm); color: var(--leather-dark);
+  background: var(--surface); border: 0; cursor: pointer;
+  border-radius: var(--r-pill); padding: .3rem .7rem .3rem .5rem;
+  box-shadow: inset 0 0 0 1px rgba(122, 74, 33, .2);
+}
+.carta-chip b { font-variant-numeric: tabular-nums; color: var(--acento, var(--brass)); }
+.carta-chip-punto {
+  width: .7rem; height: .7rem; border-radius: 50%; flex-shrink: 0;
+  background: var(--acento-suave, var(--paper-deep));
+  box-shadow: inset 0 0 0 2px var(--acento, var(--brass));
+}
+.carta-chip:hover { box-shadow: inset 0 0 0 2px var(--acento, var(--brass)); }
+
 /* ── «Sigue por aquí» ──
    Lo primero que se ve al abrir el mapa, y lo único con este peso: si todo
    grita, no grita nada. Contesta la pregunta que se hace un niño de ocho años
@@ -3608,10 +3644,12 @@ body.en-consulta #shop-list button { display: none !important; }
             <span id="map-reveal-pct">0% del mundo dibujado</span>
           </div>
         </div>
-        <!-- La tarjeta que dice por dónde seguir. Va la primera de todo
-             porque es la respuesta a la única pregunta que se hace un niño al
-             abrir la app, y antes había que deducirla de seis tarjetas
-             iguales. -->
+        <!-- La carta va primero porque es lo que hace que esta pantalla sea
+             un mapa: dónde has estado y dónde no. El terreno se abre alrededor
+             de cada yacimiento, en proporción a lo excavado de ÉL. -->
+        <div id="map-carta" class="map-carta hidden"></div>
+        <!-- Y justo debajo, la respuesta a la única pregunta que se hace un
+             niño al abrir la app: por dónde sigo. La carta orienta, esto actúa. -->
         <div id="seguir-card" class="seguir-card hidden"></div>
         <div id="daily-banner" class="daily-banner hidden"></div>
         <div id="fatigue-banner" class="fatigue-banner hidden">
@@ -6140,7 +6178,7 @@ function cruzarVerificacion(retos, respuestas) {
    copia guardada. Sin este número, «ya está arreglado» y «a mí no me pasa» son
    indistinguibles. Va junto al nombre de la caché del service worker, y una
    prueba comprueba que no se separen. */
-const ATLAS_VERSION = 'v82';
+const ATLAS_VERSION = 'v83';
 
 const ATLAS_DEFAULTS = {
 
@@ -13007,6 +13045,7 @@ function renderMap() {
     const col = colorDeYacimiento(site.id);
     const header = document.createElement('div');
     header.className = 'site-header';
+    header.dataset.site = site.id;      /* la carta de arriba apunta aquí */
     header.style.setProperty('--acento', col.tinta);
     header.style.setProperty('--acento-suave', col.fondo);
     header.innerHTML = `<span class="site-icon">${esc(site.icon)}</span>
@@ -13043,6 +13082,7 @@ function renderMap() {
     }
   }
 
+  pintarCartaDeExpedicion(sites);
   pintarSeguir(seguir);
 
   /* Encargo del Bazar: repaso espaciado con excusa narrativa */
@@ -13070,6 +13110,166 @@ function renderMap() {
     bazar.innerHTML = '';
     bazar.classList.add('hidden');
   }
+}
+
+/* ══════════ LA CARTA DE EXPEDICIÓN ══════════
+
+   La pantalla se llamaba «El Mapa del Atlas», decía «4 % del mundo dibujado», y
+   lo que había era una lista con una barra de progreso encima. La promesa más
+   fuerte de toda la app —dibujar un mundo excavando— no se cumplía en ninguna
+   pantalla, y el 4 % no estaba en ninguna parte: era un número sobre una barra.
+
+   Esto lo dibuja. Y lo dibuja de la única forma que significa algo: el terreno
+   NO se revela por un porcentaje global, sino alrededor de cada yacimiento y en
+   proporción a lo que se lleva excavado de ÉL. Así el mapa dice algo que la
+   barra no podía decir: dónde has estado y dónde no. Un niño que solo ha tocado
+   matemáticas ve un claro alrededor de Kaldros y arena en todo lo demás, que es
+   exactamente la verdad.
+
+   La carta orienta; la lista de abajo es la que actúa. Tocar un sitio lleva a su
+   parte de la lista en vez de abrir un pozo al azar: dos caminos distintos para
+   lo mismo se pisan, y en una tablet el dedo acierta más en una tarjeta grande
+   que en un punto de doce píxeles.
+
+   Los sitios se colocan en el ORDEN de la configuración, no por huella. Es lo
+   contrario que el color, y a propósito: el color identifica y tiene que
+   aguantar, pero la carta y la lista cuentan la misma historia y tienen que
+   contarla en el mismo orden. Si no, el docente reordena sus yacimientos y el
+   mapa deja de coincidir con lo que hay debajo. */
+
+/* Sitios sobre la carta, en % del lienzo. Están repartidos a mano para que con
+   dos, con tres o con seis nunca se solapen ni se amontonen en una esquina. */
+const PUNTOS_CARTA = [
+  { x: 30, y: 38 }, { x: 72, y: 55 }, { x: 48, y: 20 },
+  { x: 17, y: 66 }, { x: 86, y: 25 }, { x: 57, y: 71 },
+  { x: 12, y: 26 }, { x: 88, y: 68 }
+];
+
+/* Cuánto se lleva excavado de un yacimiento: estratos dominados sobre los que
+   tienen retos escritos. Es la misma cuenta que hace el mapa entero, mirando
+   solo a este sitio. */
+function progresoDeYacimiento(site) {
+  let total = 0, hechos = 0;
+  for (const b of branchesEnabledOf(site)) {
+    const strata = branchState(b.id).strata;
+    for (const sId of STRATA_ORDER) {
+      if (!stratumHasContent(b, sId)) continue;
+      total++;
+      if (strata[sId].mastery >= 0.8) hechos++;
+    }
+  }
+  return { total, hechos, parte: total ? hechos / total : 0 };
+}
+
+/* El claro que ha abierto un yacimiento, en % del ancho de la carta. Nunca es
+   cero: el sitio se ve desde el primer día, porque saber que existe es parte de
+   querer llegar. Y nunca lo tapa todo: al 100 % sigue habiendo mundo fuera. */
+const CLARO_MINIMO = 9;
+const CLARO_MAXIMO = 30;
+function claroDeYacimiento(parte) {
+  const p = Math.max(0, Math.min(1, Number(parte) || 0));
+  return CLARO_MINIMO + (CLARO_MAXIMO - CLARO_MINIMO) * p;
+}
+
+function pintarCartaDeExpedicion(sites) {
+  const caja = $('#map-carta');
+  if (!caja) return;
+  const lista = (sites || []).slice(0, PUNTOS_CARTA.length);
+  if (!lista.length) { caja.innerHTML = ''; caja.classList.add('hidden'); return; }
+
+  const marcas = lista.map((site, i) => {
+    const p = PUNTOS_CARTA[i];
+    const pr = progresoDeYacimiento(site);
+    return { site, x: p.x, y: p.y, r: claroDeYacimiento(pr.parte), pr,
+             col: colorDeYacimiento(site.id) };
+  });
+
+  /* La arena se quita con una máscara: lo blanco del `mask` es lo que se ve
+     del terreno de abajo. Un círculo por yacimiento, del tamaño de su claro. */
+  const claros = marcas.map(m =>
+    `<circle cx="${m.x}" cy="${m.y}" r="${m.r.toFixed(1)}" fill="url(#atlas-claro)"/>`).join('');
+
+  caja.innerHTML = `
+    <svg class="carta" viewBox="0 0 100 80" preserveAspectRatio="xMidYMid slice"
+         role="img" aria-label="Carta de la expedición: ${esc(marcas.map(m =>
+           `${m.site.name}, ${m.pr.hechos} de ${m.pr.total} estratos`).join('; '))}">
+      <defs>
+        <!-- Un claro se desvanece por el borde: la excavación no tiene un
+             perímetro recto, y un círculo duro sobre arena parece un error. -->
+        <radialGradient id="atlas-claro">
+          <stop offset="52%" stop-color="#fff"/>
+          <stop offset="100%" stop-color="#fff" stop-opacity="0"/>
+        </radialGradient>
+        <!-- Blanco = terreno visible. Los claros SE SUMAN: dos yacimientos
+             cercanos abren un claro mayor en vez de taparse el uno al otro,
+             que es lo que pasaría enmascarando la arena en vez del terreno. -->
+        <mask id="atlas-claros">
+          <rect x="0" y="0" width="100" height="80" fill="#000"/>
+          ${claros}
+        </mask>
+      </defs>
+
+      <!-- La arena sin levantar. Es el suelo de la carta, no una capa encima, y
+           va bastante más apagada que el terreno: si los dos tonos se parecen,
+           el claro no se ve y todo el dibujo deja de contar nada. -->
+      <rect x="0" y="0" width="100" height="80" fill="#cbb389"/>
+      <path d="M0 63 q 22 -5 44 2 t 56 3 L100 80 L0 80 Z" fill="#c2a97e"/>
+      <path d="M0 30 q 26 -6 52 3 t 48 2" fill="none" stroke="#c0a67c" stroke-width=".7"/>
+
+      <!-- El terreno dibujado, que solo asoma por los claros. Lleva cosas
+           repartidas —ruinas, cauces, rocas— para que abrir un claro más grande
+           no sea solo más papel claro: sea encontrar algo. -->
+      <g mask="url(#atlas-claros)">
+        <rect x="0" y="0" width="100" height="80" fill="#f6e7c6"/>
+        <path d="M0 58 Q 18 50 32 56 T 62 54 T 100 60 L100 80 L0 80 Z" fill="#e2c894"/>
+        <path d="M0 69 Q 26 63 48 69 T 100 71 L100 80 L0 80 Z" fill="#cfae72"/>
+        <g fill="none" stroke="#a8854e" stroke-width=".9" stroke-linecap="round">
+          <path d="M4 24 q 11 -9 22 0 q 11 9 22 0"/>
+          <path d="M54 14 q 13 -7 24 2"/>
+          <path d="M60 74 q 14 -5 28 2"/>
+          <path d="M10 50 q 16 7 30 -3 q 14 -10 28 0" stroke-dasharray="2.5 2.5"/>
+          <path d="M76 34 q 9 -6 18 1"/>
+        </g>
+        <!-- Ruinas: tres columnas y un dintel, del tamaño de una uña -->
+        <g fill="#b08d55">
+          <rect x="20" y="28" width="1.4" height="5" rx=".4"/>
+          <rect x="23" y="27" width="1.4" height="6" rx=".4"/>
+          <rect x="26" y="28.5" width="1.4" height="4.5" rx=".4"/>
+          <rect x="19.4" y="25.6" width="9" height="1.3" rx=".5"/>
+          <rect x="63" y="46" width="1.4" height="5" rx=".4"/>
+          <rect x="66" y="45" width="1.4" height="6" rx=".4"/>
+          <rect x="62.4" y="43.6" width="6" height="1.3" rx=".5"/>
+          <circle cx="41" cy="59" r="1.5"/><circle cx="44.5" cy="60.5" r="1"/>
+          <circle cx="83" cy="62" r="1.4"/><circle cx="86" cy="63.5" r=".9"/>
+          <circle cx="13" cy="45" r="1.2"/>
+        </g>
+      </g>
+
+      ${marcas.map(m => `
+        <g class="carta-sitio" data-sitio="${esc(m.site.id)}" tabindex="0" role="button"
+           aria-label="${esc(m.site.name)}: ${m.pr.hechos} de ${m.pr.total} estratos dominados">
+          <circle cx="${m.x}" cy="${m.y}" r="3.6" fill="${m.col.fondo}" stroke="${m.col.tinta}" stroke-width="1.1"/>
+          <circle cx="${m.x}" cy="${m.y}" r="1.3" fill="${m.col.tinta}"/>
+        </g>`).join('')}
+    </svg>
+    <div class="carta-leyenda">
+      ${marcas.map(m => `<button class="carta-chip" data-sitio="${esc(m.site.id)}"
+        style="--acento:${m.col.tinta};--acento-suave:${m.col.fondo}">
+        <span class="carta-chip-punto"></span>${esc(m.site.name)}
+        <b>${m.pr.hechos}/${m.pr.total}</b></button>`).join('')}
+    </div>`;
+
+  const ir = id => {
+    const destino = $(`#site-list [data-site="${CSS && CSS.escape ? CSS.escape(id) : id}"]`);
+    if (destino && destino.scrollIntoView) destino.scrollIntoView({ behavior: 'smooth', block: 'start' });
+  };
+  $$('#map-carta [data-sitio]').forEach(el => {
+    el.addEventListener('click', () => ir(el.dataset.sitio));
+    el.addEventListener('keydown', e => {
+      if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); ir(el.dataset.sitio); }
+    });
+  });
+  caja.classList.remove('hidden');
 }
 
 /* ── «Sigue por aquí» ──
