@@ -222,3 +222,46 @@ test('los diez dibujos están, y la carpeta sigue cabiendo en una tablet', () =>
   const webp = dibujos().filter(f => f.endsWith('.webp'));
   assert.equal(webp.length, 10, 'faltan o sobran dibujos de los diez encargados');
 });
+
+/* ══ Que no se quede ninguna pantalla atrás ══
+
+   La portada siguió enseñando los emoji de Bruno, Kira y Tobías después de
+   haberlos dibujado: sus huecos usaban otra clase —`cast-face` en vez de
+   `dialog-avatar`— y el barrido que rellenaba el HTML no los veía. Esto lo
+   caza sin tener que acordarse de mirar pantalla por pantalla. */
+
+test('ningún compañero dibujado se queda como emoji en el HTML', () => {
+  const html = leer('index.html');
+  const c = cargarApp();
+  for (const [nombre, r] of Object.entries(c.ev('RETRATOS'))) {
+    if (!r.img) continue;
+    assert.ok(!html.includes(`>${r.emoji}<`),
+      `${nombre} sigue puesto a mano como emoji en index.html; usa data-retrato`);
+  }
+});
+
+test('el hueco conserva su clase al rellenarse, que cada uno tiene su medida', () => {
+  /* Poner `dialog-avatar` a pelo era lo que impedía marcar la portada: le
+     habría cambiado el tamaño al retrato. */
+  const t = leer('js/app.js');
+  const i = t.indexOf("$$('[data-retrato]')");
+  const trozo = t.slice(i, i + 320);
+  assert.match(trozo, /el\.className/);
+  assert.match(trozo, /retrato\(el\.dataset\.retrato, clases/);
+});
+
+test('los yacimientos enseñan su dibujo también en la portada', () => {
+  const t = leer('js/app.js');
+  const i = t.indexOf('function renderHomeSites');
+  const trozo = t.slice(i, t.indexOf('\n}', i));
+  assert.match(trozo, /site\.img/);
+  assert.match(trozo, /home-site-img/);
+});
+
+test('quien no tiene dibujo todavía sigue con su emoji, y se ve bien', () => {
+  /* Vera Kovak, la villana, aún no tiene ilustración. Es el mismo respaldo que
+     usan los roles y los yacimientos, y tiene que seguir existiendo. */
+  const html = leer('index.html');
+  assert.match(html, /<span class="cast-face">🐦‍⬛<\/span>/);
+  assert.match(leer('css/styles.css'), /img\.cast-face \{/);
+});

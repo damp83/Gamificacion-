@@ -1438,7 +1438,15 @@ dibujo tiene que cambiar en todas a la vez. Los que están escritos en el HTML s
 al arrancar, por lo mismo.
 
 **Si falta un dibujo, sale su emoji y la pantalla sigue entera.** Es lo mismo que ya hacían
-los retratos de la cuadrilla.
+los retratos de la cuadrilla. Vera Kovak, la villana, todavía no tiene ilustración y en la
+portada se ve perfectamente con el suyo.
+
+> **Una pantalla se quedó atrás y conviene contarlo.** Después de dibujar a los tres, la
+> portada seguía enseñando sus emoji: sus huecos usan otra clase que los de los diálogos,
+> y el barrido que rellena el HTML no los veía. El arreglo fue que el hueco **conserve su
+> propia clase** al rellenarse, porque cada sitio tiene su medida. Y ahora hay una prueba
+> que recorre el HTML buscando emoji de personajes que ya tienen dibujo: si mañana alguien
+> añade una pantalla y se olvida, salta sola.
 
 ### El mapa se dibuja dos veces
 

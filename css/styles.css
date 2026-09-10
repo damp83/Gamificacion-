@@ -2320,10 +2320,19 @@ img.feedback-quien {
   display: grid; place-items: center;
   background: var(--surface); border-radius: var(--r-pill); box-shadow: var(--e-1);
 }
+/* Con dibujo, el círculo de la portada lo llena el retrato. Vera Kovak sigue
+   con su emoji porque todavía no tiene ilustración, y se ve perfectamente: es
+   el mismo respaldo que usan los roles y los yacimientos. */
+img.cast-face { padding: 0; overflow: hidden; }
 .cast-card strong { color: var(--leather-dark); font-size: var(--t-sm); font-weight: 800; }
 .cast-card small { font-size: var(--t-xs); color: var(--ink-soft); line-height: 1.45; }
 
 /* Yacimientos */
+img.home-site-icon.home-site-img {
+  width: 4.4rem; height: 3.4rem; padding: 0;
+  background: none; box-shadow: none; border-radius: 0;
+  object-fit: contain; object-position: 50% 100%;
+}
 .home-sites { display: grid; gap: .7rem; grid-template-columns: repeat(auto-fit, minmax(20rem, 1fr)); }
 .home-site {
   display: flex; gap: .9rem; align-items: flex-start;

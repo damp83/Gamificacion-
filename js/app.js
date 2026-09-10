@@ -145,7 +145,9 @@ function renderHomeSites() {
   const sites = sitesEnabled().filter(site => branchesEnabledOf(site).length);
   $('#home-sites').innerHTML = sites.length
     ? sites.map(site => `<div class="home-site">
-        <span class="home-site-icon">${esc(site.icon)}</span>
+        ${site.img
+          ? `<img class="home-site-icon home-site-img" src="${esc(site.img)}" alt="" loading="lazy">`
+          : `<span class="home-site-icon">${esc(site.icon)}</span>`}
         <div><strong>${esc(site.name)}</strong>
           <small>${esc(site.subject)}${esc(site.desc ? ' · ' + site.desc : '')}</small>
           <div class="home-site-wells">${branchesEnabledOf(site)
@@ -308,8 +310,16 @@ async function boot() {
      nombre. Se mudan una vez, al arrancar, antes de que nadie los busque. */
   migrarClavesDeDiarios();
   /* Los retratos que están escritos en el HTML. Se rellenan aquí y no a mano
-     en cada sitio para que cambiar un dibujo sea cambiar UN fichero. */
-  $$('[data-retrato]').forEach(el => { el.outerHTML = retrato(el.dataset.retrato, 'dialog-avatar'); });
+     en cada sitio para que cambiar un dibujo sea cambiar UN fichero.
+
+     La clase se hereda del hueco que había: en la portada son `cast-face` y en
+     los diálogos `dialog-avatar`, y cada una tiene su tamaño. Antes se ponía
+     `dialog-avatar` a pelo y por eso la portada se quedó con sus emoji: no
+     había forma de marcarla sin romperle la medida. */
+  $$('[data-retrato]').forEach(el => {
+    const clases = el.className.trim();
+    el.outerHTML = retrato(el.dataset.retrato, clases || 'dialog-avatar');
+  });
   vozInit();
   prepararDescargas();
   wireGlobalListeners();

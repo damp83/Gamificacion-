@@ -2323,10 +2323,19 @@ img.feedback-quien {
   display: grid; place-items: center;
   background: var(--surface); border-radius: var(--r-pill); box-shadow: var(--e-1);
 }
+/* Con dibujo, el círculo de la portada lo llena el retrato. Vera Kovak sigue
+   con su emoji porque todavía no tiene ilustración, y se ve perfectamente: es
+   el mismo respaldo que usan los roles y los yacimientos. */
+img.cast-face { padding: 0; overflow: hidden; }
 .cast-card strong { color: var(--leather-dark); font-size: var(--t-sm); font-weight: 800; }
 .cast-card small { font-size: var(--t-xs); color: var(--ink-soft); line-height: 1.45; }
 
 /* Yacimientos */
+img.home-site-icon.home-site-img {
+  width: 4.4rem; height: 3.4rem; padding: 0;
+  background: none; box-shadow: none; border-radius: 0;
+  object-fit: contain; object-position: 50% 100%;
+}
 .home-sites { display: grid; gap: .7rem; grid-template-columns: repeat(auto-fit, minmax(20rem, 1fr)); }
 .home-site {
   display: flex; gap: .9rem; align-items: flex-start;
@@ -3611,19 +3620,19 @@ body.en-consulta #shop-list button { display: none !important; }
         <h2><svg class="ico" viewBox="0 0 24 24" aria-hidden="true"><use href="#i-group"/></svg> Quién te acompaña</h2>
         <div class="home-cast">
           <div class="cast-card">
-            <span class="cast-face">🧔🏻‍♂️</span>
+            <span class="cast-face" data-retrato="bruno"></span>
             <strong>Prof. Bruno Ocaña</strong>
             <small>Tu mentor. Pierde las gafas, confunde los mapas y cae en todas las
             trampas. Si te equivocas, él ya lo hizo antes y peor.</small>
           </div>
           <div class="cast-card">
-            <span class="cast-face">🪲</span>
+            <span class="cast-face" data-retrato="kira"></span>
             <strong>Kira</strong>
             <small>Escarabajo de latón, sarcástica y lista. Traduce jeroglíficos y te da
             pistas… pero nunca la respuesta.</small>
           </div>
           <div class="cast-card">
-            <span class="cast-face">🐕</span>
+            <span class="cast-face" data-retrato="tobias"></span>
             <strong>Tobías</strong>
             <small>El perro de la expedición. Olfato prodigioso para el tesoro,
             cero cerebro. Le encantan las golosinas.</small>
@@ -6405,7 +6414,7 @@ function cruzarVerificacion(retos, respuestas) {
    copia guardada. Sin este número, «ya está arreglado» y «a mí no me pasa» son
    indistinguibles. Va junto al nombre de la caché del service worker, y una
    prueba comprueba que no se separen. */
-const ATLAS_VERSION = 'v89';
+const ATLAS_VERSION = 'v90';
 
 const ATLAS_DEFAULTS = {
 
@@ -21195,7 +21204,9 @@ function renderHomeSites() {
   const sites = sitesEnabled().filter(site => branchesEnabledOf(site).length);
   $('#home-sites').innerHTML = sites.length
     ? sites.map(site => `<div class="home-site">
-        <span class="home-site-icon">${esc(site.icon)}</span>
+        ${site.img
+          ? `<img class="home-site-icon home-site-img" src="${esc(site.img)}" alt="" loading="lazy">`
+          : `<span class="home-site-icon">${esc(site.icon)}</span>`}
         <div><strong>${esc(site.name)}</strong>
           <small>${esc(site.subject)}${esc(site.desc ? ' · ' + site.desc : '')}</small>
           <div class="home-site-wells">${branchesEnabledOf(site)
@@ -21358,8 +21369,16 @@ async function boot() {
      nombre. Se mudan una vez, al arrancar, antes de que nadie los busque. */
   migrarClavesDeDiarios();
   /* Los retratos que están escritos en el HTML. Se rellenan aquí y no a mano
-     en cada sitio para que cambiar un dibujo sea cambiar UN fichero. */
-  $$('[data-retrato]').forEach(el => { el.outerHTML = retrato(el.dataset.retrato, 'dialog-avatar'); });
+     en cada sitio para que cambiar un dibujo sea cambiar UN fichero.
+
+     La clase se hereda del hueco que había: en la portada son `cast-face` y en
+     los diálogos `dialog-avatar`, y cada una tiene su tamaño. Antes se ponía
+     `dialog-avatar` a pelo y por eso la portada se quedó con sus emoji: no
+     había forma de marcarla sin romperle la medida. */
+  $$('[data-retrato]').forEach(el => {
+    const clases = el.className.trim();
+    el.outerHTML = retrato(el.dataset.retrato, clases || 'dialog-avatar');
+  });
   vozInit();
   prepararDescargas();
   wireGlobalListeners();
