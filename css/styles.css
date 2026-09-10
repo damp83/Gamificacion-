@@ -942,10 +942,19 @@ body.en-mision #main { padding-bottom: var(--s-5); }
    y quedaba el 80 % de pergamino vacío debajo. Ahora ocupa el alto de la
    ventana y el reto queda centrado, a la altura de los ojos. */
 #screen-mission {
-  /* Centrado vertical, pero con techo: en una pantalla muy alta un centrado
-     puro dejaba el reto hundido a media página y costaba encontrarlo. */
-  min-height: min(calc(100vh - 13rem), 42rem);
-  display: flex; flex-direction: column; justify-content: center;
+  /* ── Dónde empieza el reto ──
+     Estaba centrado dentro de una banda fija de 42 rem. En una tablet eso
+     dejaba 160 px de nada por arriba y 440 px por abajo: el reto se hundía a
+     media página con medio lienzo vacío debajo.
+
+     Ahora arranca arriba, siempre a la misma altura. No es solo por aprovechar
+     el sitio: un enunciado que sube y baja de un reto a otro obliga a
+     BUSCARLO cada vez, y son seis veces por expedición. Que esté siempre donde
+     estaba es lo que deja pensar en la pregunta en vez de en la pantalla. */
+  min-height: calc(100vh - 10rem);
+  min-height: calc(100svh - 10rem);   /* móviles con barra que aparece y se va */
+  display: flex; flex-direction: column; justify-content: flex-start;
+  padding-top: clamp(.25rem, 2vh, 1.25rem);
   max-width: var(--w-narrow); margin: 0 auto;
 }
 /* Cartela de misión: dónde se está excavando y cuánto queda. Va sobre una
@@ -1055,13 +1064,17 @@ body.en-mision #main { padding-bottom: var(--s-5); }
 }
 /* Letra de la opción: da un asidero para leerlas y nombrarlas en voz alta
    («la C»), y de paso alinea todos los textos en la misma x. */
+/* La letra lleva la tinta del yacimiento donde se está excavando. No dice
+   nada de la respuesta —las cuatro llevan la misma, y diferenciarlas sería
+   filtrar cuál es la buena— pero ata el reto a su sitio: se está en Kaldros,
+   no en un formulario. */
 .option::before {
   content: attr(data-letra);
   flex-shrink: 0; width: 2rem; height: 2rem;
   display: grid; place-items: center;
-  background-color: var(--brass-tint);
-  background-image: linear-gradient(180deg, #fdf1d3, var(--brass-tint));
-  color: var(--leather-dark);
+  background-color: var(--acento-suave, var(--brass-tint));
+  background-image: linear-gradient(180deg, rgba(255, 255, 255, .55), transparent);
+  color: var(--acento, var(--leather-dark));
   border-radius: var(--r-sm);
   box-shadow: inset 0 0 0 1px rgba(138, 90, 11, .28), 0 1px 0 rgba(255, 255, 255, .6);
   font-family: var(--font-display); font-size: var(--t-sm);

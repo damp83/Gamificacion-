@@ -1409,6 +1409,34 @@ En la misma tarjeta, la explicación del fallo era el texto más pequeño y más
 pantalla, justo al revés de lo que hace falta: el titular consuela, la explicación
 enseña. Al fallar pasa a ser el elemento dominante.
 
+### Dónde empieza el reto
+
+La pantalla del reto estaba centrada dentro de una banda fija de 42 rem. En una tablet
+eso dejaba **160 px de nada por arriba y 440 px por abajo**: el enunciado se hundía a
+media página con medio lienzo vacío debajo.
+
+Ahora arranca arriba, y **siempre a la misma altura**. Medido en tres tamaños, el hueco
+entre la cabecera y la cartela pasó de 78, 160 y 146 px a 42, 44 y 42.
+
+Y no es solo por aprovechar el sitio. Un enunciado que sube y baja de un reto a otro
+obliga a **buscarlo cada vez**, y son seis veces por expedición. Que esté siempre donde
+estaba es lo que deja pensar en la pregunta en vez de en la pantalla.
+
+### La letra de cada opción lleva la tinta de su yacimiento
+
+Las cuatro opciones eran cuatro losas beige idénticas. Siguen siendo idénticas entre sí
+—**tienen que serlo**: una letra de otro color diría cuál es la buena— pero ahora las
+cuatro llevan la tinta del yacimiento donde se está excavando. El reto se ata a su
+sitio: se está en Kaldros, no en un formulario.
+
+Por eso la tinta se pone **en el contenedor y no en cada opción**: así no hay forma de
+que se separen, ni hoy ni el día que alguien toque ese código. Hay una prueba que lo
+fija. Y si el pozo no tiene un yacimiento reconocible, la letra se cae al latón de
+siempre y se ve igual de bien.
+
+Las cuatro entran una detrás de otra, como un juego de opciones y no como una pantalla
+que aparece hecha. Se apaga con `prefers-reduced-motion`, igual que el resto.
+
 ### El pozo, visto como un pozo
 
 La pantalla del pozo ya era la mejor de las ocho: cuatro estratos apilados, los
@@ -1517,9 +1545,8 @@ quien usa lector.
 
 ### Lo que queda
 
-Dos cosas, y ninguna crítica: las **cuatro respuestas son cuatro manchas iguales** con
-un tercio de pantalla vacío encima, y la **bitácora recibe a todos con un muro de
-ceros**.
+Una, y menor: la **bitácora recibe a todos con un muro de ceros**. Cinco tarjetas que le
+dicen cinco veces a quien acaba de empezar que no ha hecho nada.
 
 > Nada de esto es motivo para meter marcadores, rankings ni rachas que castiguen faltar.
 > La racha se apaga en silencio a propósito. Lo que separa esto de las plataformas

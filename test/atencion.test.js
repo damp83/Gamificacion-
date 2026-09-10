@@ -600,3 +600,57 @@ test('un estrato ya dominado no se marca como frente', () => {
   assert.match(css, /\.stratum-row\.frente\.excavado::after \{ display: none; \}/);
   assert.match(css, /\.stratum-row\.frente\.excavado \{ box-shadow: inset 5px 0 0 var\(--gold\)/);
 });
+
+/* ══ El reto, que es donde se pasa el tiempo ══ */
+
+test('el enunciado empieza arriba y siempre a la misma altura', () => {
+  /* Estaba centrado dentro de una banda fija de 42 rem: en una tablet eso
+     dejaba 160 px de nada arriba y 440 px abajo. Y lo que más costaba no era
+     el hueco: un enunciado que sube y baja de un reto a otro hay que BUSCARLO
+     cada vez, seis veces por expedición. */
+  const css = leer('css/styles.css');
+  const i = css.indexOf('#screen-mission {');
+  const trozo = css.slice(i, css.indexOf('}', i));
+  assert.match(trozo, /justify-content: flex-start/);
+  assert.ok(!/justify-content: center/.test(trozo));
+  assert.ok(!/42rem/.test(trozo), 'la banda fija era la causa del hueco');
+  assert.match(trozo, /100svh/, 'en un móvil la barra del navegador aparece y se va');
+});
+
+test('las cuatro opciones llevan la MISMA tinta', () => {
+  /* Una letra de otro color diría cuál es la buena. Por eso la tinta va en el
+     contenedor y no en cada opción: no hay forma de que se separen. */
+  const t = leer('js/play.js');
+  const i = t.indexOf('function renderQuestion');
+  const trozo = t.slice(i, t.indexOf('\n}', i));
+  assert.match(trozo, /optionsEl\.style\.setProperty\('--acento'/);
+  assert.ok(!/btn\.style\.setProperty\('--acento'/.test(trozo));
+  const css = leer('css/styles.css');
+  assert.ok(!/\.option:nth-child\([^)]*\)[^{]*\{[^}]*--acento/.test(css),
+    'ninguna opción puede tener su propio color');
+});
+
+test('la tinta es la del yacimiento donde se está excavando', () => {
+  const t = leer('js/play.js');
+  const i = t.indexOf('function renderQuestion');
+  const trozo = t.slice(i, t.indexOf('\n}', i));
+  assert.match(trozo, /siteOfBranch\(mission\.branchId\)/);
+  assert.match(trozo, /colorDeYacimiento\(sitio \? sitio\.id : ''\)/);
+});
+
+test('sin yacimiento reconocible, la letra se queda con el latón de siempre', () => {
+  /* Un pozo suelto, o un fallo al buscar su sitio, no puede dejar la letra
+     sin fondo: se cae al valor por defecto y se ve igual de bien. */
+  const css = leer('css/styles.css');
+  const i = css.indexOf('.option::before {');
+  const trozo = css.slice(i, css.indexOf('}', i));
+  assert.match(trozo, /var\(--acento-suave, var\(--brass-tint\)\)/);
+  assert.match(trozo, /var\(--acento, var\(--leather-dark\)\)/);
+});
+
+test('las opciones entran escalonadas, y no si se ha pedido menos movimiento', () => {
+  const t = leer('js/play.js');
+  const i = t.indexOf('function renderQuestion');
+  assert.match(t.slice(i, t.indexOf('\n}', i)), /escalonar\(\[\.\.\.optionsEl\.children\]\)/);
+  /* `escalonar` ya se calla con prefers-reduced-motion; se comprueba arriba. */
+});

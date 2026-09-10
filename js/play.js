@@ -647,6 +647,13 @@ function renderQuestion() {
   $('#question-text').textContent = q.question;
   const optionsEl = $('#options');
   optionsEl.innerHTML = '';
+  /* La tinta del yacimiento en el que se está excavando. Va en el contenedor,
+     no en cada opción: las cuatro llevan la misma a propósito —una letra de
+     otro color diría cuál es la buena— y así se pone una vez. */
+  const sitio = siteOfBranch(mission.branchId);
+  const col = colorDeYacimiento(sitio ? sitio.id : '');
+  optionsEl.style.setProperty('--acento', col.tinta);
+  optionsEl.style.setProperty('--acento-suave', col.fondo);
   q.options.forEach((opt, i) => {
     const btn = document.createElement('button');
     btn.className = 'option';
@@ -657,6 +664,10 @@ function renderQuestion() {
     btn.addEventListener('click', () => onAnswer(i, btn));
     optionsEl.appendChild(btn);
   });
+  /* Las cuatro entran una detrás de otra. Llegan como un juego de opciones y
+     no como una pantalla que aparece hecha, y de paso el ojo las recorre en
+     orden en vez de tener que decidir por dónde empezar a leer. */
+  escalonar([...optionsEl.children]);
   $('#btn-hint').disabled = false;
   $('#btn-hint').innerHTML = ico('beetle') + ' Pista de Kira';
   /* Cada reto empieza en silencio: si el anterior seguía sonando, se corta.
