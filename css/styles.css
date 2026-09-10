@@ -303,7 +303,28 @@ body::after {
   background-position: bottom center, bottom center;
   background-size: 100% 100%, 100% 100%;
 }
-/* En misión el horizonte estorba: el reto se queda solo con el pergamino. */
+/* ── El fondo del reto ──
+   La cámara por dentro, detrás de todo. Va aquí y no en `#screen-mission`
+   porque esa pantalla es una columna estrecha centrada y el fondo tiene que
+   ocupar el ancho entero de la ventana.
+
+   Se queda en un cuarto de opacidad a propósito: es el sitio donde está el
+   niño, no lo que tiene que mirar. Lo que tiene que mirar es el enunciado, y
+   un fondo a plena tinta detrás de un texto es lo contrario de eso. */
+body::before {
+  content: '';
+  position: fixed; inset: 0;
+  z-index: -1;
+  pointer-events: none;
+  background-image: var(--fondo-reto, none);
+  background-size: cover;
+  background-position: 50% 42%;
+  opacity: 0;
+  transition: opacity .45s ease;
+}
+body.en-mision::before { opacity: .28; }
+/* En misión el horizonte estorba: el reto se queda solo con el pergamino, y
+   más aún si detrás hay una cámara dibujada. */
 body.en-mision::after { opacity: .35; }
 
 /* ── Iconos dibujados ──
@@ -672,6 +693,12 @@ img.site-icon.site-img {
   background: var(--acento-suave, var(--paper-deep));
   box-shadow: inset 0 0 0 2px var(--acento, transparent);
 }
+/* ── Los pozos dibujados ──
+   El hueco estaba hecho para un emoji, que trae su propio margen dentro. Un
+   dibujo no lo trae, así que se le pone aquí: sin margen, el objeto toca los
+   bordes del cuadradito y parece recortado. */
+.pozo-img { width: 100%; height: 100%; padding: .18rem; }
+.seguir-icono .pozo-img { padding: .22rem; }
 .seguir-texto { min-width: 0; flex: 1; }
 .seguir-texto strong { display: block; font-size: var(--t-lg); color: var(--leather-dark); }
 .seguir-texto p { margin: .1rem 0 .4rem; font-size: var(--t-sm); color: var(--ink-soft); }
@@ -952,6 +979,9 @@ img.site-icon.site-img {
   transition: color .16s ease, box-shadow .16s ease;
 }
 .stratum-icon .ico { width: 1.5rem; height: 1.5rem; }
+/* El estrato dibujado. El candado y la caja siguen siendo iconos de línea:
+   no son un estrato, son el estado en que está. */
+.estrato-img { width: 2.2rem; height: 2.2rem; }
 .stratum-info { flex: 1; min-width: 0; }
 /* título en su propia línea: en los estratos bloqueados no hay barra de
    dominio que lo separe del texto de ayuda y quedaban pegados */
@@ -1021,6 +1051,7 @@ img.site-icon.site-img {
 #mission-title { display: flex; align-items: center; gap: .45rem; min-width: 0; }
 #mission-title .ico { width: 1.15rem; height: 1.15rem; }
 .mh-site { display: inline-flex; align-items: center; gap: .35rem; }
+.mh-img { width: 1.5rem; height: 1.5rem; flex-shrink: 0; }
 /* Separador en forma de rombo: marca el salto de yacimiento a estrato sin
    meter otro punto medio en una línea que ya lleva dos. */
 .mh-sep {
@@ -1495,6 +1526,12 @@ img.feedback-quien {
   display: grid; place-items: center;
   background: rgba(255, 255, 255, .55); border-radius: var(--r-sm);
 }
+/* Un hito conseguido crece y pierde el cajetín: lo que la clase ha ganado se
+   ve, y lo que sigue bajo llave se queda en su candado pequeño. */
+.fund-milestone .fund-icon:has(.hito-img) {
+  width: 3.4rem; height: 3.4rem; background: none;
+}
+.hito-img { width: 100%; height: 100%; }
 .fund-milestone strong { display: block; font-size: var(--t-sm); font-weight: 800; color: var(--ink); }
 .fund-milestone small { color: var(--ink-soft); font-size: var(--t-xs); }
 .fund-donate {
@@ -1710,6 +1747,7 @@ img.feedback-quien {
   display: grid; place-items: center;
   background: var(--surface-sunken); border-radius: var(--r-md);
 }
+.merit-icon:has(.icono-dibujo) { background: transparent; padding: .1rem; }
 .merit-info { flex: 1; min-width: 0; }
 .merit-info strong { display: block; font-size: var(--t-sm); font-weight: 800; }
 .merit-info small { color: var(--ink-soft); font-size: var(--t-xs); }
@@ -1725,6 +1763,23 @@ img.feedback-quien {
   min-width: 3.4rem; text-transform: uppercase; letter-spacing: .04em;
 }
 .history-icons { font-size: 1.2rem; letter-spacing: .15rem; }
+/* El historial: los méritos del día en fila, del tamaño de la letra. */
+.history-icons { display: inline-flex; align-items: center; gap: .3rem; vertical-align: middle; }
+.history-uno { display: inline-block; width: 1.5rem; height: 1.5rem; line-height: 1; }
+/* ── Los dibujos de espera ──
+   Una pantalla que todavía no tiene nada no puede ser media pantalla de
+   beige con una frase encima: se lee como una avería. Con el dibujo se lee
+   como lo que es, que la expedición no ha empezado. */
+.espera {
+  display: flex; flex-direction: column; align-items: center; gap: var(--s-3);
+  padding: var(--s-5) var(--s-4); text-align: center;
+}
+.espera-img { width: min(15rem, 60%); height: auto; opacity: .92; }
+.espera p {
+  margin: 0; max-width: 26rem;
+  color: var(--ink-soft); font-size: var(--t-sm); line-height: 1.55;
+}
+
 .empty-note {
   color: var(--ink-soft); font-size: var(--t-sm); padding: var(--s-4);
   background: var(--paper-deep); border-radius: var(--r-md); text-align: center;
@@ -2558,6 +2613,39 @@ body.teacher-mode #main { padding-bottom: 2rem; }
 
 /* ══════════ CURSO Y TAMAÑO DE LETRA ══════════ */
 .onb-label { font-size: .9rem; font-weight: 700; color: var(--leather); margin-top: .3rem; }
+/* ── Elegir cara ──
+   Ocho botones redondos. El elegido se marca con el aro de latón y un poco de
+   tamaño, que es como se marca todo lo demás en esta app. */
+.cara-picker {
+  display: grid; grid-template-columns: repeat(4, 1fr); gap: .5rem;
+  margin-bottom: var(--s-4);
+}
+.cara-btn {
+  padding: 0; border: 0; background: var(--surface-sunken); cursor: pointer;
+  border-radius: var(--r-pill); aspect-ratio: 1; overflow: hidden;
+  box-shadow: inset 0 0 0 2px transparent;
+  transition: box-shadow .16s ease, transform .16s ease;
+}
+.cara-btn img { width: 100%; height: 100%; object-fit: cover; object-position: 50% 12%; display: block; }
+.cara-btn:hover { transform: translateY(-2px); }
+.cara-btn.active {
+  box-shadow: inset 0 0 0 3px var(--brass), var(--e-2);
+  transform: translateY(-2px);
+}
+.cara-btn:focus-visible { outline: 3px solid var(--brass); outline-offset: 2px; }
+/* En el campamento el elector nace plegado y lo abre el propio avatar. */
+.camp-caras { margin-top: var(--s-3); }
+.camp-caras .cara-picker { grid-template-columns: repeat(8, 1fr); margin-bottom: 0; }
+@media (max-width: 34rem) { .camp-caras .cara-picker { grid-template-columns: repeat(4, 1fr); } }
+/* El avatar del campamento es ahora un botón: que se note que se puede tocar. */
+button.camp-avatar { border: 0; cursor: pointer; padding: 0; }
+button.camp-avatar:focus-visible { outline: 3px solid var(--brass); outline-offset: 3px; }
+/* La cara elegida llena su hueco redondo, sea el del campamento o el del HUD. */
+.cara-explorador {
+  width: 100%; height: 100%; object-fit: cover; object-position: 50% 12%;
+  border-radius: var(--r-pill); display: block;
+}
+
 .grade-picker { display: grid; grid-template-columns: repeat(3, 1fr); gap: .4rem; }
 .grade-btn {
   display: flex; flex-direction: column; align-items: center; gap: .1rem;

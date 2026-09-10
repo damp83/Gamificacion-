@@ -538,6 +538,9 @@
       </div>
       <form id="onboarding-form">
         <input type="text" id="input-explorer-name" maxlength="20" placeholder="Tu nombre de explorador" required autocomplete="off">
+        <span class="onb-label">¿Quién eres?</span>
+        <div id="cara-picker" class="cara-picker" role="radiogroup" aria-label="Elige tu cara de explorador"></div>
+        <input type="hidden" id="input-cara" value="">
         <span class="onb-label">¿En qué curso estás?</span>
         <div id="grade-picker" class="grade-picker"></div>
         <input type="hidden" id="input-grade" value="4">
@@ -839,8 +842,16 @@
       <section id="screen-camp" class="screen hidden">
         <h2><svg class="ico" viewBox="0 0 24 24" aria-hidden="true"><use href="#i-tent"/></svg> Campamento Base</h2>
         <div class="camp-avatar-zone">
-          <div id="camp-avatar" class="camp-avatar">🧒</div>
+          <button type="button" id="camp-avatar" class="camp-avatar"
+            aria-label="Cambiar tu cara de explorador">🧒</button>
           <div id="camp-gear-equipped" class="camp-gear-equipped"></div>
+        </div>
+        <!-- Elegir cara también aquí, y no solo al crear el diario: quien la
+             eligió con seis años no tiene por qué quedársela hasta sexto. -->
+        <div id="camp-caras" class="camp-caras hidden">
+          <span class="onb-label">¿Quién eres?</span>
+          <div id="camp-cara-picker" class="cara-picker" role="radiogroup"
+            aria-label="Elige tu cara de explorador"></div>
         </div>
         <div id="camp-scene" class="camp-scene"></div>
 

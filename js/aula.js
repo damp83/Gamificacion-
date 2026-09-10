@@ -406,7 +406,7 @@ function panelDeMeritoGrupo(gente, titulo, icono) {
     const btn = document.createElement('button');
     btn.className = 'award-btn' + (caben.length ? '' : ' award-full');
     btn.disabled = !caben.length;
-    btn.innerHTML = `<span class="award-icon">${esc(b.icon)}</span>
+    btn.innerHTML = `<span class="award-icon">${iconoDeFicha(b)}</span>
       <span class="award-name">${esc(b.name)}</span>
       <span class="award-meta">+${b.coins} ${ico('coin')} · ${caben.length === gente.length
         ? `a los ${gente.length}` : `a ${caben.length} de ${gente.length}`}</span>`;
@@ -910,7 +910,7 @@ function renderAulaMeritos() {
     const btn = document.createElement('button');
     btn.className = 'award-btn' + (lleno ? ' award-full' : '');
     btn.disabled = lleno;
-    btn.innerHTML = `<span class="award-icon">${esc(b.icon)}</span>
+    btn.innerHTML = `<span class="award-icon">${iconoDeFicha(b)}</span>
       <span class="award-name">${esc(b.name)}</span>
       <span class="award-meta">+${b.coins} ${ico('coin')} · ${usados}/${b.perDay}</span>`;
     btn.addEventListener('click', () => {
@@ -983,7 +983,7 @@ function renderBolsa() {
     const btn = document.createElement('button');
     btn.className = 'award-btn' + (lleno ? ' award-full' : '');
     btn.disabled = lleno;
-    btn.innerHTML = `<span class="award-icon">${esc(b.icon)}</span>
+    btn.innerHTML = `<span class="award-icon">${iconoDeFicha(b)}</span>
       <span class="award-name">${esc(b.name)}</span>
       <span class="award-meta">+${b.coins} ${ico('coin')} · ${usados}/${b.perDay}</span>`;
     btn.addEventListener('click', () => {

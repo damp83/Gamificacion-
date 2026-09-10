@@ -65,7 +65,7 @@ function renderMap() {
       card.className = 'branch-card' + (seguir && seguir.branchId === b.id ? ' branch-aqui' : '');
       card.style.setProperty('--acento', col.tinta);
       card.style.setProperty('--acento-suave', col.fondo);
-      card.innerHTML = `<span class="branch-icon">${esc(b.icon)}</span>
+      card.innerHTML = `<span class="branch-icon">${iconoDeFicha(b, 'pozo-img')}</span>
         <div class="branch-info">
           <strong>${esc(b.name)}</strong>
           <div class="branch-strata-dots">${withContent.map(sId => {
@@ -272,7 +272,7 @@ function pintarSeguir(destino) {
   caja.innerHTML = `
     <div class="seguir-eyebrow">${empezado ? 'Sigue por aquí' : 'Empieza por aquí'}</div>
     <div class="seguir-cuerpo">
-      <span class="seguir-icono">${esc(b.icon || '⛏️')}</span>
+      <span class="seguir-icono">${iconoDeFicha(b, 'pozo-img')}</span>
       <div class="seguir-texto">
         <strong>${esc(b.name)}</strong>
         <p>${esc(meta.name)} · ${esc(meta.label)}</p>
@@ -451,7 +451,8 @@ function openBranch(branchId) {
 
     row.innerHTML = `
       <span class="stratum-depth"><i>Estrato</i><b>${i + 1}</b></span>
-      <span class="stratum-icon">${ico(!hasContent ? 'crate' : locked ? 'lock' : ICO_ESTRATO[sId])}</span>
+      <span class="stratum-icon">${!hasContent ? ico('crate') : locked ? ico('lock')
+        : iconoDeFicha(meta, 'estrato-img')}</span>
       <div class="stratum-info"><strong>${meta.label} · «${meta.name}»</strong>${detail}</div>
       <span class="stratum-go">${locked || !hasContent ? '' : ico('pickaxe')}</span>`;
 
@@ -568,13 +569,35 @@ function openGuardianHall(branchId) {
 }
 
 /* ── Misión ── */
+
+/* El fondo de la pantalla del reto: la cámara por dentro.
+
+   Es lo que más cambia de toda la parte gráfica, y no por bonito. El niño se
+   pasa ahí el ochenta por ciento del tiempo y era una tarjeta blanca flotando
+   sobre arena pálida, con dos tercios de la pantalla en blanco: estaba
+   supuestamente dentro de una cámara llena de cerraduras numéricas y no se
+   veía ni una.
+
+   Va como variable de CSS en el <body> y lo pinta un pseudoelemento fijo,
+   porque la pantalla del reto es una columna estrecha centrada y el fondo
+   tiene que ocupar el ancho entero. En el Bazar y en la Cámara del Guardián
+   se quita: ninguno de los dos pasa en un yacimiento concreto. */
+function ponerFondoDeReto() {
+  const sitio = (mission && mission.kind === 'expedition')
+    ? siteOfBranch(mission.branchId) : null;
+  const fondo = sitio && sitio.fondo;
+  if (fondo) document.body.style.setProperty('--fondo-reto', `url("${fondo}")`);
+  else document.body.style.removeProperty('--fondo-reto');
+}
+
 function renderMissionScreen() {
   const b = branchDef(mission.branchId);
   const meta = STRATA_META[mission.stratumId];
+  ponerFondoDeReto();
   $('#mission-title').innerHTML =
       mission.kind === 'bazar'    ? `${ico('basket')} Encargo: ${esc(meta.name)}`
     : mission.kind === 'guardian' ? `${ico('idol')} Cámara del Guardián · ${esc(b.name)}`
-    : `<span class="mh-site">${esc(b.icon)} ${esc(b.name)}</span>
+    : `<span class="mh-site">${iconoDeFicha(b, 'mh-img')} ${esc(b.name)}</span>
        <span class="mh-sep"></span>
        ${ico(ICO_ESTRATO[mission.stratumId])} ${esc(meta.label)}`;
   renderQuestion();
@@ -892,12 +915,33 @@ function renderGuardianResult(r) {
   renderHud();
 }
 
+/* El elector de cara del campamento. Aquí no hay formulario ni botón de
+   guardar: se pulsa una cara y ya está puesta, porque a los seis años un
+   cambio que hay que confirmar es un cambio que no se hace. */
+function pintarElectorDeCara() {
+  const caja = $('#camp-caras');
+  if (!caja) return;
+  const cont = $('#camp-cara-picker');
+  cont.innerHTML = CARAS_EXPLORADOR.map(c => `
+    <button type="button" class="cara-btn${c.id === S.profile.cara ? ' active' : ''}"
+      role="radio" aria-checked="${c.id === S.profile.cara ? 'true' : 'false'}"
+      data-cara="${esc(c.id)}" title="${esc(c.alt)}">
+      <img src="${esc(c.img)}" alt="${esc(c.alt)}" loading="lazy"></button>`).join('');
+  cont.querySelectorAll('.cara-btn').forEach(b => b.addEventListener('click', () => {
+    S.profile.cara = (b.dataset.cara === S.profile.cara) ? '' : b.dataset.cara;
+    saveState();
+    renderCamp();
+    renderHud();
+  }));
+}
+
 /* ── Campamento y almacén ── */
 function renderCamp() {
   renderTaller();
   renderHud();
   applyTextSize();
   $('#camp-avatar').innerHTML = avatarDelExplorador();
+  pintarElectorDeCara();
   const equipped = $('#camp-gear-equipped');
   equipped.innerHTML = S.inventory.gear_equipped.length
     ? S.inventory.gear_equipped.map(id => {
@@ -996,7 +1040,7 @@ function renderFund() {
   $('#fund-milestones').innerHTML = hitos.map(m => {
     const hecho = total >= m.at;
     return `<div class="fund-milestone ${hecho ? 'fund-done' : ''}">
-      <span class="fund-icon">${hecho ? esc(m.icon) : ico('lock')}</span>
+      <span class="fund-icon">${hecho ? iconoDeFicha(m, 'hito-img') : ico('lock')}</span>
       <div><strong>${esc(m.name)}</strong><small>${hecho ? esc(m.desc) : `Se abre con ${m.at} ${ico('coin')} de la clase`}</small></div>
     </div>`;
   }).join('');
@@ -1137,8 +1181,8 @@ function renderLogbook() {
   const regla = $('#logbook-regla');
   if (pie && regla) {
     const vacia = !history.length;
-    pie.textContent = 'Aquí se irá dibujando tu ruta: una marca por cada semana '
-      + 'con tres días de expedición.';
+    pie.innerHTML = espera('banderin', 'Aquí se irá dibujando tu ruta: una marca por cada '
+      + 'semana con tres días de expedición.');
     pie.classList.toggle('hidden', !vacia);
     regla.classList.toggle('hidden', vacia);
   }
@@ -1333,7 +1377,9 @@ function renderTeam() {
     body.innerHTML = `<div class="dialog bruno">${retrato('bruno', 'dialog-avatar')}
       <div class="dialog-text"><strong>Prof. Bruno Ocaña</strong>
       <p>«Todavía no te he asignado cuadrilla, ${esc(S.profile.explorer_name)}. ¡Paciencia!
-      En cuanto lo haga, aparecerá aquí tu equipo.»</p></div></div>`;
+      En cuanto lo haga, aparecerá aquí tu equipo.»</p></div></div>` +
+      espera('cuaderno', 'Cuando el Prof. Ocaña reparta las cuadrillas, tu equipo y tu '
+        + 'papel dentro de él saldrán aquí.');
     return;
   }
 
@@ -1415,7 +1461,7 @@ function renderMerits() {
   $('#merits-today').innerHTML = ATLAS_CONFIG.behaviors.map(b => {
     const n = S.behavior_log.filter(e => e.id === b.id && e.date === today).length;
     return `<div class="merit-row${n ? ' merit-earned' : ''}">
-      <span class="merit-icon">${esc(b.icon)}</span>
+      <span class="merit-icon">${iconoDeFicha(b)}</span>
       <div class="merit-info"><strong>${esc(b.name)}</strong><small>${b.coins} ${ico('coin')} · hasta ${b.perDay} al día</small></div>
       <span class="merit-count">${n ? '⭐'.repeat(Math.min(n, 5)) : '—'}</span>
     </div>`;
@@ -1429,13 +1475,13 @@ function renderMerits() {
     ? orderedDays.map(d => {
         const icons = days[d].map(e => {
           const b = ATLAS_CONFIG.behaviors.find(x => x.id === e.id);
-          return b ? `<span title="${esc(b.name)}">${esc(b.icon)}</span>` : '';
+          return b ? `<span class="history-uno" title="${esc(b.name)}">${iconoDeFicha(b)}</span>` : '';
         }).join('');
         return `<div class="history-day"><span class="history-date">${formatDay(d)}</span>
           <span class="history-icons">${icons}</span></div>`;
       }).join('')
-    : `<p class="empty-note nota-con-cara">${retrato('bruno', 'nota-retrato')}
-      <span>Aún no hay méritos. ¡El Prof. Ocaña está observando!</span></p>`;
+    : `<div class="empty-note nota-con-cara">${retrato('bruno', 'nota-retrato')}
+      <span>Aún no hay méritos. ¡El Prof. Ocaña está observando!</span></div>`;
 }
 
 function formatDay(d) {

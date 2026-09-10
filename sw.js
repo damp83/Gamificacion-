@@ -1,5 +1,5 @@
 /* Expedición Atlas — service worker: caché de la app shell para uso sin conexión */
-const CACHE = 'atlas-shell-v94';
+const CACHE = 'atlas-shell-v95';
 const ASSETS = [
   './',
   './index.html',
@@ -61,6 +61,46 @@ const ASSETS = [
   './img/rangos/cartografo.webp',
   './img/rangos/arqueologo.webp',
   './img/rangos/leyenda.webp',
+  /* Los ocho pozos, los cuatro estratos, los cinco hitos de clase y los ocho
+     méritos: todo lo que el niño ve al excavar tiene que verse sin wifi. */
+  './img/pozos/sendero.webp',
+  './img/pozos/numeracion.webp',
+  './img/pozos/sumas_llevando.webp',
+  './img/pozos/fracciones.webp',
+  './img/pozos/decimales.webp',
+  './img/pozos/vocabulario.webp',
+  './img/pozos/ortografia.webp',
+  './img/pozos/comprension.webp',
+  './img/estratos/recordar.webp',
+  './img/estratos/comprender.webp',
+  './img/estratos/aplicar.webp',
+  './img/estratos/analizar.webp',
+  './img/hitos/campamento.webp',
+  './img/hitos/puente.webp',
+  './img/hitos/templo.webp',
+  './img/hitos/barco.webp',
+  './img/hitos/ciudad.webp',
+  './img/meritos/ayudar.webp',
+  './img/meritos/material.webp',
+  './img/meritos/atencion.webp',
+  './img/meritos/participar.webp',
+  './img/meritos/deberes.webp',
+  './img/meritos/lectura.webp',
+  './img/meritos/proyecto.webp',
+  './img/meritos/especial.webp',
+  './img/caras/1.webp',
+  './img/caras/2.webp',
+  './img/caras/3.webp',
+  './img/caras/4.webp',
+  './img/caras/5.webp',
+  './img/caras/6.webp',
+  './img/caras/7.webp',
+  './img/caras/8.webp',
+  /* Los dos fondos de la pantalla del reto y los dibujos de espera. */
+  './img/fondos/kaldros.webp',
+  './img/fondos/biblioteca.webp',
+  './img/espera-cuaderno.webp',
+  './img/espera-banderin.webp',
   /* Las tipografías forman parte de la app shell: sin ellas, en un aula sin
      red la plataforma se vería con la fuente del sistema. */
   './fonts/nunito-latin.woff2',

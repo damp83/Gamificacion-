@@ -11,7 +11,7 @@
    copia guardada. Sin este número, «ya está arreglado» y «a mí no me pasa» son
    indistinguibles. Va junto al nombre de la caché del service worker, y una
    prueba comprueba que no se separen. */
-const ATLAS_VERSION = 'v94';
+const ATLAS_VERSION = 'v95';
 
 const ATLAS_DEFAULTS = {
 
@@ -167,14 +167,14 @@ const ATLAS_DEFAULTS = {
      midiendo solo aprendizaje demostrado (PRD §2.2). Y solo suman:
      retirar puntos rompería el «nada se pierde nunca» (PRD §0.2). */
   behaviors: [
-    { id: 'ayudar',     icon: '🤝', name: 'Ayudar a un compañero',                coins: 10, perDay: 3, category: 'comportamiento' },
-    { id: 'material',   icon: '🧹', name: 'Cuidar el material y el campamento',   coins: 5,  perDay: 2, category: 'comportamiento' },
-    { id: 'atencion',   icon: '🤫', name: 'Trabajo concentrado en la excavación', coins: 5,  perDay: 2, category: 'comportamiento' },
-    { id: 'participar', icon: '🙋', name: 'Participar en la asamblea',            coins: 5,  perDay: 3, category: 'comportamiento' },
-    { id: 'deberes',    icon: '📚', name: 'Tareas y bitácora al día',             coins: 10, perDay: 1, category: 'tarea' },
-    { id: 'lectura',    icon: '📖', name: 'Lectura diaria',                       coins: 10, perDay: 1, category: 'tarea' },
-    { id: 'proyecto',   icon: '🔬', name: 'Proyecto de investigación',            coins: 25, perDay: 1, category: 'actividad' },
-    { id: 'especial',   icon: '🌟', name: 'Mérito especial del Prof. Ocaña',      coins: 20, perDay: 1, category: 'comportamiento' }
+    { id: 'ayudar',     icon: '🤝', name: 'Ayudar a un compañero',                coins: 10, perDay: 3, category: 'comportamiento', img: 'img/meritos/ayudar.webp' },
+    { id: 'material',   icon: '🧹', name: 'Cuidar el material y el campamento',   coins: 5,  perDay: 2, category: 'comportamiento', img: 'img/meritos/material.webp' },
+    { id: 'atencion',   icon: '🤫', name: 'Trabajo concentrado en la excavación', coins: 5,  perDay: 2, category: 'comportamiento', img: 'img/meritos/atencion.webp' },
+    { id: 'participar', icon: '🙋', name: 'Participar en la asamblea',            coins: 5,  perDay: 3, category: 'comportamiento', img: 'img/meritos/participar.webp' },
+    { id: 'deberes',    icon: '📚', name: 'Tareas y bitácora al día',             coins: 10, perDay: 1, category: 'tarea', img: 'img/meritos/deberes.webp' },
+    { id: 'lectura',    icon: '📖', name: 'Lectura diaria',                       coins: 10, perDay: 1, category: 'tarea', img: 'img/meritos/lectura.webp' },
+    { id: 'proyecto',   icon: '🔬', name: 'Proyecto de investigación',            coins: 25, perDay: 1, category: 'actividad', img: 'img/meritos/proyecto.webp' },
+    { id: 'especial',   icon: '🌟', name: 'Mérito especial del Prof. Ocaña',      coins: 20, perDay: 1, category: 'comportamiento', img: 'img/meritos/especial.webp' }
   ],
 
   /* ── Cuadrillas de Excavación (equipos) ──
@@ -206,11 +206,11 @@ const ATLAS_DEFAULTS = {
     blurb: 'La Sociedad restaura ruinas por todo el mundo. Cada Doblón que dones ayuda a salvar una.',
     /* Hitos: al llegar la clase entera, se desbloquea para todos */
     milestones: [
-      { at: 500,   icon: '⛺', name: 'Campamento avanzado',      desc: 'La Sociedad monta un campamento en el Valle Fósil.' },
-      { at: 1500,  icon: '🌉', name: 'Puente de cuerda',         desc: 'Se repara el puente que cruza el desfiladero.' },
-      { at: 3000,  icon: '🏛️', name: 'Excavación del templo',    desc: 'Se abre un templo que llevaba siglos sepultado.' },
-      { at: 6000,  icon: '🚢', name: 'Barco de la expedición',   desc: 'La Sociedad arma un barco para llegar a otro continente.' },
-      { at: 10000, icon: '🗿', name: 'Ciudad perdida',           desc: '¡La clase entera descubre una ciudad perdida!' }
+      { at: 500,   icon: '⛺', name: 'Campamento avanzado',      desc: 'La Sociedad monta un campamento en el Valle Fósil.', img: 'img/hitos/campamento.webp' },
+      { at: 1500,  icon: '🌉', name: 'Puente de cuerda',         desc: 'Se repara el puente que cruza el desfiladero.', img: 'img/hitos/puente.webp' },
+      { at: 3000,  icon: '🏛️', name: 'Excavación del templo',    desc: 'Se abre un templo que llevaba siglos sepultado.', img: 'img/hitos/templo.webp' },
+      { at: 6000,  icon: '🚢', name: 'Barco de la expedición',   desc: 'La Sociedad arma un barco para llegar a otro continente.', img: 'img/hitos/barco.webp' },
+      { at: 10000, icon: '🗿', name: 'Ciudad perdida',           desc: '¡La clase entera descubre una ciudad perdida!', img: 'img/hitos/ciudad.webp' }
     ],
     /* Tras el último hito sigue creciendo: cada tramo es una ruina más */
     endlessStep: 5000,

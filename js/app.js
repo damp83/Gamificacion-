@@ -443,6 +443,7 @@ function quitarAvisoDeGuardado() {
 
 function showOnboarding() {
   readGrade = renderGradePicker('#grade-picker', '#input-grade') || readGrade;
+  readCara = renderCaraPicker('#cara-picker', '#input-cara') || readCara;
   $('#screen-home').classList.add('hidden');
   $('#screen-teacher').classList.add('hidden');
   $('#screen-auth').classList.add('hidden');
@@ -478,11 +479,17 @@ function wireGlobalListeners() {
     show('map');
   });
 
+  /* El avatar del campamento abre y cierra el elector de cara. */
+  $('#camp-avatar').addEventListener('click', () => {
+    $('#camp-caras').classList.toggle('hidden');
+  });
+
   $('#onboarding-form').addEventListener('submit', e => {
     e.preventDefault();
     const name = $('#input-explorer-name').value.trim() || 'Exploradora';
     createState(name);
     S.profile.grade = readGrade();
+    S.profile.cara = readCara();
     saveState();
     startApp();
   });

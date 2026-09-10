@@ -95,7 +95,11 @@ test('el retrato llena el medallón y la chapa cabe dentro', () => {
 test('lo que llega al avatar se escapa', () => {
   const ui = leer('js/ui.js');
   const i = ui.indexOf('function avatarDelExplorador');
-  const cuerpo = ui.slice(i, i + 700);
+  const cuerpo = ui.slice(i, ui.indexOf('\n}', i));
   assert.match(cuerpo, /esc\(gorro \|\| '🧒'\)/);
   assert.match(cuerpo, /esc\(gorro\)/);
+  /* La cara elegida sale de una lista cerrada del código, pero su ruta y su
+     descripción entran igual en un atributo. */
+  assert.match(cuerpo, /esc\(cara\.img\)/, 'la ruta del dibujo, sin escapar');
+  assert.match(cuerpo, /esc\(cara\.alt\)/, 'la descripción, sin escapar');
 });

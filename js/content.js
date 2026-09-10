@@ -10,10 +10,10 @@
 const STRATA_ORDER = ['recordar', 'comprender', 'aplicar', 'analizar'];
 
 const STRATA_META = {
-  recordar:   { label: 'Recordar',   icon: '🧱', name: 'Fragmentos de cerámica', peBase: 10 },
-  comprender: { label: 'Comprender', icon: '🏺', name: 'Vasijas emparejadas',    peBase: 14 },
-  aplicar:    { label: 'Aplicar',    icon: '⚖️', name: 'La balanza del mercader', peBase: 18 },
-  analizar:   { label: 'Analizar',   icon: '🔍', name: 'El plano falsificado',   peBase: 25 }
+  recordar:   { label: 'Recordar',   icon: '🧱', name: 'Fragmentos de cerámica', peBase: 10, img: 'img/estratos/recordar.webp' },
+  comprender: { label: 'Comprender', icon: '🏺', name: 'Vasijas emparejadas',    peBase: 14, img: 'img/estratos/comprender.webp' },
+  aplicar:    { label: 'Aplicar',    icon: '⚖️', name: 'La balanza del mercader', peBase: 18, img: 'img/estratos/aplicar.webp' },
+  analizar:   { label: 'Analizar',   icon: '🔍', name: 'El plano falsificado',   peBase: 25, img: 'img/estratos/analizar.webp' }
 };
 
 /* ═══════════════ CONCEPTOS ═══════════════
@@ -1151,26 +1151,29 @@ function defaultSites() {
     /* Como en los roles: con `img` sale el dibujo, sin él el emoji. Un
        yacimiento que cree el docente no tiene dibujo y se ve igual de bien. */
     img: 'img/kaldros.webp',
+    /* El fondo de la pantalla del reto: la cámara por dentro. Sin él, el reto
+       se pinta sobre el pergamino de siempre y no pasa nada. */
+    fondo: 'img/fondos/kaldros.webp',
     desc: 'Templo de engranajes, relojes y bóvedas numéricas.',
     enabled: true,
     branches: [
-      { id: 'sendero', name: 'El Sendero de las Huellas', icon: '🐾', source: 'builtin', enabled: true,
+      { id: 'sendero', name: 'El Sendero de las Huellas', icon: '🐾', source: 'builtin', enabled: true, img: 'img/pozos/sendero.webp',
         grades: [1, 2],
         desc: 'Contar, seguir huellas y repartir gemas. El primer camino de todo explorador.',
         contenido: 'Contar hasta 99, series, comparar cantidades, sumas y restas sencillas sin llevar.' },
-      { id: 'numeracion', name: 'La Bóveda de los Números', icon: '🔢', source: 'builtin', enabled: true,
+      { id: 'numeracion', name: 'La Bóveda de los Números', icon: '🔢', source: 'builtin', enabled: true, img: 'img/pozos/numeracion.webp',
         grades: [1, 2, 3, 4, 5, 6],
         desc: 'Una cámara llena de cerraduras numéricas. Domina los números para abrirlas todas.',
         contenido: 'Numeración: valor posicional, leer y escribir números, ordenar y comparar, descomponer.' },
-      { id: 'sumas_llevando', name: 'El Reloj de Engranajes', icon: '⚙️', source: 'builtin', enabled: true,
+      { id: 'sumas_llevando', name: 'El Reloj de Engranajes', icon: '⚙️', source: 'builtin', enabled: true, img: 'img/pozos/sumas_llevando.webp',
         grades: [1, 2, 3, 4, 5, 6],
         desc: 'Un reloj gigante que solo gira con cuentas exactas. ¡Cuidado con las llevadas!',
         contenido: 'Cálculo: sumas y restas con llevadas, multiplicación, división y problemas de operaciones.' },
-      { id: 'fracciones', name: 'La Balanza del Mercader', icon: '⚖️', source: 'builtin', enabled: true,
+      { id: 'fracciones', name: 'La Balanza del Mercader', icon: '⚖️', source: 'builtin', enabled: true, img: 'img/pozos/fracciones.webp',
         grades: [3, 4, 5, 6],
         desc: 'Repartos, raciones y vasijas partidas. Aquí el tesoro se divide en partes iguales.',
         contenido: 'Fracciones: leerlas, representarlas, comparar, equivalentes y fracción de una cantidad.' },
-      { id: 'decimales', name: 'La Cámara Decimal', icon: '🔬', source: 'builtin', enabled: true,
+      { id: 'decimales', name: 'La Cámara Decimal', icon: '🔬', source: 'builtin', enabled: true, img: 'img/pozos/decimales.webp',
         grades: [5, 6],
         desc: 'Comas, porcentajes y medidas precisas. La cámara más profunda de Kaldros.',
         contenido: 'Decimales y porcentajes: valor posicional con coma, operar con decimales, medidas y equivalencias.' }
@@ -1181,18 +1184,19 @@ function defaultSites() {
     subject: 'Lengua',
     icon: '📜',
     img: 'img/biblioteca.webp',
+    fondo: 'img/fondos/biblioteca.webp',
     desc: 'Una biblioteca sepultada donde las palabras se descubren como piezas.',
     enabled: true,
     branches: [
-      { id: 'vocabulario', name: 'El Escriba de Arena', icon: '🖋️', source: 'builtin', enabled: true,
+      { id: 'vocabulario', name: 'El Escriba de Arena', icon: '🖋️', source: 'builtin', enabled: true, img: 'img/pozos/vocabulario.webp',
         grades: [1, 2, 3, 4, 5, 6],
         desc: 'Sinónimos, contrarios, familias de palabras y clases de palabras.',
         contenido: 'Vocabulario: sinónimos y antónimos, familias léxicas, campo semántico y clases de palabras.' },
-      { id: 'ortografia', name: 'Las Tablillas Rotas', icon: '🪨', source: 'builtin', enabled: true,
+      { id: 'ortografia', name: 'Las Tablillas Rotas', icon: '🪨', source: 'builtin', enabled: true, img: 'img/pozos/ortografia.webp',
         grades: [1, 2, 3, 4, 5, 6],
         desc: 'Copias mal escritas de un mismo texto. Encuentra la buena y sabrás por qué.',
         contenido: 'Ortografía: reglas de escritura, acentuación, signos de puntuación y palabras que se confunden.' },
-      { id: 'comprension', name: 'El Papiro de Ossian', icon: '📖', source: 'builtin', enabled: true,
+      { id: 'comprension', name: 'El Papiro de Ossian', icon: '📖', source: 'builtin', enabled: true, img: 'img/pozos/comprension.webp',
         grades: [1, 2, 3, 4, 5, 6],
         desc: 'Textos del diario perdido: qué dicen, qué insinúan y qué callan.',
         contenido: 'Comprensión lectora: idea principal, detalles, inferencias y sentido de una palabra en su texto.' }
@@ -1259,6 +1263,23 @@ const AUTOR_ATLAS = {
 /* El dibujo del mapa. Va aquí y no dentro del SVG que lo pinta por lo mismo
    que los retratos: el día que cambie, cambia en un sitio. */
 const CARTA_FONDO = 'img/carta.webp';
+/* Los dos dibujos de espera. Una pantalla vacía con un dibujo dice «esto
+   todavía no ha empezado»; la misma pantalla con media pantalla de beige y
+   una frase dice «esto está roto», que no es verdad. */
+const ESPERAS = {
+  cuaderno:  { img: 'img/espera-cuaderno.webp',  alt: 'Un cuaderno de campo abierto por una página en blanco' },
+  banderin:  { img: 'img/espera-banderin.webp',  alt: 'Un banderín de expedición clavado en la arena junto a una caja' }
+};
+
+/* Un dibujo de espera con su frase debajo. Sin dibujo queda la frase sola,
+   que es exactamente lo que había antes. */
+function espera(cual, texto) {
+  const e = ESPERAS[cual];
+  return `<div class="espera">${e
+    ? `<img class="espera-img" src="${esc(e.img)}" alt="${esc(e.alt)}" loading="lazy">` : ''}
+    <p>${texto}</p></div>`;
+}
+
 /* El trozo de Atlas que se recupera al vencer al Guardián. */
 const FRAGMENTO_ATLAS = 'img/fragmento.webp';
 /* El paisaje del campamento y la cara del Guardián. Aquí por lo mismo: el día
@@ -1279,6 +1300,31 @@ function retrato(quien, clase) {
     ? `<img class="retrato${c}" src="${esc(r.img)}" alt="${esc(r.alt)}" loading="lazy">`
     : `<span class="retrato-emoji${c}" aria-hidden="true">${esc(r.emoji)}</span>`;
 }
+
+/* ══════════ LAS CARAS DE EXPLORADOR ══════════
+
+   Hasta aquí, el niño no tenía cara: un emoji genérico, el mismo para todos,
+   en la cabecera, en el campamento y en la lista de clase del docente. Es lo
+   único de toda la app que puede decir «este soy yo», y no lo decía nada.
+
+   Ocho, no cuarenta: elegir entre ocho es una decisión y elegir entre
+   cuarenta es un catálogo, y esto pasa una sola vez, al crear el diario, con
+   un niño de seis años que lo que quiere es empezar. Y ocho distintas de
+   verdad —pelo, piel, gorro—, que es lo que hace que valga la pena elegir.
+
+   El `alt` describe lo que se ve y no quién es: quién es lo decide el niño. */
+const CARAS_EXPLORADOR = [
+  { id: 'c1', img: 'img/caras/1.webp', alt: 'Explorador con sombrero de ala ancha y pañuelo verde' },
+  { id: 'c2', img: 'img/caras/2.webp', alt: 'Exploradora rubia con trenzas, gafas y salacot' },
+  { id: 'c3', img: 'img/caras/3.webp', alt: 'Explorador con gorra hacia atrás y pañuelo amarillo' },
+  { id: 'c4', img: 'img/caras/4.webp', alt: 'Exploradora con coleta alta y pañuelo estampado' },
+  { id: 'c5', img: 'img/caras/5.webp', alt: 'Explorador pelirrojo con pañuelo naranja' },
+  { id: 'c6', img: 'img/caras/6.webp', alt: 'Exploradora con el pelo recogido y pañuelo marrón' },
+  { id: 'c7', img: 'img/caras/7.webp', alt: 'Explorador con salacot y pañuelo azul' },
+  { id: 'c8', img: 'img/caras/8.webp', alt: 'Exploradora con melena rizada y brújula al cuello' }
+];
+
+function caraPorId(id) { return CARAS_EXPLORADOR.find(c => c.id === id) || null; }
 
 /* Lo mismo que `retrato`, pero para las cosas: artículos del almacén y
    medallas de rango. La ficha manda —si trae `img` sale el dibujo y si no,

@@ -130,6 +130,10 @@ function defaultState(name) {
     profile: {
       explorer_name: name,
       grade: DEFAULT_GRADE,      /* 1.º a 6.º: decide qué contenido ve */
+      /* La cara que eligió al crear el diario. Vacía en los diarios de antes
+         de que existieran las caras, y eso no es un fallo: sin cara sale el
+         retrato de su rol o el niño de siempre, como hasta ahora. */
+      cara: '',
       created_at: todayStr(),
       /* large_text se deja sin definir a propósito: mientras nadie lo toque,
          manda el curso (grande en 1.º y 2.º). Fijarlo aquí en false anulaba
@@ -1354,6 +1358,18 @@ function cabeOtroConRol(id, nombre) {
   if (!tope) return true;
   const clave = String(nombre || '').trim().toLowerCase();
   return quienLleva(id).filter(m => String(m).trim().toLowerCase() !== clave).length < tope;
+}
+
+/* La cara de un explorador. Solo la del diario abierto: la cara de OTRO niño
+   no viaja a esta tablet —los ajustes de clase no llevan diarios— así que en
+   la lista del docente sigue mandando el retrato de su rol. */
+function miCara(nombre) {
+  if (!S || !S.profile) return null;
+  /* Con un nombre distinto del propio no se responde: sería enseñar la cara
+     del dueño de esta tablet en la fila de otro. */
+  if (nombre && typeof nombre === 'string' &&
+      nombreDeAlumno(nombre) !== nombreDeAlumno(S.profile.explorer_name)) return null;
+  return caraPorId(S.profile.cara);
 }
 
 /* Rota los roles dentro de cada cuadrilla: el de cada miembro pasa al

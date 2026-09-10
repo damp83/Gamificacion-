@@ -182,6 +182,35 @@ function renderGradePicker(containerSel, hiddenSel, initial) {
   paint();
   return () => value;
 }
+/* El elector de cara, igual de simple que el del curso: ocho botones y el
+   que está pulsado se ve. Nace SIN elegir, y eso es a propósito: obligar a
+   elegir cara antes de empezar sería poner una puerta donde no la había, y
+   quien no quiera puede seguir de largo y elegirla luego desde el
+   campamento. */
+function renderCaraPicker(containerSel, hiddenSel, initial) {
+  const cont = $(containerSel);
+  if (!cont) return;
+  let value = initial || '';
+  const paint = () => {
+    cont.innerHTML = CARAS_EXPLORADOR.map(c => `
+      <button type="button" class="cara-btn${c.id === value ? ' active' : ''}"
+        role="radio" aria-checked="${c.id === value ? 'true' : 'false'}"
+        data-cara="${esc(c.id)}" title="${esc(c.alt)}">
+        <img src="${esc(c.img)}" alt="${esc(c.alt)}" loading="lazy"></button>`).join('');
+    cont.querySelectorAll('.cara-btn').forEach(b => b.addEventListener('click', () => {
+      /* Volver a pulsar la que ya está elegida la quita: sin esto, elegir una
+         por curiosidad no tendría vuelta atrás. */
+      value = (b.dataset.cara === value) ? '' : b.dataset.cara;
+      if (hiddenSel && $(hiddenSel)) $(hiddenSel).value = value;
+      paint();
+    }));
+  };
+  if (hiddenSel && $(hiddenSel)) $(hiddenSel).value = value;
+  paint();
+  return () => value;
+}
+let readCara = () => '';
+
 let readGrade = () => ATLAS_CONFIG.defaultGrade || DEFAULT_GRADE;
 let readGradeReg = () => ATLAS_CONFIG.defaultGrade || DEFAULT_GRADE;
 
@@ -342,6 +371,16 @@ function avatarDelExplorador(quien) {
     ? quien : (quien || (S && S.profile && S.profile.explorer_name) || '');
   const rol = (typeof rolDe === 'function') ? rolDe(nombre) : null;
   const gorro = gorroEquipado();
+  /* La cara que el niño eligió manda sobre todo lo demás: es suya. El retrato
+     de rol sigue saliendo cuando no ha elegido ninguna —y en la lista de
+     clase del docente, donde se mira quién lleva qué encargo— y el emoji se
+     queda de último respaldo, para un diario viejo o un fichero que no
+     llegue. */
+  const cara = miCara(nombre);
+  if (cara) {
+    return `<img class="cara-explorador" src="${esc(cara.img)}" alt="${esc(cara.alt)}" loading="lazy">` +
+      (gorro ? `<span class="avatar-gorro" aria-hidden="true">${esc(gorro)}</span>` : '');
+  }
   if (!rol) return esc(gorro || '🧒');
   return avatarDeRol(rol, 'rol-medallon') +
     (gorro ? `<span class="avatar-gorro" aria-hidden="true">${esc(gorro)}</span>` : '');

@@ -4,10 +4,10 @@
    separan, uno acepta lo que el otro rechaza y nadie se entera. */
 
 export const STRATA_META = {
-  recordar:   { label: 'Recordar',   icon: '🧱', name: 'Fragmentos de cerámica', peBase: 10 },
-  comprender: { label: 'Comprender', icon: '🏺', name: 'Vasijas emparejadas',    peBase: 14 },
-  aplicar:    { label: 'Aplicar',    icon: '⚖️', name: 'La balanza del mercader', peBase: 18 },
-  analizar:   { label: 'Analizar',   icon: '🔍', name: 'El plano falsificado',   peBase: 25 }
+  recordar:   { label: 'Recordar',   icon: '🧱', name: 'Fragmentos de cerámica', peBase: 10, img: 'img/estratos/recordar.webp' },
+  comprender: { label: 'Comprender', icon: '🏺', name: 'Vasijas emparejadas',    peBase: 14, img: 'img/estratos/comprender.webp' },
+  aplicar:    { label: 'Aplicar',    icon: '⚖️', name: 'La balanza del mercader', peBase: 18, img: 'img/estratos/aplicar.webp' },
+  analizar:   { label: 'Analizar',   icon: '🔍', name: 'El plano falsificado',   peBase: 25, img: 'img/estratos/analizar.webp' }
 };
 
 export const CONCEPTOS = {

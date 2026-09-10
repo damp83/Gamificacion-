@@ -54,7 +54,12 @@ test('ninguno pesa más de lo que aguanta una tablet de aula', () => {
     total += kb;
     assert.ok(kb < 120, `${f} pesa ${Math.round(kb)} KB y el tope son 120`);
   }
-  assert.ok(total < 700, `img/ entero pesa ${Math.round(total)} KB; se descarga en cada tablet`);
+  /* El tope subió de 700 KB a 1300 al entrar el tercer encargo: los pozos,
+     los estratos, los méritos, los hitos, las ocho caras y los dos fondos de
+     cámara. Un megabyte y pico se descarga UNA vez y se queda en la caché del
+     service worker para siempre; lo que no puede pasar es que crezca sin que
+     nadie mire, y para eso está este número. */
+  assert.ok(total < 1300, `img/ entero pesa ${Math.round(total)} KB; se descarga en cada tablet`);
 });
 
 /* ── Sin wifi ── */
@@ -220,12 +225,14 @@ test('la casilla del día conseguido no encierra el sello en un cuadrado', () =>
   assert.match(trozo, /box-shadow: none/);
 });
 
-test('están los dibujos de los dos encargos, y la carpeta sigue cabiendo en una tablet', () => {
+test('están los dibujos de los tres encargos, y la carpeta sigue cabiendo en una tablet', () => {
   const webp = dibujos().filter(f => f.endsWith('.webp'));
-  /* Diez del primer encargo —los compañeros, los sitios, la carta— más los
-     veinte del segundo: la villana, el fragmento, los trece del almacén y
-     las cinco medallas de rango. */
-  assert.equal(webp.length, 30, 'faltan o sobran dibujos de los dos encargos');
+  /* Diez del primer encargo —los compañeros, los sitios, la carta—, veinte
+     del segundo —la villana, el fragmento, el almacén y los rangos— y
+     treinta y siete del tercero: ocho pozos, cuatro estratos, cinco hitos de
+     clase, ocho méritos, ocho caras de explorador, dos fondos de cámara y
+     dos dibujos de espera. */
+  assert.equal(webp.length, 67, 'faltan o sobran dibujos de los tres encargos');
 });
 
 test('cada artículo del almacén de fábrica tiene su dibujo, y cada rango su medalla', () => {
@@ -407,4 +414,87 @@ test('la escena del campamento coloca por ancho, que es lo que conserva las prop
   c.ev('pintarEscenaDelCampamento()');
   const h = c.ev("$('#camp-scene')").innerHTML;
   assert.match(h, /class="escena-cosa"[^>]*width:[\d.]+%/, 'la cosa comprada no tiene ancho');
+});
+
+/* ══ El tercer encargo: donde el niño pasa el rato ══ */
+
+test('los ocho pozos de fábrica llevan su dibujo, y los cuatro estratos también', () => {
+  const c = cargarApp();
+  for (const s of c.ev('sitesAll()')) {
+    for (const b of (s.branches || [])) {
+      if (b.source !== 'builtin') continue;
+      assert.ok(b.img, `el pozo ${b.id} se quedó sin dibujo`);
+    }
+  }
+  for (const [id, meta] of Object.entries(c.ev('STRATA_META'))) {
+    assert.ok(meta.img, `el estrato ${id} se quedó sin dibujo`);
+  }
+});
+
+test('y los méritos y los hitos de clase, que son configuración del docente', () => {
+  const c = cargarApp();
+  for (const b of c.ev('ATLAS_CONFIG.behaviors')) assert.ok(b.img, `el mérito ${b.id} sin dibujo`);
+  for (const m of c.ev('ATLAS_CONFIG.fund.milestones')) assert.ok(m.img, `el hito de ${m.at} sin dibujo`);
+});
+
+test('el reto se pinta dentro de su yacimiento, y solo en una expedición', () => {
+  /* El Bazar y la Cámara del Guardián no pasan en un yacimiento concreto: si
+     les pusiéramos fondo estaríamos diciendo que sí. */
+  const c = cargarApp();
+  c.ev('openDiary')({ name: 'Nadia', username: 'nadia' }, 3);
+  const rama = c.ev('playableBranchIds()')[0];
+  c.ev('mission = { branchId: ' + JSON.stringify(rama) + ", kind: 'expedition' }");
+  c.ev('ponerFondoDeReto()');
+  assert.match(c.ev("document.body.style.getPropertyValue('--fondo-reto')"), /img\/fondos\//);
+  c.ev("mission.kind = 'guardian'");
+  c.ev('ponerFondoDeReto()');
+  assert.equal(c.ev("document.body.style.getPropertyValue('--fondo-reto')"), '');
+});
+
+test('un yacimiento sin fondo deja el reto sobre el pergamino de siempre', () => {
+  /* El Taller no tiene fondo, y un yacimiento que cree el docente tampoco lo
+     tendrá nunca. Ni uno ni otro pueden romper la pantalla del reto. */
+  const c = cargarApp();
+  c.ev('openDiary')({ name: 'Nadia', username: 'nadia' }, 3);
+  const rama = c.ev('playableBranchIds()')[0];
+  c.ev('sitesAll().forEach(s => { delete s.fondo; })');
+  c.ev('mission = { branchId: ' + JSON.stringify(rama) + ", kind: 'expedition' }");
+  c.ev('ponerFondoDeReto()');
+  assert.equal(c.ev("document.body.style.getPropertyValue('--fondo-reto')"), '');
+});
+
+test('la cara elegida manda sobre el rol y sobre el emoji', () => {
+  const c = cargarApp();
+  c.ev('openDiary')({ name: 'Nadia', username: 'nadia' }, 3);
+  assert.match(c.ev('avatarDelExplorador()'), /🧒/, 'sin elegir, el de siempre');
+  c.ev("S.profile.cara = 'c3'");
+  assert.match(c.ev('avatarDelExplorador()'), /img\/caras\/3\.webp/);
+});
+
+test('y la cara de un niño no viaja a la tablet de otro', () => {
+  /* Los ajustes de clase no llevan diarios, así que aquí solo hay una cara:
+     la del dueño de esta tablet. Preguntar por otro tiene que dar nada, o en
+     la lista del docente saldrían todos con la misma cara. */
+  const c = cargarApp();
+  c.ev('openDiary')({ name: 'Nadia', username: 'nadia' }, 3);
+  c.ev("S.profile.cara = 'c3'");
+  assert.ok(c.ev("miCara('Nadia')"), 'la suya sí');
+  assert.equal(c.ev("miCara('Iván')"), null, 'la de otro, no');
+});
+
+test('elegir cara no es obligatorio para empezar', () => {
+  /* Poner una puerta donde no la había sería peor que no tener caras. */
+  const c = cargarApp();
+  c.ev('openDiary')({ name: 'Nadia', username: 'nadia' }, 3);
+  assert.equal(c.ev('S.profile.cara'), '');
+  assert.ok(c.ev('avatarDelExplorador()'), 'sin cara sigue habiendo avatar');
+});
+
+test('las pantallas sin estrenar enseñan un dibujo, no un vacío', () => {
+  const c = cargarApp();
+  const h = c.ev("espera('cuaderno', 'Todavía nada por aquí.')");
+  assert.match(h, /img\/espera-cuaderno\.webp/);
+  assert.match(h, /Todavía nada por aquí\./);
+  /* Y si el dibujo no existiera, queda la frase, que es lo que había antes. */
+  assert.match(c.ev("espera('no_existe', 'Todavía nada por aquí.')"), /Todavía nada por aquí\./);
 });
