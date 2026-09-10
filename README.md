@@ -84,6 +84,7 @@ Cubren lo que ya se ha roto alguna vez, que es de donde salieron:
 | `cuentas.test.js` | Que el panel avise de una contraseña que Appwrite va a rechazar, y de que escribirla no crea la cuenta |
 | `merito-grupo.test.js` | Que dar un mérito a una cuadrilla entera, a la clase o a unos cuantos elegidos a dedo use el mismo tope y el mismo registro que darlo uno a uno, y que se diga a quién no le llegó |
 | `criterios.test.js` | Que la evidencia por criterio se calcule bien, que no se proponga un nivel sin datos suficientes, y que nada de esto llegue nunca al niño ni a su familia |
+| `atencion.test.js` | Que la app diga por dónde seguir en vez de dejar elegir a ciegas, que la racha empiece donde hay algo que perder, que dos yacimientos nunca sean del mismo color, y que nada de esto castigue el error ni se le imponga a quien pidió menos movimiento |
 | `pin.test.js` | Que no quede ni un sitio donde teclear el PIN en la pantalla de un alumno, que al portal se entre por una sola puerta, y que salir de él lo vuelva a cerrar |
 | `conexion.test.js` | Que «no hay conexión» diga cuál de las cuatro causas es, y que las cuatro dejen claro que la contraseña no se ha llegado a comprobar |
 | `salud.test.js` | Que todo lo que se pierde en silencio deje de perderse en silencio: quién no sincroniza, qué diario está roto, si la clave de la IA se agotó, y que con todo en orden el panel no invente un problema |
@@ -1336,6 +1337,88 @@ creada, y entonces no es un problema— del diario que de verdad está roto.
 
 > El panel de salud es fontanería, no evaluación. No dice si un alumno va bien
 > —para eso está la vista de clase—: dice que no se está perdiendo su trabajo.
+
+## Lo que hace que un niño mire la pantalla
+
+La app era correcta, coherente y silenciosa: hacía bien su trabajo sin pedir que la
+miraras. Una auditoría estética sobre las ocho pantallas del alumno, capturadas en
+un móvil de 412 px y recorriendo una expedición entera —elegir, responder, fallar,
+acertar, terminar— dio diez hallazgos. El criterio no era «bonito», era **cuánta
+atención cuesta cada pantalla y cuánta devuelve**: una app escolar compite con lo que
+ese niño tiene en la mano el resto del día.
+
+### Nada decía «aquí»
+
+El mapa abría con seis tarjetas idénticas. Para un niño de ocho años, elegir entre
+seis cosas que se ven igual no es libertad: es un cuello de botella que se resuelve
+tocando la primera o cerrando la app. Y la app **sabía** la respuesta —el motor decide
+a cada rato qué le conviene— solo que no la decía en la única pantalla donde se
+pregunta.
+
+Ahora el mapa abre con **«Sigue por aquí»**: el pozo, el estrato y cuánto lleva de él.
+Dice el porcentaje porque «te falta poco» mueve más que «empieza algo». El orden es el
+de una excavación de verdad: primero lo que dejó a medias, empezando por lo último que
+tocó; si no hay nada a medias, el primer estrato abierto sin dominar. Lo ya dominado no
+se propone —para eso está el Encargo del Bazar— y si no hay nada que proponer la
+tarjeta no se pinta, en vez de inventar un destino.
+
+### Un color por yacimiento
+
+Ruinas de Kaldros y Biblioteca de Arena se veían igual: el mismo beige, la misma
+tarjeta blanca. Un mundo entero con una sola textura se lee como una lista de ajustes.
+
+Seis tintas de la familia del pergamino, en el filete, el icono y la barra, y elegidas
+para distinguirse también en escala de grises. Dos detalles que importan: el color de
+partida sale del **identificador**, no del orden, para que añadir un yacimiento nuevo no
+repinte los que el niño ya tenía localizados; y **dos yacimientos nunca acaban del mismo
+color**, porque con seis tintas y tres sitios dejarlo al azar del reparto era jugársela,
+y el día que salieran dos iguales se perdía justo lo que esto venía a dar.
+
+### El premio deja de ser un recibo
+
+La pantalla de resultado es el momento de máxima recompensa de toda la app, y los
+números ya estaban ahí cuando llegabas. Ahora suben desde cero, con frenada al final
+para que se lean los últimos, y las filas entran una detrás de otra. El saldo de
+doblones del HUD también sube contando cuando crece; cuando baja porque acaba de
+comprar algo se pone y ya, que contar hacia atrás lo gastado sería subrayar la pérdida.
+
+Todo esto se apaga entero con `prefers-reduced-motion`, y si el navegador no trae
+`requestAnimationFrame` el número se pone del tirón: un premio a medio contar sería
+peor que uno sin animar.
+
+### La racha
+
+El motor lleva la cuenta de los aciertos seguidos desde siempre y el niño veía seis
+puntitos que cambian de color. Tres seguidos es el momento en que empieza a haber algo
+que perder, y a partir de ahí es lo que sostiene la atención hasta el final.
+
+Aparece **en el tres**, no antes: felicitar por uno convierte el aviso en ruido y a los
+dos días no lo mira nadie. Late cuando el número sube, no cuando se repinta la pantalla.
+Y al fallar **desaparece sin estruendo**: en esta app el error no penaliza, y una racha
+que se rompe con aspavientos es exactamente lo contrario.
+
+### Los personajes se ven, no solo se nombran
+
+«La losa se hundió. Tobías te mira con cara de yo también me equivoco.» Buen texto, y el
+perro no estaba por ninguna parte. Un compañero al que solo se cita no acompaña a nadie.
+Ahora sale la cara de quien habla, y **quién habla importa**: el que celebra al acertar
+no es el que acompaña al fallar. Un niño que se equivoca no necesita un aspaviento,
+necesita ver que alguien sigue ahí.
+
+En la misma tarjeta, la explicación del fallo era el texto más pequeño y más gris de la
+pantalla, justo al revés de lo que hace falta: el titular consuela, la explicación
+enseña. Al fallar pasa a ser el elemento dominante.
+
+### Lo que queda
+
+Por orden de lo que más cambiaría la app: el **campamento no enseña ningún campamento**
+—se compran las botas y no se ven nunca—, el **mapa no es un mapa** aunque diga «4 % del
+mundo dibujado», la **excavación es una palabra y no un dibujo**, las **cuatro respuestas
+son cuatro manchas iguales**, y la **bitácora recibe a todos con un muro de ceros**.
+
+> Nada de esto es motivo para meter marcadores, rankings ni rachas que castiguen faltar.
+> La racha se apaga en silencio a propósito. Lo que separa esto de las plataformas
+> comerciales es precisamente eso, y es lo que lo hace defendible en un claustro.
 
 ## Adaptaciones para el alumnado ACNEAE
 

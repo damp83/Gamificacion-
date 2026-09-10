@@ -578,6 +578,11 @@
             <span id="map-reveal-pct">0% del mundo dibujado</span>
           </div>
         </div>
+        <!-- La tarjeta que dice por dónde seguir. Va la primera de todo
+             porque es la respuesta a la única pregunta que se hace un niño al
+             abrir la app, y antes había que deducirla de seis tarjetas
+             iguales. -->
+        <div id="seguir-card" class="seguir-card hidden"></div>
         <div id="daily-banner" class="daily-banner hidden"></div>
         <div id="fatigue-banner" class="fatigue-banner hidden">
           <span class="dialog-avatar">🧔🏻‍♂️</span>
@@ -760,6 +765,9 @@
         <div class="mission-header">
           <span id="mission-title"></span>
           <div class="mission-progress" id="mission-progress"></div>
+          <!-- Aparece a los tres aciertos seguidos y se va sin ruido al
+               fallar: el error no penaliza, tampoco aquí. -->
+          <div id="mission-racha" class="mission-racha hidden" aria-live="polite"></div>
         </div>
         <div id="question-card" class="question-card">
           <p id="question-text" class="question-text"></p>

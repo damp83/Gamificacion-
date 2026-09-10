@@ -555,6 +555,60 @@ body.en-mision #main { padding-bottom: var(--s-5); }
 .site-header h3::after { display: none; }   /* el filete es para las secciones */
 .site-header p { font-size: var(--t-sm); color: rgba(247, 234, 210, .82); }
 
+/* ── El color de cada yacimiento ──
+   Seis tarjetas del mismo beige se leen como una sola lista. Un filete de
+   color por yacimiento las convierte en sitios distintos, que es lo que son.
+   Es un filete y un fondo de icono, no un baño de color: el pergamino sigue
+   mandando y el texto no pierde contraste en ninguna de las seis. */
+.site-header { border-left: 5px solid var(--acento, var(--brass)); }
+.site-header .site-icon { box-shadow: inset 0 0 0 2px var(--acento, transparent); }
+
+/* ── «Sigue por aquí» ──
+   Lo primero que se ve al abrir el mapa, y lo único con este peso: si todo
+   grita, no grita nada. Contesta la pregunta que se hace un niño de ocho años
+   al abrir la app, que antes había que deducir de seis tarjetas iguales. */
+.seguir-card {
+  position: relative;
+  margin: 0 0 var(--s-4);
+  padding: var(--s-4);
+  border-radius: var(--r-lg);
+  background-image: linear-gradient(180deg, #fffefa 0%, var(--surface) 60%, #fbf5e6 100%);
+  background-color: var(--surface);
+  border-left: 6px solid var(--acento, var(--brass));
+  box-shadow: inset 0 1px 0 #fff, var(--e-3);
+}
+.seguir-eyebrow {
+  font-family: var(--font-display);
+  font-size: var(--t-sm); letter-spacing: .06em; text-transform: uppercase;
+  color: var(--acento, var(--brass)); margin-bottom: .55rem;
+}
+.seguir-cuerpo { display: flex; align-items: center; gap: .9rem; }
+.seguir-icono {
+  font-size: 2.1rem; line-height: 1; flex-shrink: 0;
+  width: 3.4rem; height: 3.4rem; display: grid; place-items: center;
+  border-radius: var(--r-md);
+  background: var(--acento-suave, var(--paper-deep));
+  box-shadow: inset 0 0 0 2px var(--acento, transparent);
+}
+.seguir-texto { min-width: 0; flex: 1; }
+.seguir-texto strong { display: block; font-size: var(--t-lg); color: var(--leather-dark); }
+.seguir-texto p { margin: .1rem 0 .4rem; font-size: var(--t-sm); color: var(--ink-soft); }
+.seguir-texto small { font-size: var(--t-xs); color: var(--ink-soft); }
+.seguir-barra {
+  height: .5rem; border-radius: var(--r-pill); overflow: hidden;
+  background: var(--paper-deep); margin-bottom: .2rem;
+}
+.seguir-barra i {
+  display: block; height: 100%; border-radius: var(--r-pill);
+  background: var(--acento, var(--brass));
+  transition: width .6s cubic-bezier(.2, .8, .3, 1);
+}
+.seguir-btn { width: 100%; margin-top: var(--s-3); }
+
+/* El pozo al que apunta la tarjeta se reconoce, sin robarle protagonismo:
+   quien prefiera elegir por su cuenta ve dónde está lo que le proponen. */
+.branch-card.branch-aqui { box-shadow: inset 0 1px 0 #fff, inset 0 0 0 2px var(--acento, var(--brass)), var(--e-2); }
+
 /* Los pozos se reparten en rejilla: en una tablet apaisada caben dos por
    fila y se acaba la columna solitaria con medio lienzo vacío al lado. */
 .site-branches {
@@ -794,6 +848,26 @@ body.en-mision #main { padding-bottom: var(--s-5); }
   background: var(--brass); transform: rotate(45deg); opacity: .55;
 }
 .mission-progress { display: flex; gap: .35rem; }
+
+/* ── La racha ──
+   Aparece a los tres aciertos seguidos, late cuando el número sube, y al
+   fallar se va sin ruido: en esta app el error no penaliza, y una racha que se
+   rompe con estruendo es exactamente lo contrario. */
+.mission-racha {
+  display: inline-flex; align-items: center; gap: .35rem;
+  font-size: var(--t-sm); font-weight: 800; letter-spacing: .04em;
+  color: #8a3d12; padding: .25rem .6rem; border-radius: var(--r-pill);
+  background: linear-gradient(135deg, #ffe9c2, #ffd79a);
+  box-shadow: inset 0 0 0 1px rgba(168, 90, 20, .35);
+}
+.racha-llama { font-size: 1rem; line-height: 1; }
+.racha-late { animation: racha-sube .42s cubic-bezier(.2, .8, .3, 1) both; }
+@keyframes racha-sube {
+  0%   { transform: scale(1); }
+  40%  { transform: scale(1.18); }
+  100% { transform: scale(1); }
+}
+@media (prefers-reduced-motion: reduce) { .racha-late { animation: none; } }
 .qdot {
   width: 11px; height: 11px; border-radius: 50%;
   background: rgba(122, 74, 33, .14);
@@ -909,6 +983,19 @@ body.en-mision #main { padding-bottom: var(--s-5); }
 .feedback-title { font-family: var(--font-display); font-size: var(--t-xl); color: var(--leather-dark); margin: var(--s-3) 0; }
 .feedback-explain { color: var(--ink-soft); margin-bottom: var(--s-5); font-size: var(--t-md); }
 .feedback-card .btn { margin-top: .3rem; }
+/* Quien habla se ve. El emoji va delante del titular, en su tamaño, para que
+   se sepa si celebra Kira o acompaña Tobías. */
+.feedback-quien { font-size: 1.5rem; line-height: 1; margin-right: .4rem; vertical-align: -.15em; }
+
+/* Al fallar, lo que hay que leer es la explicación. Era el texto más pequeño y
+   más gris de la pantalla, justo al revés de lo que hace falta. */
+.feedback-card.feedback-ensena .feedback-title { font-size: var(--t-lg); }
+.feedback-card.feedback-ensena .feedback-explain {
+  font-size: var(--t-lg); color: var(--ink); line-height: 1.5;
+  background: var(--paper); border-radius: var(--r-md);
+  padding: .8rem 1rem; text-align: left;
+  border-left: 4px solid var(--brass);
+}
 
 /* ── Resultado ──
    Mismo centrado que la misión: es el momento de celebrar, y celebrarlo en
@@ -2748,6 +2835,13 @@ input[type="checkbox"]::after, input[type="radio"]::after {
   .mission-header { flex-wrap: nowrap; padding: .45rem .8rem; }
   #mission-title { flex: 1; overflow: hidden; }
   #mission-title > .ico { flex-shrink: 0; }
+  /* Si aun así no cabe, se corta con puntos suspensivos y no a mitad de letra:
+     «RECORDA» parece un fallo, «RECORD…» se entiende. */
+  #mission-title > span { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+  /* Y la racha se queda en la llama y el número. Aquí no sobra ni un carácter,
+     y «3» con una llama al lado se entiende en cualquier idioma. */
+  .mission-racha { flex-shrink: 0; padding: .25rem .5rem; }
+  .mission-racha .racha-texto { display: none; }
 
   /* Y en el pozo, la cota de profundidad se aprieta para dejar sitio al
      nombre del estrato, que es lo que hay que leer. */
@@ -3469,6 +3563,11 @@ body.en-consulta #shop-list button { display: none !important; }
             <span id="map-reveal-pct">0% del mundo dibujado</span>
           </div>
         </div>
+        <!-- La tarjeta que dice por dónde seguir. Va la primera de todo
+             porque es la respuesta a la única pregunta que se hace un niño al
+             abrir la app, y antes había que deducirla de seis tarjetas
+             iguales. -->
+        <div id="seguir-card" class="seguir-card hidden"></div>
         <div id="daily-banner" class="daily-banner hidden"></div>
         <div id="fatigue-banner" class="fatigue-banner hidden">
           <span class="dialog-avatar">🧔🏻‍♂️</span>
@@ -3651,6 +3750,9 @@ body.en-consulta #shop-list button { display: none !important; }
         <div class="mission-header">
           <span id="mission-title"></span>
           <div class="mission-progress" id="mission-progress"></div>
+          <!-- Aparece a los tres aciertos seguidos y se va sin ruido al
+               fallar: el error no penaliza, tampoco aquí. -->
+          <div id="mission-racha" class="mission-racha hidden" aria-live="polite"></div>
         </div>
         <div id="question-card" class="question-card">
           <p id="question-text" class="question-text"></p>
@@ -5993,7 +6095,7 @@ function cruzarVerificacion(retos, respuestas) {
    copia guardada. Sin este número, «ya está arreglado» y «a mí no me pasa» son
    indistinguibles. Va junto al nombre de la caché del service worker, y una
    prueba comprueba que no se separen. */
-const ATLAS_VERSION = 'v80';
+const ATLAS_VERSION = 'v81';
 
 const ATLAS_DEFAULTS = {
 
@@ -10284,6 +10386,87 @@ function bestBazarTarget() {
   return best;
 }
 
+/* ── ¿Por dónde sigo? ──
+
+   El mapa enseñaba seis tarjetas idénticas y ninguna decía «aquí». Para un
+   niño de ocho años, elegir entre seis cosas que se ven igual no es libertad:
+   es un cuello de botella que se resuelve tocando la primera o cerrando la
+   app. Y la app SÍ sabe la respuesta —el motor decide a cada rato qué le
+   conviene— solo que no la decía en la única pantalla donde se pregunta.
+
+   El orden es el de una excavación de verdad:
+     1. Lo que dejó a medias, empezando por lo último que tocó. Volver donde
+        se estaba es lo que menos cuesta y lo que más continuidad da.
+     2. Si no hay nada a medias, el primer estrato abierto sin dominar.
+   Lo que ya está dominado no se propone: para repasar está el Encargo del
+   Bazar, que tiene su propia tarjeta y su propia razón de ser. */
+function dondeSeguir() {
+  let empezado = null, nuevo = null;
+  for (const branchId of playableBranchIds()) {
+    const def = branchDef(branchId);
+    for (const sId of STRATA_ORDER) {
+      if (!stratumHasContent(def, sId)) continue;
+      const st = getStratum(branchId, sId);
+      if (st.status === 'locked' || st.mastery >= 0.8) continue;
+      const cand = { branchId, stratumId: sId, mastery: st.mastery || 0,
+                     ultimo: st.last_practiced || '' };
+      if (st.attempts > 0) {
+        /* El más reciente. A igualdad de fecha, el más avanzado: es donde
+           menos falta para ver la barra llena. */
+        if (!empezado || cand.ultimo > empezado.ultimo ||
+            (cand.ultimo === empezado.ultimo && cand.mastery > empezado.mastery)) empezado = cand;
+      } else if (!nuevo) nuevo = cand;
+    }
+  }
+  return empezado || nuevo;
+}
+
+/* ── El color de cada yacimiento ──
+   Seis tarjetas del mismo beige son seis tarjetas que se leen como una sola
+   lista. Un color por yacimiento las convierte en sitios distintos, que es lo
+   que son. Se elige por el id, no por la posición: así el color de «Ruinas de
+   Kaldros» es el mismo hoy y cuando el docente añada otro yacimiento delante.
+
+   Los seis son de la misma familia que el pergamino —nada de neón sobre papel
+   viejo— y están elegidos para distinguirse también en escala de grises, que
+   es como los ve quien no distingue el rojo del verde. */
+const COLORES_YACIMIENTO = [
+  { id: 'ocre',      tinta: '#8a5a0b', fondo: '#f7e9c8' },
+  { id: 'terracota', tinta: '#a4472a', fondo: '#f9e2d8' },
+  { id: 'jade',      tinta: '#2f6b4f', fondo: '#dcefe2' },
+  { id: 'indigo',    tinta: '#3b5a8a', fondo: '#dee6f4' },
+  { id: 'ciruela',   tinta: '#7a3f68', fondo: '#f0dcec' },
+  { id: 'oliva',     tinta: '#5f6a22', fondo: '#eaeed2' }
+];
+function huellaDeId(id) {
+  const s = String(id || '');
+  let h = 0;
+  for (let i = 0; i < s.length; i++) h = (h * 31 + s.charCodeAt(i)) >>> 0;
+  return h;
+}
+
+function colorDeYacimiento(siteId) {
+  /* El color de partida sale del id —así no baila al añadir un yacimiento
+     delante— pero DOS yacimientos no pueden acabar del mismo color: con seis
+     tintas y tres sitios, dejarlo al azar del hash es jugársela, y el día que
+     salgan dos iguales se pierde justo lo que esto venía a dar. Se reparten en
+     el orden de la configuración y, si una tinta ya está cogida, se toma la
+     siguiente libre. */
+  const sitios = (typeof sitesAll === 'function' ? sitesAll() : []) || [];
+  const n = COLORES_YACIMIENTO.length;
+  const tomadas = new Set();
+  let mio = null;
+  for (const s of sitios) {
+    let k = huellaDeId(s.id) % n;
+    for (let intento = 0; intento < n && tomadas.has(k); intento++) k = (k + 1) % n;
+    tomadas.add(k);
+    if (s.id === siteId) { mio = COLORES_YACIMIENTO[k]; break; }
+  }
+  /* Un yacimiento que no está en la lista —o más de seis— se queda con el
+     suyo por huella: repetir un color es mejor que quedarse sin ninguno. */
+  return mio || COLORES_YACIMIENTO[huellaDeId(siteId) % n];
+}
+
 /* % del mapa dibujado = estratos dominados / estratos totales */
 function mapRevealPct() {
   let total = 0, mastered = 0;
@@ -12462,13 +12645,67 @@ function toast(msg, ms) {
 }
 
 /* ── HUD ── */
+/* ── Los números del premio se cuentan ──
+
+   La pantalla de resultado es el momento de máxima recompensa de toda la app,
+   y era un recibo: los números ya estaban ahí cuando llegabas. Un número que
+   sube del 0 al 37 dura menos de un segundo y convierte una cifra en algo que
+   pasa. No es decoración: es lo que hace que se mire.
+
+   Con `prefers-reduced-motion` se pone el valor final y ya. Y si algo falla a
+   mitad —la pantalla cambia, el elemento se va— se deja el número puesto: un
+   premio a medio contar sería peor que uno sin animar. */
+function contarHasta(el, hasta, prefijo) {
+  const fin = Number(hasta) || 0;
+  const pon = n => { el.textContent = (prefijo || '') + n; };
+  if (!el) return;
+  if (menosMovimiento() || fin <= 0 || typeof requestAnimationFrame !== 'function') { pon(fin); return; }
+
+  const DURA = Math.min(900, 260 + fin * 12);
+  const t0 = (typeof performance !== 'undefined' ? performance.now() : Date.now());
+  pon(0);
+  const paso = ahora => {
+    const t = Math.min(1, (ahora - t0) / DURA);
+    /* Frena al final: los últimos números se leen, que son los que importan. */
+    pon(Math.round(fin * (1 - Math.pow(1 - t, 3))));
+    if (t < 1) requestAnimationFrame(paso);
+    else pon(fin);
+  };
+  requestAnimationFrame(paso);
+}
+
+/* Una sola pregunta y un solo sitio donde se hace: quien quiera menos
+   movimiento lo ha pedido en su sistema y no hay que preguntárselo dos veces. */
+function menosMovimiento() {
+  try { return !!(window.matchMedia && window.matchMedia('(prefers-reduced-motion: reduce)').matches); }
+  catch (e) { return false; }
+}
+
+/* Las filas del premio entran una detrás de otra. Es el mismo truco que el
+   contador y por lo mismo: llegar y verlo todo puesto no se mira. */
+function escalonar(nodos) {
+  if (menosMovimiento()) return;
+  nodos.forEach((n, i) => {
+    n.style.animation = `aparece .34s cubic-bezier(.2,.8,.3,1) ${i * 90}ms both`;
+  });
+}
+
 function renderHud() {
   if (!S) return;   /* modo docente: no hay diario de alumno que mostrar */
   const level = levelFromXp(S.progression.xp_total);
   const rank = rankForLevel(level);
   $('#hud-name').textContent = S.profile.explorer_name;
   $('#hud-rank').textContent = rank.name;
-  $('#hud-doubloons').textContent = S.progression.doubloons_balance;
+  /* El saldo sube contando cuando crece. Es el número que un niño mira más
+     veces al día, y verlo cambiar es la mitad del premio. Cuando baja
+     —acaba de comprar algo— se pone y ya: contar hacia atrás lo que se gasta
+     sería subrayar la pérdida. */
+  const bolsa = $('#hud-doubloons');
+  const antes = Number(bolsa.textContent) || 0;
+  const ahora = S.progression.doubloons_balance;
+  if (bolsa.dataset.visto && ahora > antes) contarHasta(bolsa, ahora);
+  else bolsa.textContent = ahora;
+  bolsa.dataset.visto = '1';
   const cur = xpForLevel(level), next = xpForLevel(level + 1);
   const pct = Math.min(100, Math.round(((S.progression.xp_total - cur) / (next - cur)) * 100));
 
@@ -12717,9 +12954,16 @@ function renderMap() {
     return;
   }
 
+  const seguir = dondeSeguir();
+
   for (const site of sites) {
+    /* Cada yacimiento con su color. Seis tarjetas del mismo beige se leen
+       como una lista; con color son sitios distintos, que es lo que son. */
+    const col = colorDeYacimiento(site.id);
     const header = document.createElement('div');
     header.className = 'site-header';
+    header.style.setProperty('--acento', col.tinta);
+    header.style.setProperty('--acento-suave', col.fondo);
     header.innerHTML = `<span class="site-icon">${esc(site.icon)}</span>
       <div><h3>${esc(site.name)}</h3><p>${esc(site.subject)}${esc(site.desc ? ' · ' + site.desc : '')}</p></div>`;
     siteList.appendChild(header);
@@ -12736,7 +12980,9 @@ function renderMap() {
       const withContent = STRATA_ORDER.filter(sId => stratumHasContent(b, sId));
       const mastered = withContent.filter(sId => strata[sId].mastery >= 0.8).length;
       const card = document.createElement('button');
-      card.className = 'branch-card';
+      card.className = 'branch-card' + (seguir && seguir.branchId === b.id ? ' branch-aqui' : '');
+      card.style.setProperty('--acento', col.tinta);
+      card.style.setProperty('--acento-suave', col.fondo);
       card.innerHTML = `<span class="branch-icon">${esc(b.icon)}</span>
         <div class="branch-info">
           <strong>${esc(b.name)}</strong>
@@ -12751,6 +12997,8 @@ function renderMap() {
       grid.appendChild(card);
     }
   }
+
+  pintarSeguir(seguir);
 
   /* Encargo del Bazar: repaso espaciado con excusa narrativa */
   const bazar = $('#bazar-card');
@@ -12777,6 +13025,50 @@ function renderMap() {
     bazar.innerHTML = '';
     bazar.classList.add('hidden');
   }
+}
+
+/* ── «Sigue por aquí» ──
+   Un solo botón grande, con nombre propio y el sitio exacto. Enseña cuánto
+   lleva de ese estrato, porque «te falta poco» mueve más que «empieza algo».
+   Si no hay nada empezado ni abierto —todo dominado— no se pinta: inventar un
+   destino sería mandarle a repasar disfrazado de avanzar. */
+function pintarSeguir(destino) {
+  const caja = $('#seguir-card');
+  if (!caja) return;
+  if (!destino) { caja.innerHTML = ''; caja.classList.add('hidden'); return; }
+
+  const b = branchDef(destino.branchId);
+  const site = siteOfBranch(destino.branchId);
+  const meta = STRATA_META[destino.stratumId];
+  const col = colorDeYacimiento(site ? site.id : '');
+  const pct = Math.round((destino.mastery || 0) * 100);
+  const empezado = pct > 0;
+
+  caja.style.setProperty('--acento', col.tinta);
+  caja.style.setProperty('--acento-suave', col.fondo);
+  caja.innerHTML = `
+    <div class="seguir-eyebrow">${empezado ? 'Sigue por aquí' : 'Empieza por aquí'}</div>
+    <div class="seguir-cuerpo">
+      <span class="seguir-icono">${esc(b.icon || '⛏️')}</span>
+      <div class="seguir-texto">
+        <strong>${esc(b.name)}</strong>
+        <p>${esc(meta.name)} · ${esc(meta.label)}</p>
+        ${empezado ? `<div class="seguir-barra"><i style="width:${pct}%"></i></div>
+          <small>${pct}% de este estrato</small>` : '<small>Sin empezar todavía</small>'}
+      </div>
+    </div>
+    <button class="btn btn-primary seguir-btn" id="btn-seguir">
+      ${ico('pickaxe')} ${empezado ? 'Seguir excavando' : 'Empezar a excavar'}</button>`;
+
+  $('#btn-seguir').addEventListener('click', () => {
+    if (!startMission(destino.branchId, destino.stratumId)) {
+      toast('Ese estrato no tiene retos todavía.');
+      return;
+    }
+    renderMissionScreen();
+    show('mission');
+  });
+  caja.classList.remove('hidden');
 }
 
 /* ── Pozo / estratos ── */
@@ -12954,6 +13246,42 @@ function renderProgressDots() {
     else if (i === mission.index) cls += ' qdot-current';
     return `<span class="${cls}"></span>`;
   }).join('');
+  pintarRacha();
+}
+
+/* ── La racha ──
+   El motor lleva la cuenta de los aciertos seguidos desde siempre y el niño no
+   veía nada: seis puntitos que cambian de color y punto. Tres seguidos es el
+   momento en que empieza a haber algo que perder, y a partir de ahí es lo que
+   sostiene la atención hasta el final de la expedición.
+
+   Aparece en el tres, no antes: felicitar por uno convierte el aviso en ruido
+   y a los dos días no lo mira nadie. Y NO castiga al fallar —simplemente
+   desaparece— porque en esta app el error no penaliza, y una racha que se
+   rompe con estruendo es exactamente eso. */
+const RACHA_MINIMA = 3;
+function rachaActual() {
+  let n = 0;
+  for (let i = (mission.resolved || []).length - 1; i >= 0; i--) {
+    if (!mission.resolved[i]) break;
+    n++;
+  }
+  return n;
+}
+function pintarRacha() {
+  const el = $('#mission-racha');
+  if (!el) return;
+  const n = rachaActual();
+  if (n < RACHA_MINIMA) { el.classList.add('hidden'); el.dataset.n = ''; return; }
+  const nuevo = el.dataset.n !== String(n);
+  el.innerHTML = `<span class="racha-llama" aria-hidden="true">🔥</span> ${n}`
+    + `<span class="racha-texto"> seguidos</span>`;
+  el.classList.remove('hidden');
+  el.dataset.n = String(n);
+  /* Solo late cuando el número CAMBIA: repintar la pantalla no es un logro. */
+  if (nuevo && !menosMovimiento()) {
+    el.classList.remove('racha-late'); void el.offsetWidth; el.classList.add('racha-late');
+  }
 }
 function renderQuestion() {
   renderProgressDots();
@@ -13004,6 +13332,32 @@ function onAnswer(index, btn) {
   }, 700);
 }
 
+/* ── Los personajes se ven, no solo se nombran ──
+   Tobías y Kira salían nombrados en el texto —«Tobías te mira con cara de yo
+   también me equivoco»— y no aparecían por ninguna parte. Un compañero al que
+   solo se le cita no acompaña a nadie: sale su cara, y quien habla se sabe.
+
+   Y sí, importa cuál sale. El de acertar celebra; el de fallar acompaña. Un
+   niño de ocho años que se equivoca no necesita un aspaviento, necesita ver
+   que alguien sigue ahí. */
+const ANIMOS_BIEN = [
+  { quien: '🪲', texto: '¡Hallazgo descubierto!' },
+  { quien: '⛏️', texto: '¡Excavación perfecta!' },
+  { quien: '🪲', texto: '¡Kira aplaude con las antenas!' },
+  { quien: '🐕', texto: '¡Tobías ladra de alegría!' }
+];
+const ANIMOS_MAL = [
+  { quien: '🧔🏻‍♂️', texto: '¡Trampa! Bruno ya había caído en esa misma…' },
+  { quien: '🧔🏻‍♂️', texto: '¡Zas! Una reja… y Bruno dentro, contando chistes.' },
+  { quien: '🐕', texto: 'La losa se hundió. Tobías te mira con cara de «yo también me equivoco».' }
+];
+function ponerTitulo(animo) {
+  const el = $('#feedback-title');
+  const a = (animo && animo.texto) ? animo : { quien: '', texto: String(animo || '') };
+  el.innerHTML = (a.quien ? `<span class="feedback-quien" aria-hidden="true">${esc(a.quien)}</span>` : '')
+    + esc(a.texto);
+}
+
 function showFeedback(res, extra) {
   renderProgressDots(); /* el punto del reto recién resuelto ya refleja el resultado */
   $('#question-card').classList.add('hidden');
@@ -13011,6 +13365,9 @@ function showFeedback(res, extra) {
   card.classList.remove('hidden');
   const btnRestore = $('#btn-restore');
   btnRestore.classList.add('hidden');
+  /* Al fallar, lo que hay que leer es la explicación, no el titular. Era el
+     texto más pequeño y más gris de la pantalla, justo al revés. */
+  card.classList.toggle('feedback-ensena', !res.correct && !extra.restored);
 
   if (extra.restored) {
     selloFeedback('wrench', 'logro');
@@ -13020,15 +13377,11 @@ function showFeedback(res, extra) {
       : 'Corregiste tu propio error. (Ya usaste las 5 restauraciones con premio de hoy.)';
   } else if (res.correct) {
     selloFeedback('check', 'bien');
-    $('#feedback-title').textContent = pick(['¡Hallazgo descubierto!', '¡Excavación perfecta!', '¡Kira aplaude con las antenas!', '¡Tobías ladra de alegría!']);
+    ponerTitulo(pick(ANIMOS_BIEN));
     $('#feedback-explain').textContent = res.explanation;
   } else {
     selloFeedback('cross', 'mal');
-    $('#feedback-title').textContent = pick([
-      '¡Trampa! Bruno ya había caído en esa misma…',
-      '¡Zas! Una reja… y Bruno dentro, contando chistes.',
-      'La losa se hundió. Tobías te mira con cara de «yo también me equivoco».'
-    ]);
+    ponerTitulo(pick(ANIMOS_MAL));
     $('#feedback-explain').textContent = res.explanation;
     /* ofrecer restauración del hallazgo (metacognición) */
     if (!mission.restoring) {
@@ -13086,13 +13439,17 @@ function renderResult(r) {
   const rewards = $('#result-rewards');
   rewards.innerHTML = `
     <div class="reward-row"><span>Aciertos a la primera</span><strong>${r.firstTryCorrect}/${r.total}</strong></div>
-    <div class="reward-row"><span>${ico('star')} Puntos de Expedición</span><strong>+${r.pe}</strong></div>
-    <div class="reward-row"><span>${ico('coin')} Doblones</span><strong>+${r.coins}</strong></div>
+    <div class="reward-row"><span>${ico('star')} Puntos de Expedición</span><strong data-contar="${r.pe}">+${r.pe}</strong></div>
+    <div class="reward-row"><span>${ico('coin')} Doblones</span><strong data-contar="${r.coins}">+${r.coins}</strong></div>
     ${r.restored ? `<div class="reward-row"><span>${ico('vessel')} Hallazgos restaurados</span><strong>${r.restored}</strong></div>` : ''}
     ${r.notes.map(n => `<div class="reward-note">${n}</div>`).join('')}
     ${r.leveledUp ? `<div class="reward-levelup">🎉 ¡Has subido al nivel ${r.newLevel}! Ahora eres ${rankForLevel(r.newLevel).name}.</div>` : ''}
     ${r.nowMastered ? `<div class="reward-levelup">🗺️ ¡El mapa del Atlas se dibuja un poco más!</div>` : ''}
     ${r.reabreGuardian ? `<div class="reward-levelup">🗿 La Cámara del Guardián vuelve a estar abierta.</div>` : ''}`;
+
+  /* Los números suben, y las filas entran una detrás de otra. */
+  rewards.querySelectorAll('[data-contar]').forEach(el => contarHasta(el, el.dataset.contar, '+'));
+  escalonar([...rewards.children]);
 
   const dialog = $('#result-dialog');
   let brunoSays;

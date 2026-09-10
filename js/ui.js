@@ -206,13 +206,67 @@ function toast(msg, ms) {
 }
 
 /* ── HUD ── */
+/* ── Los números del premio se cuentan ──
+
+   La pantalla de resultado es el momento de máxima recompensa de toda la app,
+   y era un recibo: los números ya estaban ahí cuando llegabas. Un número que
+   sube del 0 al 37 dura menos de un segundo y convierte una cifra en algo que
+   pasa. No es decoración: es lo que hace que se mire.
+
+   Con `prefers-reduced-motion` se pone el valor final y ya. Y si algo falla a
+   mitad —la pantalla cambia, el elemento se va— se deja el número puesto: un
+   premio a medio contar sería peor que uno sin animar. */
+function contarHasta(el, hasta, prefijo) {
+  const fin = Number(hasta) || 0;
+  const pon = n => { el.textContent = (prefijo || '') + n; };
+  if (!el) return;
+  if (menosMovimiento() || fin <= 0 || typeof requestAnimationFrame !== 'function') { pon(fin); return; }
+
+  const DURA = Math.min(900, 260 + fin * 12);
+  const t0 = (typeof performance !== 'undefined' ? performance.now() : Date.now());
+  pon(0);
+  const paso = ahora => {
+    const t = Math.min(1, (ahora - t0) / DURA);
+    /* Frena al final: los últimos números se leen, que son los que importan. */
+    pon(Math.round(fin * (1 - Math.pow(1 - t, 3))));
+    if (t < 1) requestAnimationFrame(paso);
+    else pon(fin);
+  };
+  requestAnimationFrame(paso);
+}
+
+/* Una sola pregunta y un solo sitio donde se hace: quien quiera menos
+   movimiento lo ha pedido en su sistema y no hay que preguntárselo dos veces. */
+function menosMovimiento() {
+  try { return !!(window.matchMedia && window.matchMedia('(prefers-reduced-motion: reduce)').matches); }
+  catch (e) { return false; }
+}
+
+/* Las filas del premio entran una detrás de otra. Es el mismo truco que el
+   contador y por lo mismo: llegar y verlo todo puesto no se mira. */
+function escalonar(nodos) {
+  if (menosMovimiento()) return;
+  nodos.forEach((n, i) => {
+    n.style.animation = `aparece .34s cubic-bezier(.2,.8,.3,1) ${i * 90}ms both`;
+  });
+}
+
 function renderHud() {
   if (!S) return;   /* modo docente: no hay diario de alumno que mostrar */
   const level = levelFromXp(S.progression.xp_total);
   const rank = rankForLevel(level);
   $('#hud-name').textContent = S.profile.explorer_name;
   $('#hud-rank').textContent = rank.name;
-  $('#hud-doubloons').textContent = S.progression.doubloons_balance;
+  /* El saldo sube contando cuando crece. Es el número que un niño mira más
+     veces al día, y verlo cambiar es la mitad del premio. Cuando baja
+     —acaba de comprar algo— se pone y ya: contar hacia atrás lo que se gasta
+     sería subrayar la pérdida. */
+  const bolsa = $('#hud-doubloons');
+  const antes = Number(bolsa.textContent) || 0;
+  const ahora = S.progression.doubloons_balance;
+  if (bolsa.dataset.visto && ahora > antes) contarHasta(bolsa, ahora);
+  else bolsa.textContent = ahora;
+  bolsa.dataset.visto = '1';
   const cur = xpForLevel(level), next = xpForLevel(level + 1);
   const pct = Math.min(100, Math.round(((S.progression.xp_total - cur) / (next - cur)) * 100));
 

@@ -1669,6 +1669,87 @@ function bestBazarTarget() {
   return best;
 }
 
+/* ── ¿Por dónde sigo? ──
+
+   El mapa enseñaba seis tarjetas idénticas y ninguna decía «aquí». Para un
+   niño de ocho años, elegir entre seis cosas que se ven igual no es libertad:
+   es un cuello de botella que se resuelve tocando la primera o cerrando la
+   app. Y la app SÍ sabe la respuesta —el motor decide a cada rato qué le
+   conviene— solo que no la decía en la única pantalla donde se pregunta.
+
+   El orden es el de una excavación de verdad:
+     1. Lo que dejó a medias, empezando por lo último que tocó. Volver donde
+        se estaba es lo que menos cuesta y lo que más continuidad da.
+     2. Si no hay nada a medias, el primer estrato abierto sin dominar.
+   Lo que ya está dominado no se propone: para repasar está el Encargo del
+   Bazar, que tiene su propia tarjeta y su propia razón de ser. */
+function dondeSeguir() {
+  let empezado = null, nuevo = null;
+  for (const branchId of playableBranchIds()) {
+    const def = branchDef(branchId);
+    for (const sId of STRATA_ORDER) {
+      if (!stratumHasContent(def, sId)) continue;
+      const st = getStratum(branchId, sId);
+      if (st.status === 'locked' || st.mastery >= 0.8) continue;
+      const cand = { branchId, stratumId: sId, mastery: st.mastery || 0,
+                     ultimo: st.last_practiced || '' };
+      if (st.attempts > 0) {
+        /* El más reciente. A igualdad de fecha, el más avanzado: es donde
+           menos falta para ver la barra llena. */
+        if (!empezado || cand.ultimo > empezado.ultimo ||
+            (cand.ultimo === empezado.ultimo && cand.mastery > empezado.mastery)) empezado = cand;
+      } else if (!nuevo) nuevo = cand;
+    }
+  }
+  return empezado || nuevo;
+}
+
+/* ── El color de cada yacimiento ──
+   Seis tarjetas del mismo beige son seis tarjetas que se leen como una sola
+   lista. Un color por yacimiento las convierte en sitios distintos, que es lo
+   que son. Se elige por el id, no por la posición: así el color de «Ruinas de
+   Kaldros» es el mismo hoy y cuando el docente añada otro yacimiento delante.
+
+   Los seis son de la misma familia que el pergamino —nada de neón sobre papel
+   viejo— y están elegidos para distinguirse también en escala de grises, que
+   es como los ve quien no distingue el rojo del verde. */
+const COLORES_YACIMIENTO = [
+  { id: 'ocre',      tinta: '#8a5a0b', fondo: '#f7e9c8' },
+  { id: 'terracota', tinta: '#a4472a', fondo: '#f9e2d8' },
+  { id: 'jade',      tinta: '#2f6b4f', fondo: '#dcefe2' },
+  { id: 'indigo',    tinta: '#3b5a8a', fondo: '#dee6f4' },
+  { id: 'ciruela',   tinta: '#7a3f68', fondo: '#f0dcec' },
+  { id: 'oliva',     tinta: '#5f6a22', fondo: '#eaeed2' }
+];
+function huellaDeId(id) {
+  const s = String(id || '');
+  let h = 0;
+  for (let i = 0; i < s.length; i++) h = (h * 31 + s.charCodeAt(i)) >>> 0;
+  return h;
+}
+
+function colorDeYacimiento(siteId) {
+  /* El color de partida sale del id —así no baila al añadir un yacimiento
+     delante— pero DOS yacimientos no pueden acabar del mismo color: con seis
+     tintas y tres sitios, dejarlo al azar del hash es jugársela, y el día que
+     salgan dos iguales se pierde justo lo que esto venía a dar. Se reparten en
+     el orden de la configuración y, si una tinta ya está cogida, se toma la
+     siguiente libre. */
+  const sitios = (typeof sitesAll === 'function' ? sitesAll() : []) || [];
+  const n = COLORES_YACIMIENTO.length;
+  const tomadas = new Set();
+  let mio = null;
+  for (const s of sitios) {
+    let k = huellaDeId(s.id) % n;
+    for (let intento = 0; intento < n && tomadas.has(k); intento++) k = (k + 1) % n;
+    tomadas.add(k);
+    if (s.id === siteId) { mio = COLORES_YACIMIENTO[k]; break; }
+  }
+  /* Un yacimiento que no está en la lista —o más de seis— se queda con el
+     suyo por huella: repetir un color es mejor que quedarse sin ninguno. */
+  return mio || COLORES_YACIMIENTO[huellaDeId(siteId) % n];
+}
+
 /* % del mapa dibujado = estratos dominados / estratos totales */
 function mapRevealPct() {
   let total = 0, mastered = 0;

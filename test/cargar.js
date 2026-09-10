@@ -29,22 +29,51 @@ function almacenDeMentira() {
 }
 
 /* Lo mínimo para que app.js y teacher.js se puedan EVALUAR. No sirve para
-   pintar: las pruebas de pintado van en el navegador de verdad. */
-function documentoDeMentira() {
+   pintar de verdad —lo que se ve se comprueba en el navegador— pero sí lleva
+   la cuenta de las clases y de las variables de estilo, que es lo que muchas
+   funciones deciden y devuelven.
+
+   Cada nodo es NUEVO. Antes se clonaba uno compartido con `{...nodo}`, y como
+   la copia es superficial, todos los elementos creados compartían el mismo
+   `dataset` y el mismo `style`: lo que escribía uno lo leía otro. */
+function nodoDeMentira() {
+  const clases = new Set();
   const nodo = {
-    classList: { add() {}, remove() {}, toggle() {}, contains: () => false },
-    addEventListener() {}, appendChild() {}, querySelector: () => nodo,
-    querySelectorAll: () => [], focus() {}, click() {}, select() {},
-    /* Los atributos no se guardan: aquí no se comprueba lo pintado, solo que
-       el código pueda correr. Lo que se ve se comprueba en el navegador. */
+    classList: {
+      add: (...c) => c.forEach(x => clases.add(x)),
+      remove: (...c) => c.forEach(x => clases.delete(x)),
+      toggle: (c, on) => { const v = on === undefined ? !clases.has(c) : !!on;
+                           if (v) clases.add(c); else clases.delete(c); return v; },
+      contains: c => clases.has(c)
+    },
+    addEventListener() {}, appendChild() {}, replaceWith() {},
+    querySelector: () => nodo, querySelectorAll: () => [],
+    focus() {}, click() {}, select() {},
     setAttribute() {}, removeAttribute() {}, getAttribute: () => null,
     hasAttribute: () => false,
-    dataset: {}, style: {}, innerHTML: '', textContent: '', value: '', disabled: false
+    dataset: {},
+    style: { valores: {}, setProperty(k, v) { this.valores[k] = v; },
+             removeProperty(k) { delete this.valores[k]; },
+             getPropertyValue(k) { return this.valores[k] || ''; } },
+    innerHTML: '', textContent: '', value: '', disabled: false, offsetWidth: 0
   };
+  /* `className` refleja lo que hay en classList, que es como se lee en el
+     navegador y como lo comprueban las pruebas. */
+  Object.defineProperty(nodo, 'className', {
+    get: () => [...clases].join(' '),
+    set: v => { clases.clear(); String(v).split(/\s+/).filter(Boolean).forEach(x => clases.add(x)); }
+  });
+  return nodo;
+}
+
+function documentoDeMentira() {
+  /* Un solo nodo para todas las consultas: las pruebas que miran lo pintado
+     leen por el mismo `$()` que usa el código, así que da igual cuál sea. */
+  const nodo = nodoDeMentira();
   return {
     querySelector: () => nodo,
     querySelectorAll: () => [],
-    createElement: () => ({ ...nodo }),
+    createElement: () => nodoDeMentira(),
     addEventListener() {},
     body: nodo,
     documentElement: nodo

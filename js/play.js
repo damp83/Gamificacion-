@@ -33,9 +33,16 @@ function renderMap() {
     return;
   }
 
+  const seguir = dondeSeguir();
+
   for (const site of sites) {
+    /* Cada yacimiento con su color. Seis tarjetas del mismo beige se leen
+       como una lista; con color son sitios distintos, que es lo que son. */
+    const col = colorDeYacimiento(site.id);
     const header = document.createElement('div');
     header.className = 'site-header';
+    header.style.setProperty('--acento', col.tinta);
+    header.style.setProperty('--acento-suave', col.fondo);
     header.innerHTML = `<span class="site-icon">${esc(site.icon)}</span>
       <div><h3>${esc(site.name)}</h3><p>${esc(site.subject)}${esc(site.desc ? ' · ' + site.desc : '')}</p></div>`;
     siteList.appendChild(header);
@@ -52,7 +59,9 @@ function renderMap() {
       const withContent = STRATA_ORDER.filter(sId => stratumHasContent(b, sId));
       const mastered = withContent.filter(sId => strata[sId].mastery >= 0.8).length;
       const card = document.createElement('button');
-      card.className = 'branch-card';
+      card.className = 'branch-card' + (seguir && seguir.branchId === b.id ? ' branch-aqui' : '');
+      card.style.setProperty('--acento', col.tinta);
+      card.style.setProperty('--acento-suave', col.fondo);
       card.innerHTML = `<span class="branch-icon">${esc(b.icon)}</span>
         <div class="branch-info">
           <strong>${esc(b.name)}</strong>
@@ -67,6 +76,8 @@ function renderMap() {
       grid.appendChild(card);
     }
   }
+
+  pintarSeguir(seguir);
 
   /* Encargo del Bazar: repaso espaciado con excusa narrativa */
   const bazar = $('#bazar-card');
@@ -93,6 +104,50 @@ function renderMap() {
     bazar.innerHTML = '';
     bazar.classList.add('hidden');
   }
+}
+
+/* ── «Sigue por aquí» ──
+   Un solo botón grande, con nombre propio y el sitio exacto. Enseña cuánto
+   lleva de ese estrato, porque «te falta poco» mueve más que «empieza algo».
+   Si no hay nada empezado ni abierto —todo dominado— no se pinta: inventar un
+   destino sería mandarle a repasar disfrazado de avanzar. */
+function pintarSeguir(destino) {
+  const caja = $('#seguir-card');
+  if (!caja) return;
+  if (!destino) { caja.innerHTML = ''; caja.classList.add('hidden'); return; }
+
+  const b = branchDef(destino.branchId);
+  const site = siteOfBranch(destino.branchId);
+  const meta = STRATA_META[destino.stratumId];
+  const col = colorDeYacimiento(site ? site.id : '');
+  const pct = Math.round((destino.mastery || 0) * 100);
+  const empezado = pct > 0;
+
+  caja.style.setProperty('--acento', col.tinta);
+  caja.style.setProperty('--acento-suave', col.fondo);
+  caja.innerHTML = `
+    <div class="seguir-eyebrow">${empezado ? 'Sigue por aquí' : 'Empieza por aquí'}</div>
+    <div class="seguir-cuerpo">
+      <span class="seguir-icono">${esc(b.icon || '⛏️')}</span>
+      <div class="seguir-texto">
+        <strong>${esc(b.name)}</strong>
+        <p>${esc(meta.name)} · ${esc(meta.label)}</p>
+        ${empezado ? `<div class="seguir-barra"><i style="width:${pct}%"></i></div>
+          <small>${pct}% de este estrato</small>` : '<small>Sin empezar todavía</small>'}
+      </div>
+    </div>
+    <button class="btn btn-primary seguir-btn" id="btn-seguir">
+      ${ico('pickaxe')} ${empezado ? 'Seguir excavando' : 'Empezar a excavar'}</button>`;
+
+  $('#btn-seguir').addEventListener('click', () => {
+    if (!startMission(destino.branchId, destino.stratumId)) {
+      toast('Ese estrato no tiene retos todavía.');
+      return;
+    }
+    renderMissionScreen();
+    show('mission');
+  });
+  caja.classList.remove('hidden');
 }
 
 /* ── Pozo / estratos ── */
@@ -270,6 +325,42 @@ function renderProgressDots() {
     else if (i === mission.index) cls += ' qdot-current';
     return `<span class="${cls}"></span>`;
   }).join('');
+  pintarRacha();
+}
+
+/* ── La racha ──
+   El motor lleva la cuenta de los aciertos seguidos desde siempre y el niño no
+   veía nada: seis puntitos que cambian de color y punto. Tres seguidos es el
+   momento en que empieza a haber algo que perder, y a partir de ahí es lo que
+   sostiene la atención hasta el final de la expedición.
+
+   Aparece en el tres, no antes: felicitar por uno convierte el aviso en ruido
+   y a los dos días no lo mira nadie. Y NO castiga al fallar —simplemente
+   desaparece— porque en esta app el error no penaliza, y una racha que se
+   rompe con estruendo es exactamente eso. */
+const RACHA_MINIMA = 3;
+function rachaActual() {
+  let n = 0;
+  for (let i = (mission.resolved || []).length - 1; i >= 0; i--) {
+    if (!mission.resolved[i]) break;
+    n++;
+  }
+  return n;
+}
+function pintarRacha() {
+  const el = $('#mission-racha');
+  if (!el) return;
+  const n = rachaActual();
+  if (n < RACHA_MINIMA) { el.classList.add('hidden'); el.dataset.n = ''; return; }
+  const nuevo = el.dataset.n !== String(n);
+  el.innerHTML = `<span class="racha-llama" aria-hidden="true">🔥</span> ${n}`
+    + `<span class="racha-texto"> seguidos</span>`;
+  el.classList.remove('hidden');
+  el.dataset.n = String(n);
+  /* Solo late cuando el número CAMBIA: repintar la pantalla no es un logro. */
+  if (nuevo && !menosMovimiento()) {
+    el.classList.remove('racha-late'); void el.offsetWidth; el.classList.add('racha-late');
+  }
 }
 function renderQuestion() {
   renderProgressDots();
@@ -320,6 +411,32 @@ function onAnswer(index, btn) {
   }, 700);
 }
 
+/* ── Los personajes se ven, no solo se nombran ──
+   Tobías y Kira salían nombrados en el texto —«Tobías te mira con cara de yo
+   también me equivoco»— y no aparecían por ninguna parte. Un compañero al que
+   solo se le cita no acompaña a nadie: sale su cara, y quien habla se sabe.
+
+   Y sí, importa cuál sale. El de acertar celebra; el de fallar acompaña. Un
+   niño de ocho años que se equivoca no necesita un aspaviento, necesita ver
+   que alguien sigue ahí. */
+const ANIMOS_BIEN = [
+  { quien: '🪲', texto: '¡Hallazgo descubierto!' },
+  { quien: '⛏️', texto: '¡Excavación perfecta!' },
+  { quien: '🪲', texto: '¡Kira aplaude con las antenas!' },
+  { quien: '🐕', texto: '¡Tobías ladra de alegría!' }
+];
+const ANIMOS_MAL = [
+  { quien: '🧔🏻‍♂️', texto: '¡Trampa! Bruno ya había caído en esa misma…' },
+  { quien: '🧔🏻‍♂️', texto: '¡Zas! Una reja… y Bruno dentro, contando chistes.' },
+  { quien: '🐕', texto: 'La losa se hundió. Tobías te mira con cara de «yo también me equivoco».' }
+];
+function ponerTitulo(animo) {
+  const el = $('#feedback-title');
+  const a = (animo && animo.texto) ? animo : { quien: '', texto: String(animo || '') };
+  el.innerHTML = (a.quien ? `<span class="feedback-quien" aria-hidden="true">${esc(a.quien)}</span>` : '')
+    + esc(a.texto);
+}
+
 function showFeedback(res, extra) {
   renderProgressDots(); /* el punto del reto recién resuelto ya refleja el resultado */
   $('#question-card').classList.add('hidden');
@@ -327,6 +444,9 @@ function showFeedback(res, extra) {
   card.classList.remove('hidden');
   const btnRestore = $('#btn-restore');
   btnRestore.classList.add('hidden');
+  /* Al fallar, lo que hay que leer es la explicación, no el titular. Era el
+     texto más pequeño y más gris de la pantalla, justo al revés. */
+  card.classList.toggle('feedback-ensena', !res.correct && !extra.restored);
 
   if (extra.restored) {
     selloFeedback('wrench', 'logro');
@@ -336,15 +456,11 @@ function showFeedback(res, extra) {
       : 'Corregiste tu propio error. (Ya usaste las 5 restauraciones con premio de hoy.)';
   } else if (res.correct) {
     selloFeedback('check', 'bien');
-    $('#feedback-title').textContent = pick(['¡Hallazgo descubierto!', '¡Excavación perfecta!', '¡Kira aplaude con las antenas!', '¡Tobías ladra de alegría!']);
+    ponerTitulo(pick(ANIMOS_BIEN));
     $('#feedback-explain').textContent = res.explanation;
   } else {
     selloFeedback('cross', 'mal');
-    $('#feedback-title').textContent = pick([
-      '¡Trampa! Bruno ya había caído en esa misma…',
-      '¡Zas! Una reja… y Bruno dentro, contando chistes.',
-      'La losa se hundió. Tobías te mira con cara de «yo también me equivoco».'
-    ]);
+    ponerTitulo(pick(ANIMOS_MAL));
     $('#feedback-explain').textContent = res.explanation;
     /* ofrecer restauración del hallazgo (metacognición) */
     if (!mission.restoring) {
@@ -402,13 +518,17 @@ function renderResult(r) {
   const rewards = $('#result-rewards');
   rewards.innerHTML = `
     <div class="reward-row"><span>Aciertos a la primera</span><strong>${r.firstTryCorrect}/${r.total}</strong></div>
-    <div class="reward-row"><span>${ico('star')} Puntos de Expedición</span><strong>+${r.pe}</strong></div>
-    <div class="reward-row"><span>${ico('coin')} Doblones</span><strong>+${r.coins}</strong></div>
+    <div class="reward-row"><span>${ico('star')} Puntos de Expedición</span><strong data-contar="${r.pe}">+${r.pe}</strong></div>
+    <div class="reward-row"><span>${ico('coin')} Doblones</span><strong data-contar="${r.coins}">+${r.coins}</strong></div>
     ${r.restored ? `<div class="reward-row"><span>${ico('vessel')} Hallazgos restaurados</span><strong>${r.restored}</strong></div>` : ''}
     ${r.notes.map(n => `<div class="reward-note">${n}</div>`).join('')}
     ${r.leveledUp ? `<div class="reward-levelup">🎉 ¡Has subido al nivel ${r.newLevel}! Ahora eres ${rankForLevel(r.newLevel).name}.</div>` : ''}
     ${r.nowMastered ? `<div class="reward-levelup">🗺️ ¡El mapa del Atlas se dibuja un poco más!</div>` : ''}
     ${r.reabreGuardian ? `<div class="reward-levelup">🗿 La Cámara del Guardián vuelve a estar abierta.</div>` : ''}`;
+
+  /* Los números suben, y las filas entran una detrás de otra. */
+  rewards.querySelectorAll('[data-contar]').forEach(el => contarHasta(el, el.dataset.contar, '+'));
+  escalonar([...rewards.children]);
 
   const dialog = $('#result-dialog');
   let brunoSays;
