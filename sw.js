@@ -1,5 +1,5 @@
 /* Expedición Atlas — service worker: caché de la app shell para uso sin conexión */
-const CACHE = 'atlas-shell-v87';
+const CACHE = 'atlas-shell-v88';
 const ASSETS = [
   './',
   './index.html',
@@ -33,6 +33,11 @@ const ASSETS = [
   './img/tobias-calma.webp',
   './img/tobias-fiesta.webp',
   './img/carta.webp',
+  './img/kaldros.webp',
+  './img/biblioteca.webp',
+  './img/campamento.webp',
+  './img/guardian.webp',
+  './img/sello.webp',
   /* Las tipografías forman parte de la app shell: sin ellas, en un aula sin
      red la plataforma se vería con la fuente del sistema. */
   './fonts/nunito-latin.woff2',

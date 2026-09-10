@@ -44,7 +44,9 @@ function renderMap() {
     header.dataset.site = site.id;      /* la carta de arriba apunta aquí */
     header.style.setProperty('--acento', col.tinta);
     header.style.setProperty('--acento-suave', col.fondo);
-    header.innerHTML = `<span class="site-icon">${esc(site.icon)}</span>
+    header.innerHTML = `${site.img
+        ? `<img class="site-icon site-img" src="${esc(site.img)}" alt="" loading="lazy">`
+        : `<span class="site-icon">${esc(site.icon)}</span>`}
       <div><h3>${esc(site.name)}</h3><p>${esc(site.subject)}${esc(site.desc ? ' · ' + site.desc : '')}</p></div>`;
     siteList.appendChild(header);
 
@@ -387,10 +389,7 @@ function pintarEscenaDelCampamento() {
   scene.innerHTML = `
     <div class="escena" role="img" aria-label="Tu campamento${
       piezas.length ? ' con ' + esc(piezas.map(p => p.name).join(', ')) : ' todavía vacío'}">
-      <div class="escena-cielo"></div>
-      <div class="escena-duna escena-duna-lejos"></div>
-      <div class="escena-duna escena-duna-cerca"></div>
-      <div class="escena-suelo"></div>
+      <img class="escena-fondo" src="${esc(FONDO_CAMPAMENTO)}" alt="" loading="lazy">
       ${piezas.map(p => `<span class="escena-cosa" title="${esc(p.name)}" aria-hidden="true"
         style="left:${p.sitio.x}%;bottom:${p.sitio.y}%;font-size:${(p.sitio.escala * 2.1).toFixed(2)}rem;z-index:${p.sitio.z}">${esc(p.icon)}</span>`).join('')}
       <span class="escena-yo" aria-hidden="true">${avatarDelExplorador()}</span>
@@ -529,6 +528,11 @@ function openGuardianHall(branchId) {
   /* el rostro del Guardián ya está justo encima: repetir el emoji en el título
      solo hacía la línea más larga */
   $('#guardian-title').textContent = `Cámara del Guardián · ${b.name}`;
+  /* La cara del Guardián. Es el momento más dramático del pozo y era un
+     pictograma de trazo: aquí sí hace falta un dibujo. */
+  const cara = $('.guardian-face');
+  if (cara) cara.innerHTML = `<img class="guardian-img" src="${esc(CARA_GUARDIAN)}"
+    alt="El Guardián de la cámara, con los ojos cerrados" loading="lazy">`;
   $('#guardian-dialog').innerHTML = `${retrato('bruno', 'dialog-avatar')}
     <div class="dialog-text"><strong>Prof. Bruno Ocaña</strong>
     <p>«${est.intentos
@@ -1105,9 +1109,10 @@ function renderLogbook() {
   const history = lb.history.slice(-12);
   stamps.innerHTML = '<div class="stamps-route">' +
     history.map(h => `<span class="stamp ${h.stamped ? 'stamp-earned' : h.protected ? 'stamp-protected' : 'stamp-missed'}"
-      title="${h.week_id}">${h.stamped ? '📍' : h.protected ? '🪢' : '·'}</span>`).join('<span class="route-line"></span>') +
+      title="${h.week_id}">${h.stamped ? sellito() : h.protected ? '🪢' : '·'}</span>`).join('<span class="route-line"></span>') +
     (history.length ? '<span class="route-line"></span>' : '') +
-    `<span class="stamp stamp-current" title="Semana actual">${lb.active_days_this_week.length >= 3 ? '📍' : '⏳'}</span>` +
+    `<span class="stamp stamp-current" title="Semana actual">${
+      lb.active_days_this_week.length >= 3 ? sellito() : '⏳'}</span>` +
     '</div>';
   /* Una ruta con un solo sello por dibujar no es una ruta: se dice qué va a
      ser. Y sustituye a la regla en vez de sumarse: quien todavía no tiene
@@ -1145,6 +1150,12 @@ function renderLogbook() {
        quien la escribe, que es lo que hace una bitácora de verdad. */
 
 const DIAS_PARA_SELLO = 3;
+
+/* El sello, dibujado. Cada semana completa deja uno en la ruta, y es lo que
+   sostiene el hábito: tiene que apetecer conseguirlo, no ser un punto rojo. */
+function sellito() {
+  return `<img class="sello-img" src="${esc(SELLO_SEMANA)}" alt="">`;
+}
 
 function semanaDeLaBitacora(estado) {
   const lb = (estado || S).logbook;
@@ -1191,8 +1202,9 @@ function pintarSemanaDeLaBitacora() {
     <p class="semana-titulo">${esc(s.titulo)}</p>
     <div class="semana-dias" role="img"
          aria-label="${s.hechos} de ${s.total} días de expedición esta semana">
-      ${Array.from({ length: s.total }, (_, i) =>
-        `<span class="semana-dia${i < s.hechos ? ' dia-hecho' : ''}" aria-hidden="true"></span>`).join('')}
+      ${Array.from({ length: s.total }, (_, i) => i < s.hechos
+        ? `<span class="semana-dia dia-hecho" aria-hidden="true"><img src="${esc(SELLO_SEMANA)}" alt=""></span>`
+        : '<span class="semana-dia" aria-hidden="true"></span>').join('')}
     </div>
     <p class="semana-dice">${esc(s.dice)}</p>`;
 }

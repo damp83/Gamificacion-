@@ -1422,6 +1422,15 @@ se llamaba «El Mapa del Atlas» sin mapa. Ahora están dibujados.
 | **Kira** | Sus pistas dentro del reto y en el Taller |
 | **Tobías** | Dos caras: acompaña al fallar, celebra al acertar, y vive en el campamento |
 | **La carta** | Fondo del mapa |
+| **Ruinas de Kaldros** y **Biblioteca de Arena** | Cabecera de su yacimiento |
+| **El paisaje del desierto** | Fondo del campamento |
+| **El Guardián** | Antesala de su Cámara |
+| **El sello de lacre** | La semana en curso y la ruta de sellos |
+
+Los yacimientos llevan `img` igual que los roles: **con dibujo sale la ilustración, sin
+él el emoji**. El Taller de Cartografía no lleva ninguno a propósito —no es un sitio del
+mundo, es donde el niño escribe— y se ve perfectamente con el suyo, que es la prueba de
+que un yacimiento creado por el docente tampoco lo va a necesitar.
 
 **Todos viven en un solo sitio del código** (`RETRATOS` y `CARTA_FONDO`, en `content.js`),
 porque a cada uno lo llaman tres o cuatro pantallas distintas y el día que cambie un
@@ -1447,11 +1456,19 @@ los píxeles**: lo que era un aviso pasa a ser parte del dibujo. Se le quita con
 conexión —solo desaparece lo gris que se alcanza desde el borde sin cruzar el dibujo— y
 así el perro conserva el pecho blanco y Bruno las gafas.
 
-Después van a WebP. Los cinco primeros ocupan **115 KB en total**; en PNG serían 495.
+Y a veces el damero queda **atrapado dentro del dibujo**: en la Biblioteca de Arena se
+veía por el hueco del arco, rodeado de piedra por los cuatro lados, así que la pasada
+desde el borde no llegaba nunca. Para eso hay una segunda pasada que no usa la conexión
+sino el color exacto: solo desaparece lo que es gris *y* coincide con uno de los tonos
+del propio damero. La piedra del dibujo es ocre, no gris, y no se toca.
+
+Después van a WebP. Los diez ocupan **210 KB en total**; en PNG serían más de un mega.
 Cada uno tiene que entrar en tres sitios y hay pruebas que lo fijan:
 
 - El **código**, o el guion del archivo suelto falla al construir.
 - La **caché del service worker**, o en un aula sin wifi sale el hueco de una imagen rota.
+  La prueba recorre la carpeta, no una lista escrita a mano: una lista se queda vieja en
+  cuanto entra un dibujo nuevo, y entonces deja de comprobar justo lo que acaba de llegar.
 - Y **por debajo de 120 KB**, con 700 KB de tope para la carpeta entera: se descarga en
   cada tablet.
 

@@ -1148,6 +1148,9 @@ function defaultSites() {
     name: 'Ruinas de Kaldros',
     subject: 'Matemáticas',
     icon: '🏛️',
+    /* Como en los roles: con `img` sale el dibujo, sin él el emoji. Un
+       yacimiento que cree el docente no tiene dibujo y se ve igual de bien. */
+    img: 'img/kaldros.webp',
     desc: 'Templo de engranajes, relojes y bóvedas numéricas.',
     enabled: true,
     branches: [
@@ -1177,6 +1180,7 @@ function defaultSites() {
     name: 'Biblioteca de Arena',
     subject: 'Lengua',
     icon: '📜',
+    img: 'img/biblioteca.webp',
     desc: 'Una biblioteca sepultada donde las palabras se descubren como piezas.',
     enabled: true,
     branches: [
@@ -1239,6 +1243,12 @@ const RETRATOS = {
 /* El dibujo del mapa. Va aquí y no dentro del SVG que lo pinta por lo mismo
    que los retratos: el día que cambie, cambia en un sitio. */
 const CARTA_FONDO = 'img/carta.webp';
+/* El paisaje del campamento y la cara del Guardián. Aquí por lo mismo: el día
+   que cambien, cambian en un sitio. */
+const FONDO_CAMPAMENTO = 'img/campamento.webp';
+const CARA_GUARDIAN = 'img/guardian.webp';
+/* El sello que se estampa cada semana con tres días de expedición. */
+const SELLO_SEMANA = 'img/sello.webp';
 
 /* El retrato de un compañero, listo para meter en cualquier sitio. Si algún
    día falta el dibujo, sale su emoji y la pantalla sigue entera: es lo mismo
