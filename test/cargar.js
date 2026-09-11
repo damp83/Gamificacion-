@@ -15,7 +15,7 @@ const vm = require('node:vm');
 
 const RAIZ = path.join(__dirname, '..');
 /* El mismo orden que index.html y que tools/build-standalone.py */
-const ORDEN = ['content', 'generador', 'config', 'cloud', 'state', 'game', 'classview',
+const ORDEN = ['demo', 'content', 'generador', 'config', 'cloud', 'state', 'game', 'classview',
                'ui', 'play', 'aula', 'teacher', 'app'];
 
 function almacenDeMentira() {
@@ -118,8 +118,12 @@ function cargarApp(ficheros) {
     navigator: { onLine: true },
     /* La dirección desde la que se sirve la app. Importa: es la que hay que
        dar de alta en Appwrite, y el diagnóstico de conexión la enseña. */
+    /* `reload` se apunta en vez de recargar: la salida de la demostración
+       recarga la página entera, y aquí lo que hay que comprobar es que la
+       pide, no que el navegador obedezca. */
     location: { protocol: 'https:', origin: 'https://damp83.github.io',
-                href: 'https://damp83.github.io/Gamificacion-/' },
+                href: 'https://damp83.github.io/Gamificacion-/',
+                recargas: 0, reload() { this.recargas++; } },
     crypto: require('node:crypto').webcrypto,
     /* Navegar entre pantallas sube la página arriba. En las pruebas no hay
        nada que subir, pero sin esto la llamada revienta la prueba entera. */

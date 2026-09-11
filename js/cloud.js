@@ -12,7 +12,10 @@ function cloudConfigured() {
   const c = ATLAS_CONFIG.appwrite;
   return !!(c.endpoint && c.projectId && c.databaseId && c.collectionId);
 }
-function cloudEnabled() { return CLOUD.enabled; }
+/* En demostración la nube no existe. Va aquí, en la puerta por la que pasa
+   todo el mundo, y no repartido por cada sitio que la usa: la mitad de esos
+   sitios los escribirá alguien dentro de un año. */
+function cloudEnabled() { return !DEMO && CLOUD.enabled; }
 function cloudUser() { return CLOUD.user; }
 
 function cloudInit() {
@@ -715,6 +718,7 @@ async function cloudRegister(name, username, pass) {
    que el docente puede dar de alta a toda la clase sin perder la suya. El
    diario en sí lo crea cada alumno al entrar por primera vez. */
 async function cloudCreateStudent(name, username, password) {
+  if (DEMO) return { ok: false, reason: 'demo' };
   if (!CLOUD.enabled) return { ok: false, reason: 'sin-nube' };
   try {
     const u = await CLOUD.account.create(Appwrite.ID.unique(), cloudEmail(username), password, name);
@@ -830,12 +834,12 @@ async function cloudLoadState() {
    pozos de fábrica, como hasta ahora. */
 const MI_AULA_KEY = 'atlas_mi_aula_v1';
 function recordarMiAula(id) {
-  try { if (id) localStorage.setItem(MI_AULA_KEY, String(id)); } catch (e) { /* sin almacenamiento */ }
+  try { if (id) almacen().setItem(MI_AULA_KEY, String(id)); } catch (e) { /* sin almacenamiento */ }
 }
 function miAula() {
   const abierta = (typeof aulaActiva === 'function' && aulaActiva()) || '';
   if (abierta) return abierta;
-  try { return localStorage.getItem(MI_AULA_KEY) || ''; } catch (e) { return ''; }
+  try { return almacen().getItem(MI_AULA_KEY) || ''; } catch (e) { return ''; }
 }
 
 /* ── Los ajustes de la clase, al arrancar ──
@@ -1008,6 +1012,7 @@ async function cloudFetchConfig() {
 }
 
 async function cloudPublishConfig(nombreDocente) {
+  if (DEMO) return { ok: false, reason: 'demo' };
   if (!sharedConfigOn()) return { ok: false, reason: 'sin-nube' };
   if (!CLOUD.user) return { ok: false, reason: 'sin-sesion' };
   const c = ATLAS_CONFIG.appwrite;

@@ -11,7 +11,7 @@
    copia guardada. Sin este número, «ya está arreglado» y «a mí no me pasa» son
    indistinguibles. Va junto al nombre de la caché del service worker, y una
    prueba comprueba que no se separen. */
-const ATLAS_VERSION = 'v96';
+const ATLAS_VERSION = 'v97';
 
 const ATLAS_DEFAULTS = {
 
@@ -425,7 +425,7 @@ function repararIdsRepetidos(o) {
 
 function loadTeacherConfig() {
   try {
-    const raw = localStorage.getItem(TEACHER_CONFIG_KEY);
+    const raw = almacen().getItem(TEACHER_CONFIG_KEY);
     idsReparados = false;
     applyOverlay(migrateOverlay(raw ? JSON.parse(raw) : {}));
     /* Si había ids repetidos, la reparación tiene que quedar guardada Y
@@ -453,7 +453,7 @@ function aplicarRetosDeLaNube() {
 }
 
 function saveTeacherConfig() {
-  try { localStorage.setItem(TEACHER_CONFIG_KEY, JSON.stringify(ATLAS_OVERLAY)); }
+  try { almacen().setItem(TEACHER_CONFIG_KEY, JSON.stringify(ATLAS_OVERLAY)); }
   catch (e) { /* almacenamiento no disponible */ }
 
   /* ── Y arriba, a la clase ──
@@ -490,13 +490,13 @@ let ATLAS_CONFIG_META = { touchedAt: 0, sharedAt: 0, by: '', backupAt: 0, roster
 
 function loadConfigMeta() {
   try {
-    const raw = localStorage.getItem(CONFIG_META_KEY);
+    const raw = almacen().getItem(CONFIG_META_KEY);
     if (raw) ATLAS_CONFIG_META = { touchedAt: 0, sharedAt: 0, by: '', backupAt: 0, rosterAt: 0, ...JSON.parse(raw) };
   } catch (e) { /* se queda con los valores por defecto */ }
   return ATLAS_CONFIG_META;
 }
 function saveConfigMeta() {
-  try { localStorage.setItem(CONFIG_META_KEY, JSON.stringify(ATLAS_CONFIG_META)); }
+  try { almacen().setItem(CONFIG_META_KEY, JSON.stringify(ATLAS_CONFIG_META)); }
   catch (e) { /* almacenamiento no disponible */ }
 }
 /* ¿Se ha editado algo aquí después de recoger lo del equipo? */

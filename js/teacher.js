@@ -3586,6 +3586,7 @@ function cfgIA(body) {
       iaEstado = '⚠️ Eso no parece una clave de Anthropic. Empiezan por «sk-ant-» y son largas.';
       renderTeacherConfig(); return;
     }
+    if (bloqueadoEnDemo('guarda ninguna clave')) return;
     cfgSave('iaClave', v, false);
     iaEstado = 'Clave guardada en este equipo.';
     renderTeacherConfig();
@@ -4142,6 +4143,7 @@ function cfgCopia(body) {
 
   const pub = $('#cfg-pub');
   if (pub) pub.addEventListener('click', async () => {
+    if (bloqueadoEnDemo('publican los ajustes')) return;
     pub.disabled = true;
     const res = await cloudPublishConfig(ATLAS_CONFIG.teacherName);
     pub.disabled = false;
@@ -4180,6 +4182,7 @@ function cfgCopia(body) {
 
   /* ── Descargar la copia ── */
   $('#cfg-bk-save').addEventListener('click', async () => {
+    if (bloqueadoEnDemo('descarga la copia de seguridad')) return;
     const boton = $('#cfg-bk-save');
     boton.disabled = true;
     const paquete = exportBackup();
@@ -4216,6 +4219,7 @@ function cfgCopia(body) {
 
   /* ── Ver el texto (reserva cuando la descarga está bloqueada) ── */
   $('#cfg-bk-text').addEventListener('click', async () => {
+    if (bloqueadoEnDemo('copia la copia de seguridad')) return;
     const texto = JSON.stringify(exportBackup());
     const area = $('#cfg-export');
     area.value = texto;

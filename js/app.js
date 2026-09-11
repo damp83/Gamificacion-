@@ -480,6 +480,12 @@ function wireGlobalListeners() {
   });
 
   /* El avatar del campamento abre y cierra el elector de cara. */
+  /* La tercera puerta de la portada, y la salida de la demostración. */
+  const puertaDemo = $('#home-demo');
+  if (puertaDemo) puertaDemo.addEventListener('click', entrarEnDemo);
+  const salida = $('#demo-salir');
+  if (salida) salida.addEventListener('click', salirDeDemo);
+
   $('#camp-avatar').addEventListener('click', () => {
     $('#camp-caras').classList.toggle('hidden');
   });
@@ -533,7 +539,7 @@ function wireGlobalListeners() {
     if (!(await askConfirm('¿Cerrar sesión? Tu diario queda guardado en la nube.', 'Cerrar sesión'))) return;
     await cloudPush();          /* volcar lo pendiente antes de salir */
     await cloudLogout();
-    try { localStorage.removeItem(STORAGE_KEY); } catch (e) { /* sin almacenamiento */ }
+    try { almacen().removeItem(STORAGE_KEY); } catch (e) { /* sin almacenamiento */ }
     S = null;
     teacherUnlocked = false;
     showHome();
@@ -609,7 +615,7 @@ function wireAuthListeners() {
     try {
       const name = $('#reg-name').value.trim() || 'Explorador';
       await cloudRegister(name, $('#reg-user').value, $('#reg-pass').value);
-      try { localStorage.removeItem(STORAGE_KEY); } catch (e2) { /* sin almacenamiento */ }
+      try { almacen().removeItem(STORAGE_KEY); } catch (e2) { /* sin almacenamiento */ }
       createState(name);        /* diario nuevo, se sube al primer guardado */
       S.profile.grade = readGradeReg();
       saveState();

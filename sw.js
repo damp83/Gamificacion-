@@ -1,10 +1,11 @@
 /* Expedición Atlas — service worker: caché de la app shell para uso sin conexión */
-const CACHE = 'atlas-shell-v96';
+const CACHE = 'atlas-shell-v97';
 const ASSETS = [
   './',
   './index.html',
   './manifest.webmanifest',
   './css/styles.css',
+  './js/demo.js',
   './js/content.js',
   './js/generador.js',
   './js/config.js',

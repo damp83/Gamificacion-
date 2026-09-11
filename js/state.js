@@ -394,14 +394,14 @@ function migrarClavesDeDiarios() {
 
 function loadDiaries() {
   try {
-    const raw = localStorage.getItem(DIARIES_KEY);
+    const raw = almacen().getItem(DIARIES_KEY);
     const o = raw ? JSON.parse(raw) : null;
     return (o && typeof o.diaries === 'object') ? o.diaries : {};
   } catch (e) { return {}; }
 }
 function saveDiaries(map) {
   try {
-    localStorage.setItem(DIARIES_KEY, JSON.stringify({ v: 1, diaries: map }));
+    almacen().setItem(DIARIES_KEY, JSON.stringify({ v: 1, diaries: map }));
     guardadoVaBien();
   }
   catch (e) { guardadoHaFallado(e); }
@@ -562,13 +562,13 @@ let AULA = { id: '', name: '', pulledAt: 0 };
 
 function loadAula() {
   try {
-    const raw = localStorage.getItem(AULA_KEY);
+    const raw = almacen().getItem(AULA_KEY);
     if (raw) AULA = { id: '', name: '', pulledAt: 0, ...JSON.parse(raw) };
   } catch (e) { /* se queda la vacía */ }
   return AULA;
 }
 function saveAula() {
-  try { localStorage.setItem(AULA_KEY, JSON.stringify(AULA)); } catch (e) { /* sin sitio */ }
+  try { almacen().setItem(AULA_KEY, JSON.stringify(AULA)); } catch (e) { /* sin sitio */ }
 }
 function aulaActiva() { return AULA.id || ''; }
 function setAulaActiva(id, nombre) {
@@ -593,11 +593,11 @@ function cerrarAula() {
    no lo veía nunca, porque su app seguía leyendo el suyo. */
 const DOCIDS_KEY = 'atlas_docids_v1';
 function loadDocIds() {
-  try { return JSON.parse(localStorage.getItem(DOCIDS_KEY) || '{}') || {}; }
+  try { return JSON.parse(almacen().getItem(DOCIDS_KEY) || '{}') || {}; }
   catch (e) { return {}; }
 }
 function saveDocIds(map) {
-  try { localStorage.setItem(DOCIDS_KEY, JSON.stringify(map)); } catch (e) { /* sin almacenamiento */ }
+  try { almacen().setItem(DOCIDS_KEY, JSON.stringify(map)); } catch (e) { /* sin almacenamiento */ }
 }
 function recordarDocId(clave, docId) {
   if (!clave || !docId) return;
@@ -621,14 +621,14 @@ function docIdConocido(clave) { return loadDocIds()[clave] || ''; }
    aquí» en vez de que se descubra en junio. */
 const SUBIDAS_KEY = 'atlas_subidas_v1';
 function loadSubidas() {
-  try { return JSON.parse(localStorage.getItem(SUBIDAS_KEY) || '{}') || {}; }
+  try { return JSON.parse(almacen().getItem(SUBIDAS_KEY) || '{}') || {}; }
   catch (e) { return {}; }
 }
 function apuntarSubida(clave, updatedAt) {
   if (!clave) return;
   const map = loadSubidas();
   map[clave] = { upd: Number(updatedAt) || 0, at: Date.now() };
-  try { localStorage.setItem(SUBIDAS_KEY, JSON.stringify(map)); }
+  try { almacen().setItem(SUBIDAS_KEY, JSON.stringify(map)); }
   catch (e) { /* sin almacenamiento: el panel lo dirá por otro lado */ }
 }
 
@@ -665,17 +665,17 @@ const FALLOS_IA_DUROS = ['clave', 'saldo', 'workspace'];
 
 function apuntarResultadoIA(r) {
   try {
-    if (r && r.ok) { localStorage.removeItem(FALLO_IA_KEY); return; }
+    if (r && r.ok) { almacen().removeItem(FALLO_IA_KEY); return; }
     const motivo = r && r.reason;
     if (!FALLOS_IA_DUROS.includes(motivo)) return;
-    localStorage.setItem(FALLO_IA_KEY, JSON.stringify({
+    almacen().setItem(FALLO_IA_KEY, JSON.stringify({
       motivo, texto: String((r && r.texto) || '').slice(0, 300), at: Date.now()
     }));
   } catch (e) { /* sin almacenamiento */ }
 }
 function ultimoFalloIA() {
   try {
-    const o = JSON.parse(localStorage.getItem(FALLO_IA_KEY) || 'null');
+    const o = JSON.parse(almacen().getItem(FALLO_IA_KEY) || 'null');
     return (o && FALLOS_IA_DUROS.includes(o.motivo)) ? o : null;
   } catch (e) { return null; }
 }
@@ -692,11 +692,11 @@ const CUPO_ESTIMADO = 5 * 1024 * 1024;
 function sitioUsado() {
   let bytes = 0;
   try {
-    for (let i = 0; i < localStorage.length; i++) {
-      const k = localStorage.key(i);
+    for (let i = 0; i < almacen().length; i++) {
+      const k = almacen().key(i);
       if (!k) continue;
       /* UTF-16: cada carácter ocupa dos, clave y valor. */
-      bytes += (k.length + String(localStorage.getItem(k) || '').length) * 2;
+      bytes += (k.length + String(almacen().getItem(k) || '').length) * 2;
     }
   } catch (e) { return null; }
   return { bytes, cupo: CUPO_ESTIMADO, parte: bytes / CUPO_ESTIMADO };
@@ -720,12 +720,12 @@ const RETOS_KEY = 'atlas_retos_v1';
 
 function loadRetosCache() {
   try {
-    const c = JSON.parse(localStorage.getItem(RETOS_KEY) || 'null');
+    const c = JSON.parse(almacen().getItem(RETOS_KEY) || 'null');
     return (c && Array.isArray(c.retos)) ? c : { aula: '', retos: [], at: 0 };
   } catch (e) { return { aula: '', retos: [], at: 0 }; }
 }
 function saveRetosCache(aula, retos) {
-  try { localStorage.setItem(RETOS_KEY, JSON.stringify({ aula: aula || '', retos, at: Date.now() })); }
+  try { almacen().setItem(RETOS_KEY, JSON.stringify({ aula: aula || '', retos, at: Date.now() })); }
   catch (e) { /* almacenamiento lleno: se seguirá leyendo de la nube */ }
 }
 function retosEnCache() { return loadRetosCache().retos; }
@@ -867,9 +867,13 @@ const BACKUP_VERSION = 1;
    La clave de la API sí queda fuera (va en NO_SE_COMPARTE): esa se puede
    volver a pegar en un minuto y su fuga cuesta dinero. */
 function exportBackup() {
+  /* En demostración no hay nada que llevarse: los diarios son inventados y
+     los ajustes también. Descargar un fichero con pinta de copia real sería
+     dejarle al maestro algo que un día restaura encima de su clase. */
+  if (DEMO) return null;
   let propio = null;
   try {
-    const raw = localStorage.getItem(STORAGE_KEY);
+    const raw = almacen().getItem(STORAGE_KEY);
     if (raw) propio = JSON.parse(raw);
   } catch (e) { /* sin diario propio, o ilegible */ }
   /* La clave de la API se queda fuera. Las contraseñas del alumnado sí van
@@ -957,9 +961,9 @@ function importBackup(paquete) {
   }
   if (paquete.diarioPropio && paquete.diarioPropio.profile) {
     let propio = null;
-    try { propio = JSON.parse(localStorage.getItem(STORAGE_KEY) || 'null'); } catch (e) { propio = null; }
+    try { propio = JSON.parse(almacen().getItem(STORAGE_KEY) || 'null'); } catch (e) { propio = null; }
     if (!propio || (paquete.diarioPropio.updated_at || 0) > (propio.updated_at || 0)) {
-      try { localStorage.setItem(STORAGE_KEY, JSON.stringify(paquete.diarioPropio)); } catch (e) { /* sin sitio */ }
+      try { almacen().setItem(STORAGE_KEY, JSON.stringify(paquete.diarioPropio)); } catch (e) { /* sin sitio */ }
     }
   }
   marcarCopiaHecha();
@@ -1005,13 +1009,13 @@ function saveState() {
     if (typeof aulaScheduleSave === 'function') aulaScheduleSave(diarioActivo);
     return;
   }
-  try { localStorage.setItem(STORAGE_KEY, JSON.stringify(S)); guardadoVaBien(); }
+  try { almacen().setItem(STORAGE_KEY, JSON.stringify(S)); guardadoVaBien(); }
   catch (e) { guardadoHaFallado(e); }
   if (typeof cloudScheduleSave === 'function') cloudScheduleSave();
 }
 function loadState() {
   try {
-    const raw = localStorage.getItem(STORAGE_KEY);
+    const raw = almacen().getItem(STORAGE_KEY);
     if (raw) S = migrateState(JSON.parse(raw));
   } catch (e) { S = null; }
   return S;
