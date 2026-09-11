@@ -491,6 +491,85 @@ function juntarCriterios(listas) {
   return out;
 }
 
+/* ── Los códigos, deducidos de su sitio en el documento ──
+
+   Al modelo se le prohíbe inventar numeración, y con razón: una que el centro
+   no use hace que la tabla de evaluación no case con nada. Pero hay currículos
+   —el de la Región de Murcia, sin ir más lejos— que listan los criterios
+   debajo de cada «Competencia específica N» sin numerarlos, y ahí el código no
+   se inventa: está escrito en la estructura del documento. El criterio que
+   hace tres bajo la competencia dos es el 2.3, y eso lo sabe cualquier
+   maestro que lo esté leyendo.
+
+   Así que no lo adivina el modelo: se BUSCA cada criterio en el currículo, se
+   mira qué encabezado le queda por encima y se cuenta su orden dentro de él.
+   Si un criterio no aparece en el texto —el modelo lo parafraseó, o vino de un
+   trozo que ya no está— se queda sin código, que es mejor que ponerle uno que
+   no le toca.
+
+   Solo se tocan los que vienen SIN código. Uno que el currículo trae numerado
+   manda siempre sobre esto. */
+const CABECERA_COMPETENCIA = /compet[eé]ncia\s+espec[ií]fica\s*(\d+)/gi;
+
+function normalizarParaBuscar(t) {
+  return String(t == null ? '' : t).toLowerCase().replace(/\s+/g, ' ').trim();
+}
+
+function numerarCriteriosPorPosicion(criterios, curriculo) {
+  const lista = criterios || [];
+  if (!lista.some(c => !String(c.codigo || '').trim())) return lista;   /* ya vienen todos */
+  const texto = normalizarParaBuscar(curriculo);
+  if (!texto) return lista;
+
+  /* Dónde empieza cada competencia dentro del texto. */
+  const cabeceras = [];
+  CABECERA_COMPETENCIA.lastIndex = 0;
+  let m;
+  while ((m = CABECERA_COMPETENCIA.exec(texto)) !== null) {
+    cabeceras.push({ n: Number(m[1]), en: m.index });
+  }
+
+  /* Dónde cae cada criterio. Ordenarlos por esa posición es además lo que
+     arregla el orden cuando la lectura fue en tandas: cada tanda devuelve los
+     suyos y al juntarlas el orden es el de las llamadas, no el del documento. */
+  const conSitio = lista.map((c, i) => {
+    const donde = texto.indexOf(normalizarParaBuscar(c.texto));
+    return { c, i, donde };
+  });
+
+  const porDocumento = conSitio.slice().sort((a, b) => {
+    if (a.donde < 0 && b.donde < 0) return a.i - b.i;
+    if (a.donde < 0) return 1;
+    if (b.donde < 0) return -1;
+    return a.donde - b.donde;
+  });
+
+  const cuenta = {};
+  for (const x of porDocumento) {
+    if (x.donde < 0) continue;                       /* no está en el texto */
+    /* La última cabecera que queda por encima de él. */
+    let comp = null;
+    for (const h of cabeceras) { if (h.en < x.donde) comp = h; else break; }
+    const grupo = comp ? comp.n : 0;
+    /* El orden se cuenta SIEMPRE, también sobre los que ya traen código. Si el
+       segundo de una competencia viniera numerado y el primero y el tercero no,
+       saltárselo al contar le pondría 1.1 y 1.2 al primero y al tercero, y el
+       tercero es el 1.3. */
+    cuenta[grupo] = (cuenta[grupo] || 0) + 1;
+    if (String(x.c.codigo || '').trim()) continue;   /* el suyo manda */
+    x.c.codigo = comp ? `${comp.n}.${cuenta[grupo]}` : String(cuenta[grupo]);
+    /* Se marca de dónde sale: la pantalla lo enseña distinto de los que venían
+       escritos, porque el maestro tiene que poder corregirlo sabiendo cuál es
+       cuál. */
+    x.c.codigoDeducido = true;
+  }
+  /* Y de paso se devuelven en el orden del documento. Al leer en tandas, cada
+     una trae los suyos y al juntarlas el orden es el de las llamadas: repasar
+     treinta criterios desordenados contra el papel es lo que hace que se
+     cuelen dos. */
+  return porDocumento.map(x => x.c);
+}
+
 async function cloudLeerCriteriosEnTandas(peticion, onProgreso) {
   const trozos = trozosDeCurriculo(peticion.curriculo);
   const avisar = (i, extra) => {
@@ -520,7 +599,7 @@ async function cloudLeerCriteriosEnTandas(peticion, onProgreso) {
                  salida: usados.salida + (r.usados.salida || 0) };
     }
   }
-  const criterios = juntarCriterios(listas);
+  const criterios = numerarCriteriosPorPosicion(juntarCriterios(listas), peticion.curriculo);
   if (!criterios.length) {
     return { ok: false, reason: 'vacio',
       texto: 'La función ha leído el currículo y no ha encontrado criterios de evaluación en él. '

@@ -2766,12 +2766,18 @@ function pintarPropuestaDeCriterios() {
     <div class="cr-propuesta">
       <div class="cr-prop-cab"><strong>${criteriosPropuestos.length} criterios leídos</strong>
         <span class="cfg-tag">${marcados} marcados</span></div>
+      ${criteriosPropuestos.some(c => c.codigoDeducido) ? `<p class="cfg-hint">Tu currículo no
+        trae los criterios numerados, así que <strong>los códigos en cursiva se han deducido de su
+        sitio en el documento</strong>: el que hace tres bajo la competencia dos sale como 2.3.
+        Revísalos, y cámbialos luego en «Tus criterios» si tu centro los llama de otra forma.</p>` : ''}
       ${criteriosPropuestos.map(c => {
         const repe = yaTengo.has((c.texto || '').trim().toLowerCase());
         return `<label class="cr-prop-fila${c.conceptos.length ? '' : ' cr-prop-sin'}">
           <input type="checkbox" class="cr-prop-check" data-n="${c.n}"${c.marcado ? ' checked' : ''}${repe ? ' disabled' : ''}>
           <div>
-            <strong>${esc(c.codigo || '(sin código)')}</strong> ${esc(c.texto)}
+            <strong class="${c.codigoDeducido ? 'cr-cod-deducido' : ''}"${
+              c.codigoDeducido ? ' title="Deducido de su sitio en el documento: tu currículo no lo trae escrito"' : ''
+              }>${esc(c.codigo || '(sin código)')}</strong> ${esc(c.texto)}
             ${c.saberes.length ? `<small class="cr-saberes">Saberes: ${
               c.saberes.map(x => esc(x)).join(' · ')}</small>` : ''}
             <small class="cr-prop-conceptos">${c.conceptos.length

@@ -2920,6 +2920,11 @@ input[type="checkbox"]::after, input[type="radio"]::after {
 .cr-prop-sin { box-shadow: inset 3px 0 0 var(--brass); }
 .cr-prop-conceptos { display: block; margin-top: .25rem; font-size: var(--t-xs); color: var(--ink-soft); }
 
+/* Un código deducido de la posición no es lo mismo que uno que venía escrito
+   en el currículo, y el docente tiene que poder distinguirlos de un vistazo
+   para corregir los que no cuadren con su centro. */
+.cr-cod-deducido { font-style: italic; color: var(--brass); }
+
 .cr-tabla-caja { overflow-x: auto; margin: .6rem 0; border: var(--line); border-radius: var(--r-md); }
 .cr-tabla { border-collapse: collapse; width: 100%; font-size: var(--t-sm); background: var(--surface); }
 .cr-tabla th, .cr-tabla td { padding: .4rem .6rem; border-bottom: 1px solid var(--paper-deep); text-align: left; }

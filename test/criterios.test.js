@@ -556,3 +556,100 @@ test('y en tandas se juntan los de todos los trozos', () => {
     assert.equal(r.criterios.length, r.trozos, 'se perdieron criterios por el camino');
   });
 });
+
+/* ══ Los códigos, deducidos de su sitio en el documento ══
+
+   Al modelo se le prohíbe inventar numeración, y con razón. Pero hay
+   currículos —el de la Región de Murcia— que listan los criterios debajo de
+   cada «Competencia específica N» sin numerarlos, y ahí el código no se
+   inventa: está escrito en la estructura. El que hace tres bajo la competencia
+   dos es el 2.3, y eso lo sabe cualquier maestro que lo esté leyendo. */
+
+const CURRICULO_MURCIA = [
+  'Criterios de evaluación', '',
+  'Competencia específica 1', '',
+  'Comprender las preguntas planteadas a través de diferentes estrategias.', '',
+  'Proporcionar ejemplos de representaciones de situaciones problematizadas.', '',
+  'Competencia específica 2', '',
+  'Emplear algunas estrategias adecuadas en la resolución de problemas.', '',
+  'Obtener posibles soluciones a problemas, de forma guiada.', '',
+  'Describir verbalmente la idoneidad de las soluciones de un problema.', '',
+  'Competencia específica 3', '',
+  'Realizar conjeturas matemáticas sencillas, investigando patrones.'
+].join('\n');
+
+const TEXTOS_MURCIA = [
+  'Comprender las preguntas planteadas a través de diferentes estrategias.',
+  'Proporcionar ejemplos de representaciones de situaciones problematizadas.',
+  'Emplear algunas estrategias adecuadas en la resolución de problemas.',
+  'Obtener posibles soluciones a problemas, de forma guiada.',
+  'Describir verbalmente la idoneidad de las soluciones de un problema.',
+  'Realizar conjeturas matemáticas sencillas, investigando patrones.'
+];
+
+test('se numeran por su competencia y su orden dentro de ella', () => {
+  const c = cargarApp();
+  const leidos = TEXTOS_MURCIA.map(t => ({ codigo: '', texto: t, saberes: [], conceptos: [] }));
+  const r = c.ev('numerarCriteriosPorPosicion')(leidos, CURRICULO_MURCIA);
+  assert.deepEqual(r.map(x => x.codigo), ['1.1', '1.2', '2.1', '2.2', '2.3', '3.1']);
+  assert.ok(r.every(x => x.codigoDeducido), 'no se marca que son deducidos');
+});
+
+test('y salen en el orden del documento aunque lleguen desordenados', () => {
+  /* Al leer en tandas, cada una trae los suyos y al juntarlas el orden es el
+     de las llamadas. Repasar treinta criterios desordenados contra el papel es
+     lo que hace que se cuelen dos. */
+  const c = cargarApp();
+  const desorden = [5, 0, 4, 1, 2, 3].map(i => ({ codigo: '', texto: TEXTOS_MURCIA[i], saberes: [], conceptos: [] }));
+  const r = c.ev('numerarCriteriosPorPosicion')(desorden, CURRICULO_MURCIA);
+  assert.deepEqual(r.map(x => x.texto), TEXTOS_MURCIA);
+  assert.deepEqual(r.map(x => x.codigo), ['1.1', '1.2', '2.1', '2.2', '2.3', '3.1']);
+});
+
+test('un criterio que ya venía numerado manda, y además cuenta al ordenar', () => {
+  /* Si el segundo de una competencia viene numerado y el primero y el tercero
+     no, saltárselo al contar le pondría 1.1 y 1.2 al primero y al tercero, y
+     el tercero es el 1.3. */
+  const c = cargarApp();
+  const leidos = TEXTOS_MURCIA.map((t, i) => ({
+    codigo: i === 3 ? 'MAT.2.9' : '', texto: t, saberes: [], conceptos: []
+  }));
+  const r = c.ev('numerarCriteriosPorPosicion')(leidos, CURRICULO_MURCIA);
+  assert.deepEqual(r.map(x => x.codigo), ['1.1', '1.2', '2.1', 'MAT.2.9', '2.3', '3.1']);
+  assert.ok(!r[3].codigoDeducido, 'el que traía código se marca como deducido');
+});
+
+test('el que no aparece en el texto se queda sin código', () => {
+  /* Si el modelo lo parafraseó, no se puede saber dónde va. Un código que no
+     le toca es peor que ninguno: la tabla del centro no casaría. */
+  const c = cargarApp();
+  const r = c.ev('numerarCriteriosPorPosicion')(
+    [{ codigo: '', texto: 'Algo que el modelo se inventó y no está en el texto.', saberes: [], conceptos: [] }],
+    CURRICULO_MURCIA);
+  assert.equal(r[0].codigo, '');
+});
+
+test('sin competencias que agrupen, se numeran seguidos', () => {
+  const c = cargarApp();
+  const texto = 'Criterios\n\nPrimero de la lista.\n\nSegundo de la lista.';
+  const r = c.ev('numerarCriteriosPorPosicion')(
+    [{ codigo: '', texto: 'Segundo de la lista.' }, { codigo: '', texto: 'Primero de la lista.' }], texto);
+  assert.deepEqual(r.map(x => x.codigo), ['1', '2']);
+});
+
+test('si el currículo ya los trae numerados, no se toca nada', () => {
+  const c = cargarApp();
+  const leidos = [{ codigo: '1.1', texto: 'Uno.' }, { codigo: '1.2', texto: 'Dos.' }];
+  const r = c.ev('numerarCriteriosPorPosicion')(leidos, 'Competencia específica 1\n\nUno.\n\nDos.');
+  assert.deepEqual(r.map(x => x.codigo), ['1.1', '1.2']);
+  assert.ok(!r.some(x => x.codigoDeducido));
+});
+
+test('la pantalla distingue un código deducido de uno que venía escrito', () => {
+  /* El maestro tiene que poder corregir los que no cuadren con su centro, y
+     para eso necesita saber cuál es cuál de un vistazo. */
+  const t = leer('js/teacher.js');
+  assert.match(t, /cr-cod-deducido/);
+  assert.match(t, /los códigos en cursiva se han deducido/);
+  assert.match(leer('css/styles.css'), /\.cr-cod-deducido \{[^}]*italic/);
+});
