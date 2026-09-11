@@ -3480,19 +3480,57 @@ input[type="checkbox"]::after, input[type="radio"]::after {
 /* ── La demostración ──
    Su puerta en la portada y su barra de aviso. La barra es la misma idea que
    la de consulta y a propósito: las dos dicen «esto que ves no es lo tuyo». */
+/* Es la TERCERA PUERTA, no una nota al pie: mismo material que las otras dos
+   —tarjeta levantada, esquina grande, filo de color arriba— para que se vea
+   que se puede entrar por ahí. Lo que cambia es la forma: las dos de arriba
+   van en vertical y en columnas porque el niño elige entre ellas; esta va en
+   horizontal y debajo, porque no compite con ellas. Un maestro que busca una
+   demostración la encuentra; un niño que busca su diario no se despista. */
 .home-demo {
-  display: flex; align-items: flex-start; gap: .8rem; text-align: left;
-  width: 100%; margin-top: var(--s-4); padding: .95rem 1.1rem;
-  background: var(--jungle-tint); border: 0;
-  border-left: 4px solid var(--jungle); border-radius: var(--r-md);
-  color: var(--ink); font: inherit; font-size: var(--t-sm); line-height: 1.5;
-  cursor: pointer; box-shadow: var(--e-1);
-  transition: transform .16s ease, box-shadow .16s ease;
+  display: flex; align-items: center; gap: var(--s-4); text-align: left;
+  width: 100%; margin: calc(var(--s-7) * -1 + var(--s-4)) 0 var(--s-7);
+  padding: var(--s-4) var(--s-5);
+  background: var(--surface-raised); border: 0;
+  border-top: 4px solid var(--jungle); border-radius: var(--r-xl);
+  color: var(--ink); font-family: var(--font-text); font-size: var(--t-sm);
+  line-height: 1.5; cursor: pointer; box-shadow: var(--e-2);
+  transition: transform .14s ease, box-shadow .14s ease;
 }
-.home-demo:hover { transform: translateY(-2px); box-shadow: var(--e-2); }
+.home-demo:hover { transform: translateY(-3px); box-shadow: var(--e-3); }
+.home-demo:active { transform: translateY(0); box-shadow: var(--e-2); }
 .home-demo:focus-visible { outline: 3px solid var(--jungle); outline-offset: 3px; }
-.home-demo .ico { flex-shrink: 0; color: var(--jungle); width: 1.5rem; height: 1.5rem; }
-.home-demo strong { display: block; color: var(--jungle); }
+.home-demo-icon {
+  width: 3.2rem; height: 3.2rem; flex-shrink: 0;
+  display: grid; place-items: center;
+  border-radius: var(--r-pill); background: var(--jungle-tint);
+}
+.home-demo-icon .ico { width: 1.9rem; height: 1.9rem; color: var(--jungle); }
+.home-demo-texto { flex: 1; min-width: 0; display: flex; flex-direction: column; gap: .15rem; }
+.home-demo strong {
+  font-family: var(--font-display); font-weight: 400;
+  font-size: var(--t-lg); color: var(--jungle); line-height: 1.2;
+}
+.home-demo small { font-size: var(--t-sm); color: var(--ink-soft); }
+/* La pastilla de la derecha: sin ella, el bloque se lee como un aviso y nadie
+   lo pulsa. Con ella se ve que es un sitio al que se va. */
+.home-demo-ir {
+  flex-shrink: 0; align-self: center;
+  background: var(--jungle); color: #f3f9ef;
+  border-radius: var(--r-pill); padding: .45rem .95rem;
+  font-size: var(--t-sm); font-weight: 800; white-space: nowrap;
+  box-shadow: var(--e-1);
+}
+/* En pantalla estrecha se apila y la pastilla se va abajo a lo ancho, que es
+   donde el pulgar la encuentra. */
+@media (max-width: 34rem) {
+  /* Y el icono sube a la altura del titular: centrado contra tres renglones
+     de texto se quedaba flotando a media frase. */
+  .home-demo { flex-wrap: wrap; gap: var(--s-3); align-items: flex-start; }
+  .home-demo-icon { width: 2.6rem; height: 2.6rem; }
+  .home-demo-icon .ico { width: 1.5rem; height: 1.5rem; }
+  .home-demo-texto { flex: 1 1 60%; }
+  .home-demo-ir { flex: 1 1 100%; text-align: center; align-self: stretch; }
+}
 
 .demo-bar {
   position: fixed; inset: 0 0 auto 0; z-index: 60;
