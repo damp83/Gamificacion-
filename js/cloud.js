@@ -360,10 +360,26 @@ async function cloudProponerCriterios(peticion) {
     workspace: ATLAS_CONFIG.iaWorkspace || ''
   });
   if (!r.ok) return r;
-  if (!Array.isArray(r.criterios) || !r.criterios.length) {
+  /* ── Dos «ningún criterio» que no son el mismo ──
+     Este mensaje echaba la culpa al texto del docente en los dos casos, y en
+     uno de ellos el texto está perfecto: si la función desplegada es anterior
+     a este paso, no sabe qué es `criterios` y contesta sin ese campo. Mandar a
+     alguien a revisar un currículo que está bien es la peor ayuda posible.
+
+     Se distinguen por la forma de la respuesta: sin el campo, la función no
+     entendió la petición; con el campo vacío, sí lo entendió y no encontró
+     nada, y entonces sí es el texto. */
+  if (!Array.isArray(r.criterios)) {
+    return { ok: false, reason: 'paso-desconocido',
+      texto: 'La función ha contestado, pero sin criterios: la que tienes desplegada es anterior '
+           + 'a esta pantalla y no sabe leerlos. Vuelve a desplegarla con la última versión '
+           + '(Appwrite → Functions → Deployments) y repite.' };
+  }
+  if (!r.criterios.length) {
     return { ok: false, reason: 'vacio',
-      texto: 'No se ha leído ningún criterio. ¿Seguro que el texto pegado trae los criterios de '
-           + 'evaluación y no solo los contenidos?' };
+      texto: 'La función ha leído el currículo y no ha encontrado criterios de evaluación en él. '
+           + 'Comprueba arriba QUÉ currículo está leyendo: si pusiste el texto en un curso '
+           + 'concreto, elige ese curso en la lista y no el de «todos los cursos».' };
   }
   return { ok: true, criterios: r.criterios, usados: r.usados };
 }

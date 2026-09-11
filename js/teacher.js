@@ -2667,6 +2667,10 @@ let criterioAbierto = null;      /* id del criterio con los conceptos abiertos *
 let tablaEvaluacion = null;      /* la última tabla calculada, para no rehacerla */
 let criteriosPropuestos = null;  /* lo que ha leído la IA del currículo, sin aceptar */
 let criteriosEstado = '';        /* qué está pasando con esa lectura */
+/* Qué currículo está elegido para leer. Se recuerda porque el panel se
+   repinta entero a cada cambio, y sin esto la lista volvía al primero: se
+   elegía 2.º, se pintaba la pantalla y se leía el de «todos los cursos». */
+let criterioMateriaElegida = '';
 
 /* Los conceptos agrupados por área, con su etiqueta, para pintar las casillas.
    NO se llama `conceptosPorArea`: generador.js ya tiene una con ese nombre y
@@ -2690,7 +2694,14 @@ function materiasDelCurriculo() {
   const cur = ATLAS_CONFIG.curriculo || {};
   for (const materia of Object.keys(cur)) {
     const nombre = (AREAS_IA[materia] || {}).nombre || materia;
-    if (iaHayParaTodos(materia)) out.push({ clave: materia + '|', nombre, curso: '', materia, cursoNum: null });
+    /* «todos los cursos» y no la materia a secas: en la lista salía
+       «Matemáticas» junto a «Matemáticas · 2.º» y el primero, que es el que
+       viene elegido de fábrica, parecía el general de la materia. Quien pegó
+       su currículo en 2.º le daba al botón con el otro puesto y la pantalla le
+       decía que su texto no traía criterios. */
+    if (iaHayParaTodos(materia)) {
+      out.push({ clave: materia + '|', nombre, curso: 'todos los cursos', materia, cursoNum: null });
+    }
     for (const c of iaCursosConCurriculo(materia)) {
       out.push({ clave: materia + '|' + c, nombre, curso: c + '.º', materia, cursoNum: +c });
     }
@@ -2700,12 +2711,20 @@ function materiasDelCurriculo() {
 
 async function leerCriteriosDelCurriculo() {
   const sel = $('#cr-materia');
-  const elegido = materiasDelCurriculo().find(m => m.clave === (sel && sel.value));
+  if (sel && sel.value) criterioMateriaElegida = sel.value;
+  const lista = materiasDelCurriculo();
+  const elegido = lista.find(m => m.clave === criterioMateriaElegida) || lista[0];
   if (!elegido) return;
+  const comoSeLlama = elegido.nombre + (elegido.curso ? ' · ' + elegido.curso : '');
   const texto = iaCurriculo(elegido.materia, elegido.cursoNum || 'todos');
-  if (!texto.trim()) { criteriosEstado = '⚠️ Ese currículo está vacío.'; renderTeacherConfig(); return; }
+  if (!texto.trim()) {
+    criteriosEstado = `⚠️ El currículo de ${comoSeLlama} está vacío. Se pega en «Retos con IA».`;
+    renderTeacherConfig(); return;
+  }
 
-  criteriosEstado = '⏳ Leyendo el currículo… tarda, que se lo lee entero.';
+  /* Se dice QUÉ se está leyendo, no solo que se está leyendo: si sale mal, lo
+     primero que hay que saber es si se leyó lo que se quería leer. */
+  criteriosEstado = `⏳ Leyendo ${comoSeLlama}… tarda, que se lo lee entero.`;
   criteriosPropuestos = null;
   renderTeacherConfig();
 
@@ -2715,14 +2734,16 @@ async function leerCriteriosDelCurriculo() {
     curriculo: texto
   });
   if (!r.ok) {
-    criteriosEstado = '⚠️ ' + (r.texto || r.detail || r.reason || 'No se ha podido leer.');
+    criteriosEstado = `⚠️ Leyendo ${comoSeLlama}: `
+      + (r.texto || r.detail || r.reason || 'No se ha podido leer.');
     renderTeacherConfig();
     return;
   }
   /* Se marcan de partida los que la app SÍ mide: los que no, se dejan sin
      marcar para que se vean y se decida, no para que se cuelen. */
   criteriosPropuestos = r.criterios.map((c, i) => ({ ...c, marcado: c.conceptos.length > 0, n: i }));
-  criteriosEstado = `Leídos ${r.criterios.length} criterios. Revísalos antes de añadirlos.`;
+  criteriosEstado = `Leídos ${r.criterios.length} criterios de ${comoSeLlama}. `
+    + 'Revísalos antes de añadirlos.';
   renderTeacherConfig();
 }
 
@@ -2810,10 +2831,25 @@ function cfgCriterios(body) {
     saberes se copian literalmente del texto, y si un criterio no lo mide esta app, se dice.</p>
     <div class="cfg-row">
       <label>Materia <select id="cr-materia">${materiasDelCurriculo().map(m =>
-        `<option value="${esc(m.clave)}">${esc(m.nombre)}${m.curso ? ' · ' + esc(m.curso) : ''}</option>`).join('')}</select></label>
+        `<option value="${esc(m.clave)}"${m.clave === criterioMateriaElegida ? ' selected' : ''}>${
+          esc(m.nombre)}${m.curso ? ' · ' + esc(m.curso) : ''}</option>`).join('')}</select></label>
       <button class="btn btn-secondary btn-small" id="cr-leer"${materiasDelCurriculo().length ? '' : ' disabled'}>
         🤖 Leer el currículo y proponer</button>
     </div>
+    ${(() => {
+      /* Cuánto texto tiene lo que está elegido. Sin esto no hay forma de ver
+         desde aquí que se va a leer el currículo equivocado, y es justo el
+         error que hace perder una tarde: el de «Retos con IA» sí lo dice y
+         esta pantalla no lo decía. */
+      const lista = materiasDelCurriculo();
+      const m = lista.find(x => x.clave === criterioMateriaElegida) || lista[0];
+      if (!m) return '';
+      const n = iaCurriculo(m.materia, m.cursoNum || 'todos').trim().length;
+      return `<p class="cfg-hint">Va a leer <strong>${esc(m.nombre)}${
+        m.curso ? ' · ' + esc(m.curso) : ''}</strong>: ${n
+          ? n.toLocaleString('es-ES') + ' caracteres'
+          : '<strong>está vacío</strong>'}. El currículo se pega en «Retos con IA».</p>`;
+    })()}
     ${materiasDelCurriculo().length ? '' :
       '<p class="cfg-hint">Todavía no hay ningún currículo pegado. Se pega en <strong>Retos con IA</strong>.</p>'}
     ${criteriosEstado ? `<p class="cfg-warn">${criteriosEstado}</p>` : ''}
@@ -2933,6 +2969,14 @@ function cfgCriterios(body) {
 
   const leer = $('#cr-leer');
   if (leer) leer.addEventListener('click', () => leerCriteriosDelCurriculo());
+  const selMateria = $('#cr-materia');
+  if (selMateria) {
+    if (criterioMateriaElegida) selMateria.value = criterioMateriaElegida;
+    selMateria.addEventListener('change', () => {
+      criterioMateriaElegida = selMateria.value;
+      renderTeacherConfig();
+    });
+  }
   pintarPropuestaDeCriterios();
 
   $('#cr-calcular').addEventListener('click', () => calcularTablaDeEvaluacion());

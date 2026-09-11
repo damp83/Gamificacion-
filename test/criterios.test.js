@@ -339,3 +339,54 @@ test('y la parte oficial empieza en su propia hoja', () => {
   const html = ctx.ev('informeFamilia')(ctx.ev('S'), {});
   assert.match(html, /\.oficial \{ break-before: page/);
 });
+
+/* ══ Leer los criterios del currículo ══
+
+   Un docente pegó su currículo de 2.º, le dio al botón y la pantalla le dijo
+   que su texto no traía criterios de evaluación. El texto los traía: lo que
+   pasaba es que el botón estaba leyendo OTRO currículo, y el mensaje echaba la
+   culpa a lo único que estaba bien. */
+
+test('la lista no llama «Matemáticas» a secas al currículo de todos los cursos', () => {
+  /* Al lado de «Matemáticas · 2.º», el de arriba parece el general de la
+     materia, y encima viene elegido de fábrica. */
+  const c = cargarApp();
+  c.ev("ATLAS_CONFIG.curriculo = { mates: { todos: 'texto general', 2: 'texto de segundo' } }");
+  const lista = c.ev('materiasDelCurriculo()');
+  const general = lista.find(m => m.cursoNum === null);
+  assert.ok(general, 'no aparece el de todos los cursos');
+  assert.match(general.curso, /todos los cursos/);
+});
+
+test('la pantalla dice qué currículo va a leer y cuánto tiene', () => {
+  /* Sin esto no hay forma de ver desde ahí que se va a leer el equivocado, y
+     es justo el error que hace perder una tarde. */
+  const t = leer('js/teacher.js');
+  const i = t.indexOf('Sacarlos de tu currículo');
+  const trozo = t.slice(i, i + 2600);
+  assert.match(trozo, /Va a leer/, 'no se dice qué se va a leer');
+  assert.match(trozo, /caracteres/, 'no se dice cuánto tiene');
+  assert.match(trozo, /está vacío/, 'un currículo vacío no se distingue de uno lleno');
+});
+
+test('lo elegido sobrevive a que el panel se repinte', () => {
+  /* El panel se repinta entero a cada cambio. Sin recordar la elección, se
+     elegía 2.º, se pintaba la pantalla y se leía el de todos los cursos. */
+  const t = leer('js/teacher.js');
+  assert.match(t, /let criterioMateriaElegida/);
+  assert.match(t, /criterioMateriaElegida \? ' selected' : ''/);
+});
+
+test('«ningún criterio» distingue el texto de una función vieja', () => {
+  /* Son dos causas distintas con el mismo síntoma, y en una de ellas el texto
+     del docente está perfecto. Mandarle a revisar un currículo que está bien
+     es la peor ayuda posible. */
+  const t = leer('js/cloud.js');
+  const i = t.indexOf('async function cloudProponerCriterios');
+  const cuerpo = t.slice(i, t.indexOf('\n}\n', i));
+  assert.match(cuerpo, /!Array\.isArray\(r\.criterios\)[\s\S]*paso-desconocido/,
+    'sin el campo, la función no entendió la petición: eso no es culpa del texto');
+  assert.match(cuerpo, /!r\.criterios\.length[\s\S]*vacio/,
+    'con el campo vacío sí leyó el texto y no encontró nada');
+  assert.match(cuerpo, /Vuelve a desplegarla/, 'no se dice cómo se arregla la función vieja');
+});
