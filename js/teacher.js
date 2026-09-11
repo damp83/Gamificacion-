@@ -2728,10 +2728,17 @@ async function leerCriteriosDelCurriculo() {
   criteriosPropuestos = null;
   renderTeacherConfig();
 
-  const r = await cloudProponerCriterios({
+  /* En tandas: un currículo de curso entero no cabe en los 30 segundos que
+     Appwrite da por ejecución, y ese tope no se sube. */
+  const r = await cloudLeerCriteriosEnTandas({
     materiaNombre: elegido.nombre,
     cursos: elegido.cursoNum ? [elegido.cursoNum] : [1, 2, 3, 4, 5, 6],
     curriculo: texto
+  }, (i, de, extra) => {
+    criteriosEstado = `⏳ Leyendo ${comoSeLlama}, trozo ${i + 1} de ${de}${
+      extra ? ' · ' + extra : ''}…`;
+    const aviso = $('#cfg-body .cfg-warn');
+    if (aviso) aviso.textContent = criteriosEstado;
   });
   if (!r.ok) {
     criteriosEstado = `⚠️ Leyendo ${comoSeLlama}: `
@@ -2742,8 +2749,9 @@ async function leerCriteriosDelCurriculo() {
   /* Se marcan de partida los que la app SÍ mide: los que no, se dejan sin
      marcar para que se vean y se decida, no para que se cuelen. */
   criteriosPropuestos = r.criterios.map((c, i) => ({ ...c, marcado: c.conceptos.length > 0, n: i }));
-  criteriosEstado = `Leídos ${r.criterios.length} criterios de ${comoSeLlama}. `
-    + 'Revísalos antes de añadirlos.';
+  criteriosEstado = `Leídos ${r.criterios.length} criterios de ${comoSeLlama}`
+    + (r.trozos > 1 ? ` en ${r.trozos} tandas` : '') + '. Revísalos antes de añadirlos.'
+    + (r.corte ? ` ⚠️ La lectura quedó a medias: ${r.corte}` : '');
   renderTeacherConfig();
 }
 

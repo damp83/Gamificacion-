@@ -390,3 +390,76 @@ test('«ningún criterio» distingue el texto de una función vieja', () => {
     'con el campo vacío sí leyó el texto y no encontró nada');
   assert.match(cuerpo, /Vuelve a desplegarla/, 'no se dice cómo se arregla la función vieja');
 });
+
+/* ══ El currículo, leído en tandas ══
+
+   Appwrite corta toda ejecución síncrona a los 30 segundos y ese tope no se
+   sube. Con el currículo de un curso entero, la lectura de criterios no
+   llegaba: lo que cuesta no es leer, es ESCRIBIR, porque se le pide al modelo
+   que copie cada criterio y cada saber literalmente y la respuesta crece con
+   lo que se le manda. Así que se parte la entrada. */
+
+test('un currículo de curso entero se parte en trozos que caben', () => {
+  const c = cargarApp();
+  const texto = 'Criterio de evaluación con su texto completo y sus saberes.\n\n'.repeat(140);
+  const t = c.ev('trozosDeCurriculo')(texto);
+  assert.ok(t.length > 1, 'no se ha partido');
+  assert.ok(Math.max(...t.map(x => x.length)) <= c.ev('CRITERIOS_TROZO') + c.ev('CRITERIOS_SOLAPE'),
+    'algún trozo se pasa del tamaño y volvería a chocar con los 30 segundos');
+});
+
+test('y ningún criterio se parte por la mitad', () => {
+  /* Partir un criterio en dos es perderlo entero: ni el trozo de delante ni
+     el de atrás lo traen completo y el modelo no puede copiarlo literal. */
+  const c = cargarApp();
+  const criterios = [];
+  const bloques = [];
+  for (let n = 1; n <= 30; n++) {
+    const cr = `${n}.1 Comprender las preguntas planteadas a través de diferentes estrategias, `
+      + 'reconociendo la información contenida en problemas de la vida cotidiana.';
+    criterios.push(cr);
+    bloques.push(`Competencia específica ${n}`, cr);
+  }
+  const t = c.ev('trozosDeCurriculo')(bloques.join('\n\n'));
+  for (const cr of criterios) {
+    assert.ok(t.some(x => x.includes(cr)), `se partió: ${cr.slice(0, 30)}…`);
+  }
+});
+
+test('un currículo copiado de un PDF, sin un solo salto de línea, también se parte', () => {
+  /* Sin esta red, una parrafada de nueve mil caracteres se mandaba entera y
+     volvía a chocar con el tope. */
+  const c = cargarApp();
+  const t = c.ev('trozosDeCurriculo')('palabra '.repeat(1200));
+  assert.ok(t.length > 1, 'una parrafada sin saltos no se ha partido');
+  assert.ok(Math.max(...t.map(x => x.length)) <= c.ev('CRITERIOS_TROZO') + 400);
+});
+
+test('lo que cabe entero no se parte, y lo vacío no da un trozo en blanco', () => {
+  const c = cargarApp();
+  assert.equal(c.ev('trozosDeCurriculo')('Criterios de evaluación\n\n1.1 Comprender.').length, 1);
+  assert.equal(c.ev('trozosDeCurriculo')('').length, 0);
+  assert.equal(c.ev('trozosDeCurriculo')('   \n\n  ').length, 0);
+});
+
+test('los criterios repetidos por el solape se quitan al juntarlos', () => {
+  /* Se deja solape a propósito, para que un criterio que caiga en la costura
+     salga en los dos trozos. Eso hace repetidos, y hay que quitarlos. */
+  const c = cargarApp();
+  const junto = c.ev('juntarCriterios')([
+    [{ texto: 'Criterio A', codigo: '1.1' }, { texto: 'Criterio B', codigo: '1.2' }],
+    [{ texto: '  criterio   a  ', codigo: '1.1' }, { texto: 'Criterio C', codigo: '2.1' }]
+  ]);
+  assert.deepEqual(junto.map(x => x.texto), ['Criterio A', 'Criterio B', 'Criterio C']);
+});
+
+test('un trozo sin criterios no tira la lectura entera', () => {
+  /* La portada de un currículo, o la página de índice, no traen criterios. Que
+     un trozo venga vacío es normal y no puede costar lo ya leído y pagado. */
+  const t = leer('js/cloud.js');
+  const i = t.indexOf('async function cloudLeerCriteriosEnTandas');
+  const cuerpo = t.slice(i, t.indexOf('\n}\n', i));
+  assert.match(cuerpo, /reason === 'vacio'\) continue/);
+  assert.match(cuerpo, /if \(!listas\.length\) return r/,
+    'si falla el primero no hay nada que salvar y se devuelve el error');
+});

@@ -7284,7 +7284,7 @@ function cruzarVerificacion(retos, respuestas) {
    copia guardada. Sin este número, «ya está arreglado» y «a mí no me pasa» son
    indistinguibles. Va junto al nombre de la caché del service worker, y una
    prueba comprueba que no se separen. */
-const ATLAS_VERSION = 'v101';
+const ATLAS_VERSION = 'v102';
 
 const ATLAS_DEFAULTS = {
 
@@ -8210,7 +8210,7 @@ async function cloudProponerYacimiento(peticion) {
    Una sola llamada, como el yacimiento: lo que vuelve es texto copiado del
    propio currículo del docente y una lista de conceptos del catálogo, así que
    se revisa entero en pantalla y no hace falta cola de aprobación. */
-async function cloudProponerCriterios(peticion) {
+async function cloudProponerCriterios(peticion, avisar) {
   if (!CLOUD.enabled) return { ok: false, reason: 'sin-nube', texto: 'No hay conexión con Appwrite.' };
   if (!CLOUD.functions) {
     return { ok: false, reason: 'sdk-viejo',
@@ -8232,7 +8232,7 @@ async function cloudProponerCriterios(peticion) {
     curriculo: peticion.curriculo,
     clave: ATLAS_CONFIG.iaClave || '',
     workspace: ATLAS_CONFIG.iaWorkspace || ''
-  });
+  }, avisar);
   if (!r.ok) return r;
   /* ── Dos «ningún criterio» que no son el mismo ──
      Este mensaje echaba la culpa al texto del docente en los dos casos, y en
@@ -8256,6 +8256,119 @@ async function cloudProponerCriterios(peticion) {
            + 'concreto, elige ese curso en la lista y no el de «todos los cursos».' };
   }
   return { ok: true, criterios: r.criterios, usados: r.usados };
+}
+
+/* ── El currículo, leído en tandas ──
+
+   Appwrite corta toda ejecución síncrona a los 30 segundos y ese tope no se
+   sube. La generación de retos ya vivía con ello partiendo el trabajo; esto
+   se pedía de una vez y con un currículo de curso entero no llegaba.
+
+   Lo que cuesta aquí no es leer: es ESCRIBIR. Al modelo se le pide que copie
+   cada criterio y cada saber literalmente, así que la respuesta crece con el
+   texto que se le manda. Por eso se parte la ENTRADA: cada trozo devuelve sus
+   criterios en unos segundos y se juntan todos al final.
+
+   Se corta por párrafos y nunca a mitad de uno, que partir un criterio en dos
+   sería perderlo entero. Con un poco de solape, para que uno que caiga justo
+   en la costura salga en los dos trozos; los repetidos se quitan después. */
+const CRITERIOS_TROZO = 2600;
+const CRITERIOS_SOLAPE = 300;
+
+function trozosDeCurriculo(texto, tam, solape) {
+  const t = String(texto || '');
+  const max = tam || CRITERIOS_TROZO;
+  if (t.length <= max) return t.trim() ? [t] : [];
+  /* Los párrafos son la unidad: un criterio vive dentro de uno. */
+  const parrafos = t.split(/\n\s*\n/);
+  const trozos = [];
+  let actual = '';
+  /* Un currículo copiado de un PDF puede venir sin un solo salto de línea: una
+     parrafada de nueve mil caracteres. Sin esta red, ese caso no se partía y
+     volvía a chocar con los treinta segundos. Se corta por palabras, que es la
+     costura menos mala que queda cuando no hay ninguna otra. */
+  const porTamano = t => {
+    if (t.length <= max) return [t];
+    const fuera = [];
+    let linea = '';
+    for (const palabra of t.split(/(\s+)/)) {
+      if (linea && (linea.length + palabra.length) > max) { fuera.push(linea); linea = ''; }
+      linea += palabra;
+    }
+    if (linea.trim()) fuera.push(linea);
+    return fuera;
+  };
+
+  for (const p of parrafos) {
+    /* Un párrafo más largo que el trozo entero se parte por líneas, y si
+       tampoco las tiene, por palabras. */
+    const piezas = p.length > max
+      ? p.split(/\n/).flatMap(porTamano)
+      : [p];
+    for (const pieza of piezas) {
+      if (actual && (actual.length + pieza.length + 2) > max) {
+        trozos.push(actual);
+        const cola = actual.slice(-(solape === undefined ? CRITERIOS_SOLAPE : solape));
+        actual = cola + '\n\n';
+      }
+      actual += (actual ? '\n\n' : '') + pieza;
+    }
+  }
+  if (actual.trim()) trozos.push(actual);
+  return trozos.filter(x => x.trim());
+}
+
+/* Dos criterios son el mismo si dicen lo mismo, aunque uno venga del solape
+   con un espacio de más o el código escrito de otra forma. */
+function juntarCriterios(listas) {
+  const vistos = new Set();
+  const out = [];
+  for (const lista of listas) {
+    for (const c of (lista || [])) {
+      const clave = String(c.texto || '').trim().toLowerCase().replace(/\s+/g, ' ');
+      if (!clave || vistos.has(clave)) continue;
+      vistos.add(clave);
+      out.push(c);
+    }
+  }
+  return out;
+}
+
+async function cloudLeerCriteriosEnTandas(peticion, onProgreso) {
+  const trozos = trozosDeCurriculo(peticion.curriculo);
+  const avisar = (i, extra) => {
+    if (typeof onProgreso === 'function') onProgreso(i, trozos.length, extra || '');
+  };
+  const listas = [];
+  let usados = { entrada: 0, cacheados: 0, salida: 0 };
+  let corte = null;
+  for (let i = 0; i < trozos.length; i++) {
+    avisar(i);
+    const r = await cloudProponerCriterios(Object.assign({}, peticion, { curriculo: trozos[i] }),
+      (n, de) => avisar(i, `reintentando ${n} de ${de}`));
+    if (!r.ok) {
+      /* Lo ya leído está pagado y sirve: no se tira por un trozo que falló.
+         Se sigue con lo que haya y se dice que la lectura quedó a medias. */
+      if (r.reason === 'vacio') continue;          /* ese trozo no traía criterios */
+      if (!listas.length) return r;
+      corte = r.texto;
+      break;
+    }
+    listas.push(r.criterios);
+    if (r.usados) {
+      usados = { entrada: usados.entrada + (r.usados.entrada || 0),
+                 cacheados: usados.cacheados + (r.usados.cacheados || 0),
+                 salida: usados.salida + (r.usados.salida || 0) };
+    }
+  }
+  const criterios = juntarCriterios(listas);
+  if (!criterios.length) {
+    return { ok: false, reason: 'vacio',
+      texto: 'La función ha leído el currículo y no ha encontrado criterios de evaluación en él. '
+           + 'Comprueba arriba QUÉ currículo está leyendo: si pusiste el texto en un curso '
+           + 'concreto, elige ese curso en la lista y no el de «todos los cursos».' };
+  }
+  return { ok: true, criterios, usados, trozos: trozos.length, corte };
 }
 
 /* ══════════ LA TABLA DE RETOS ══════════
@@ -20819,10 +20932,17 @@ async function leerCriteriosDelCurriculo() {
   criteriosPropuestos = null;
   renderTeacherConfig();
 
-  const r = await cloudProponerCriterios({
+  /* En tandas: un currículo de curso entero no cabe en los 30 segundos que
+     Appwrite da por ejecución, y ese tope no se sube. */
+  const r = await cloudLeerCriteriosEnTandas({
     materiaNombre: elegido.nombre,
     cursos: elegido.cursoNum ? [elegido.cursoNum] : [1, 2, 3, 4, 5, 6],
     curriculo: texto
+  }, (i, de, extra) => {
+    criteriosEstado = `⏳ Leyendo ${comoSeLlama}, trozo ${i + 1} de ${de}${
+      extra ? ' · ' + extra : ''}…`;
+    const aviso = $('#cfg-body .cfg-warn');
+    if (aviso) aviso.textContent = criteriosEstado;
   });
   if (!r.ok) {
     criteriosEstado = `⚠️ Leyendo ${comoSeLlama}: `
@@ -20833,8 +20953,9 @@ async function leerCriteriosDelCurriculo() {
   /* Se marcan de partida los que la app SÍ mide: los que no, se dejan sin
      marcar para que se vean y se decida, no para que se cuelen. */
   criteriosPropuestos = r.criterios.map((c, i) => ({ ...c, marcado: c.conceptos.length > 0, n: i }));
-  criteriosEstado = `Leídos ${r.criterios.length} criterios de ${comoSeLlama}. `
-    + 'Revísalos antes de añadirlos.';
+  criteriosEstado = `Leídos ${r.criterios.length} criterios de ${comoSeLlama}`
+    + (r.trozos > 1 ? ` en ${r.trozos} tandas` : '') + '. Revísalos antes de añadirlos.'
+    + (r.corte ? ` ⚠️ La lectura quedó a medias: ${r.corte}` : '');
   renderTeacherConfig();
 }
 
