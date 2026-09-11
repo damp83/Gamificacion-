@@ -3617,6 +3617,15 @@ body.en-consulta #shop-list button { display: none !important; }
   font-size: .84rem; line-height: 1.4;
 }
 
+/* ── El marco desde el que se imprime un informe ──
+   Fuera de la pantalla y a su tamaño real. A cero o con opacidad cero hay
+   navegadores que lo imprimen en blanco, y eso no se ve hasta que el PDF ya
+   ha salido de aquí. */
+#marco-impresion {
+  position: fixed; left: -12000px; top: 0;
+  width: 820px; height: 1100px; border: 0;
+}
+
 </style>
 
 <!-- ══════════ ICONOGRAFÍA ══════════
@@ -7299,7 +7308,7 @@ function cruzarVerificacion(retos, respuestas) {
    copia guardada. Sin este número, «ya está arreglado» y «a mí no me pasa» son
    indistinguibles. Va junto al nombre de la caché del service worker, y una
    prueba comprueba que no se separen. */
-const ATLAS_VERSION = 'v106';
+const ATLAS_VERSION = 'v107';
 
 const ATLAS_DEFAULTS = {
 
@@ -17927,6 +17936,55 @@ aplicación, no la nota del trimestre: esa la pone el maestro con todo lo demás
 El porcentaje y los intentos van siempre al lado para que se sepa de dónde sale cada nivel.</p>`;
 }
 
+/* ── Imprimir el informe, que es de donde sale el PDF ──
+
+   Esto descargaba un .html y el docente tenía que buscarlo, abrirlo y pulsar
+   un botón dentro. Tres pasos para algo que se pidió como «descárgalo en
+   PDF», y en un iPad el archivo se va a Archivos y abrirlo desde ahí es un
+   viaje. Ahora el botón lleva directo al diálogo de impresión, que es donde
+   está «Guardar como PDF».
+
+   Va en un MARCO APARTE y no en la propia página por el CSS: el informe trae
+   sus estilos escritos con selectores desnudos —`body`, `h1`, `table`— y
+   metidos en la app se la llevarían por delante. Un iframe los deja donde
+   tienen que estar, que es para lo que existen.
+
+   Y el marco se coloca fuera de la pantalla a su tamaño real, no a cero ni
+   con opacidad cero: hay navegadores que imprimen en blanco un marco de un
+   píxel, y eso no se ve hasta que alguien manda el PDF a una familia. */
+function imprimirInforme(html) {
+  return new Promise(resolve => {
+    const viejo = document.getElementById('marco-impresion');
+    if (viejo) viejo.remove();
+    const marco = document.createElement('iframe');
+    marco.id = 'marco-impresion';
+    marco.setAttribute('aria-hidden', 'true');
+    marco.setAttribute('tabindex', '-1');
+    let acabado = false;
+    const terminar = ok => {
+      if (acabado) return;
+      acabado = true;
+      /* El marco se queda un rato: quitarlo en cuanto vuelve `print()` corta
+         el diálogo en los navegadores que no bloquean mientras está abierto. */
+      setTimeout(() => { const m = document.getElementById('marco-impresion'); if (m) m.remove(); }, 60000);
+      resolve(ok);
+    };
+    marco.addEventListener('load', () => {
+      try {
+        marco.contentWindow.focus();
+        marco.contentWindow.print();
+        terminar(true);
+      } catch (e) { terminar(false); }
+    });
+    marco.srcdoc = html;
+    document.body.appendChild(marco);
+    /* Si el marco no llega a cargar —nada debería impedirlo, pero el día que
+       pase no puede quedarse el docente mirando una pantalla que no hace
+       nada— se cae al archivo, que es lo que había antes. */
+    setTimeout(() => terminar(false), 8000);
+  });
+}
+
 /* Nombre de archivo que se entiende dentro de seis meses en una carpeta */
 function informeFileName(estado) {
   const limpio = t => String(t || '').normalize('NFD').replace(/[̀-ͯ]/g, '')
@@ -18003,7 +18061,7 @@ async function descargarInforme(clave) {
   const texto = await askParrafo(
     `¿Qué quieres decirle a la familia de ${nombre}?`,
     previa ? previa.texto : '',
-    'Descargar el informe',
+    'Preparar el PDF',
     previa
       ? `Esto es lo que escribiste el ${esc(String(previa.fecha).split('-').reverse().join('/'))}. `
         + 'Si lo cambias hoy, se guarda como una nota nueva y la anterior sigue en el informe, con su fecha.'
@@ -18021,11 +18079,17 @@ async function descargarInforme(clave) {
     notas: notasDeAlumno(clave)
   });
   if (!html) { toast('No se ha podido generar el informe.'); return; }
+  if (await imprimirInforme(html)) {
+    toast('Elige «Guardar como PDF» como destino. En iPad: Compartir → Guardar en Archivos.', 5200);
+    return;
+  }
+  /* Si la impresión no sale, queda el archivo, que es lo que había antes. */
   const guardado = await guardarArchivo(informeFileName(st), html, 'text/html');
   toast(guardado && guardado.ok === false
-    ? 'No se ha podido descargar. Prueba desde Configuración → Copia de seguridad.'
-    : `Informe de ${st.profile.explorer_name} descargado ✓ Ábrelo y pulsa «Guardar como PDF».`,
-    5200);
+    ? 'No se ha podido ni imprimir ni descargar. Prueba desde otro navegador.'
+    : `No se ha podido abrir la impresión: se ha descargado el informe de ${
+        st.profile.explorer_name}. Ábrelo y pulsa «Guardar como PDF».`,
+    5600);
 }
 
 /* Descarga un solo documento con el informe de toda la clase. Va uno a uno
@@ -18098,18 +18162,18 @@ function pintarBotonDeInformes(d) {
   caja.appendChild(btn);
   const nota = document.createElement('small');
   nota.className = 'class-informes-nota';
-  nota.textContent = 'Un archivo con un informe por página. Se abre, se pulsa «Guardar como PDF» '
-    + 'y sale el PDF de toda la clase. Para escribirle una nota a una familia concreta, usa el '
-    + 'botón de su ficha.';
+  nota.textContent = 'Un informe por página, todos en el mismo PDF. Se abre el diálogo de '
+    + 'impresión y se elige «Guardar como PDF». Para escribirle una nota a una familia concreta, '
+    + 'usa el botón de su ficha.';
   caja.appendChild(nota);
 }
 
 async function descargarInformesDeClase() {
   const fichas = ((classData && classData.students) || []).filter(s => s.clave || s.id);
   if (!fichas.length) { toast('No hay ningún diario del que hacer informe.'); return; }
-  if (!(await askConfirm(`Se van a preparar ${fichas.length} informes, uno por página, en un solo
-    archivo. Al abrirlo, el botón de arriba lo guarda como PDF. Se usa la nota que ya tengas
-    escrita de cada familia; las que falten salen sin ella.`,
+  if (!(await askConfirm(`Se van a preparar ${fichas.length} informes, uno por página, y se abrirá
+    el diálogo de impresión para guardarlos como PDF. Se usa la nota que ya tengas escrita de cada
+    familia; las que falten salen sin ella.`,
     `Preparar ${fichas.length} informes`))) return;
 
   const cuerpos = [];
@@ -18132,10 +18196,16 @@ async function descargarInformesDeClase() {
   const nombre = `informes-${String(ATLAS_CONFIG.className || 'clase')
     .normalize('NFD').replace(/[\u0300-\u036f]/g, '')
     .replace(/[^A-Za-z0-9]+/g, '-').replace(/^-|-$/g, '').toLowerCase() || 'clase'}-${todayStr()}.html`;
+  if (await imprimirInforme(html)) {
+    toast(`${cuerpos.length} informe(s) listos, uno por página. Elige «Guardar como PDF».${
+      fallos.length ? ` No se ha podido con: ${fallos.slice(0, 3).join(', ')}${
+        fallos.length > 3 ? '…' : ''}` : ''}`, fallos.length ? 6000 : 5200);
+    return;
+  }
   const guardado = await guardarArchivo(nombre, html, 'text/html');
   toast(guardado && guardado.ok === false
-    ? 'No se ha podido descargar. Prueba desde Configuración → Copia de seguridad.'
-    : `${cuerpos.length} informe(s) listos ✓ Ábrelos y pulsa «Guardar como PDF».${fallos.length
+    ? 'No se ha podido ni imprimir ni descargar. Prueba desde otro navegador.'
+    : `No se ha podido abrir la impresión: se han descargado los ${cuerpos.length} informes.${fallos.length
         ? ` No se ha podido con: ${fallos.slice(0, 3).join(', ')}${fallos.length > 3 ? '…' : ''}` : ''}`,
     fallos.length ? 5200 : 2800);
 }

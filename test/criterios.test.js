@@ -739,3 +739,63 @@ test('y los que no mide siguen estando, sin marcar', () => {
   const i = t.indexOf('function pintarPropuestaDeCriterios');
   assert.match(t.slice(i, t.indexOf('\n}\n', i)), /sinDatos\.map\(fila\)/);
 });
+
+/* ══ El PDF, en un paso ══
+
+   Esto descargaba un .html y el docente tenía que buscarlo, abrirlo y pulsar
+   un botón dentro: tres pasos para algo que se pidió como «descárgalo en
+   PDF». En un iPad el archivo se va a Archivos y abrirlo desde ahí es un
+   viaje. El botón tiene que llevar directo al diálogo de impresión, que es
+   donde está «Guardar como PDF». */
+
+test('el botón del informe imprime, no descarga un archivo', () => {
+  const t = leer('js/aula.js');
+  const i = t.indexOf('async function descargarInforme');
+  const cuerpo = t.slice(i, t.indexOf('\n}\n', i));
+  const imprime = cuerpo.indexOf('await imprimirInforme(html)');
+  const descarga = cuerpo.indexOf('guardarArchivo(');
+  assert.ok(imprime > 0, 'no se imprime');
+  assert.ok(descarga > imprime,
+    'la descarga va antes que la impresión: entonces sigue bajando un .html');
+});
+
+test('y el archivo se queda de reserva por si la impresión no sale', () => {
+  /* El día que un navegador no deje imprimir, el docente no puede quedarse
+     mirando una pantalla que no hace nada. */
+  const t = leer('js/aula.js');
+  const i = t.indexOf('async function descargarInforme');
+  const cuerpo = t.slice(i, t.indexOf('\n}\n', i));
+  assert.match(cuerpo, /guardarArchivo\(informeFileName/);
+  assert.match(cuerpo, /No se ha podido abrir la impresión/);
+});
+
+test('se imprime desde un marco aparte, no desde la página', () => {
+  /* El informe trae sus estilos con selectores desnudos —body, h1, table— y
+     metidos en la app se la llevarían por delante. */
+  const t = leer('js/aula.js');
+  const i = t.indexOf('function imprimirInforme');
+  const cuerpo = t.slice(i, t.indexOf('\n  });\n}', i));
+  assert.match(cuerpo, /createElement\('iframe'\)/);
+  assert.match(cuerpo, /marco\.contentWindow\.print\(\)/,
+    'imprime la página entera en vez del marco');
+});
+
+test('y el marco va fuera de pantalla a su tamaño real, no a cero', () => {
+  /* Hay navegadores que imprimen en blanco un marco de un píxel, y eso no se
+     ve hasta que el PDF ya ha salido hacia una familia. */
+  const css = leer('css/styles.css');
+  const i = css.indexOf('#marco-impresion');
+  const bloque = css.slice(i, css.indexOf('}', i));
+  assert.match(bloque, /left: -\d{4,}px/);
+  assert.match(bloque, /width: \d{3,}px/);
+  assert.match(bloque, /height: \d{3,}px/);
+});
+
+test('la hoja impresa deja fuera el botón y parte por la mitad oficial', () => {
+  const ctx = cargarApp();
+  ctx.ev('createState')('Vega Serrano');
+  const html = ctx.ev('informeFamilia')(ctx.ev('S'), {});
+  assert.match(html, /\.barra-pdf \{ display: none/);
+  assert.match(html, /\.oficial \{ break-before: page/);
+  assert.match(html, /@page \{ size: A4/);
+});

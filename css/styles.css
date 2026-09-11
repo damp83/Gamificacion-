@@ -3613,3 +3613,12 @@ body.en-consulta #shop-list button { display: none !important; }
   background: rgba(168, 69, 47, .1); border-left: 3px solid var(--peligro, #a8452f);
   font-size: .84rem; line-height: 1.4;
 }
+
+/* ── El marco desde el que se imprime un informe ──
+   Fuera de la pantalla y a su tamaño real. A cero o con opacidad cero hay
+   navegadores que lo imprimen en blanco, y eso no se ve hasta que el PDF ya
+   ha salido de aquí. */
+#marco-impresion {
+  position: fixed; left: -12000px; top: 0;
+  width: 820px; height: 1100px; border: 0;
+}
