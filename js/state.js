@@ -2021,6 +2021,45 @@ function intentosDeConcepto(entrada, trimestre) {
   return { attempts: Number(t && t.a) || 0, errors: Number(t && t.e) || 0, hayTri: !!e.tri };
 }
 
+/* ── Los saberes trabajados ──
+
+   Distinto de «lo que ya le sale» y de «en lo que está trabajando», que son
+   los dos extremos y se eligen por dominio. Esto es la lista completa de lo
+   que se ha tocado en el periodo, con su área y con cuántas veces, que es lo
+   que pide un informe de centro: no una selección, el temario recorrido.
+
+   Se ordena por área y dentro de ella por cuánto se ha practicado, y se marca
+   el nivel de cada uno con las mismas palabras que usa la evaluación por
+   criterios. Lo que no llega a `CRITERIO_MIN_INTENTOS` se enseña igual, con
+   sus intentos a la vista y sin etiqueta: un saber trabajado dos veces se ha
+   trabajado, pero no se puede decir cómo va. */
+function saberesTrabajados(estado, trimestre) {
+  const m = (estado && estado.metrics && estado.metrics.errors_by_concept) || {};
+  const filas = [];
+  for (const id in m) {
+    const v = intentosDeConcepto(m[id], trimestre);
+    if (!v.attempts) continue;
+    const info = conceptoInfo(id);
+    const aciertos = v.attempts - v.errors;
+    const pct = Math.round((aciertos / v.attempts) * 100);
+    filas.push({
+      id, area: info.area || '—', label: info.label || id,
+      intentos: v.attempts, aciertos, pct,
+      suficiente: v.attempts >= CRITERIO_MIN_INTENTOS,
+      nivel: v.attempts >= CRITERIO_MIN_INTENTOS ? nivelDeCriterio(pct) : ''
+    });
+  }
+  filas.sort((a, b) => a.area.localeCompare(b.area, 'es') || b.intentos - a.intentos);
+  /* Agrupados por área, que es como se leen: «Numeración: tres saberes». */
+  const areas = [];
+  for (const f of filas) {
+    const ultima = areas[areas.length - 1];
+    if (ultima && ultima.area === f.area) ultima.saberes.push(f);
+    else areas.push({ area: f.area, saberes: [f] });
+  }
+  return areas;
+}
+
 /* La evidencia de UN alumno para todos los criterios. */
 function evidenciaDeCriterios(estado, criterios, trimestre) {
   const m = (estado && estado.metrics && estado.metrics.errors_by_concept) || {};

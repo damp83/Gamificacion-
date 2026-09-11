@@ -4885,7 +4885,21 @@ function sembrarClaseDemo() {
       const at = 6 + Math.floor(r() * 9);
       const err = Math.ceil(at * (perfil === 'bien' ? .18 + r() * .16
                 : perfil === 'flojo' ? .26 + r() * .12 : .45 + r() * .3));
-      S.metrics.errors_by_concept[c] = { attempts: at, errors: err };
+      /* Con su desglose por trimestre: sin él, el informe no puede acotar
+         nada al periodo y las dos tablas oficiales salen a cero. Es el mismo
+         reparto que va escribiendo `recordConcepto` cada vez que el niño
+         contesta, y aquí se reparte entre el trimestre en curso y el
+         anterior, que es lo que tendría un diario de noviembre. */
+      const enCurso = Math.round(at * .65);
+      S.metrics.errors_by_concept[c] = {
+        attempts: at, errors: err,
+        dias: 2 + Math.floor(r() * 4), ultimo: diaDemo(Math.floor(r() * 6)),
+        tri: {
+          [Math.max(0, currentTrimesterIndex())]: {
+            a: enCurso, e: Math.round(err * .65)
+          }
+        }
+      };
       S.metrics.errors_by_skill[c] = { attempts: at, errors: err };
     }
 
@@ -7270,7 +7284,7 @@ function cruzarVerificacion(retos, respuestas) {
    copia guardada. Sin este número, «ya está arreglado» y «a mí no me pasa» son
    indistinguibles. Va junto al nombre de la caché del service worker, y una
    prueba comprueba que no se separen. */
-const ATLAS_VERSION = 'v99';
+const ATLAS_VERSION = 'v100';
 
 const ATLAS_DEFAULTS = {
 
@@ -11916,6 +11930,45 @@ function intentosDeConcepto(entrada, trimestre) {
   }
   const t = (e.tri || {})[trimestre];
   return { attempts: Number(t && t.a) || 0, errors: Number(t && t.e) || 0, hayTri: !!e.tri };
+}
+
+/* ── Los saberes trabajados ──
+
+   Distinto de «lo que ya le sale» y de «en lo que está trabajando», que son
+   los dos extremos y se eligen por dominio. Esto es la lista completa de lo
+   que se ha tocado en el periodo, con su área y con cuántas veces, que es lo
+   que pide un informe de centro: no una selección, el temario recorrido.
+
+   Se ordena por área y dentro de ella por cuánto se ha practicado, y se marca
+   el nivel de cada uno con las mismas palabras que usa la evaluación por
+   criterios. Lo que no llega a `CRITERIO_MIN_INTENTOS` se enseña igual, con
+   sus intentos a la vista y sin etiqueta: un saber trabajado dos veces se ha
+   trabajado, pero no se puede decir cómo va. */
+function saberesTrabajados(estado, trimestre) {
+  const m = (estado && estado.metrics && estado.metrics.errors_by_concept) || {};
+  const filas = [];
+  for (const id in m) {
+    const v = intentosDeConcepto(m[id], trimestre);
+    if (!v.attempts) continue;
+    const info = conceptoInfo(id);
+    const aciertos = v.attempts - v.errors;
+    const pct = Math.round((aciertos / v.attempts) * 100);
+    filas.push({
+      id, area: info.area || '—', label: info.label || id,
+      intentos: v.attempts, aciertos, pct,
+      suficiente: v.attempts >= CRITERIO_MIN_INTENTOS,
+      nivel: v.attempts >= CRITERIO_MIN_INTENTOS ? nivelDeCriterio(pct) : ''
+    });
+  }
+  filas.sort((a, b) => a.area.localeCompare(b.area, 'es') || b.intentos - a.intentos);
+  /* Agrupados por área, que es como se leen: «Numeración: tres saberes». */
+  const areas = [];
+  for (const f of filas) {
+    const ultima = areas[areas.length - 1];
+    if (ultima && ultima.area === f.area) ultima.saberes.push(f);
+    else areas.push({ area: f.area, saberes: [f] });
+  }
+  return areas;
 }
 
 /* La evidencia de UN alumno para todos los criterios. */
@@ -17047,7 +17100,7 @@ function paintClassView() {
         <button class="btn btn-secondary btn-small student-ver"
           data-ver="${esc(s.clave || s.id)}">${ico('lens')} Ver su cuaderno</button>
         <button class="btn btn-secondary btn-small student-informe"
-          data-informe="${esc(s.clave || s.id)}">${ico('logbook')} Informe para la familia</button>
+          data-informe="${esc(s.clave || s.id)}">${ico('logbook')} Informe en PDF</button>
         ${DEMO && s.clave ? `<button class="btn btn-secondary btn-small student-jugar"
           data-jugar="${esc(s.clave)}">${ico('explorer')} Jugar como ${esc(s.name)}</button>` : ''}
       </div>` : ''}
@@ -17216,9 +17269,38 @@ ${antiguas.length ? `<details class="antes"><summary>Lo que se dijo antes</summa
     ? 'nunca'
     : (!log.length && !camaras.length ? 'trimestre' : '');
 
+  /* ── Lo que pide un informe de centro ──
+     «Lo que ya le sale» y «en lo que está trabajando» son los dos extremos, y
+     están bien para una familia. Un informe oficial pide además las dos cosas
+     que nombra la ley: los SABERES recorridos en el periodo y los CRITERIOS
+     con su calificación. Van en su propia sección y al final, después de lo
+     que se lee en casa, porque el orden de esta hoja no cambia: primero lo
+     que ha escrito una persona mirando a ese niño. */
+  /* ── Y de qué periodo hablan estas dos tablas ──
+     Del trimestre, cuando el diario tiene el desglose. Cuando no lo tiene —un
+     diario anterior a que existieran esos contadores— NO se enseñan tablas a
+     cero: se cuenta el curso entero y se dice que es el curso entero. Una
+     columna vacía en la hoja que se archiva no dice «faltan datos», dice «este
+     niño no ha hecho nada», que es exactamente lo contrario de la verdad. */
+  const criterios = ATLAS_CONFIG.criterios || [];
+  let periodoOficial = tri ? iTri : null;
+  if (tri && criterios.length) {
+    const prueba = evidenciaDeCriterios(s, criterios, iTri);
+    if (!prueba.hayTrimestres) periodoOficial = null;
+  } else if (tri) {
+    /* Sin criterios declarados se mira igual, que los saberes también se
+       acotan y también pueden salir a cero por lo mismo. */
+    const m = (s.metrics && s.metrics.errors_by_concept) || {};
+    if (!Object.keys(m).some(id => m[id] && m[id].tri)) periodoOficial = null;
+  }
+  const triOficial = periodoOficial === null ? null : tri;
+  const saberes = saberesTrabajados(s, periodoOficial);
+  const evidencia = criterios.length
+    ? evidenciaDeCriterios(s, criterios, periodoOficial) : null;
+
   return cuerpoDelInforme(s, o, {
     dominados, flojos, pozos, camaras, superadasTri, log, minutos, sesiones, cubo, tri, hoy,
-    lista, bloqueNota, enEspanol, vacio
+    lista, bloqueNota, enEspanol, vacio, saberes, criterios, evidencia, triOficial
   });
 }
 
@@ -17252,7 +17334,9 @@ ${ESTILO_INFORME}
   @media screen { .informe { border-bottom: 2px solid #e0d3ba; padding-bottom: 28px; margin-bottom: 34px; } }
   .informe:last-child { border-bottom: none; }
 </style>
+${BARRA_PDF}
 ${cuerpos.join('\n')}
+${GUION_PDF}
 </html>
 `;
 }
@@ -17278,6 +17362,50 @@ const ESTILO_INFORME = `<style>
   .nota-docente p { margin: 0 0 8px; }
   .nota-docente p:last-child { margin-bottom: 0; }
   .firma { color: #6b5d4a; font-size: .82rem; }
+  /* La parte oficial: misma hoja, otra mitad. La raya y el gris de fondo
+     dicen sin palabras que lo de abajo se lee de otra manera. */
+  .oficial { margin-top: 30px; }
+  .corte { border: none; border-top: 2px dashed #cbb99a; margin: 0 0 16px; }
+  .oficial-intro { color: #6b5d4a; font-size: .88rem; margin: 0 0 18px; }
+  .sub-seccion { color: #6b5d4a; font-size: .88rem; margin: 2px 0 10px; }
+  .area h3 { font-size: .95rem; margin: 16px 0 4px; color: #8a5a0b; }
+  table { width: 100%; border-collapse: collapse; font-size: .87rem; margin: 4px 0 10px; }
+  th { text-align: left; font-size: .78rem; text-transform: uppercase;
+       letter-spacing: .04em; color: #6b5d4a; border-bottom: 1px solid #e0d3ba;
+       padding: 4px 8px 4px 0; }
+  td { padding: 5px 8px 5px 0; border-bottom: 1px solid #f0e7d6; vertical-align: top; }
+  td.num, th.num { text-align: right; font-variant-numeric: tabular-nums; white-space: nowrap; }
+  /* Las tablas de saberes van una por área, y cada una se medía sola: las
+     columnas bailaban de un área a otra y no se podían comparar de un vistazo.
+     Con el ancho fijo, todas caen en la misma vertical. */
+  .tabla-saberes { table-layout: fixed; }
+  .tabla-saberes th:nth-child(1) { width: 46%; }
+  .tabla-saberes th:nth-child(2) { width: 13%; }
+  .tabla-saberes th:nth-child(3) { width: 15%; }
+  .tabla-criterios { table-layout: fixed; }
+  .tabla-criterios th:nth-child(1) { width: 10%; }
+  .tabla-criterios th:nth-child(3) { width: 13%; }
+  .tabla-criterios th:nth-child(4) { width: 13%; }
+  .tabla-criterios th:nth-child(5) { width: 21%; }
+  td.codigo { font-weight: 700; white-space: nowrap; }
+  .pocos { color: #6b5d4a; font-style: italic; }
+  /* La barra del PDF: lo primero que se ve al abrir el informe, porque es lo
+     que se ha venido a hacer con él. En papel desaparece. */
+  .barra-pdf { display: flex; align-items: center; gap: 12px; flex-wrap: wrap;
+               background: #f6efe2; border: 1px solid #e0d3ba; border-radius: 10px;
+               padding: 12px 14px; margin: 0 0 26px; font-size: .85rem; color: #6b5d4a; }
+  .barra-pdf button { font: inherit; font-weight: 700; font-size: .9rem; cursor: pointer;
+                      background: #37622f; color: #f3f9ef; border: 0;
+                      border-radius: 999px; padding: 9px 18px; }
+  .barra-pdf button:hover { background: #2b4d25; }
+  .aviso-criterios { color: #6b5d4a; font-size: .82rem; margin: 6px 0 0; }
+  /* Una tabla partida entre dos hojas se lee fatal: se evita cuando cabe. */
+  @media print {
+    table { break-inside: auto; }
+    tr { break-inside: avoid; break-after: auto; }
+    thead { display: table-header-group; }
+    .area { break-inside: avoid; }
+  }
   .encasa { margin: 10px 0 0; }
   .encasa dt { font-weight: 600; margin: 12px 0 1px; }
   .encasa dt:first-child { margin-top: 0; }
@@ -17286,12 +17414,22 @@ const ESTILO_INFORME = `<style>
   .antes summary { cursor: pointer; color: #6b5d4a; }
   .nota-vieja { border-left: 3px solid #ddd2bd; padding: 6px 12px; margin: 8px 0 0; color: #4a4034; }
   .nota-vieja p { margin: 0 0 5px; }
+  /* ── Para el PDF ──
+     El PDF lo hace el propio navegador al imprimir, así que el margen de la
+     hoja se declara aquí y no lo decide la impresora de cada casa. A4 con dos
+     centímetros por todos los lados es lo que espera una secretaría. */
+  @page { size: A4; margin: 18mm 16mm; }
   @media print {
-    body { margin: 0; max-width: none; }
+    body { margin: 0; max-width: none; font-size: 11.5pt; }
     .nota, .nota-docente { break-inside: avoid; }
     .encasa dt, .encasa dd { break-inside: avoid; }
     /* En papel no hay nada que desplegar: lo anterior se imprime abierto. */
     .antes { display: block; } .antes summary { display: none; }
+    /* La parte oficial empieza en su propia hoja: es la que se archiva, y
+       partida a mitad de página se fotocopia mal. */
+    .oficial { break-before: page; page-break-before: always; }
+    /* Y el botón de imprimir no se imprime, claro. */
+    .barra-pdf { display: none !important; }
   }
 </style>
 `;
@@ -17303,16 +17441,41 @@ function envolverInforme(s, cuerpo) {
 <meta charset="utf-8">
 <title>Informe de ${esc(s.profile.explorer_name)} — Expedición Atlas</title>
 ${ESTILO_INFORME}
+${BARRA_PDF}
 ${cuerpo}
+${GUION_PDF}
 </html>
 `;
 }
+
+/* ── El PDF ──
+
+   Sin librería, y no por ahorrar: una librería de PDF se descarga de un CDN, y
+   esta aplicación tiene que funcionar en un aula sin wifi y dentro del archivo
+   suelto que se abre con doble clic. Lo que sí hay en todos los dispositivos
+   —el iPad del aula incluido— es la impresión del navegador, y su «Guardar
+   como PDF» produce un PDF de verdad, con el texto seleccionable, sin
+   descargar nada.
+
+   Así que el informe se abre con su propio botón arriba. Un toque y sale el
+   diálogo de imprimir; ahí se elige guardar en PDF. En el iPad es «Compartir →
+   Guardar en Archivos». El botón no se imprime, y el margen de la hoja lo pone
+   el propio informe para que no dependa de cómo tenga cada uno la impresora. */
+const BARRA_PDF = `<div class="barra-pdf">
+  <button type="button" id="pdf" autofocus>Guardar como PDF o imprimir</button>
+  <span>Se abre el diálogo de impresión. Elige «Guardar como PDF» como destino.</span>
+</div>`;
+
+const GUION_PDF = `<script>
+  document.getElementById('pdf').addEventListener('click', function () { window.print(); });
+<\/script>`;
 
 /* Solo el contenido, sin cabecera de documento: así el informe de un alumno y
    el de la clase entera se escriben una vez. */
 function cuerpoDelInforme(s, o, d) {
   const { dominados, flojos, pozos, camaras, superadasTri, log, minutos, sesiones,
-          cubo, tri, hoy, lista, bloqueNota, enEspanol, vacio } = d;
+          cubo, tri, hoy, lista, bloqueNota, enEspanol, vacio,
+          saberes, criterios, evidencia, triOficial } = d;
   const dentro = f => !tri || !f || (String(f) >= tri.start && String(f) <= tri.end);
 
   const cabecera = `<article class="informe">
@@ -17388,7 +17551,115 @@ el propio error da premio dentro del juego.
 ${tri ? `<br><br><strong>Qué periodo cubre cada parte.</strong> «Constancia» y «Pruebas» son de
 este trimestre. «Lo que ya le sale», «en lo que está trabajando» y «por dónde va la expedición»
 cuentan desde que empezó a excavar, porque el aprendizaje no se reinicia en enero.` : ''}</p>
+${bloqueOficial(saberes, criterios, evidencia, triOficial, tri)}
 </article>`;
+}
+
+/* ── La parte oficial, y por qué va aparte ──
+
+   Esta hoja tenía una regla, y era buena: sin notas, sin porcentajes, sin
+   comparaciones. Está escrita para que una familia entienda por dónde va su
+   hijo sin traducir nada, y un «68 %» en medio de esa lectura no informa, solo
+   asusta.
+
+   Pero un informe de evaluación tiene que acreditar dos cosas que la ley
+   nombra: los saberes trabajados y los criterios con su calificación. Así que
+   la hoja pasa a tener dos mitades, y la raya que las separa es de verdad: lo
+   de arriba se lee, lo de abajo se acredita. Arriba sigue sin haber ni un
+   número de esos; abajo están todos, con los intentos al lado, que es la única
+   forma de que un nivel signifique algo.
+
+   Lo que no cambia en ninguna de las dos: aquí no se compara a un niño con
+   nadie. */
+function bloqueOficial(saberes, criterios, evidencia, triOficial, triPedido) {
+  const s1 = bloqueSaberes(saberes, triOficial);
+  const s2 = bloqueCriterios(criterios, evidencia, triOficial);
+  if (!s1 && !s2) return '';
+  /* Cuando no se ha podido acotar al trimestre se dice aquí, una vez, y no en
+     cada tabla: la familia y la secretaría tienen que saber de qué periodo
+     hablan los números que van a archivar. */
+  const aviso = (triPedido && !triOficial)
+    ? `<p class="oficial-intro"><strong>Estas dos tablas cuentan todo el curso, no solo el
+       ${esc(triPedido.name)}</strong>: este diario es anterior al desglose por trimestres y no
+       puede separarlos. Los diarios nuevos sí lo hacen.</p>` : '';
+  return `<div class="oficial">
+<hr class="corte">
+<p class="oficial-intro">A partir de aquí va la parte que el centro necesita para el expediente:
+qué se ha trabajado y cómo va cada criterio de evaluación. Son los mismos datos de arriba,
+contados en el lenguaje de la programación.</p>
+${aviso}
+${s1}
+${s2}
+</div>`;
+}
+
+/* ── Los saberes recorridos ──
+   La lista completa de lo trabajado en el periodo, con su área y con cuántas
+   veces se ha practicado cada cosa. No es una selección como las dos secciones
+   de arriba: es el temario que de verdad se ha tocado, que es lo que un
+   informe de centro tiene que poder acreditar.
+
+   Los intentos van siempre al lado del nivel, y lo que se ha practicado poco
+   sale sin nivel y con sus intentos a la vista. Un 100 % de tres respuestas no
+   es un sobresaliente: es un 100 % de tres respuestas, y esta hoja no puede
+   decir lo contrario. */
+function bloqueSaberes(saberes, tri) {
+  if (!saberes || !saberes.length) return '';
+  return `<h2>Saberes trabajados${tri ? ` en el ${esc(tri.name)}` : ''}</h2>
+<p class="sub-seccion">Lo que se ha practicado en la aplicación durante el periodo, con las veces
+que se ha trabajado cada cosa.</p>
+${saberes.map(g => `<div class="area">
+  <h3>${esc(g.area)}</h3>
+  <table class="tabla-saberes">
+    <thead><tr><th>Saber</th><th class="num">Veces</th><th class="num">Acierto</th><th>Nivel</th></tr></thead>
+    <tbody>${g.saberes.map(x => `<tr>
+      <td>${esc(x.label)}</td>
+      <td class="num">${x.intentos}</td>
+      <td class="num">${x.pct} %</td>
+      <td>${x.nivel ? esc(x.nivel) : '<span class="pocos">pocas veces todavía</span>'}</td>
+    </tr>`).join('')}</tbody>
+  </table>
+</div>`).join('')}`;
+}
+
+/* ── Los criterios calificados ──
+   El puente entre lo que mide la aplicación y lo que pide el centro. Cada
+   criterio es el que el docente tenga en su programación, con su código y su
+   texto tal cual, y al lado la evidencia reunida: cuántos intentos, con qué
+   acierto y qué nivel sale de ahí.
+
+   Un criterio sin intentos suficientes no se califica. Podría rellenarse con
+   el número que salga y quedaría una tabla completa, que es justo la tentación
+   que hay que resistir: una tabla completa con dos datos detrás no es una
+   evaluación, es una tabla. Se dice que falta evidencia y ya está. */
+function bloqueCriterios(criterios, evidencia, tri) {
+  if (!criterios || !criterios.length || !evidencia) return '';
+  const porId = {};
+  for (const f of evidencia.filas) porId[f.id] = f;
+  const conNota = evidencia.filas.filter(f => f.nivel).length;
+  return `<h2>Criterios de evaluación${tri ? ` · ${esc(tri.name)}` : ''}</h2>
+<p class="sub-seccion">${conNota
+    ? `Calificados <strong>${conNota} de ${criterios.length}</strong> con la evidencia recogida en la
+       aplicación. El resto necesita más práctica antes de poder decir cómo va.`
+    : 'Todavía no hay práctica suficiente para calificar ninguno.'}</p>
+<table class="tabla-criterios">
+  <thead><tr><th>Código</th><th>Criterio</th><th class="num">Intentos</th>
+    <th class="num">Acierto</th><th>Calificación</th></tr></thead>
+  <tbody>${criterios.map(c => {
+    const f = porId[c.id] || { intentos: 0, pct: null, nivel: '' };
+    return `<tr>
+      <td class="codigo">${esc(c.codigo || '—')}</td>
+      <td>${esc(c.texto || '')}</td>
+      <td class="num">${f.intentos}</td>
+      <td class="num">${f.pct === null ? '—' : f.pct + ' %'}</td>
+      <td>${f.nivel ? `<strong>${esc(f.nivel)}</strong>`
+        : '<span class="pocos">sin evidencia suficiente</span>'}</td>
+    </tr>`;
+  }).join('')}</tbody>
+</table>
+<p class="aviso-criterios">La calificación que sale aquí es la evidencia que ha recogido la
+aplicación, no la nota del trimestre: esa la pone el maestro con todo lo demás que ve en clase.
+El porcentaje y los intentos van siempre al lado para que se sepa de dónde sale cada nivel.</p>`;
 }
 
 /* Nombre de archivo que se entiende dentro de seis meses en una carpeta */
@@ -17488,7 +17759,8 @@ async function descargarInforme(clave) {
   const guardado = await guardarArchivo(informeFileName(st), html, 'text/html');
   toast(guardado && guardado.ok === false
     ? 'No se ha podido descargar. Prueba desde Configuración → Copia de seguridad.'
-    : `Informe de ${st.profile.explorer_name} descargado ✓`);
+    : `Informe de ${st.profile.explorer_name} descargado ✓ Ábrelo y pulsa «Guardar como PDF».`,
+    5200);
 }
 
 /* Descarga un solo documento con el informe de toda la clase. Va uno a uno
@@ -17561,8 +17833,9 @@ function pintarBotonDeInformes(d) {
   caja.appendChild(btn);
   const nota = document.createElement('small');
   nota.className = 'class-informes-nota';
-  nota.textContent = 'Un archivo con un informe por página, listo para imprimir y repartir. '
-    + 'Para escribirle una nota a una familia concreta, usa el botón de su ficha.';
+  nota.textContent = 'Un archivo con un informe por página. Se abre, se pulsa «Guardar como PDF» '
+    + 'y sale el PDF de toda la clase. Para escribirle una nota a una familia concreta, usa el '
+    + 'botón de su ficha.';
   caja.appendChild(nota);
 }
 
@@ -17570,8 +17843,9 @@ async function descargarInformesDeClase() {
   const fichas = ((classData && classData.students) || []).filter(s => s.clave || s.id);
   if (!fichas.length) { toast('No hay ningún diario del que hacer informe.'); return; }
   if (!(await askConfirm(`Se van a preparar ${fichas.length} informes, uno por página, en un solo
-    archivo para imprimir. Se usa la nota que ya tengas escrita de cada familia; las que falten
-    salen sin ella.`, `Preparar ${fichas.length} informes`))) return;
+    archivo. Al abrirlo, el botón de arriba lo guarda como PDF. Se usa la nota que ya tengas
+    escrita de cada familia; las que falten salen sin ella.`,
+    `Preparar ${fichas.length} informes`))) return;
 
   const cuerpos = [];
   const fallos = [];
@@ -17596,7 +17870,7 @@ async function descargarInformesDeClase() {
   const guardado = await guardarArchivo(nombre, html, 'text/html');
   toast(guardado && guardado.ok === false
     ? 'No se ha podido descargar. Prueba desde Configuración → Copia de seguridad.'
-    : `${cuerpos.length} informe(s) descargados ✓${fallos.length
+    : `${cuerpos.length} informe(s) listos ✓ Ábrelos y pulsa «Guardar como PDF».${fallos.length
         ? ` No se ha podido con: ${fallos.slice(0, 3).join(', ')}${fallos.length > 3 ? '…' : ''}` : ''}`,
     fallos.length ? 5200 : 2800);
 }

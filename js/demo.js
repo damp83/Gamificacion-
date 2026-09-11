@@ -196,7 +196,21 @@ function sembrarClaseDemo() {
       const at = 6 + Math.floor(r() * 9);
       const err = Math.ceil(at * (perfil === 'bien' ? .18 + r() * .16
                 : perfil === 'flojo' ? .26 + r() * .12 : .45 + r() * .3));
-      S.metrics.errors_by_concept[c] = { attempts: at, errors: err };
+      /* Con su desglose por trimestre: sin él, el informe no puede acotar
+         nada al periodo y las dos tablas oficiales salen a cero. Es el mismo
+         reparto que va escribiendo `recordConcepto` cada vez que el niño
+         contesta, y aquí se reparte entre el trimestre en curso y el
+         anterior, que es lo que tendría un diario de noviembre. */
+      const enCurso = Math.round(at * .65);
+      S.metrics.errors_by_concept[c] = {
+        attempts: at, errors: err,
+        dias: 2 + Math.floor(r() * 4), ultimo: diaDemo(Math.floor(r() * 6)),
+        tri: {
+          [Math.max(0, currentTrimesterIndex())]: {
+            a: enCurso, e: Math.round(err * .65)
+          }
+        }
+      };
       S.metrics.errors_by_skill[c] = { attempts: at, errors: err };
     }
 

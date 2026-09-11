@@ -262,13 +262,44 @@ test('los criterios no viajan a las tablets del alumnado', () => {
   assert.ok(c.ev('NO_SE_COMPARTE').includes('criterios'));
 });
 
-test('nada de esto entra en el informe de la familia', () => {
-  /* El informe no lleva notas ni porcentajes, y esto es exactamente lo que no
-     puede colarse dentro. */
+test('los criterios entran en el informe, pero por debajo de la raya', () => {
+  /* Esto decía antes que los criterios NO podían entrar en el informe, y era
+     una buena regla para la hoja que lee una familia: un «68 %» en medio de
+     esa lectura no informa, solo asusta.
+
+     Lo que cambió es que la hoja tiene ahora dos mitades. Arriba, lo que se
+     lee en casa, y ahí la regla sigue entera —la prueba que lo vigila está en
+     evaluacion.test.js—. Abajo, lo que el centro necesita acreditar: los
+     saberes trabajados y los criterios con su calificación, que es lo que la
+     ley nombra y lo que un informe de evaluación tiene que llevar.
+
+     Así que lo que se fija aquí ya no es que no aparezcan, sino DÓNDE. */
   const aula = leer('js/aula.js');
-  const i = aula.indexOf('function datosDelInforme');
+  const i = aula.indexOf('function cuerpoDelInforme');
   const cuerpo = aula.slice(i, aula.indexOf('\n}\n', i));
-  assert.ok(!/evidenciaDeCriterios|nivelDeCriterio|criterios/.test(cuerpo));
+  const raya = cuerpo.indexOf('Cómo leer esto');
+  const oficial = cuerpo.indexOf('bloqueOficial');
+  assert.ok(raya > 0 && oficial > raya,
+    'la parte oficial se coló por encima de lo que lee la familia');
+});
+
+test('y cada nivel sale con los intentos que hay detrás', () => {
+  /* Un 100 % de tres respuestas no es un sobresaliente: es un 100 % de tres
+     respuestas. La tabla no puede enseñar la etiqueta sola. */
+  const aula = leer('js/aula.js');
+  const i = aula.indexOf('function bloqueCriterios');
+  const cuerpo = aula.slice(i, aula.indexOf('\n}\n', i));
+  assert.match(cuerpo, /Intentos/, 'la tabla no enseña los intentos');
+  assert.match(cuerpo, /f\.pct/, 'la tabla no enseña el porcentaje');
+  assert.match(cuerpo, /sin evidencia suficiente/,
+    'un criterio sin práctica detrás se calificaría igual');
+});
+
+test('la hoja dice que el nivel es evidencia y no la nota del trimestre', () => {
+  const aula = leer('js/aula.js');
+  const i = aula.indexOf('function bloqueCriterios');
+  const cuerpo = aula.slice(i, aula.indexOf('\n}\n', i));
+  assert.match(cuerpo, /no la nota del trimestre/);
 });
 
 test('ni el niño ve un nivel por ningún lado', () => {
@@ -282,4 +313,29 @@ test('la pantalla dice que es evidencia y no una nota', () => {
   const cuerpo = t.slice(i, t.indexOf('\n}\n', i));
   assert.match(cuerpo, /evidencia, no una nota/i);
   assert.match(cuerpo, /aciertos y los intentos que hay detrás/);
+});
+
+/* ══ El PDF ══ */
+
+test('el informe trae su propio botón para guardarlo como PDF', () => {
+  /* Sin librería y no por ahorrar: una librería de PDF se descarga de un CDN,
+     y esto tiene que funcionar en un aula sin wifi y dentro del archivo suelto
+     que se abre con doble clic. La impresión del navegador sí está en todos
+     los dispositivos y su «Guardar como PDF» hace un PDF de verdad. */
+  const ctx = cargarApp();
+  ctx.ev('createState')('Vega Serrano');
+  for (let i = 0; i < 3; i++) ctx.ev('recordConcepto')('valor_posicional', true);
+  const html = ctx.ev('informeFamilia')(ctx.ev('S'), { clase: '4.º B' });
+  assert.match(html, /Guardar como PDF/, 'no hay forma de sacar el PDF');
+  assert.match(html, /window\.print\(\)/, 'el botón no llama a imprimir');
+  assert.match(html, /@page \{ size: A4/, 'el tamaño de hoja lo decidiría la impresora de cada casa');
+  assert.match(html, /\.barra-pdf \{ display: none/, 'el botón se imprimiría dentro del PDF');
+});
+
+test('y la parte oficial empieza en su propia hoja', () => {
+  /* Es la que se archiva: partida a mitad de página se fotocopia mal. */
+  const ctx = cargarApp();
+  ctx.ev('createState')('Vega Serrano');
+  const html = ctx.ev('informeFamilia')(ctx.ev('S'), {});
+  assert.match(html, /\.oficial \{ break-before: page/);
 });
