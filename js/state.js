@@ -1954,13 +1954,22 @@ function dominioParaAbrir(estado) {
    mide, contando el banco escrito a mano y el de la tabla de retos. */
 function retosPorConcepto() {
   const cuenta = {};
-  const suma = r => {
-    const id = r && r.skill;
+  /* ── El mismo reparto que se hace al jugar ──
+     Un reto escrito a mano no declara concepto, y al jugarlo se le pone el de
+     su pozo: `pozo:<id>`. Aquí se contaba solo `r.skill`, así que esos retos
+     no se contaban en ninguna parte: un pozo propio con veinte retos escritos
+     decía «sin retos de esto todavía», que es lo contrario de la verdad y
+     justo lo que quita las ganas de usarlo. Las dos cuentas tienen que repartir
+     igual o se contradicen en la misma pantalla. */
+  const suma = (r, branchId) => {
+    const id = (r && r.skill) || (branchId ? 'pozo:' + branchId : '');
     if (id) cuenta[id] = (cuenta[id] || 0) + 1;
   };
   for (const site of (ATLAS_CONFIG.sites || [])) {
     for (const b of (site.branches || [])) {
-      for (const est of Object.keys(b.bank || {})) for (const r of (b.bank[est] || [])) suma(r);
+      for (const est of Object.keys(b.bank || {})) {
+        for (const r of (b.bank[est] || [])) suma(r, b.id);
+      }
     }
   }
   if (typeof retosDelBanco === 'function') for (const r of retosDelBanco()) suma(r);

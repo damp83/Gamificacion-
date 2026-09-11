@@ -653,3 +653,89 @@ test('la pantalla distingue un código deducido de uno que venía escrito', () =
   assert.match(t, /los códigos en cursiva se han deducido/);
   assert.match(leer('css/styles.css'), /\.cr-cod-deducido \{[^}]*italic/);
 });
+
+/* ══ Los pozos propios, atables a un criterio ══
+
+   Un reto escrito a mano no declara concepto y se agrupa bajo su pozo. Ese
+   seudoconcepto ya vivía en los diarios y ya salía en el informe, pero no se
+   podía ATAR A UN CRITERIO: la única parte de la programación que Atlas no
+   cubre de fábrica tampoco se podía evaluar aquí, aunque tuviera datos. */
+
+function conPozoPropio(c) {
+  c.ev(`ATLAS_CONFIG.sites.push({ id: 'foro', name: 'El Foro', icon: '🏛️', enabled: true,
+    branches: [{ id: 'trigo', name: 'El Almacén de Trigo', icon: '🌾', source: 'docente',
+      enabled: true, grades: [2],
+      bank: { recordar: [{ question: 'a', options: ['1','2'], answer: 0 },
+                         { question: 'b', options: ['1','2'], answer: 0 }] } }] })`);
+  return c;
+}
+
+test('un pozo del docente sale en las casillas, en su propio grupo y al final', () => {
+  const c = conPozoPropio(cargarApp());
+  const areas = c.ev('conceptosAgrupados()');
+  const nombres = [...areas.keys()];
+  assert.equal(nombres[nombres.length - 1], 'Tus pozos', 'no va el último');
+  assert.deepEqual(areas.get('Tus pozos').map(x => x.id), ['pozo:trigo']);
+  assert.equal(areas.get('Tus pozos')[0].label, 'El Almacén de Trigo');
+});
+
+test('los de fábrica y el Taller no entran en ese grupo', () => {
+  /* Los de fábrica ya están arriba con sus conceptos de verdad, y el Taller es
+     una pieza de la app cuyos retos escriben los niños: no lo montó nadie. */
+  const c = conPozoPropio(cargarApp());
+  const mios = c.ev('conceptosAgrupados()').get('Tus pozos').map(x => x.id);
+  assert.ok(!mios.includes('pozo:acertijos'), 'el Taller se cuela como pozo del docente');
+  assert.ok(!mios.includes('pozo:numeracion'), 'un pozo de fábrica se cuela');
+});
+
+test('sin pozos propios, el grupo no aparece', () => {
+  const c = cargarApp();
+  assert.ok(![...c.ev('conceptosAgrupados()').keys()].includes('Tus pozos'));
+});
+
+test('y los retos escritos a mano cuentan bajo su pozo', () => {
+  /* Se contaba solo `r.skill`, así que un pozo propio con veinte retos
+     escritos decía «sin retos de esto todavía», que es lo contrario de la
+     verdad y justo lo que quita las ganas de usarlo. */
+  const c = conPozoPropio(cargarApp());
+  assert.equal(c.ev('retosPorConcepto()')['pozo:trigo'], 2);
+  const act = c.ev('actividadesDeCriterio')({ conceptos: ['pozo:trigo'] });
+  assert.equal(act.total, 2);
+  assert.deepEqual(act.sin, []);
+});
+
+test('las dos cuentas reparten igual: la del panel y la del juego', () => {
+  /* Si no repartieran igual, la misma pantalla se contradiría: el panel diría
+     «sin retos» de lo que el diario del niño sí está anotando. */
+  const c = conPozoPropio(cargarApp());
+  const enJuego = leer('js/content.js');
+  assert.match(enJuego, /skill: q\.skill \|\| \('pozo:' \+ branch\.id\)/);
+  const enPanel = leer('js/state.js');
+  const i = enPanel.indexOf('function retosPorConcepto');
+  assert.match(enPanel.slice(i, enPanel.indexOf('\n}\n', i)), /'pozo:' \+ branchId/);
+});
+
+/* ══ La propuesta, partida en dos ══ */
+
+test('la propuesta separa lo que Atlas puede medir de lo que no', () => {
+  /* Venían en una sola lista de treinta, con los dos útiles perdidos en medio.
+     Añadirlos todos sale caro de una forma que no se ve hasta el segundo
+     trimestre: veintiocho columnas vacías para siempre. */
+  const t = leer('js/teacher.js');
+  const i = t.indexOf('function pintarPropuestaDeCriterios');
+  const cuerpo = t.slice(i, t.indexOf('\n}\n', i));
+  assert.match(cuerpo, /const conDatos = criteriosPropuestos\.filter\(c => c\.conceptos\.length\)/);
+  assert.match(cuerpo, /que Atlas puede medir/);
+  assert.match(cuerpo, /<details class="cr-prop-otros">/,
+    'los que no mide tienen que ir plegados, no en la misma lista');
+  assert.match(cuerpo, /añádelos solo si quieres tu tabla completa/);
+});
+
+test('y los que no mide siguen estando, sin marcar', () => {
+  /* Quien quiera su tabla completa los añade; lo que no puede pasar es que se
+     marquen solos y acaben en la tabla sin haberlo decidido. */
+  const t = leer('js/teacher.js');
+  assert.match(t, /marcado: c\.conceptos\.length > 0/);
+  const i = t.indexOf('function pintarPropuestaDeCriterios');
+  assert.match(t.slice(i, t.indexOf('\n}\n', i)), /sinDatos\.map\(fila\)/);
+});

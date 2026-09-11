@@ -2924,6 +2924,16 @@ input[type="checkbox"]::after, input[type="radio"]::after {
    en el currículo, y el docente tiene que poder distinguirlos de un vistazo
    para corregir los que no cuadren con su centro. */
 .cr-cod-deducido { font-style: italic; color: var(--brass); }
+/* Los dos bloques de la propuesta: los que Atlas puede medir y los demás. */
+.cr-prop-grupo {
+  margin: var(--s-4) 0 .2rem; font-size: var(--t-base); color: var(--leather-dark);
+}
+.cr-prop-otros { margin-top: var(--s-4); }
+.cr-prop-otros summary {
+  cursor: pointer; font-weight: 800; color: var(--ink-soft); font-size: var(--t-sm);
+  padding: .5rem 0;
+}
+.cr-prop-otros summary:hover { color: var(--leather-dark); }
 
 .cr-tabla-caja { overflow-x: auto; margin: .6rem 0; border: var(--line); border-radius: var(--r-md); }
 .cr-tabla { border-collapse: collapse; width: 100%; font-size: var(--t-sm); background: var(--surface); }

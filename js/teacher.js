@@ -2684,6 +2684,29 @@ function conceptosAgrupados() {
     if (!areas.has(a)) areas.set(a, []);
     areas.get(a).push({ id, label: CONCEPTOS[id].label });
   }
+  /* ── Y los pozos que el docente ha creado él ──
+
+     Un reto escrito a mano no declara concepto —obligar a etiquetar uno a uno
+     lo que ya está escrito sería pedir demasiado— así que se agrupa bajo su
+     pozo: `pozo:<id>`. Ese seudoconcepto ya vivía en los diarios y ya salía en
+     el informe, en «Saberes trabajados», como «Del docente · tal pozo». Lo
+     único que faltaba es que se pudiera ATAR A UN CRITERIO, y por eso la única
+     parte de la programación que Atlas no cubría de fábrica tampoco se podía
+     evaluar aquí aunque tuviera datos de sobra.
+
+     Van los últimos y en su propio grupo: son de este equipo y de esta clase,
+     no del catálogo, y quien los mire tiene que ver la diferencia. */
+  const mios = [];
+  for (const site of (typeof sitesAll === 'function' ? sitesAll() : [])) {
+    for (const b of (site.branches || [])) {
+      /* Los de fábrica ya están arriba con sus conceptos de verdad. El Taller
+         de Cartografía tampoco: sus retos los escriben los niños y es una
+         pieza de la app, no un pozo que haya montado nadie. */
+      if (b.source === 'builtin' || b.source === 'bank') continue;
+      mios.push({ id: 'pozo:' + b.id, label: b.name || b.id });
+    }
+  }
+  if (mios.length) areas.set('Tus pozos', mios);
   return areas;
 }
 
@@ -2762,6 +2785,39 @@ function pintarPropuestaDeCriterios() {
   const yaTengo = new Set((ATLAS_CONFIG.criterios || []).map(c => (c.texto || '').trim().toLowerCase()));
   const marcados = criteriosPropuestos.filter(c => c.marcado).length;
 
+  /* ── Los que Atlas puede alimentar, aparte de los que no ──
+
+     Venían en una sola lista de treinta, con los dos útiles perdidos en medio.
+     Y añadirlos todos sale caro de una forma que no se ve hasta el segundo
+     trimestre: una tabla con veintiocho columnas vacías para siempre y dos con
+     números no es una herramienta, es un sitio por el que pasar de largo. Los
+     criterios que se evalúan observando ya se evalúan observando, en la
+     plataforma del centro; meterlos aquí añade un segundo sitio vacío donde
+     mirar.
+
+     Así que se parten en dos bloques. Arriba los que tienen concepto detrás,
+     marcados. Abajo los demás, sin marcar y plegados, porque siguen estando y
+     quien quiera su tabla completa los añade en un gesto. */
+  const conDatos = criteriosPropuestos.filter(c => c.conceptos.length);
+  const sinDatos = criteriosPropuestos.filter(c => !c.conceptos.length);
+  const fila = c => {
+    const repe = yaTengo.has((c.texto || '').trim().toLowerCase());
+    return `<label class="cr-prop-fila${c.conceptos.length ? '' : ' cr-prop-sin'}">
+      <input type="checkbox" class="cr-prop-check" data-n="${c.n}"${c.marcado ? ' checked' : ''}${repe ? ' disabled' : ''}>
+      <div>
+        <strong class="${c.codigoDeducido ? 'cr-cod-deducido' : ''}"${
+          c.codigoDeducido ? ' title="Deducido de su sitio en el documento: tu currículo no lo trae escrito"' : ''
+          }>${esc(c.codigo || '(sin código)')}</strong> ${esc(c.texto)}
+        ${c.saberes.length ? `<small class="cr-saberes">Saberes: ${
+          c.saberes.map(x => esc(x)).join(' · ')}</small>` : ''}
+        <small class="cr-prop-conceptos">${c.conceptos.length
+          ? 'Lo mide con: ' + c.conceptos.map(x => esc(conceptoInfo(x).label)).join(', ')
+          : 'Ningún concepto de la app mide esto.'}</small>
+        ${repe ? '<small class="cr-prop-conceptos">Ya lo tienes en tu lista.</small>' : ''}
+      </div>
+    </label>`;
+  };
+
   caja.innerHTML = `
     <div class="cr-propuesta">
       <div class="cr-prop-cab"><strong>${criteriosPropuestos.length} criterios leídos</strong>
@@ -2770,23 +2826,22 @@ function pintarPropuestaDeCriterios() {
         trae los criterios numerados, así que <strong>los códigos en cursiva se han deducido de su
         sitio en el documento</strong>: el que hace tres bajo la competencia dos sale como 2.3.
         Revísalos, y cámbialos luego en «Tus criterios» si tu centro los llama de otra forma.</p>` : ''}
-      ${criteriosPropuestos.map(c => {
-        const repe = yaTengo.has((c.texto || '').trim().toLowerCase());
-        return `<label class="cr-prop-fila${c.conceptos.length ? '' : ' cr-prop-sin'}">
-          <input type="checkbox" class="cr-prop-check" data-n="${c.n}"${c.marcado ? ' checked' : ''}${repe ? ' disabled' : ''}>
-          <div>
-            <strong class="${c.codigoDeducido ? 'cr-cod-deducido' : ''}"${
-              c.codigoDeducido ? ' title="Deducido de su sitio en el documento: tu currículo no lo trae escrito"' : ''
-              }>${esc(c.codigo || '(sin código)')}</strong> ${esc(c.texto)}
-            ${c.saberes.length ? `<small class="cr-saberes">Saberes: ${
-              c.saberes.map(x => esc(x)).join(' · ')}</small>` : ''}
-            <small class="cr-prop-conceptos">${c.conceptos.length
-              ? 'Lo mide con: ' + c.conceptos.map(x => esc(conceptoInfo(x).label)).join(', ')
-              : '⚠️ Ningún concepto de la app mide esto. Se puede añadir igual, pero saldrá vacío en la tabla.'}</small>
-            ${repe ? '<small class="cr-prop-conceptos">Ya lo tienes en tu lista.</small>' : ''}
-          </div>
-        </label>`;
-      }).join('')}
+
+      <h5 class="cr-prop-grupo">${conDatos.length} que Atlas puede medir</h5>
+      ${conDatos.length
+        ? `<p class="cfg-hint">Estos tienen retos detrás y su columna se llenará sola. Son los que
+           te ahorran trabajo de verdad.</p>${conDatos.map(fila).join('')}`
+        : `<p class="cfg-hint">Ninguno de los leídos casa con lo que esta app mide. No es raro con
+           un currículo de competencias: lo que Atlas sabe medir son retos de numeración, cálculo,
+           fracciones, decimales, vocabulario, ortografía y comprensión.</p>`}
+
+      ${sinDatos.length ? `<details class="cr-prop-otros">
+        <summary>${sinDatos.length} que Atlas no mide — añádelos solo si quieres tu tabla completa</summary>
+        <p class="cfg-hint">Hablan de cosas que no se ven desde un reto: trabajar en equipo,
+        explicar en voz alta, usar herramientas. Si los añades, su columna saldrá vacía siempre y
+        la rellenas tú con lo que observas en clase.</p>
+        ${sinDatos.map(fila).join('')}
+      </details>` : ''}
       <div class="cfg-row cfg-row-actions">
         <button class="btn btn-primary btn-small" id="cr-aceptar"${marcados ? '' : ' disabled'}>
           ➕ Añadir ${marcados} a mis criterios</button>
