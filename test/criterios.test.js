@@ -496,3 +496,63 @@ test('el mínimo del cliente es el mismo que exige la función', () => {
   assert.ok(m, 'la función ya no comprueba un mínimo de longitud');
   assert.equal(c.ev('CRITERIOS_MINIMO'), +m[1]);
 });
+
+test('lo que contesta la función llega entero, no una lista de campos elegidos', () => {
+  /* Esto enumeraba los campos uno a uno y funcionó hasta que apareció un
+     encargo nuevo: al añadir el de leer criterios, nadie añadió `criterios` a
+     la lista, y se caían por el camino. La pantalla acabó acusando a la
+     función de estar desplegada vieja, que es lo más lejos que se puede estar
+     de la verdad. Con el paso entero, el próximo encargo no repite el fallo. */
+  const t = leer('js/cloud.js');
+  const i = t.indexOf('async function ejecutarGenerador');
+  const cuerpo = t.slice(i, t.indexOf('\n}\n', i));
+  assert.match(cuerpo, /Object\.assign\(\{\}, datos/,
+    'se vuelve a enumerar los campos: el próximo encargo se perderá igual');
+  assert.doesNotMatch(cuerpo, /yacimiento: datos\.yacimiento/,
+    'queda una lista de campos elegidos');
+});
+
+test('los criterios que devuelve la función llegan de verdad a la pantalla', () => {
+  /* La prueba que faltaba: todo lo demás miraba el fuente, y el campo se caía
+     en el camino sin que nadie se enterara. Esta habla con una función de
+     mentira que contesta lo mismo que la de verdad. */
+  const c = cargarApp();
+  c.ev(`CLOUD.enabled = true; CLOUD.user = { $id: 'u1' };
+    CLOUD.functions = { createExecution: async () => ({
+      status: 'completed',
+      responseBody: JSON.stringify({ ok: true, criterios: [
+        { codigo: '1.1', texto: 'Comprender las preguntas planteadas.', saberes: [], conceptos: [] }
+      ], usados: { entrada: 10, salida: 5 } })
+    }) };
+    ATLAS_CONFIG.appwrite.generadorFunctionId = 'fn';`);
+  return c.ev('cloudProponerCriterios')({
+    materiaNombre: 'Matemáticas', cursos: [2], curriculo: 'x'.repeat(500)
+  }).then(r => {
+    assert.equal(r.ok, true, r.texto || r.reason);
+    assert.equal(r.criterios.length, 1);
+    assert.equal(r.criterios[0].codigo, '1.1');
+  });
+});
+
+test('y en tandas se juntan los de todos los trozos', () => {
+  const c = cargarApp();
+  let n = 0;
+  c.ev(`CLOUD.enabled = true; CLOUD.user = { $id: 'u1' };
+    globalThis.__n = 0;
+    CLOUD.functions = { createExecution: async () => {
+      globalThis.__n++;
+      return { status: 'completed', responseBody: JSON.stringify({ ok: true, criterios: [
+        { codigo: String(globalThis.__n) + '.1', texto: 'Criterio del trozo ' + globalThis.__n,
+          saberes: [], conceptos: [] }
+      ] }) };
+    } };
+    ATLAS_CONFIG.appwrite.generadorFunctionId = 'fn';`);
+  return c.ev('cloudLeerCriteriosEnTandas')({
+    materiaNombre: 'Matemáticas', cursos: [2],
+    curriculo: 'Criterio de evaluación con su texto.\n\n'.repeat(400)
+  }).then(r => {
+    assert.equal(r.ok, true, r.texto || r.reason);
+    assert.ok(r.trozos > 1, 'no se partió');
+    assert.equal(r.criterios.length, r.trozos, 'se perdieron criterios por el camino');
+  });
+});

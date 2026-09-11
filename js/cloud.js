@@ -170,11 +170,25 @@ async function ejecutarGenerador(id, cuerpo) {
     }
 
     if (!datos.ok) return { ok: false, reason: datos.reason || 'error', texto: datos.texto || 'No se han podido generar.' };
-    /* `yacimiento` solo viene en el encargo de estructura; en los otros dos es
-       undefined y no estorba. Se pasa aquí para no tener dos funciones que
-       hablan con la misma función de Appwrite. */
-    return { ok: true, retos: datos.retos || [], descartados: datos.descartados || [],
-             yacimiento: datos.yacimiento, usados: datos.usados };
+    /* ── Se pasa TODO lo que conteste la función, no una lista de campos ──
+
+       Esto enumeraba los campos uno a uno —`retos`, `descartados`,
+       `yacimiento`, `usados`— y funcionó hasta que apareció un encargo nuevo.
+       Al añadir el de leer criterios, nadie se acordó de añadir `criterios` a
+       esta lista, así que la función los devolvía y aquí se caían por el
+       camino: llegaban siempre vacíos y la pantalla acusaba a la función de
+       estar desplegada vieja, que es lo más lejos que se puede estar de la
+       verdad.
+
+       Lo que viene de aquí es nuestra propia función, así que pasarlo entero
+       no mete nada de fuera. Los dos únicos que se normalizan son los que el
+       resto del código recorre siempre: una lista que falte tiene que ser una
+       lista vacía y no un `undefined`. */
+    return Object.assign({}, datos, {
+      ok: true,
+      retos: datos.retos || [],
+      descartados: datos.descartados || []
+    });
 
   } catch (e) {
     const m = (e && e.message) || '';
