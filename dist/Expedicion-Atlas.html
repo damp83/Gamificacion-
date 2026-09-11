@@ -3515,6 +3515,18 @@ input[type="checkbox"]::after, input[type="radio"]::after {
 /* Sitio para la barra, o taparía la cabecera */
 body.en-demo #main { padding-top: 46px; }
 body.en-demo #hud { top: 44px; }
+/* En un móvil la frase larga parte la barra en tres renglones y se come un
+   quinto de la pantalla. Se queda el titular, que es lo que hay que leer, y
+   el botón de salir. Lo demás ya lo dice el titular. */
+@media (max-width: 34rem) {
+  .demo-bar { flex-wrap: nowrap; padding: 8px 10px; font-size: .85rem; }
+  .demo-bar em { display: none; }
+  .demo-bar strong { white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+}
+/* El aviso de «sin conexión» se calla durante la demostración: no hay clase
+   real que sincronizar, así que asustar con que el diario no se guarda es
+   contar un problema que aquí no existe —y además lo tapaba la barra. */
+body.en-demo .cloud-warning { display: none !important; }
 /* Y con las dos barras a la vez —la demostración mirando un cuaderno— cada
    una en su renglón, que si no se pisan. */
 body.en-demo.en-consulta .lectura-bar { top: 42px; }
@@ -4981,6 +4993,28 @@ function pintarBarraDemo() {
   const barra = $('#demo-bar');
   if (!barra) return;
   barra.classList.remove('hidden');
+}
+
+/* ── Jugar como un alumno de la clase inventada ──
+
+   El panel enseña la mitad de la plataforma. La otra mitad es lo que ve el
+   niño, y un maestro que está decidiendo si esto le sirve necesita responder
+   un reto, fallar a propósito y ver qué le dice Kira. Desde el panel solo se
+   puede MIRAR el cuaderno de alguien, en solo lectura, que es lo correcto con
+   una clase de verdad y aquí sobra: aquí no hay nada que estropear.
+
+   Así que en la demostración se entra a jugar de verdad, con el diario de
+   quien se elija. El aviso de arriba sigue puesto y la pestaña «Docente»
+   devuelve al panel cuando se quiera volver. */
+function jugarEnDemo(clave) {
+  if (!DEMO) return;
+  cerrarLectura();
+  $('#lectura-bar').classList.add('hidden');
+  document.body.classList.remove('en-consulta');
+  if (!openDiaryKey(clave)) { toast('No se ha podido abrir ese diario.'); return; }
+  startApp();
+  window.scrollTo(0, 0);
+  toast(`Estás jugando como ${S.profile.explorer_name}. Vuelve al panel por «Docente».`, 4200);
 }
 
 /* Lo que no sale de este navegador mientras dure la demostración. Cada sitio
@@ -7195,7 +7229,7 @@ function cruzarVerificacion(retos, respuestas) {
    copia guardada. Sin este número, «ya está arreglado» y «a mí no me pasa» son
    indistinguibles. Va junto al nombre de la caché del service worker, y una
    prueba comprueba que no se separen. */
-const ATLAS_VERSION = 'v97';
+const ATLAS_VERSION = 'v98';
 
 const ATLAS_DEFAULTS = {
 
@@ -16973,6 +17007,8 @@ function paintClassView() {
           data-ver="${esc(s.clave || s.id)}">${ico('lens')} Ver su cuaderno</button>
         <button class="btn btn-secondary btn-small student-informe"
           data-informe="${esc(s.clave || s.id)}">${ico('logbook')} Informe para la familia</button>
+        ${DEMO && s.clave ? `<button class="btn btn-secondary btn-small student-jugar"
+          data-jugar="${esc(s.clave)}">${ico('explorer')} Jugar como ${esc(s.name)}</button>` : ''}
       </div>` : ''}
     </div>`).join('') + pendientesHtml(d);
 
@@ -16980,6 +17016,8 @@ function paintClassView() {
     b.addEventListener('click', () => descargarInforme(b.dataset.informe)));
   $$('#class-students .student-ver').forEach(b =>
     b.addEventListener('click', () => entrarEnLectura(b.dataset.ver)));
+  $$('#class-students .student-jugar').forEach(b =>
+    b.addEventListener('click', () => jugarEnDemo(b.dataset.jugar)));
 
   pintarCuadrillas(d);
 
@@ -22125,7 +22163,9 @@ function aplicarModoSesion() {
    Bitácora con los sellos y los méritos. Aquí se exige que mande el docente:
    su portal, o la consulta del cuaderno de un alumno. */
 function puedeVerCuadernoDocente() {
-  return teacherOnly || enModoLectura();
+  /* En la demostración también: quien está jugando como un alumno inventado
+     ha llegado ahí desde el panel y tiene que poder volver. */
+  return teacherOnly || enModoLectura() || DEMO;
 }
 
 function showHome() {
@@ -22479,6 +22519,11 @@ function wireGlobalListeners() {
        así que la pestaña lleva de vuelta al portal. Consultando SÍ lo hay, y
        es justo lo que se ha venido a ver. */
     if (teacherOnly && !enModoLectura() && el.dataset.nav === 'dashboard') { showTeacherPortal(); return; }
+    /* Jugando en la demostración tampoco hay cuaderno que enseñar: la pestaña
+       devuelve al panel, que es de donde se vino. */
+    if (DEMO && !enModoLectura() && el.dataset.nav === 'dashboard') {
+      classData = null; enterTeacherMode(); return;
+    }
     show(el.dataset.nav);
   }));
   wireAula();

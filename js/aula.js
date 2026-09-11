@@ -1317,6 +1317,8 @@ function paintClassView() {
           data-ver="${esc(s.clave || s.id)}">${ico('lens')} Ver su cuaderno</button>
         <button class="btn btn-secondary btn-small student-informe"
           data-informe="${esc(s.clave || s.id)}">${ico('logbook')} Informe para la familia</button>
+        ${DEMO && s.clave ? `<button class="btn btn-secondary btn-small student-jugar"
+          data-jugar="${esc(s.clave)}">${ico('explorer')} Jugar como ${esc(s.name)}</button>` : ''}
       </div>` : ''}
     </div>`).join('') + pendientesHtml(d);
 
@@ -1324,6 +1326,8 @@ function paintClassView() {
     b.addEventListener('click', () => descargarInforme(b.dataset.informe)));
   $$('#class-students .student-ver').forEach(b =>
     b.addEventListener('click', () => entrarEnLectura(b.dataset.ver)));
+  $$('#class-students .student-jugar').forEach(b =>
+    b.addEventListener('click', () => jugarEnDemo(b.dataset.jugar)));
 
   pintarCuadrillas(d);
 

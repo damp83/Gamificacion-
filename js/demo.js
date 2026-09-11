@@ -347,6 +347,28 @@ function pintarBarraDemo() {
   barra.classList.remove('hidden');
 }
 
+/* ── Jugar como un alumno de la clase inventada ──
+
+   El panel enseña la mitad de la plataforma. La otra mitad es lo que ve el
+   niño, y un maestro que está decidiendo si esto le sirve necesita responder
+   un reto, fallar a propósito y ver qué le dice Kira. Desde el panel solo se
+   puede MIRAR el cuaderno de alguien, en solo lectura, que es lo correcto con
+   una clase de verdad y aquí sobra: aquí no hay nada que estropear.
+
+   Así que en la demostración se entra a jugar de verdad, con el diario de
+   quien se elija. El aviso de arriba sigue puesto y la pestaña «Docente»
+   devuelve al panel cuando se quiera volver. */
+function jugarEnDemo(clave) {
+  if (!DEMO) return;
+  cerrarLectura();
+  $('#lectura-bar').classList.add('hidden');
+  document.body.classList.remove('en-consulta');
+  if (!openDiaryKey(clave)) { toast('No se ha podido abrir ese diario.'); return; }
+  startApp();
+  window.scrollTo(0, 0);
+  toast(`Estás jugando como ${S.profile.explorer_name}. Vuelve al panel por «Docente».`, 4200);
+}
+
 /* Lo que no sale de este navegador mientras dure la demostración. Cada sitio
    que cruza el límite pregunta por aquí antes de cruzarlo. */
 function bloqueadoEnDemo(que) {

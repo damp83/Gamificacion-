@@ -108,7 +108,9 @@ function aplicarModoSesion() {
    Bitácora con los sellos y los méritos. Aquí se exige que mande el docente:
    su portal, o la consulta del cuaderno de un alumno. */
 function puedeVerCuadernoDocente() {
-  return teacherOnly || enModoLectura();
+  /* En la demostración también: quien está jugando como un alumno inventado
+     ha llegado ahí desde el panel y tiene que poder volver. */
+  return teacherOnly || enModoLectura() || DEMO;
 }
 
 function showHome() {
@@ -462,6 +464,11 @@ function wireGlobalListeners() {
        así que la pestaña lleva de vuelta al portal. Consultando SÍ lo hay, y
        es justo lo que se ha venido a ver. */
     if (teacherOnly && !enModoLectura() && el.dataset.nav === 'dashboard') { showTeacherPortal(); return; }
+    /* Jugando en la demostración tampoco hay cuaderno que enseñar: la pestaña
+       devuelve al panel, que es de donde se vino. */
+    if (DEMO && !enModoLectura() && el.dataset.nav === 'dashboard') {
+      classData = null; enterTeacherMode(); return;
+    }
     show(el.dataset.nav);
   }));
   wireAula();

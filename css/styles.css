@@ -3512,6 +3512,18 @@ input[type="checkbox"]::after, input[type="radio"]::after {
 /* Sitio para la barra, o taparía la cabecera */
 body.en-demo #main { padding-top: 46px; }
 body.en-demo #hud { top: 44px; }
+/* En un móvil la frase larga parte la barra en tres renglones y se come un
+   quinto de la pantalla. Se queda el titular, que es lo que hay que leer, y
+   el botón de salir. Lo demás ya lo dice el titular. */
+@media (max-width: 34rem) {
+  .demo-bar { flex-wrap: nowrap; padding: 8px 10px; font-size: .85rem; }
+  .demo-bar em { display: none; }
+  .demo-bar strong { white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+}
+/* El aviso de «sin conexión» se calla durante la demostración: no hay clase
+   real que sincronizar, así que asustar con que el diario no se guarda es
+   contar un problema que aquí no existe —y además lo tapaba la barra. */
+body.en-demo .cloud-warning { display: none !important; }
 /* Y con las dos barras a la vez —la demostración mirando un cuaderno— cada
    una en su renglón, que si no se pisan. */
 body.en-demo.en-consulta .lectura-bar { top: 42px; }

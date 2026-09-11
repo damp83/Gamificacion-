@@ -200,3 +200,60 @@ test('el botón de la portada existe y dice lo que hay', () => {
   assert.match(html, /id="demo-bar"/, 'sin barra, nadie sabe que está en una demostración');
   assert.match(leer('js/app.js'), /'#home-demo'\)/);
 });
+
+/* ══ La otra mitad: jugar ══ */
+
+test('desde el panel se puede jugar como un alumno, no solo mirarlo', () => {
+  /* El panel enseña la mitad de la plataforma. Un maestro que está decidiendo
+     si esto le sirve necesita responder un reto y ver qué pasa al fallar. */
+  const c = cargarApp();
+  c.ev('entrarEnDemo()');
+  const clave = Object.keys(c.ev('loadDiaries()'))[0];
+  c.ev('jugarEnDemo')(clave);
+  assert.ok(c.ev('S'), 'no se abrió ningún diario');
+  assert.equal(c.ev('enModoLectura()'), false, 'se abrió en solo lectura: no se puede jugar');
+  assert.equal(c.ev('DEMO'), true, 'jugar sacó de la demostración');
+});
+
+test('y jugando sigue sin escribirse nada en el navegador', () => {
+  const c = cargarApp();
+  c.ev('entrarEnDemo()');
+  c.ev('jugarEnDemo')(Object.keys(c.ev('loadDiaries()'))[0]);
+  c.ev('S.progression.doubloons_balance = 12345');
+  c.ev('saveState()');
+  assert.equal(c.ev("localStorage.getItem('atlas_diarios_v1')"), null);
+  assert.ok(JSON.stringify(c.ev('loadDiaries()')).includes('12345'),
+    'jugando no se guarda ni siquiera en el cajón de la demostración');
+});
+
+test('jugando siempre hay vuelta al panel', () => {
+  /* Sin la pestaña «Docente», el único camino de vuelta sería salir de la
+     demostración entera y volver a entrar. */
+  const c = cargarApp();
+  c.ev('entrarEnDemo()');
+  c.ev('jugarEnDemo')(Object.keys(c.ev('loadDiaries()'))[0]);
+  assert.equal(c.ev('teacherOnly'), false, 'no se está jugando de verdad');
+  assert.equal(c.ev('puedeVerCuadernoDocente()'), true, 'no hay vuelta al panel');
+});
+
+test('fuera de la demostración no se puede jugar el diario de nadie', () => {
+  /* Con una clase de verdad, el cuaderno de un alumno se MIRA y no se toca:
+     esa es la regla del modo consulta y esto no puede ser un boquete en ella. */
+  const c = cargarApp();
+  c.ev('openDiary')({ name: 'Nadia', username: 'nadia' }, 3);
+  c.ev('saveState()');
+  const clave = Object.keys(c.ev('loadDiaries()'))[0];
+  c.ev('S = null');
+  c.ev('jugarEnDemo')(clave);
+  assert.equal(c.ev('S'), null, 'se abrió un diario a jugar sin estar en demostración');
+});
+
+test('y el botón solo se pinta dentro de la demostración', () => {
+  assert.match(leer('js/aula.js'), /\$\{DEMO && s\.clave \? `<button[^`]*student-jugar/);
+});
+
+test('el aviso de «sin conexión» se calla durante la demostración', () => {
+  /* No hay clase real que sincronizar: contar que el diario no se guarda es
+     un problema que aquí no existe, y encima lo tapaba la barra. */
+  assert.match(leer('css/styles.css'), /body\.en-demo \.cloud-warning \{ display: none/);
+});
