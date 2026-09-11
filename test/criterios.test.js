@@ -459,7 +459,40 @@ test('un trozo sin criterios no tira la lectura entera', () => {
   const t = leer('js/cloud.js');
   const i = t.indexOf('async function cloudLeerCriteriosEnTandas');
   const cuerpo = t.slice(i, t.indexOf('\n}\n', i));
-  assert.match(cuerpo, /reason === 'vacio'\) continue/);
+  assert.match(cuerpo, /reason === 'vacio' \|\| r\.reason === 'sin-curriculo'\) continue/);
   assert.match(cuerpo, /if \(!listas\.length\) return r/,
     'si falla el primero no hay nada que salvar y se devuelve el error');
+});
+
+test('ningún trozo sale por debajo del mínimo que acepta la función', () => {
+  /* La función rechaza cualquier currículo de menos de 200 caracteres, y con
+     razón: con tan poco no hay criterios que leer. Pero al partir, el último
+     trozo es el RESTO, y el resto puede ser de cincuenta caracteres. Ese
+     trozo volvería con un error que no es un error, a falta de nada. */
+  const c = cargarApp();
+  const min = c.ev('CRITERIOS_MINIMO');
+  for (const n of [2700, 2610, 5250, 7613, 9001]) {
+    const texto = 'Criterio de evaluación con su texto completo.\n\n'.repeat(400).slice(0, n);
+    for (const t of c.ev('trozosDeCurriculo')(texto)) {
+      assert.ok(t.trim().length >= min,
+        `un trozo de ${t.trim().length} caracteres con un currículo de ${n}: la función lo rechaza`);
+    }
+  }
+});
+
+test('y un trozo rechazado por corto tampoco tira la lectura', () => {
+  const t = leer('js/cloud.js');
+  const i = t.indexOf('async function cloudLeerCriteriosEnTandas');
+  const cuerpo = t.slice(i, t.indexOf('\n}\n', i));
+  assert.match(cuerpo, /reason === 'sin-curriculo'/);
+});
+
+test('el mínimo del cliente es el mismo que exige la función', () => {
+  /* Dos números que tienen que ser el mismo y viven en dos ficheros: si un
+     día se cambia uno, esto lo dice. */
+  const c = cargarApp();
+  const fn = leer('functions/generador/src/main.js');
+  const m = fn.match(/texto\.length < (\d+)/);
+  assert.ok(m, 'la función ya no comprueba un mínimo de longitud');
+  assert.equal(c.ev('CRITERIOS_MINIMO'), +m[1]);
 });

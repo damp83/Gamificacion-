@@ -400,6 +400,8 @@ async function cloudProponerCriterios(peticion, avisar) {
    en la costura salga en los dos trozos; los repetidos se quitan después. */
 const CRITERIOS_TROZO = 2600;
 const CRITERIOS_SOLAPE = 300;
+/* El mismo mínimo que exige la función: por debajo rechaza la petición. */
+const CRITERIOS_MINIMO = 200;
 
 function trozosDeCurriculo(texto, tam, solape) {
   const t = String(texto || '');
@@ -441,7 +443,22 @@ function trozosDeCurriculo(texto, tam, solape) {
     }
   }
   if (actual.trim()) trozos.push(actual);
-  return trozos.filter(x => x.trim());
+
+  /* ── La cola corta se pega al trozo de antes ──
+     La función rechaza cualquier currículo de menos de 200 caracteres, y con
+     razón: con tan poco no hay criterios que leer y el modelo se los
+     inventaría. Pero al partir, el último trozo es el resto, y el resto puede
+     ser de cincuenta caracteres. Ese trozo volvería con un error que no es un
+     error, y cortaría la lectura entera a falta de nada. */
+  const limpios = trozos.filter(x => x.trim());
+  for (let i = limpios.length - 1; i > 0; i--) {
+    if (limpios[i].trim().length >= CRITERIOS_MINIMO) continue;
+    limpios[i - 1] += '\n\n' + limpios[i];
+    limpios.splice(i, 1);
+  }
+  /* Y si lo que queda entero es más corto que el mínimo, no hay nada que
+     mandar: se devuelve para que lo diga quien llama. */
+  return limpios;
 }
 
 /* Dos criterios son el mismo si dicen lo mismo, aunque uno venga del solape
@@ -475,7 +492,9 @@ async function cloudLeerCriteriosEnTandas(peticion, onProgreso) {
     if (!r.ok) {
       /* Lo ya leído está pagado y sirve: no se tira por un trozo que falló.
          Se sigue con lo que haya y se dice que la lectura quedó a medias. */
-      if (r.reason === 'vacio') continue;          /* ese trozo no traía criterios */
+      /* Ni un trozo sin criterios ni uno que la función considere demasiado
+         corto tiran lo ya leído: se saltan y se sigue. */
+      if (r.reason === 'vacio' || r.reason === 'sin-curriculo') continue;
       if (!listas.length) return r;
       corte = r.texto;
       break;
