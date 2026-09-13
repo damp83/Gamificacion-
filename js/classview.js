@@ -488,7 +488,10 @@ function buildClassOverview(entries, today) {
       mine.push(s);
     }
     return {
-      id: t.id, name: t.name, icon: t.icon,
+      /* `img` viaja con el resto: este resumen es lo único que llega a la
+         vista de clase, y sin él la cuadrilla salía ahí con su emoji
+         mientras el niño la veía dibujada en su pantalla. */
+      id: t.id, name: t.name, icon: t.icon, img: t.img,
       members: mine.length,
       listed: (t.members || []).length,
       contribution: mine.reduce((a, s) => a + s.teamContribution, 0),

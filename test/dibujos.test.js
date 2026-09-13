@@ -239,11 +239,18 @@ test('la casilla del día conseguido no encierra el sello en un cuadrado', () =>
 test('están los dibujos de los tres encargos, y la carpeta sigue cabiendo en una tablet', () => {
   const webp = dibujos().filter(f => f.endsWith('.webp'));
   /* Diez del primer encargo —los compañeros, los sitios, la carta—, veinte
-     del segundo —la villana, el fragmento, el almacén y los rangos— y
-     treinta y siete del tercero: ocho pozos, cuatro estratos, cinco hitos de
+     del segundo —la villana, el fragmento, el almacén y los rangos—,
+     treinta y siete del tercero —ocho pozos, cuatro estratos, cinco hitos de
      clase, ocho méritos, ocho caras de explorador, dos fondos de cámara y
-     dos dibujos de espera. */
-  assert.equal(webp.length, 67, 'faltan o sobran dibujos de los tres encargos');
+     dos dibujos de espera— y cinco del cuarto: los emblemas de cuadrilla. */
+  assert.equal(webp.length, 72, 'faltan o sobran dibujos de los cuatro encargos');
+
+  /* Y lo que promete el título de esta prueba, que hasta ahora no comprobaba
+     nadie: la carpeta entera se la baja una tablet de colegio la primera vez
+     que abre la app, y con wifi de centro eso tiene un techo. */
+  const bytes = webp.reduce((n, f) => n + fs.statSync(path.join(RAIZ, f)).size, 0);
+  assert.ok(bytes < 2.5 * 1024 * 1024,
+    `los dibujos pesan ${(bytes / 1024 / 1024).toFixed(2)} MB y no pueden pasar de 2,5`);
 });
 
 test('cada artículo del almacén de fábrica tiene su dibujo, y cada rango su medalla', () => {
@@ -589,5 +596,19 @@ test('una ruta de dibujo que se escriba tiene que existir', () => {
     .filter(Boolean);
   rutas.forEach(r => {
     assert.ok(fs.existsSync(path.join(RAIZ, r)), `falta el dibujo ${r}`);
+  });
+});
+
+test('el emblema llega entero a la vista de clase', () => {
+  /* El resumen de clase se construye aparte —es lo único que viaja cuando el
+     docente mira desde otro equipo— y copiaba `icon` pero no `img`. La
+     cuadrilla salía dibujada en la pantalla del niño y con su emoji en la del
+     maestro, que es peor que no tener dibujo: parece que algo va mal. */
+  const c = cargarApp();
+  c.ev("setTeacherConfig('roster', [{ name: 'Ana', grade: 3 }])");
+  const resumen = c.ev('buildClassOverview')([], c.ev('todayStr()'));
+  const fabrica = c.ev('JSON.parse(JSON.stringify(ATLAS_CONFIG.teams.list))');
+  resumen.teams.forEach((t, i) => {
+    assert.strictEqual(t.img, fabrica[i].img, `${t.name} perdió su dibujo por el camino`);
   });
 });

@@ -88,9 +88,9 @@ const DEMO_CLASE = [
    es justo donde más se mira, porque es la que abre el docente que viene a
    ver qué es esto. */
 const DEMO_CUADRILLAS = [
-  { id: 'condor',  name: 'Cuadrilla del Cóndor',   icon: '🦅', img: '', desde: 0,  hasta: 6 },
-  { id: 'jaguar',  name: 'Cuadrilla del Jaguar',   icon: '🐆', img: '', desde: 6,  hasta: 12 },
-  { id: 'tortuga', name: 'Cuadrilla de la Tortuga', icon: '🐢', img: '', desde: 12, hasta: 18 }
+  { id: 'condor',  name: 'Cuadrilla del Cóndor',   icon: '🦅', img: 'img/cuadrillas/condor.webp', desde: 0,  hasta: 6 },
+  { id: 'jaguar',  name: 'Cuadrilla del Jaguar',   icon: '🐆', img: 'img/cuadrillas/jaguar.webp', desde: 6,  hasta: 12 },
+  { id: 'tortuga', name: 'Cuadrilla de la Tortuga', icon: '🐢', img: 'img/cuadrillas/tortuga.webp', desde: 12, hasta: 18 }
 ];
 
 /* ── Azar con memoria ──

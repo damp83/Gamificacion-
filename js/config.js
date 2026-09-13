@@ -11,7 +11,7 @@
    copia guardada. Sin este número, «ya está arreglado» y «a mí no me pasa» son
    indistinguibles. Va junto al nombre de la caché del service worker, y una
    prueba comprueba que no se separen. */
-const ATLAS_VERSION = 'v119';
+const ATLAS_VERSION = 'v120';
 
 const ATLAS_DEFAULTS = {
 
@@ -200,11 +200,11 @@ const ATLAS_DEFAULTS = {
        a esos niños sin cuadrilla. El nombre y el dibujo sí dicen cóndor.
        Las cinco están en docs/emblemas-de-cuadrilla.md. */
     list: [
-      { id: 'cuervos',   name: 'Cuadrilla del Cóndor',   icon: '🦅', img: '', members: [] },
-      { id: 'jaguares',  name: 'Cuadrilla del Jaguar',   icon: '🐆', img: '', members: [] },
-      { id: 'tortugas',  name: 'Cuadrilla de la Tortuga', icon: '🐢', img: '', members: [] },
-      { id: 'tigres',    name: 'Cuadrilla del Tigre',    icon: '🐅', img: '', members: [] },
-      { id: 'flamencos', name: 'Cuadrilla del Flamenco', icon: '🦩', img: '', members: [] }
+      { id: 'cuervos',   name: 'Cuadrilla del Cóndor',   icon: '🦅', img: 'img/cuadrillas/condor.webp', members: [] },
+      { id: 'jaguares',  name: 'Cuadrilla del Jaguar',   icon: '🐆', img: 'img/cuadrillas/jaguar.webp', members: [] },
+      { id: 'tortugas',  name: 'Cuadrilla de la Tortuga', icon: '🐢', img: 'img/cuadrillas/tortuga.webp', members: [] },
+      { id: 'tigres',    name: 'Cuadrilla del Tigre',    icon: '🐅', img: 'img/cuadrillas/tigre.webp', members: [] },
+      { id: 'flamencos', name: 'Cuadrilla del Flamenco', icon: '🦩', img: 'img/cuadrillas/flamenco.webp', members: [] }
     ]
   },
 

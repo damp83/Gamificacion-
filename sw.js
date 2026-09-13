@@ -1,5 +1,5 @@
 /* Expedición Atlas — service worker: caché de la app shell para uso sin conexión */
-const CACHE = 'atlas-shell-v119';
+const CACHE = 'atlas-shell-v120';
 const ASSETS = [
   './',
   './index.html',
@@ -63,6 +63,11 @@ const ASSETS = [
   './img/rangos/cartografo.webp',
   './img/rangos/arqueologo.webp',
   './img/rangos/leyenda.webp',
+  './img/cuadrillas/condor.webp',
+  './img/cuadrillas/jaguar.webp',
+  './img/cuadrillas/tortuga.webp',
+  './img/cuadrillas/tigre.webp',
+  './img/cuadrillas/flamenco.webp',
   /* Los ocho pozos, los cuatro estratos, los cinco hitos de clase y los ocho
      méritos: todo lo que el niño ve al excavar tiene que verse sin wifi. */
   './img/pozos/sendero.webp',
