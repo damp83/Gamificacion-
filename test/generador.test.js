@@ -268,10 +268,14 @@ function panelConCola() {
   c.ev('setTeacherConfig')('iaCola', [{
     id: 'ia1', materia: 'matematicas', estrato: 'recordar',
     siteId: 'kaldros', branchId: 'numeracion', pozoNombre: 'La Bóveda',
+    /* El molde va en OAOA porque el validador rechaza lo contrario: estas
+       pruebas son del circuito de aprobación, no de la redacción, y con un
+       reto que no pasa el filtro no probarían nada. */
     question: '¿Cuánto es 47 + 25?', options: ['62', '72', '82', '75'], answer: 1,
-    hint1: 'Suma primero las unidades.', hint2: 'Se lleva 1 a las decenas.',
-    explanation: '7 + 5 = 12: se escribe 2 y se lleva 1.',
-    skill: 'suma_llevada', criterio: 'Estrategias de cálculo con llevadas.'
+    hint1: '¿Cuánto le falta a 47 para llegar a 50?',
+    hint2: '47 + 3 son 50, y aún quedan 22: 50 + 22.',
+    explanation: 'Se completa la decena y el resto se añade entero: 72.',
+    skill: 'suma_llevada', criterio: 'Estrategias de cálculo mental.'
   }]);
   return c;
 }

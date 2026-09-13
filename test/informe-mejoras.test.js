@@ -127,7 +127,7 @@ test('y esa frase sale en el informe, junto a lo que le cuesta', () => {
   const s = diarioConAlgo(c, 'Vega');
   s.metrics.errors_by_concept = { resta_llevada: { errors: 5, attempts: 9 } };
   const t = texto(c.ev('informeFamilia')(s, {}));
-  assert.ok(t.includes('Resta llevando'));
+  assert.ok(t.includes(c.ev('CONCEPTOS').resta_llevada.label));
   assert.ok(t.includes(c.ev('CONCEPTOS').resta_llevada.casa.slice(0, 40)));
 });
 

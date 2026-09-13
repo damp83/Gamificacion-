@@ -120,7 +120,12 @@ test('la clase se agrega por concepto, ordenada por a cuántos les pasa', () => 
   assert.equal(d.repasar[0].id, 'resta_llevada');
   assert.equal(d.repasar[0].alumnos.length, 3);
   assert.deepEqual(d.repasar[0].alumnos.sort(), ['Mara', 'Nilo', 'Vega']);
-  assert.equal(d.repasar[0].label, 'Resta llevando', 'la etiqueta es la que lee el docente');
+  /* La etiqueta se lee del catálogo, no se copia aquí: las de cálculo
+     cambiaron al pasar a OAOA —«Resta llevando» es ahora «Resta
+     descomponiendo»— y lo que importa es que llegue la del catálogo, no
+     cuál sea. */
+  assert.equal(d.repasar[0].label, ev('CONCEPTOS').resta_llevada.label,
+    'la etiqueta es la que lee el docente');
   assert.equal(d.repasar[0].area, 'Cálculo');
   assert.equal(d.repasar[1].id, 'porcentaje');
   assert.equal(d.repasar[1].alumnos.length, 1);

@@ -1,5 +1,5 @@
 /* Expedición Atlas — service worker: caché de la app shell para uso sin conexión */
-const CACHE = 'atlas-shell-v120';
+const CACHE = 'atlas-shell-v121';
 const ASSETS = [
   './',
   './index.html',

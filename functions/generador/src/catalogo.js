@@ -30,14 +30,18 @@ export const CONCEPTOS = {
                          casa: 'Repartir algo entre dos: si sobra uno, es impar. Con la fruta o con las cartas.' },
 
   /* ── Cálculo ── */
-  suma_basica:         { area: 'Cálculo', label: 'Sumar sin llevada',
+  suma_basica:         { area: 'Cálculo', label: 'Sumar sin completar decenas',
                          casa: 'Sumar en voz alta lo que se va echando al carro, sin decimales.' },
-  suma_llevada:        { area: 'Cálculo', label: 'Suma con llevada',
-                         casa: 'Sumar dos precios de dos cifras en un papel, diciendo en alto dónde «me llevo una».' },
-  resta_llevada:       { area: 'Cálculo', label: 'Resta llevando',
+  /* El id se queda: lo llevan guardado los diarios de las clases que ya
+     existen y cambiarlo borraría el historial de esos niños. Lo que cambia
+     es lo que se lee: la etiqueta y, sobre todo, el consejo para casa, que
+     mandaba a las familias a decir «me llevo una». */
+  suma_llevada:        { area: 'Cálculo', label: 'Suma completando decenas',
+                         casa: 'Sumar dos precios en voz alta buscando el 10: «48 y 24… 40 y 20 son 60, 8 y 4 son 12: 72».' },
+  resta_llevada:       { area: 'Cálculo', label: 'Resta descomponiendo',
                          casa: 'El cambio de la compra: «he pagado 20 y ha costado 13, ¿cuánto me devuelven?».' },
-  detectar_llevada:    { area: 'Cálculo', label: 'Reconocer cuándo hay llevada',
-                         casa: 'Antes de hacer la cuenta, preguntar solo «¿va a haber llevada?». Nada más.' },
+  detectar_llevada:    { area: 'Cálculo', label: 'Ver si se completa una decena',
+                         casa: 'Antes de hacer la cuenta, preguntar solo «¿las unidades llegan a diez?». Nada más.' },
   error_suma:          { area: 'Cálculo', label: 'Encontrar el error en una suma',
                          casa: 'Hacer una suma mal a propósito y pedirle que encuentre el fallo.' },
   problema_suma:       { area: 'Cálculo', label: 'Problema de sumar (enunciado)',
@@ -113,3 +117,83 @@ export const CONCEPTOS = {
   lectura_critica:     { area: 'Comprensión', label: 'Valorar lo que dice el texto',
                          casa: 'Preguntarle «¿estás de acuerdo con lo que hizo?» y pedirle el porqué.' }
 };
+
+export const OAOA_VETADO = [
+  { re: /\bllevad[ao]s?\b/i,
+    en_vez: 'di si las unidades completan una decena' },
+  /* «Bruno lleva 45 monedas» es lenguaje normal y tiene que pasar. Lo que se
+     veta es la llevada como mecanismo: «me llevo una», «te llevas una». */
+  { re: /\b(?:me|te|se|nos)\s+llev\w+\s+(?:una|uno|1)\b/i,
+    en_vez: 'di qué cantidad se junta, no qué cifra se apunta arriba' },
+  { re: /(?:en|por) columnas?\b|coloca(?:r|ndo)?[^.]{0,20}columna/i,
+    en_vez: 'alinea por valor —unidades con unidades— o descompón' },
+  { re: /baja(?:r|mos|s)? la cifra/i,
+    en_vez: 'reparte el total en trozos manejables (cocientes parciales)' },
+  { re: /son señales? de que|palabras? clave/i,
+    en_vez: 'pregunta por la relación: ¿te dan las partes o el todo?' }
+];
+
+export function pegasOAOA(texto) {
+  const t = String(texto || '');
+  return OAOA_VETADO.filter(v => v.re.test(t))
+    .map(v => `«${(t.match(v.re) || [''])[0]}» es de ATOA: ${v.en_vez}`);
+}
+
+export const OAOA_ESTRATEGIAS = {
+  numeracion: [
+    { desde: 1, nombre: 'La casa de los números',
+      dice: 'componer y descomponer sin parar: 15 es 10 y 5, y también 7 y 8' },
+    { desde: 3, nombre: 'Descomposición canónica',
+      dice: '15.456 es 10.000 + 5.000 + 400 + 50 + 6, no un 1, un 5 y un 4' }
+  ],
+  suma: [
+    { desde: 1, nombre: 'Buscar el 10',
+      dice: '98 + 8 es 98 + 2 + 6, o sea 100 + 6' },
+    { desde: 1, nombre: 'Dobles y casi dobles',
+      dice: '4 + 5 es 4 + 4 y uno más' },
+    { desde: 3, nombre: 'El Árbol',
+      dice: '454 + 678 son (400+600) y (50+70) y (4+8): 1.000 + 120 + 12' },
+    { desde: 5, nombre: 'Alinear por valor',
+      dice: 'con decimales, euros con euros y céntimos con céntimos' }
+  ],
+  resta: [
+    { desde: 1, nombre: 'Contar hacia arriba',
+      dice: 'de 13 a 20 hay 7, que es lo que te devuelven' },
+    { desde: 3, nombre: 'Descomponer el sustraendo',
+      dice: '602 − 388: quita 300, luego 80, luego 8' }
+  ],
+  multiplicacion: [
+    { desde: 3, nombre: 'Modelo de área',
+      dice: 'un rectángulo partido: 40×300, 40×50, 40×6…' },
+    { desde: 3, nombre: 'Propiedad distributiva',
+      dice: 'descomponer para vencer: 8×46 es 8×40 y 8×6' },
+    { desde: 4, nombre: 'Doble y mitad',
+      dice: '15 × 5 es la mitad de 15 × 10' }
+  ],
+  division: [
+    { desde: 4, nombre: 'Cocientes parciales',
+      dice: '439 entre 8: quito 400 (son 50 veces), me quedan 39, quito 32 (4 veces más): 54 y sobran 7' }
+  ],
+  fdp: [
+    { desde: 4, nombre: 'Fracción, decimal y porcentaje son lo mismo',
+      dice: '1/2 es 0,50 € es el 50 %' },
+    { desde: 4, nombre: 'Porcentajes de cabeza',
+      dice: '50 % es la mitad, 10 % es dividir entre 10, 5 % es la mitad del 10 %' }
+  ],
+  problemas: [
+    { desde: 1, nombre: 'Partes y todo',
+      dice: '¿te dan las dos partes y buscas el todo, o al revés? Eso decide la operación' },
+    { desde: 2, nombre: 'Modelo de barras',
+      dice: 'dibuja una barra para el todo y trozos para las partes' }
+  ],
+  estimacion: [
+    { desde: 3, nombre: 'Estimar antes de calcular',
+      dice: '481 × 19 anda por 500 × 20, o sea unos 10.000' }
+  ]
+};
+
+export function estrategiasOAOA(operacion, curso) {
+  const lista = OAOA_ESTRATEGIAS[operacion] || [];
+  const g = Number(curso) || 4;
+  return lista.filter(e => e.desde <= g);
+}

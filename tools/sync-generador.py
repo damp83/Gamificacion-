@@ -32,14 +32,18 @@ CABECERA = ('/* GENERADO por tools/sync-generador.py — no editar a mano.\n'
             '   separan, uno acepta lo que el otro rechaza y nadie se entera. */\n\n')
 
 
-def literal(fuente: str, nombre: str) -> str:
-    """El objeto `const NOMBRE = {...}` de content.js, contando llaves.
+PAREJA = {'{': '}', '[': ']', '(': ')'}
+
+
+def literal(fuente: str, nombre: str, abre: str = '{') -> str:
+    """El literal `const NOMBRE = {...}` (o `[...]`) de content.js.
 
     Se copia el literal en vez de importar content.js entero porque la función
     no tiene navegador: content.js trae generadores, emoji y medio catálogo de
     yacimientos que aquí no pintan nada.
     """
-    marca = f'const {nombre} = {{'
+    cierra = PAREJA[abre]
+    marca = f'const {nombre} = {abre}'
     i = fuente.index(marca) + len(marca) - 1
     prof, j, en_cadena, comilla, escapa = 0, i, False, '', False
     while j < len(fuente):
@@ -50,8 +54,8 @@ def literal(fuente: str, nombre: str) -> str:
             elif c == comilla: en_cadena = False
         elif c in '\'"`':
             en_cadena, comilla = True, c
-        elif c == '{': prof += 1
-        elif c == '}':
+        elif c == abre: prof += 1
+        elif c == cierra:
             prof -= 1
             if prof == 0:
                 return fuente[i:j + 1]
@@ -59,10 +63,39 @@ def literal(fuente: str, nombre: str) -> str:
     sys.exit(f'ERROR: no se ha podido leer {nombre} de content.js')
 
 
+def funcion(fuente: str, nombre: str) -> str:
+    """El cuerpo entero de `function NOMBRE(...) { ... }`.
+
+    Copiar la función en vez de reescribirla aquí es lo que garantiza que la
+    tablet y el servidor apliquen LA MISMA regla: si se escribieran dos veces,
+    el día que una cambie la otra se queda vieja en silencio.
+    """
+    marca = f'function {nombre}('
+    i = fuente.index(marca)
+    j = fuente.index('{', i)
+    prof, k, en_cadena, comilla, escapa = 0, j, False, '', False
+    while k < len(fuente):
+        c = fuente[k]
+        if en_cadena:
+            if escapa: escapa = False
+            elif c == '\\': escapa = True
+            elif c == comilla: en_cadena = False
+        elif c in '\'"`':
+            en_cadena, comilla = True, c
+        elif c == '{': prof += 1
+        elif c == '}':
+            prof -= 1
+            if prof == 0:
+                return fuente[i:k + 1]
+        k += 1
+    sys.exit(f'ERROR: no se ha podido leer la función {nombre} de content.js')
+
+
 def generar(fuente: str) -> str:
     return (
         CABECERA.format(origen='js/generador.js')
-        + "import { CONCEPTOS, STRATA_META } from './catalogo.js';\n\n"
+        + "import { CONCEPTOS, STRATA_META, OAOA_VETADO, pegasOAOA,\n"
+          "         OAOA_ESTRATEGIAS, estrategiasOAOA } from './catalogo.js';\n\n"
         + fuente.rstrip('\n')
         + '\n\nexport {\n  ' + ',\n  '.join(EXPORTA) + '\n};\n'
     )
@@ -72,7 +105,13 @@ def generar_catalogo(contenido: str) -> str:
     return (
         CABECERA.format(origen='js/content.js')
         + 'export const STRATA_META = ' + literal(contenido, 'STRATA_META') + ';\n\n'
-        + 'export const CONCEPTOS = ' + literal(contenido, 'CONCEPTOS') + ';\n'
+        + 'export const CONCEPTOS = ' + literal(contenido, 'CONCEPTOS') + ';\n\n'
+        # El reglamento OAOA viaja entero: el validador del servidor tiene que
+        # rechazar exactamente lo mismo que el de la tablet.
+        + 'export const OAOA_VETADO = ' + literal(contenido, 'OAOA_VETADO', '[') + ';\n\n'
+        + 'export ' + funcion(contenido, 'pegasOAOA') + '\n\n'
+        + 'export const OAOA_ESTRATEGIAS = ' + literal(contenido, 'OAOA_ESTRATEGIAS') + ';\n\n'
+        + 'export ' + funcion(contenido, 'estrategiasOAOA') + '\n'
     )
 
 def main() -> int:

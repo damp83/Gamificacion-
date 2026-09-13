@@ -148,7 +148,7 @@ test('el informe a la familia no lleva notas, porcentajes ni comparaciones', () 
 
   /* Lo que sí: conceptos en castellano llano */
   assert.ok(texto.includes('Valor posicional'), 'lo que ya le sale');
-  assert.ok(texto.includes('Suma con llevada'), 'lo que está trabajando');
+  assert.ok(texto.includes(ctx.ev('CONCEPTOS').suma_llevada.label), 'lo que está trabajando');
 
   /* Lo que NO puede aparecer nunca */
   assert.doesNotMatch(sinCasa, /\d+\s?%/, 'sin porcentajes de dominio');

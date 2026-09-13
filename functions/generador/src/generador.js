@@ -3,7 +3,8 @@
    se quede vieja: si el validador de la tablet y el del servidor se
    separan, uno acepta lo que el otro rechaza y nadie se entera. */
 
-import { CONCEPTOS, STRATA_META } from './catalogo.js';
+import { CONCEPTOS, STRATA_META, OAOA_VETADO, pegasOAOA,
+         OAOA_ESTRATEGIAS, estrategiasOAOA } from './catalogo.js';
 
 /* ═══════════════════════════════════════════════════════════
    Expedición Atlas — generador.js
@@ -138,6 +139,24 @@ function validarRetoIA(crudo, opciones) {
   else if (claveOpcion(r.hint1) === claveOpcion(r.hint2)) motivos.push('Las dos pistas dicen lo mismo.');
   if (!r.explanation) motivos.push('Falta la explicación.');
 
+  /* ── OAOA ──
+     En matemáticas, una ayuda escrita en el idioma del algoritmo tradicional
+     se rechaza. No es quisquillosidad de estilo: el niño oye «descompón» en
+     clase y leería «no olvides la llevada» en la tablet, y entonces la tablet
+     le está enseñando a desconfiar de su maestro.
+
+     Va en el validador y no solo en el encargo al modelo porque un encargo se
+     cumple el primer mes y se afloja el tercero. Esto es mecánico. */
+  if (cfg.materia === 'matematicas' || (CONCEPTOS[r.skill] || {}).area) {
+    const esMates = !cfg.materia || cfg.materia === 'matematicas';
+    if (esMates) {
+      [['pista 1', r.hint1], ['pista 2', r.hint2], ['explicación', r.explanation]]
+        .forEach(([donde, texto]) => {
+          pegasOAOA(texto).forEach(p => motivos.push(`En la ${donde}, ${p}.`));
+        });
+    }
+  }
+
   /* El concepto tiene que ser uno del catálogo, y de la materia pedida: si no,
      el reto entra en el banco y desaparece del diagnóstico. */
   if (!CONCEPTOS[r.skill]) {
@@ -199,6 +218,44 @@ function validarTanda(crudos, opciones) {
   return { buenos, descartados };
 }
 
+/* ── El trozo de encargo que impone OAOA ──
+   Se arma con las estrategias que ese curso ya tiene trabajadas: ofrecerle a
+   un niño de 2.º «el modelo de área» es ofrecerle algo que aún no ha tocado
+   con las manos, y en OAOA la fase manipulativa va primero. */
+function oaoaParaElPrompt(curso) {
+  const bloques = Object.keys(OAOA_ESTRATEGIAS).map(op => {
+    const e = estrategiasOAOA(op, curso);
+    if (!e.length) return '';
+    return `  ${op}: ` + e.map(x => `${x.nombre} (${x.dice})`).join('; ');
+  }).filter(Boolean);
+
+  return [
+    '',
+    'MATEMÁTICAS: este centro enseña con OAOA (Otros Algoritmos para las Operaciones',
+    'Aritméticas). No es una preferencia de estilo. Si el niño oye «descompón» en clase',
+    'y lee «no olvides la llevada» en la tablet, la tablet le enseña a desconfiar de su',
+    'maestro. Las ayudas SE RECHAZAN automáticamente si incumplen esto:',
+    '',
+    'a) Se opera con CANTIDADES, no con cifras. 48+24 es (40+20) y (8+4): 60+12, o sea 72.',
+    'b) PROHIBIDO escribir: «llevada», «me llevo una», «coloca en columnas», «bajar la',
+    '   cifra», «palabra clave», «son señales de que hay que sumar/restar».',
+    'c) En los problemas se pregunta por la RELACIÓN entre los datos —¿te dan las partes',
+    '   y buscas el todo, o al revés?—, nunca por las palabras del enunciado.',
+    'd) Hay VARIOS caminos buenos y el niño elige. Ante 5+4 valen «cuento desde el 5»,',
+    '   «5+5 son 10, uno menos» y «4+4 y uno más». Una pista que imponga una sola ruta',
+    '   va en contra de esto.',
+    'e) Primero se estima y luego se calcula.',
+    '',
+    'Y las tres opciones falsas: los errores de quien aprende así NO son «olvidó la',
+    'llevada» ni «colocó mal las columnas» —esos solo existen calculando en columna—.',
+    'Son: perder un trozo al recomponer, partir mal un número al descomponer, compensar',
+    'en el sentido contrario, o elegir la operación por una palabra del enunciado.',
+    '',
+    `Estrategias que ${curso}.º ya tiene trabajadas, y de las que puedes tirar:`,
+    bloques.join('\n')
+  ].join('\n');
+}
+
 /* ── El encargo que se le hace al modelo ──
    Va aquí, y no dentro de la función, para poder leerlo y probarlo sin
    desplegar nada: el prompt es la mitad de la calidad del resultado. */
@@ -217,14 +274,17 @@ function promptGenerador(p) {
     'Reglas que no se negocian:',
     '1. EXACTAMENTE cuatro opciones —ni tres ni cinco— y `answer` es la posición de la',
     '   correcta contando desde 0, o sea 0, 1, 2 o 3. Las tres falsas tienen que ser PLAUSIBLES: cada una debe',
-    '   corresponder a un error que un niño de ese curso comete de verdad (olvidar la',
-    '   llevada, confundir el orden, aplicar la regla al revés). Una opción absurda',
-    '   convierte el reto en tres opciones.',
+    '   corresponder a un error que un niño de ese curso comete de verdad, del método con',
+    '   el que aprende. Una opción absurda convierte el reto en tres opciones.',
     '2. Las cuatro del mismo tipo y parecidas de largo. Si la correcta es la más larga,',
     '   se acierta midiendo en vez de pensando.',
     '3. Sin negaciones dobles, sin «¿cuál de las siguientes NO...?», sin enunciados de',
     '   más de dos líneas.',
-    '4. Dos pistas que ESCALAN: la primera orienta sin resolver, la segunda casi lo da.',
+    '4. Dos pistas que ESCALAN: la primera NOMBRA la estrategia sin resolver («busca el',
+    '   10», «descompón por valores», «¿te dan las partes o el todo?»), la segunda la',
+    '   aplica a esos números concretos y casi lo da. La primera no puede ser una orden',
+    '   de un solo camino: ante los mismos números caben varias rutas buenas y el niño',
+    '   elige la suya.',
     '5. La explicación dice POR QUÉ, no repite la respuesta.',
     '6. Nada de contextos de violencia, marcas comerciales ni nombres de personas reales.',
     '7. VARÍA el concepto. Un pozo con veinte retos buenos del mismo concepto es un pozo',
@@ -236,6 +296,10 @@ function promptGenerador(p) {
     '   reto tiene que ser DE ESO: un reto de fracciones en «La Bóveda de los Números»',
     '   está bien escrito y mal puesto, y el docente tiene que moverlo a mano. Manda el',
     '   tema del pozo sobre la variedad: dentro de ese tema, varía todo lo que puedas.',
+    '',
+    /* Solo en matemáticas: en Lengua, «busca la palabra clave» es una
+       estrategia legítima y este bloque sería un estorbo. */
+    materia === AREAS_IA.matematicas ? oaoaParaElPrompt(curso) : '',
     '',
     'El concepto (`skill`) se elige de esta lista y de ninguna otra:',
     conceptos,

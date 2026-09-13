@@ -38,6 +38,138 @@ const STRATA_META = {
    al escribirlas: cinco minutos, con lo que ya hay en una casa, sin fichas,
    sin pantallas y sin «que practique más». Una casa que no puede comprar nada
    ni imprimir nada tiene que poder hacerlo igual. */
+/* ══════════════════════════════════════════════════════════
+   OAOA — Otros Algoritmos para las Operaciones Aritméticas
+   ══════════════════════════════════════════════════════════
+
+   Las ayudas de matemáticas de esta app siguen OAOA, que es lo que se
+   trabaja en el aula para la que está hecha. No es una preferencia de
+   estilo: si el niño oye «descompón» en clase y lee «coloca en columnas y
+   no olvides la llevada» en la tablet, la tablet le está enseñando a
+   desconfiar de su maestro.
+
+   Lo esencial, de la formación OAOA:
+
+     · Se opera con CANTIDADES, no con cifras. 48+24 no es «8 y 4, me llevo
+       una»: es (40+20) y (8+4), o sea 60+12, o sea 72.
+     · Hay VARIOS caminos buenos y el alumno elige según los números. Ante
+       5+4 valen «cuento desde el 5», «5+5 son 10, uno menos» y «4+4 y uno
+       más». Las tres. Una ayuda que impone una sola ruta va contra esto.
+     · Primero se ESTIMA y después se calcula.
+     · En los problemas se entiende la historia; no se cazan palabras
+       clave. «En total = sumar» falla, y falla justo cuando el problema se
+       pone interesante.
+     · A los algoritmos tradicionales la formación los llama ATOA, y su
+       vocabulario —llevadas, columnas, bajar la cifra— aquí no se usa.
+
+   Lo que esta app NO puede hacer, y conviene tenerlo escrito: la regla de
+   oro de OAOA son las tres fases de Bruner —manipular, dibujar, escribir—
+   y saltarse la primera está prohibido. Una tablet no da regletas en la
+   mano: vive en la tercera fase. Lo que sí puede es no contradecir a las
+   dos primeras y hablar su idioma. */
+
+/* Vocabulario que no puede aparecer en una ayuda de matemáticas. Lo usa el
+   validador de retos y lo vigila una prueba sobre TODOS los generadores de
+   fábrica, que es lo que impide que vuelva a colarse dentro de un año. */
+const OAOA_VETADO = [
+  { re: /\bllevad[ao]s?\b/i,
+    en_vez: 'di si las unidades completan una decena' },
+  /* «Bruno lleva 45 monedas» es lenguaje normal y tiene que pasar. Lo que se
+     veta es la llevada como mecanismo: «me llevo una», «te llevas una». */
+  { re: /\b(?:me|te|se|nos)\s+llev\w+\s+(?:una|uno|1)\b/i,
+    en_vez: 'di qué cantidad se junta, no qué cifra se apunta arriba' },
+  { re: /(?:en|por) columnas?\b|coloca(?:r|ndo)?[^.]{0,20}columna/i,
+    en_vez: 'alinea por valor —unidades con unidades— o descompón' },
+  { re: /baja(?:r|mos|s)? la cifra/i,
+    en_vez: 'reparte el total en trozos manejables (cocientes parciales)' },
+  { re: /son señales? de que|palabras? clave/i,
+    en_vez: 'pregunta por la relación: ¿te dan las partes o el todo?' }
+];
+
+/* Qué pega tiene un texto de ayuda. Devuelve [] si está limpio. */
+function pegasOAOA(texto) {
+  const t = String(texto || '');
+  return OAOA_VETADO.filter(v => v.re.test(t))
+    .map(v => `«${(t.match(v.re) || [''])[0]}» es de ATOA: ${v.en_vez}`);
+}
+
+/* ── La progresión, curso a curso ──
+   Sacada de la formación OAOA del centro. El curso es el PRIMERO en el que
+   esa estrategia entra; de ahí en adelante sigue valiendo. */
+const OAOA_ESTRATEGIAS = {
+  numeracion: [
+    { desde: 1, nombre: 'La casa de los números',
+      dice: 'componer y descomponer sin parar: 15 es 10 y 5, y también 7 y 8' },
+    { desde: 3, nombre: 'Descomposición canónica',
+      dice: '15.456 es 10.000 + 5.000 + 400 + 50 + 6, no un 1, un 5 y un 4' }
+  ],
+  suma: [
+    { desde: 1, nombre: 'Buscar el 10',
+      dice: '98 + 8 es 98 + 2 + 6, o sea 100 + 6' },
+    { desde: 1, nombre: 'Dobles y casi dobles',
+      dice: '4 + 5 es 4 + 4 y uno más' },
+    { desde: 3, nombre: 'El Árbol',
+      dice: '454 + 678 son (400+600) y (50+70) y (4+8): 1.000 + 120 + 12' },
+    { desde: 5, nombre: 'Alinear por valor',
+      dice: 'con decimales, euros con euros y céntimos con céntimos' }
+  ],
+  resta: [
+    { desde: 1, nombre: 'Contar hacia arriba',
+      dice: 'de 13 a 20 hay 7, que es lo que te devuelven' },
+    { desde: 3, nombre: 'Descomponer el sustraendo',
+      dice: '602 − 388: quita 300, luego 80, luego 8' }
+  ],
+  multiplicacion: [
+    { desde: 3, nombre: 'Modelo de área',
+      dice: 'un rectángulo partido: 40×300, 40×50, 40×6…' },
+    { desde: 3, nombre: 'Propiedad distributiva',
+      dice: 'descomponer para vencer: 8×46 es 8×40 y 8×6' },
+    { desde: 4, nombre: 'Doble y mitad',
+      dice: '15 × 5 es la mitad de 15 × 10' }
+  ],
+  division: [
+    { desde: 4, nombre: 'Cocientes parciales',
+      dice: '439 entre 8: quito 400 (son 50 veces), me quedan 39, quito 32 (4 veces más): 54 y sobran 7' }
+  ],
+  fdp: [
+    { desde: 4, nombre: 'Fracción, decimal y porcentaje son lo mismo',
+      dice: '1/2 es 0,50 € es el 50 %' },
+    { desde: 4, nombre: 'Porcentajes de cabeza',
+      dice: '50 % es la mitad, 10 % es dividir entre 10, 5 % es la mitad del 10 %' }
+  ],
+  problemas: [
+    { desde: 1, nombre: 'Partes y todo',
+      dice: '¿te dan las dos partes y buscas el todo, o al revés? Eso decide la operación' },
+    { desde: 2, nombre: 'Modelo de barras',
+      dice: 'dibuja una barra para el todo y trozos para las partes' }
+  ],
+  estimacion: [
+    { desde: 3, nombre: 'Estimar antes de calcular',
+      dice: '481 × 19 anda por 500 × 20, o sea unos 10.000' }
+  ]
+};
+
+/* Un número partido por valores: 613 → «600 + 10 + 3». Es la descomposición
+   canónica de OAOA, y hace falta a mano porque escribir la de dos cifras y la
+   de cuatro por separado es como se cuelan los errores. Los ceros no se
+   escriben: «605» es «600 + 5», no «600 + 0 + 5». */
+function porValores(n) {
+  const s = String(Math.abs(Math.trunc(Number(n) || 0)));
+  const trozos = [];
+  for (let i = 0; i < s.length; i++) {
+    const cifra = Number(s[i]);
+    if (cifra) trozos.push(cifra * Math.pow(10, s.length - 1 - i));
+  }
+  return trozos.length ? trozos.join(' + ') : '0';
+}
+
+/* Las estrategias que un curso ya tiene a mano. */
+function estrategiasOAOA(operacion, curso) {
+  const lista = OAOA_ESTRATEGIAS[operacion] || [];
+  const g = Number(curso) || 4;
+  return lista.filter(e => e.desde <= g);
+}
+
 const CONCEPTOS = {
   /* ── Numeración ── */
   serie_numerica:      { area: 'Numeración', label: 'Anterior y posterior',
@@ -58,14 +190,18 @@ const CONCEPTOS = {
                          casa: 'Repartir algo entre dos: si sobra uno, es impar. Con la fruta o con las cartas.' },
 
   /* ── Cálculo ── */
-  suma_basica:         { area: 'Cálculo', label: 'Sumar sin llevada',
+  suma_basica:         { area: 'Cálculo', label: 'Sumar sin completar decenas',
                          casa: 'Sumar en voz alta lo que se va echando al carro, sin decimales.' },
-  suma_llevada:        { area: 'Cálculo', label: 'Suma con llevada',
-                         casa: 'Sumar dos precios de dos cifras en un papel, diciendo en alto dónde «me llevo una».' },
-  resta_llevada:       { area: 'Cálculo', label: 'Resta llevando',
+  /* El id se queda: lo llevan guardado los diarios de las clases que ya
+     existen y cambiarlo borraría el historial de esos niños. Lo que cambia
+     es lo que se lee: la etiqueta y, sobre todo, el consejo para casa, que
+     mandaba a las familias a decir «me llevo una». */
+  suma_llevada:        { area: 'Cálculo', label: 'Suma completando decenas',
+                         casa: 'Sumar dos precios en voz alta buscando el 10: «48 y 24… 40 y 20 son 60, 8 y 4 son 12: 72».' },
+  resta_llevada:       { area: 'Cálculo', label: 'Resta descomponiendo',
                          casa: 'El cambio de la compra: «he pagado 20 y ha costado 13, ¿cuánto me devuelven?».' },
-  detectar_llevada:    { area: 'Cálculo', label: 'Reconocer cuándo hay llevada',
-                         casa: 'Antes de hacer la cuenta, preguntar solo «¿va a haber llevada?». Nada más.' },
+  detectar_llevada:    { area: 'Cálculo', label: 'Ver si se completa una decena',
+                         casa: 'Antes de hacer la cuenta, preguntar solo «¿las unidades llegan a diez?». Nada más.' },
   error_suma:          { area: 'Cálculo', label: 'Encontrar el error en una suma',
                          casa: 'Hacer una suma mal a propósito y pedirle que encuentre el fallo.' },
   problema_suma:       { area: 'Cálculo', label: 'Problema de sumar (enunciado)',
@@ -340,8 +476,12 @@ const numeracion = {
       skill: 'problema_suma',
       question: `La expedición ya tenía ${fmtNum(a)} ${t} y en la nueva cámara encuentra ${fmtNum(b)} más. ¿Cuántas ${t} hay ahora en total?`,
       options, answer,
-      hint1: '«En total» y «más» son señales de que hay que sumar.',
-      hint2: `Suma ${fmtNum(a)} + ${fmtNum(b)}, colocando bien las columnas.`,
+      /* Cazar palabras clave («en total» = sumar) es lo que OAOA descarta
+         expresamente: funciona hasta que el problema se pone interesante.
+         Se pregunta por la RELACIÓN entre los datos, que es lo que de
+         verdad decide la operación. */
+      hint1: 'Tienes las dos partes y te piden el todo. ¿Qué operación junta partes?',
+      hint2: `Parte los dos por valores y junta cada uno con el suyo: ${porValores(a)} y ${porValores(b)}.`,
       explanation: `${fmtNum(a)} + ${fmtNum(b)} = ${fmtNum(correct)}. Cuando juntamos cantidades, sumamos.`
     };
   },
@@ -389,8 +529,10 @@ const sumas_llevando = {
       question: terse(g) ? `${a} + ${b} = ?`
         : `El reloj de engranajes pide el resultado de ${fmtNum(a)} + ${fmtNum(b)} para girar. ¿Cuánto es?`,
       options, answer,
-      hint1: 'Suma primero las unidades y luego las decenas.',
-      hint2: `Puedes descomponer: ${a} + ${b} = ${a} + ${Math.floor(b / 10) * 10} + ${b % 10}.`,
+      /* La pista 1 NOMBRA la estrategia y deja elegir: en OAOA valen varios
+         caminos y el niño escoge según los números. La 2 aplica uno. */
+      hint1: 'Parte los números por valores, o busca primero el 10 más cercano. Las dos valen.',
+      hint2: `Por valores: ${a} es ${porValores(a)} y ${b} es ${porValores(b)}. Junta cada valor con el suyo.`,
       explanation: `${fmtNum(a)} + ${fmtNum(b)} = ${fmtNum(correct)}.`
     };
   },
@@ -432,11 +574,11 @@ const sumas_llevando = {
     );
     return {
       skill: 'detectar_llevada',
-      question: `Para engrasar el engranaje correcto, Kira busca una suma que ${target ? 'SÍ necesita llevada' : 'NO necesita llevada'}. ¿Cuál elige?`,
+      question: `Para engrasar el engranaje correcto, Kira busca una suma en la que las unidades ${target ? 'SÍ completan una decena' : 'NO llegan a completar una decena'}. ¿Cuál elige?`,
       options, answer,
-      hint1: 'Hay llevada cuando las unidades suman 10 o más.',
-      hint2: 'Suma solo las unidades de cada pareja y comprueba si pasan de 9.',
-      explanation: `En ${correctPair.txt} las unidades suman ${target ? '10 o más, así que hay llevada' : 'menos de 10, así que no hay llevada'}.`
+      hint1: 'Mira solo las unidades: ¿juntas llegan a completar una decena?',
+      hint2: 'Suma las unidades de cada pareja. Si llegan a 10, se forma una decena nueva.',
+      explanation: `En ${correctPair.txt} las unidades suman ${target ? '10 o más, así que forman una decena entera' : 'menos de 10, así que no llegan a formar una decena'}.`
     };
   },
 
@@ -456,8 +598,8 @@ const sumas_llevando = {
         ? `Bruno lleva ${a} monedas y Tobías ${b}.\n¿Cuántas hay entre los dos?`
         : `Bruno guarda ${fmtNum(a)} ${t} en la mochila y Tobías desentierra ${fmtNum(b)}${c ? ` y ${who} aporta ${c} más` : ''}. ¿Cuántas ${t} llevan al campamento?`,
       options, answer,
-      hint1: 'Junta todas las cantidades con una suma.',
-      hint2: `Coloca ${fmtNum(a)} + ${fmtNum(b)}${c ? ' + ' + c : ''} en columnas y no olvides las llevadas.`,
+      hint1: 'Junta todas las cantidades. Puedes ir por partes: primero dos y al resultado la otra.',
+      hint2: `Por valores: las centenas con las centenas y las decenas con las decenas, y luego se juntan los trozos.`,
       explanation: `${fmtNum(a)} + ${fmtNum(b)}${c ? ' + ' + c : ''} = ${fmtNum(correct)}.`
     };
   },
@@ -467,11 +609,22 @@ const sumas_llevando = {
     const max = sumTop(g, tier);
     const a = ri(Math.floor(max / 3), max), b = ri(Math.floor(max / 3), max);
     const real = a + b;
-    const errType = pick(['carry', 'column']);
-    const wrong = errType === 'carry' ? real - 10 : real + 9;
-    const correctOpt = errType === 'carry' ? 'Olvidó sumar la llevada' : 'Colocó mal las columnas';
+    /* Los errores que se le ofrecen al niño SON una taxonomía, y por tanto
+       enseñan. Estos eran «olvidó la llevada» y «colocó mal las columnas»:
+       errores que solo existen si se calcula en columna. Quien aprende
+       descomponiendo se equivoca de otra manera —pierde un trozo al
+       recomponer, o parte mal un número—, y las dos cuentas siguen saliendo:
+       dejarse una decena da 10 menos, y partir 47 como 40+16 en vez de 40+7
+       da 9 de más. */
+    const errType = pick(['trozo_perdido', 'mal_partido']);
+    const wrong = errType === 'trozo_perdido' ? real - 10 : real + 9;
+    const FALLOS = {
+      trozo_perdido: 'Se dejó una decena al juntar los trozos',
+      mal_partido:   'Partió mal uno de los números'
+    };
+    const correctOpt = FALLOS[errType];
     const { options, answer } = buildOptions(correctOpt, [
-      errType === 'carry' ? 'Colocó mal las columnas' : 'Olvidó sumar la llevada',
+      FALLOS[errType === 'trozo_perdido' ? 'mal_partido' : 'trozo_perdido'],
       'La suma está bien hecha',
       'Restó en vez de sumar'
     ]);
@@ -479,9 +632,12 @@ const sumas_llevando = {
       skill: 'error_suma',
       question: `En el plano robado, Vera Kovak escribió: ${fmtNum(a)} + ${fmtNum(b)} = ${fmtNum(wrong)}. Kira dice que es falso. ¿Qué error cometió Vera?`,
       options, answer,
-      hint1: `Haz tú la suma: ¿cuánto da de verdad ${fmtNum(a)} + ${fmtNum(b)}?`,
-      hint2: `El resultado correcto es ${fmtNum(real)}. Compara con ${fmtNum(wrong)}.`,
-      explanation: `${fmtNum(a)} + ${fmtNum(b)} = ${fmtNum(real)}, no ${fmtNum(wrong)}. ${correctOpt === 'Olvidó sumar la llevada' ? 'Le faltan 10: se olvidó de la llevada.' : 'El resultado está descuadrado: colocó mal las columnas.'}`
+      hint1: `Haz tú la suma por partes: ¿cuánto da de verdad ${fmtNum(a)} + ${fmtNum(b)}?`,
+      hint2: `El resultado correcto es ${fmtNum(real)}. Compara con ${fmtNum(wrong)}: ¿sobra o falta?`,
+      explanation: `${fmtNum(a)} + ${fmtNum(b)} = ${fmtNum(real)}, no ${fmtNum(wrong)}. ` +
+        (errType === 'trozo_perdido'
+          ? 'Faltan justo 10: al juntar los trozos se dejó una decena por el camino.'
+          : 'Sobran 9: al partir uno de los números se pasó, y ese trozo de más se arrastra hasta el final.')
     };
   }
 };
