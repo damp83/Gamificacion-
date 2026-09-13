@@ -67,6 +67,28 @@ function show(screenId) {
   window.scrollTo(0, 0);
 }
 
+/* ── Sitio para las barras fijas de arriba ──
+   Las dos barras que se pegan al alto de la ventana —la de la demostración y
+   la de «estás consultando un cuaderno»— llevaban reservados 46 px de hueco a
+   ojo, y de verdad miden 62. Los 16 px que faltaban se comían el borde de
+   arriba del «Volver a la sala de mapas», que antes no se notaba porque el
+   botón no tenía ni fondo ni filete que recortar. Así que el hueco se mide en
+   vez de adivinarse: cada barra visible suma su alto real y el CSS lo lee. */
+function medirBarrasFijas() {
+  const visible = sel => {
+    const b = $(sel);
+    return b && !b.classList.contains('hidden') ? b.getBoundingClientRect().height : 0;
+  };
+  const demo = visible('#demo-bar');
+  const alto = demo + visible('#lectura-bar');
+  const raiz = document.documentElement.style;
+  /* El alto de la de demostración va aparte porque la de lectura se cuelga de
+     ella cuando salen las dos, y para eso necesita saber dónde acaba. */
+  raiz.setProperty('--alto-demo', demo + 'px');
+  raiz.setProperty('--barras-fijas', alto + 'px');
+  return alto;
+}
+
 /* ── Diálogos propios ──
    Los del navegador (prompt/confirm) quedan bloqueados dentro de un iframe
    con sandbox sin `allow-modals`: prompt() devuelve null y confirm() devuelve

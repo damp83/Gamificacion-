@@ -561,6 +561,11 @@ function wireGlobalListeners() {
   $('#modal-cancel').addEventListener('click', () => closeModal(null));
   $('#modal').addEventListener('click', e => { if (e.target.id === 'modal') closeModal(null); });
 
+  /* Al girar la tablet, la frase de las barras fijas de arriba pasa a caber (o
+     deja de caber) en un renglón y su alto cambia: si el hueco reservado
+     debajo se queda con la medida vieja, recorta lo primero que haya. */
+  window.addEventListener('resize', medirBarrasFijas);
+
   if ('serviceWorker' in navigator) {
     navigator.serviceWorker.register('sw.js').catch(() => {});
   }

@@ -347,6 +347,7 @@ function salirDeDemo() {
   document.body.classList.remove('en-demo', 'teacher-mode', 'en-consulta');
   const barra = $('#demo-bar');
   if (barra) barra.classList.add('hidden');
+  medirBarrasFijas();
   /* Se recarga la página entera y no se deshace a mano lo que la demostración
      tocó. Deshacer a mano es acordarse de veinte cosas —los ajustes, la clase
      abierta, el diario, la caché de la vista de clase— y basta olvidar una
@@ -359,6 +360,7 @@ function pintarBarraDemo() {
   const barra = $('#demo-bar');
   if (!barra) return;
   barra.classList.remove('hidden');
+  medirBarrasFijas();
 }
 
 /* ── Jugar como un alumno de la clase inventada ──
@@ -376,6 +378,7 @@ function jugarEnDemo(clave) {
   if (!DEMO) return;
   cerrarLectura();
   $('#lectura-bar').classList.add('hidden');
+  medirBarrasFijas();
   document.body.classList.remove('en-consulta');
   if (!openDiaryKey(clave)) { toast('No se ha podido abrir ese diario.'); return; }
   startApp();

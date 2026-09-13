@@ -189,15 +189,24 @@ button:disabled { cursor: not-allowed; opacity: .55; }
    momento de recompensa. */
 .btn-small { padding: .4rem .85rem; font-size: var(--t-sm); min-height: var(--tap); }
 
-/* Terciarios: sin fondo, pero con un realce al pasar por encima para que
-   sigan pareciendo tocables. */
+/* Terciarios: el peso más ligero de los tres, pero botones al fin y al cabo.
+   Sin fondo eran letra suelta: el «Volver a la portada» de la sala de mapas
+   cae justo encima de las dunas y la pirámide del horizonte, y ahí un texto
+   marrón sobre arena marrón no se lee ni se ve que se pueda tocar. Llevan
+   papel y un filete propios, que es lo que los despega de cualquier fondo
+   sin subirlos al rango de acción principal. */
 .btn-back, .btn-quit {
-  background: transparent; box-shadow: none; color: var(--leather);
-  padding-left: .6rem; padding-right: .6rem;
+  background: var(--surface);
+  color: var(--leather-dark);
+  border: var(--line-strong);
+  box-shadow: var(--e-1);
+  padding-left: 1rem; padding-right: 1rem;
 }
 .btn-back { font-size: var(--t-sm); margin-bottom: var(--s-3); }
-.btn-back:hover, .btn-quit:hover { background: rgba(122, 74, 33, .09); box-shadow: none; }
-.btn-quit { color: var(--ink-soft); font-size: var(--t-sm); }
+.btn-back:hover, .btn-quit:hover {
+  background: var(--brass-tint); border-color: var(--brass); box-shadow: var(--e-1);
+}
+.btn-quit { color: var(--ink); font-size: var(--t-sm); }
 .btn-hint { background: var(--brass-tint); color: var(--leather-dark); box-shadow: var(--e-inset); }
 /* Un retrato metido en mitad de una frase, en el sitio del emoji que
    sustituye. Alto de línea y medio como mucho: más grande empuja el renglón
@@ -2576,20 +2585,32 @@ img.home-site-icon.home-site-img {
 .home-facts strong { color: var(--ink); }
 
 .home-note { font-size: var(--t-sm); color: var(--ink-soft); text-align: center; margin: var(--s-3) 0 var(--s-5); }
-/* Pie de la portada: cierra la página en vez de dejarla cortada */
+/* Pie de la portada: cierra la página en vez de dejarla cortada.
+   El panel es lo que hace falta para leerlo. A esa altura de la página el
+   fondo ya es la duna oscura y la pirámide del horizonte, y el pie iba en
+   tinta clara, en versalitas y al tamaño más pequeño de la casa: cuatro
+   cosas que restan contraste a la vez. Ahora se apoya en papel, como
+   cualquier otra tarjeta de la portada. */
+.home-pie {
+  margin-top: var(--s-6);
+  padding: var(--s-5) var(--s-4) var(--s-4);
+  background: rgba(255, 253, 247, .88);
+  border: var(--line);
+  border-radius: var(--r-lg);
+}
 .home-foot {
-  text-align: center; margin-top: var(--s-6); padding-top: var(--s-5);
-  border-top: var(--line);
-  font-size: var(--t-xs); color: var(--ink-faint);
-  text-transform: uppercase; letter-spacing: .12em;
+  text-align: center;
+  font-size: var(--t-sm); color: var(--ink-soft);
+  text-transform: uppercase; letter-spacing: .08em;
 }
 /* La autoría, justo debajo del pie. Sin versalitas ni espaciado de rótulo:
    ahí abajo hay un nombre de persona y un nombre se lee, no se decora. */
 .home-autor {
-  text-align: center; margin-top: var(--s-3);
-  font-size: var(--t-xs); color: var(--ink-faint); line-height: 1.6;
+  text-align: center; margin-top: var(--s-3); padding-top: var(--s-3);
+  border-top: var(--line);
+  font-size: var(--t-sm); color: var(--ink-soft); line-height: 1.6;
 }
-.home-autor strong { color: var(--ink-soft); }
+.home-autor strong { color: var(--ink); }
 
 #teacher-exit { display: block; margin: 0 auto; }
 
@@ -3134,8 +3155,15 @@ input[type="checkbox"]::after, input[type="radio"]::after {
 .aula-alumno-info strong { display: block; font-size: var(--t-lg); font-family: var(--font-display); font-weight: 400; }
 .aula-alumno-info small { color: rgba(247, 234, 210, .82); font-size: var(--t-sm); }
 .aula-progreso { display: flex; gap: .3rem; }
-.aula-alumno .btn-quit { color: #f7ead2; }
-.aula-alumno .btn-quit:hover { background: rgba(255,255,255,.12); }
+/* Sobre la cabecera de cuero el papel del botón terciario se vuelve un
+   parche blanco: aquí el mismo filete se dibuja en claro sobre el oscuro. */
+.aula-alumno .btn-quit {
+  color: #f7ead2; background: rgba(255,255,255,.12);
+  border-color: rgba(247, 234, 210, .45);
+}
+.aula-alumno .btn-quit:hover {
+  background: rgba(255,255,255,.24); border-color: rgba(247, 234, 210, .7);
+}
 
 /* La pregunta, tamaño de aula: se lee de lejos y desde un proyector */
 .aula-instruccion {
@@ -3562,9 +3590,12 @@ input[type="checkbox"]::after, input[type="radio"]::after {
   box-shadow: inset 0 0 0 1px rgba(255, 255, 255, .4);
 }
 .demo-bar #demo-salir:hover { background: rgba(255, 255, 255, .28); }
-/* Sitio para la barra, o taparía la cabecera */
-body.en-demo #main { padding-top: 46px; }
-body.en-demo #hud { top: 44px; }
+/* Sitio para la barra, o taparía la cabecera. El alto sale medido de la
+   propia barra (`medirBarrasFijas`, en ui.js): el 46 px de antes era a ojo y
+   se quedaba corto, y lo que quedaba debajo salía recortado. Los valores de
+   detrás de la coma son el apaño por si el guion aún no ha medido. */
+body.en-demo #main { padding-top: var(--barras-fijas, 62px); }
+body.en-demo #hud { top: var(--barras-fijas, 62px); }
 /* En un móvil la frase larga parte la barra en tres renglones y se come un
    quinto de la pantalla. Se queda el titular, que es lo que hay que leer, y
    el botón de salir. Lo demás ya lo dice el titular. */
@@ -3579,9 +3610,12 @@ body.en-demo #hud { top: 44px; }
 body.en-demo .cloud-warning { display: none !important; }
 /* Y con las dos barras a la vez —la demostración mirando un cuaderno— cada
    una en su renglón, que si no se pisan. */
-body.en-demo.en-consulta .lectura-bar { top: 42px; }
-body.en-demo.en-consulta #main { padding-top: 88px; }
-body.en-demo.en-consulta #hud { top: 86px; }
+/* Con las dos barras a la vez la de lectura se cuelga de la de demostración,
+   y el hueco de abajo es la suma de las dos, que es justo lo que mide
+   `medirBarrasFijas`. */
+body.en-demo.en-consulta .lectura-bar { top: var(--alto-demo, 62px); }
+body.en-demo.en-consulta #main { padding-top: var(--barras-fijas, 124px); }
+body.en-demo.en-consulta #hud { top: var(--barras-fijas, 124px); }
 
 .lectura-bar {
   position: fixed; inset: 0 0 auto 0; z-index: 60;
@@ -3594,8 +3628,8 @@ body.en-demo.en-consulta #hud { top: 86px; }
 .lectura-bar em { font-style: normal; opacity: .8; }
 .lectura-bar #lectura-salir { margin-left: auto; }
 /* Sitio para la barra, o taparía la cabecera del alumno */
-body.en-consulta #main { padding-top: 46px; }
-body.en-consulta #hud { top: 44px; }
+body.en-consulta #main { padding-top: var(--barras-fijas, 62px); }
+body.en-consulta #hud { top: var(--barras-fijas, 62px); }
 /* Lo que en consulta no se puede hacer se esconde además de estar bloqueado:
    una pantalla que ofrece un botón que no hace nada engaña dos veces. */
 body.en-consulta #bazar-card,

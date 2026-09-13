@@ -1949,6 +1949,7 @@ async function entrarEnLectura(clave) {
   document.body.classList.add('en-consulta');
   $('#lectura-quien').textContent = S.profile.explorer_name;
   $('#lectura-bar').classList.remove('hidden');
+  medirBarrasFijas();
   $('#screen-teacher').classList.add('hidden');
   $('#app').classList.remove('hidden');
   applyTextSize();
@@ -1960,6 +1961,7 @@ async function entrarEnLectura(clave) {
 function salirDeLectura() {
   cerrarLectura();
   $('#lectura-bar').classList.add('hidden');
+  medirBarrasFijas();
   document.body.classList.remove('en-consulta');
   if (teacherOnly) document.body.classList.add('teacher-mode');
   classData = null;            /* al volver, la vista se recalcula */

@@ -60,6 +60,11 @@ function nodoDeMentira() {
     appendChild(h) { hijos.push(h); return h; },
     querySelector: () => nodo, querySelectorAll: () => [],
     focus() {}, click() {}, select() {},
+    /* Aquí no hay maquetación, así que todo mide cero. Lo que importa es que
+       responda: el código que reserva hueco para las barras fijas de arriba
+       pregunta por el alto de verdad, y sin esto reventaba al cargar. */
+    getBoundingClientRect: () => ({ x: 0, y: 0, top: 0, left: 0, right: 0,
+                                    bottom: 0, width: 0, height: 0 }),
     setAttribute(k, v) { atributos.set(k, String(v)); },
     removeAttribute(k) { atributos.delete(k); },
     getAttribute: k => (atributos.has(k) ? atributos.get(k) : null),
