@@ -42,6 +42,11 @@ export const CONCEPTOS = {
                          casa: 'El cambio de la compra: «he pagado 20 y ha costado 13, ¿cuánto me devuelven?».' },
   detectar_llevada:    { area: 'Cálculo', label: 'Ver si se completa una decena',
                          casa: 'Antes de hacer la cuenta, preguntar solo «¿las unidades llegan a diez?». Nada más.' },
+  /* Estimar es competencia propia en OAOA, no un adorno previo al cálculo:
+     «¿sabe estimar antes de operar?» es uno de los criterios de evaluación de
+     la formación. En la vida real hace falta la magnitud, no el decimal. */
+  estimacion:          { area: 'Cálculo', label: 'Estimar antes de calcular',
+                         casa: 'Antes de pagar en la caja: «¿nos vamos a pasar de 20 euros?». Sin calcularlo exacto.' },
   error_suma:          { area: 'Cálculo', label: 'Encontrar el error en una suma',
                          casa: 'Hacer una suma mal a propósito y pedirle que encuentre el fallo.' },
   problema_suma:       { area: 'Cálculo', label: 'Problema de sumar (enunciado)',
@@ -119,7 +124,10 @@ export const CONCEPTOS = {
 };
 
 export const OAOA_VETADO = [
-  { re: /\bllevad[ao]s?\b/i,
+  /* Solo el femenino, que es como se nombra el mecanismo: «la llevada», «las
+     llevadas». En masculino es el verbo de toda la vida —«se han llevado una
+     parte»— y vetarlo sería vetar el castellano. */
+  { re: /\bllevadas?\b/i,
     en_vez: 'di si las unidades completan una decena' },
   /* «Bruno lleva 45 monedas» es lenguaje normal y tiene que pasar. Lo que se
      veta es la llevada como mecanismo: «me llevo una», «te llevas una». */

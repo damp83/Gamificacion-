@@ -139,7 +139,9 @@ function validarRetoIA(crudo, opciones) {
 
      Va en el validador y no solo en el encargo al modelo porque un encargo se
      cumple el primer mes y se afloja el tercero. Esto es mecánico. */
-  if (cfg.materia === 'matematicas' || (CONCEPTOS[r.skill] || {}).area) {
+  const exigeOAOA = cfg.oaoaEstricto !== false
+    && (typeof ATLAS_CONFIG === 'undefined' || ATLAS_CONFIG.oaoaEstricto !== false);
+  if (exigeOAOA) {
     const esMates = !cfg.materia || cfg.materia === 'matematicas';
     if (esMates) {
       [['pista 1', r.hint1], ['pista 2', r.hint2], ['explicación', r.explanation]]
@@ -291,7 +293,9 @@ function promptGenerador(p) {
     '',
     /* Solo en matemáticas: en Lengua, «busca la palabra clave» es una
        estrategia legítima y este bloque sería un estorbo. */
-    materia === AREAS_IA.matematicas ? oaoaParaElPrompt(curso) : '',
+    (materia === AREAS_IA.matematicas
+      && (typeof ATLAS_CONFIG === 'undefined' || ATLAS_CONFIG.oaoaEstricto !== false))
+      ? oaoaParaElPrompt(curso) : '',
     '',
     'El concepto (`skill`) se elige de esta lista y de ninguna otra:',
     conceptos,

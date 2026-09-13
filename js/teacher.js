@@ -3489,6 +3489,14 @@ function cfgIA(body) {
       'de trabajo actúan. Si al generar te dice que falta, ven aquí y pega el ID: está en ' +
       'console.anthropic.com → Settings → Workspaces. Con una clave de las de siempre, no hace falta.')}
 
+    ${field('Exigir OAOA en matemáticas',
+      `<input type="checkbox" id="ia-oaoa"${ATLAS_CONFIG.oaoaEstricto !== false ? ' checked' : ''}>`,
+      'Con esto puesto, se rechaza el reto de matemáticas cuya ayuda hable en el idioma del ' +
+      'algoritmo tradicional —«llevada», «coloca en columnas», «bajar la cifra», «esa palabra ' +
+      'indica que hay que sumar»— y se le pide al modelo que explique descomponiendo. ' +
+      'Ojo a lo que NO hace: los retos de fábrica explican siempre descomponiendo, y eso no ' +
+      'cambia al quitarlo. Quítalo solo si enseñas en columnas y prefieres que la IA te siga a ti.')}
+
     <h4 class="cfg-h4">2. El currículo</h4>
     <p class="cfg-hint">Pega los saberes básicos, o sube el fichero. Es de lo único que el modelo
     puede tirar: si lo que ibas a preguntar no está en este texto, se le pide que no lo pregunte.
@@ -3705,6 +3713,7 @@ function cfgIA(body) {
     renderTeacherConfig();
   });
   onInput('#ia-workspace', e => cfgSave('iaWorkspace', e.target.value.trim(), false));
+  onInput('#ia-oaoa', e => cfgSave('oaoaEstricto', e.target.checked));
 
   const quitarClave = $('#ia-quitar-clave');
   if (quitarClave) quitarClave.addEventListener('click', async () => {

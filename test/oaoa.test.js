@@ -220,3 +220,81 @@ test('ninguna ayuda de fábrica impone un único camino', () => {
     });
   });
 });
+
+/* ── Estimar antes de calcular ── */
+
+test('el reto de estimación no se puede resolver calculando', () => {
+  /* Es el punto entero: «en la vida real necesitamos magnitud, no precisión
+     decimal inmediata». Si la estimación y el resultado exacto quedan cerca,
+     el que calcula acierta más que el que estima y el reto enseña justo lo
+     contrario de lo que pretende. Pasó: salió «la mejor estimación de
+     405 + 394» con 800 de respuesta y 799 entre las opciones. */
+  const c = cargarApp();
+  let vistos = 0;
+  for (let i = 0; i < 400 && vistos < 60; i++) {
+    const r = c.ev('BUILTIN_GENERATORS').sumas_llevando.comprender(3, 4);
+    if (r.skill !== 'estimacion') continue;
+    vistos++;
+    const nums = r.explanation.match(/= ([\d.]+)\. Estimar[\s\S]*?\(([\d.]+)\)/);
+    assert.ok(nums, 'la explicación tiene que decir la estimación y el exacto');
+    const aprox = Number(nums[1].replace(/\./g, ''));
+    const exacto = Number(nums[2].replace(/\./g, ''));
+    assert.ok(Math.abs(exacto - aprox) >= 30,
+      `estimación ${aprox} y exacto ${exacto} están demasiado cerca`);
+    /* Y la respuesta correcta es la estimación, no el exacto. */
+    assert.strictEqual(r.options[r.answer], c.ev('fmtNum')(aprox));
+  }
+  assert.ok(vistos > 10, 'apenas salen retos de estimación');
+});
+
+test('estimar es un concepto del catálogo, no un reto suelto', () => {
+  /* «¿Sabe estimar antes de operar?» es criterio de evaluación en la
+     formación: tiene que poder diagnosticarse como cualquier otro concepto. */
+  const c = cargarApp();
+  const con = c.ev('JSON.parse(JSON.stringify(CONCEPTOS.estimacion))');
+  assert.ok(con && con.label, 'falta el concepto de estimación');
+  assert.ok(con.casa.length > 20, 'y su consejo para casa');
+  assert.ok(c.ev("conceptosDe('matematicas')").includes('estimacion'));
+});
+
+/* ── El interruptor ── */
+
+test('se puede desactivar, y entonces la IA deja de ser filtrada', () => {
+  /* Esta app la puede abrir un maestro que enseñe en columnas. Imponerle OAOA
+     sería tirarle retos correctos para su aula. */
+  const c = cargarApp();
+  const reto = {
+    question: '¿Cuánto es 47 + 25?', options: ['62', '72', '82', '75'], answer: 1,
+    hint1: 'Hay llevada cuando las unidades suman 10 o más.',
+    hint2: 'Coloca los números en columnas.',
+    explanation: 'Se suma y se lleva una.',
+    skill: 'suma_llevada', criterio: 'x'
+  };
+  assert.strictEqual(c.ev('validarRetoIA')(reto, { materia: 'matematicas' }).ok, false);
+  c.ev("cfgSave('oaoaEstricto', false)");
+  assert.strictEqual(c.ev('validarRetoIA')(reto, { materia: 'matematicas' }).ok, true,
+    'apagado, el filtro no puede seguir rechazando');
+  /* Y el encargo al modelo tampoco lo impone. */
+  assert.ok(!/PROHIBIDO escribir/.test(JSON.stringify(
+    c.ev('promptGenerador')({ materia: 'matematicas', curso: 4, n: 5 }))));
+});
+
+test('pero los retos de fábrica siguen en OAOA aunque se apague', () => {
+  /* Lo que el panel promete: apagarlo afecta a lo que escriba la IA, no a lo
+     que ya viene hecho. Dos métodos a la vez es lo que había que arreglar. */
+  const c = cargarApp();
+  c.ev("cfgSave('oaoaEstricto', false)");
+  for (let i = 0; i < 40; i++) {
+    const r = c.ev('BUILTIN_GENERATORS').sumas_llevando.aplicar(3, 4);
+    assert.strictEqual(c.ev('pegasOAOA')(r.hint1).length + c.ev('pegasOAOA')(r.hint2).length, 0);
+  }
+});
+
+test('el panel dice qué hace el interruptor y qué no', () => {
+  /* Un interruptor que promete más de lo que cumple es peor que no tenerlo. */
+  const t = leer('js/teacher.js');
+  const i = t.indexOf('ia-oaoa');
+  assert.ok(i > 0, 'no está el interruptor en el panel');
+  const trozo = t.slice(i, i + 900);
+  assert.match(trozo, /los retos de fábrica/i, 'tiene que avisar de lo que NO cambia');
+});

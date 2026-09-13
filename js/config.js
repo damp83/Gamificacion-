@@ -11,7 +11,7 @@
    copia guardada. Sin este número, «ya está arreglado» y «a mí no me pasa» son
    indistinguibles. Va junto al nombre de la caché del service worker, y una
    prueba comprueba que no se separen. */
-const ATLAS_VERSION = 'v121';
+const ATLAS_VERSION = 'v122';
 
 const ATLAS_DEFAULTS = {
 
@@ -105,6 +105,19 @@ const ATLAS_DEFAULTS = {
      trabajan. Vive solo en el equipo del docente: al alumnado no le sirve de
      nada y no tiene por qué viajar. */
   criterios: [],
+
+  /* ── El método de cálculo que la IA debe respetar ──
+     Los retos de fábrica explican SIEMPRE descomponiendo, porque es lo que se
+     enseña en el centro para el que está hecha la app y porque dos métodos a
+     la vez le enseñan al niño a desconfiar de su maestro. Este ajuste no
+     cambia eso: decide si el validador rechaza además lo que escriba la IA
+     cuando usa el vocabulario del algoritmo tradicional.
+
+     Se puede apagar, y tiene que poder apagarse: esta app la puede abrir un
+     maestro que enseñe en columnas, y entonces el filtro le estaría tirando
+     retos correctos para su aula. Lo que no se puede es apagarlo sin saber
+     que los de fábrica seguirán en OAOA; por eso el panel lo dice. */
+  oaoaEstricto: true,
 
   /* PIN del panel del docente. Este es el que llevan TODAS las tablets: el que
      se cambia desde el panel vale solo para ese equipo, porque el PIN no viaja

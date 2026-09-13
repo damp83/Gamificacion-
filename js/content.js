@@ -72,7 +72,10 @@ const STRATA_META = {
    validador de retos y lo vigila una prueba sobre TODOS los generadores de
    fábrica, que es lo que impide que vuelva a colarse dentro de un año. */
 const OAOA_VETADO = [
-  { re: /\bllevad[ao]s?\b/i,
+  /* Solo el femenino, que es como se nombra el mecanismo: «la llevada», «las
+     llevadas». En masculino es el verbo de toda la vida —«se han llevado una
+     parte»— y vetarlo sería vetar el castellano. */
+  { re: /\bllevadas?\b/i,
     en_vez: 'di si las unidades completan una decena' },
   /* «Bruno lleva 45 monedas» es lenguaje normal y tiene que pasar. Lo que se
      veta es la llevada como mecanismo: «me llevo una», «te llevas una». */
@@ -202,6 +205,11 @@ const CONCEPTOS = {
                          casa: 'El cambio de la compra: «he pagado 20 y ha costado 13, ¿cuánto me devuelven?».' },
   detectar_llevada:    { area: 'Cálculo', label: 'Ver si se completa una decena',
                          casa: 'Antes de hacer la cuenta, preguntar solo «¿las unidades llegan a diez?». Nada más.' },
+  /* Estimar es competencia propia en OAOA, no un adorno previo al cálculo:
+     «¿sabe estimar antes de operar?» es uno de los criterios de evaluación de
+     la formación. En la vida real hace falta la magnitud, no el decimal. */
+  estimacion:          { area: 'Cálculo', label: 'Estimar antes de calcular',
+                         casa: 'Antes de pagar en la caja: «¿nos vamos a pasar de 20 euros?». Sin calcularlo exacto.' },
   error_suma:          { area: 'Cálculo', label: 'Encontrar el error en una suma',
                          casa: 'Hacer una suma mal a propósito y pedirle que encuentre el fallo.' },
   problema_suma:       { area: 'Cálculo', label: 'Problema de sumar (enunciado)',
@@ -550,11 +558,55 @@ const sumas_llevando = {
         skill: 'resta_llevada',
         question: `Había ${a} monedas y Vera se llevó ${b}.\n¿Cuántas quedan?`,
         options, answer,
-        hint1: '«Se llevó» significa que hay que quitar: se resta.',
-        hint2: `Empieza en ${a} y cuenta ${b} hacia atrás.`,
+        /* En partes y todo, no en palabras del enunciado: tenías el todo y te
+           han quitado una parte. Es el modelo de barras de Singapur, que es
+           de donde OAOA saca la resolución de problemas. */
+        hint1: `El todo eran ${a} y una parte (${b}) ya no está. ¿Cuánto mide la otra parte?`,
+        hint2: `Puedes contar hacia arriba desde ${b} hasta ${a}: lo que subas es lo que queda.`,
         explanation: `${a} − ${b} = ${correct}.`
       };
     }
+    /* ── Estimar antes de calcular (3.º en adelante) ──
+       En OAOA no es un calentamiento: es competencia propia y criterio de
+       evaluación. «En la vida real necesitamos magnitud, no precisión decimal
+       inmediata.» Por eso la pregunta NO se puede resolver calculando: los
+       números son grandes a propósito y lo que se mide es si sabe redondear
+       cada uno y operar con los redondos de cabeza.
+
+       Comparte estrato con la pregunta de la decena porque las dos son el
+       mismo gesto: mirar los números ANTES de ponerse a operar. */
+    if (bandOf(g) >= 2 && pick([true, false])) {
+      const redondo = n => Math.round(n / 100) * 100;
+      /* Los dos números tienen que estar LEJOS de su centena, y la estimación
+         lejos del exacto. Si no, sale «la mejor estimación de 405 + 394» con
+         800 de respuesta y 799 entre las opciones: ahí el que calcula acierta
+         más que el que estima, y el reto enseña lo contrario de lo que quiere.
+         Treinta es el margen: por debajo, las dos respuestas se confunden. */
+      let a, b, aprox, exacto, vueltas = 0;
+      do {
+        a = ri(1, 4) * 100 + ri(18, 82);
+        b = ri(1, 4) * 100 + ri(18, 82);
+        aprox = redondo(a) + redondo(b);
+        exacto = a + b;
+      } while (Math.abs(exacto - aprox) < 30 && ++vueltas < 20);
+      /* Las falsas son estimaciones que un niño hace de verdad: redondear
+         solo uno de los dos, irse un orden de magnitud, o dar el exacto
+         —que aquí es el error, porque no se pedía calcular—. */
+      const { options, answer } = buildOptions(fmtNum(aprox), [
+        fmtNum(redondo(a) + b - (b % 10)),
+        fmtNum(aprox + 1000),
+        fmtNum(exacto)
+      ]);
+      return {
+        skill: 'estimacion',
+        question: `Kira no necesita la cuenta exacta: solo quiere saber si caben ${fmtNum(a)} y ${fmtNum(b)} gemas en el arcón. ¿Cuál es la mejor estimación de ${fmtNum(a)} + ${fmtNum(b)}?`,
+        options, answer,
+        hint1: 'No lo calcules. Redondea cada número a la centena más cercana y súmalos de cabeza.',
+        hint2: `${fmtNum(a)} anda por ${fmtNum(redondo(a))} y ${fmtNum(b)} por ${fmtNum(redondo(b))}.`,
+        explanation: `${fmtNum(redondo(a))} + ${fmtNum(redondo(b))} = ${fmtNum(aprox)}. Estimar es saber por dónde anda la respuesta; el resultado exacto (${fmtNum(exacto)}) se calcula después, si hace falta.`
+      };
+    }
+
     const mk = (carry) => {
       const u1 = carry ? ri(5, 9) : ri(0, 4);
       const u2 = carry ? ri(10 - u1, 9) : ri(0, Math.max(0, 4 - u1));
@@ -1321,10 +1373,14 @@ function defaultSites() {
         grades: [1, 2, 3, 4, 5, 6],
         desc: 'Una cámara llena de cerraduras numéricas. Domina los números para abrirlas todas.',
         contenido: 'Numeración: valor posicional, leer y escribir números, ordenar y comparar, descomponer.' },
+      /* El id se queda —lo llevan los diarios—, pero lo que se LEE cambia. Y
+         `contenido` no es decorativo: es lo que se le pasa a la IA como tema
+         del pozo, así que decir ahí «con llevadas» era pedirle retos de ATOA
+         por la puerta de atrás. */
       { id: 'sumas_llevando', name: 'El Reloj de Engranajes', icon: '⚙️', source: 'builtin', enabled: true, img: 'img/pozos/sumas_llevando.webp',
         grades: [1, 2, 3, 4, 5, 6],
-        desc: 'Un reloj gigante que solo gira con cuentas exactas. ¡Cuidado con las llevadas!',
-        contenido: 'Cálculo: sumas y restas con llevadas, multiplicación, división y problemas de operaciones.' },
+        desc: 'Un reloj gigante que solo gira con cuentas exactas. Parte los números y vencerás.',
+        contenido: 'Cálculo: sumar y restar descomponiendo por valores, completar decenas, estimar antes de calcular, multiplicación, división y problemas de operaciones.' },
       { id: 'fracciones', name: 'La Balanza del Mercader', icon: '⚖️', source: 'builtin', enabled: true, img: 'img/pozos/fracciones.webp',
         grades: [3, 4, 5, 6],
         desc: 'Repartos, raciones y vasijas partidas. Aquí el tesoro se divide en partes iguales.',
