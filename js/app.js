@@ -227,6 +227,12 @@ function startStudentPath() {
    equipo. Que la sala de mapas dependa de la nube para pintarse sería
    cambiar información por espera. */
 
+/* ── Los iconos del pulso ──
+   De línea y dibujados, como los de las tres tarjetas de debajo. Eran emoji
+   del sistema —🆘 en rojo de semáforo y 👥 en azul— justo encima del
+   pergamino, que son los dos colores que peor casan con esta paleta, y al
+   lado de los iconos de trazo quedaban de otra app. Todos estaban ya en el
+   pliego de símbolos; solo había que usarlos. */
 function pulsoDocente() {
   const fichas = [];
 
@@ -234,21 +240,21 @@ function pulsoDocente() {
         aunque se le haya quitado de la lista: si un niño juega, cuenta. */
   const alumnos = typeof aulaAlumnos === 'function' ? aulaAlumnos().length : 0;
   fichas.push(alumnos
-    ? { icono: '👥', n: alumnos, que: alumnos === 1 ? 'explorador' : 'exploradores', ir: 'alumnado' }
-    : { icono: '👥', accion: 'Apunta a tu clase', ir: 'alumnado' });
+    ? { icono: 'group', n: alumnos, que: alumnos === 1 ? 'explorador' : 'exploradores', ir: 'alumnado' }
+    : { icono: 'group', accion: 'Apunta a tu clase', ir: 'alumnado' });
 
   /* 2. Dónde pueden excavar hoy. Pozos abiertos, no yacimientos: un
         yacimiento con todos los pozos cerrados no da juego a nadie. */
   let pozos = 0;
   for (const site of sitesEnabled()) pozos += branchesEnabledOf(site).length;
   fichas.push(pozos
-    ? { icono: '⛏️', n: pozos, que: pozos === 1 ? 'pozo abierto' : 'pozos abiertos', ir: 'yacimient' }
-    : { icono: '⛏️', accion: 'Abre un pozo', ir: 'yacimient' });
+    ? { icono: 'pickaxe', n: pozos, que: pozos === 1 ? 'pozo abierto' : 'pozos abiertos', ir: 'yacimient' }
+    : { icono: 'pickaxe', accion: 'Abre un pozo', ir: 'yacimient' });
 
   /* 3. Lo que la IA ha escrito y nadie ha leído todavía. Solo sale si hay
         algo: es un recado, no una estadística. */
   const cola = typeof iaCola === 'function' ? iaCola().length : 0;
-  if (cola) fichas.push({ icono: '🤖', n: cola, que: cola === 1 ? 'reto por revisar' : 'retos por revisar',
+  if (cola) fichas.push({ icono: 'feather', n: cola, que: cola === 1 ? 'reto por revisar' : 'retos por revisar',
     ir: 'ia', avisa: true });
 
   /* 4. Quién lo está pasando mal. Sale de los diarios que hay EN ESTE
@@ -259,7 +265,7 @@ function pulsoDocente() {
   if (locales.length) {
     const resumen = buildClassOverview(locales);
     if (resumen.kpis.needHelp) {
-      fichas.push({ icono: '🆘', n: resumen.kpis.needHelp, que: 'necesitan un empujón',
+      fichas.push({ icono: 'flag', n: resumen.kpis.needHelp, que: 'necesitan un empujón',
         clase: true, avisa: true });
     }
   }
@@ -279,7 +285,7 @@ function renderPulsoDocente() {
   zona.innerHTML = fichas.map((f, i) => `
     <button class="pulso-ficha${f.avisa ? ' pulso-avisa' : ''}${f.accion ? ' pulso-accion' : ''}"
             data-pulso="${i}">
-      <span class="pulso-icono">${f.icono}</span>
+      <span class="pulso-icono">${ico(f.icono)}</span>
       ${f.accion
         ? `<span class="pulso-hacer">${esc(f.accion)} →</span>`
         : `<span class="pulso-n">${f.n}</span><span class="pulso-que">${esc(f.que)}</span>`}
@@ -308,7 +314,7 @@ function showTeacherPortal() {
   const pend = copiaPendiente();
   aviso.classList.toggle('hidden', !pend);
   if (pend) {
-    aviso.innerHTML = `<span class="teacher-warn-icon">💾</span>
+    aviso.innerHTML = `<span class="teacher-warn-icon">${ico('crate')}</span>
       <div><strong>${pend.motivo === 'nunca'
         ? 'Todavía no has guardado ninguna copia'
         : `Hace ${pend.dias} días de tu última copia`}.</strong>
@@ -316,7 +322,7 @@ function showTeacherPortal() {
         ? 'El diario de la clase está'
         : `Los ${pend.diarios} diarios de la clase están`} solo en este equipo: si se borra el
       perfil o se limpian los datos de navegación, se ${pend.diarios === 1 ? 'pierde' : 'pierden'}.</div>
-      <button class="btn btn-secondary btn-small" id="teacher-go-backup">💾 Guardar copia</button>`;
+      <button class="btn btn-secondary btn-small" id="teacher-go-backup">${ico('crate')} Guardar copia</button>`;
     $('#teacher-go-backup').addEventListener('click', () => { cfgSection = 'copia'; teacherScreen('config'); });
   }
 

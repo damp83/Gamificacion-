@@ -223,11 +223,21 @@ function pintarCartaDeExpedicion(sites) {
                preserveAspectRatio="xMidYMid slice"/>
       </g>
 
+      <!-- Cada yacimiento, un banderín clavado en la arena. Eran dos círculos
+           concéntricos: un punto de interfaz encima de una carta dibujada a
+           mano, que es lo que menos pega. Un banderín de topógrafo dice lo
+           mismo —aquí se excava— y pertenece al dibujo en vez de posarse
+           encima. Va en las unidades del mapa (100 de ancho), así que mide lo
+           que medía el punto y crece con la carta. -->
       ${marcas.map(m => `
         <g class="carta-sitio" data-sitio="${esc(m.site.id)}" tabindex="0" role="button"
            aria-label="${esc(m.site.name)}: ${m.pr.hechos} de ${m.pr.total} estratos dominados">
-          <circle cx="${m.x}" cy="${m.y}" r="3.2" fill="${m.col.fondo}" stroke="${m.col.tinta}" stroke-width="1"/>
-          <circle cx="${m.x}" cy="${m.y}" r="1.15" fill="${m.col.tinta}"/>
+          <ellipse class="sitio-pie" cx="${m.x}" cy="${m.y}" rx="1.7" ry=".6"
+                   fill="${m.col.tinta}" opacity=".28"/>
+          <path class="sitio-asta" d="M${m.x} ${m.y}V${(m.y - 6.6).toFixed(2)}"
+                stroke="${m.col.tinta}" stroke-width=".75" stroke-linecap="round" fill="none"/>
+          <path class="sitio-tela" d="M${m.x} ${(m.y - 6.6).toFixed(2)}L${(m.x + 4.3).toFixed(2)} ${(m.y - 5.25).toFixed(2)}L${m.x} ${(m.y - 3.9).toFixed(2)}Z"
+                fill="${m.col.fondo}" stroke="${m.col.tinta}" stroke-width=".7" stroke-linejoin="round"/>
         </g>`).join('')}
     </svg>
     <div class="carta-leyenda">

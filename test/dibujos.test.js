@@ -509,3 +509,45 @@ test('las pantallas sin estrenar enseñan un dibujo, no un vacío', () => {
   /* Y si el dibujo no existiera, queda la frase, que es lo que había antes. */
   assert.match(c.ev("espera('no_existe', 'Todavía nada por aquí.')"), /Todavía nada por aquí\./);
 });
+
+/* ── Lo que se posa encima del dibujo y lo que pertenece a él ── */
+
+test('los yacimientos del mapa son banderines, no puntos de interfaz', () => {
+  /* Eran dos círculos concéntricos morado y verde: un punto de interfaz
+     encima de una carta dibujada a mano, que es lo que menos pega. Un
+     banderín de topógrafo dice lo mismo —aquí se excava— y pertenece al
+     dibujo en vez de posarse sobre él. */
+  const play = leer('js/play.js');
+  /* Se ancla en la marca, no en el primer `marcas.map`: ese es el de los
+     claros que abre la excavación en la arena, que es otra cosa. */
+  const i = play.indexOf('class="carta-sitio"');
+  assert.ok(i > 0, 'no están las marcas del mapa');
+  const trozo = play.slice(i, play.indexOf('</g>', i));
+  assert.match(trozo, /sitio-tela/, 'el banderín no tiene tela');
+  assert.match(trozo, /sitio-asta/, 'el banderín no tiene asta');
+  assert.ok(!/<circle[^>]*r="3\.2"/.test(trozo), 'volvió el punto de interfaz');
+  /* Y sigue siendo un botón con nombre: el dibujo no puede costar el teclado. */
+  assert.match(trozo, /role="button"/);
+  assert.match(trozo, /aria-label=/);
+});
+
+test('el sombrero comprado se enseña dibujado, no con un emoji encima', () => {
+  /* `gorroEquipado` devolvía '🤠' y ese emoji se pegaba de chapa sobre la cara
+     dibujada del niño en cinco pantallas. El dibujo estaba en la tienda desde
+     el principio. */
+  const ui = leer('js/ui.js');
+  const i = ui.indexOf('function gorroEquipado');
+  const cuerpo = ui.slice(i, ui.indexOf('\n}', i));
+  assert.ok(!/'🤠'|'🧑‍🌾'/.test(cuerpo), 'el emoji volvió a estar escrito a mano');
+  assert.match(cuerpo, /shopCatalog/, 'el gorro sale del catálogo, con su dibujo');
+});
+
+test('todo lo que se toca llega al mínimo táctil', () => {
+  /* Las pastillas de la leyenda del mapa medían 29 px y eran el único sitio
+     de la app por debajo de los 44 que el propio proyecto se fijó para dedos
+     de seis años. */
+  const css = leer('css/styles.css');
+  const i = css.indexOf('.carta-chip {');
+  assert.ok(i > 0);
+  assert.match(css.slice(i, css.indexOf('}', i)), /min-height: var\(--tap\)/);
+});

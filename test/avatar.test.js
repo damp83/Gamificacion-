@@ -41,13 +41,36 @@ test('el sombrero comprado no borra el retrato: se queda de chapa', () => {
   const html = c.ev('avatarDelExplorador')();
   assert.match(html, /img\/roles\/guardian\.png/);
   assert.match(html, /avatar-gorro/);
-  assert.match(html, /🧑‍🌾/);
+  /* Y la chapa es el DIBUJO del salacot, no un emoji encima de una cara
+     dibujada: el sombrero se compró en la tienda y la tienda ya tiene su
+     dibujo. Un 🧑‍🌾 pegado sobre el retrato parecía un fallo de montaje. */
+  assert.match(html, /img\/almacen\/salacot\.webp/);
+  assert.doesNotMatch(html, /🧑‍🌾/, 'el emoji volvió a colarse encima del retrato');
 });
 
 test('y sin rol, el sombrero sigue siendo el avatar, como siempre fue', () => {
   const c = conRol(null);
   c.ev('S').inventory.gear_equipped.push('sombrero_ala_ancha');
-  assert.equal(c.ev('avatarDelExplorador')(), '🤠');
+  const html = c.ev('avatarDelExplorador')();
+  assert.match(html, /img\/almacen\/sombrero_ala_ancha\.webp/);
+  assert.doesNotMatch(html, /🤠/);
+});
+
+test('si el docente añade un sombrero sin dibujo, queda su emoji', () => {
+  /* El catálogo lo puede tocar el docente. Un objeto nuevo sin dibujo no
+     puede dejar al niño sin nada: se cae al emoji de la propia entrada. */
+  const c = conRol('guardian');
+  c.ev("ATLAS_CONFIG.shop.find(i => i.id === 'salacot').img = ''");
+  c.ev('S').inventory.gear_equipped.push('salacot');
+  const html = c.ev('avatarDelExplorador')();
+  assert.match(html, /avatar-gorro/);
+  assert.match(html, /⛑/, 'sin dibujo tiene que quedar el emoji del catálogo');
+});
+
+test('y el salacot manda sobre el sombrero si se tienen los dos', () => {
+  const c = conRol(null);
+  c.ev('S').inventory.gear_equipped.push('sombrero_ala_ancha', 'salacot');
+  assert.match(c.ev('avatarDelExplorador')(), /salacot\.webp/);
 });
 
 test('admite el nombre suelto y la ficha de la lista', () => {
@@ -96,8 +119,15 @@ test('lo que llega al avatar se escapa', () => {
   const ui = leer('js/ui.js');
   const i = ui.indexOf('function avatarDelExplorador');
   const cuerpo = ui.slice(i, ui.indexOf('\n}', i));
-  assert.match(cuerpo, /esc\(gorro \|\| '🧒'\)/);
-  assert.match(cuerpo, /esc\(gorro\)/);
+  assert.match(cuerpo, /esc\(\(gorro && gorro\.icon\) \|\| '🧒'\)/);
+  assert.match(cuerpo, /esc\(gorro\.img\)/, 'la ruta del sombrero, sin escapar');
+  /* La chapa se pinta aparte; que lo suyo también se escape. */
+  const chapa = leer('js/ui.js');
+  const j = chapa.indexOf('function chapaDeGorro');
+  const cuerpoChapa = chapa.slice(j, chapa.indexOf('\n}', j));
+  assert.match(cuerpoChapa, /esc\(gorro\.img\)/);
+  assert.match(cuerpoChapa, /esc\(gorro\.icon\)/);
+  assert.match(cuerpoChapa, /esc\(nombre\)/);
   /* La cara elegida sale de una lista cerrada del código, pero su ruta y su
      descripción entran igual en un atributo. */
   assert.match(cuerpo, /esc\(cara\.img\)/, 'la ruta del dibujo, sin escapar');

@@ -661,8 +661,13 @@ img.site-icon.site-img {
 /* El punto de cada yacimiento se puede tocar y se puede tabular: es un botón,
    aunque esté dibujado. */
 .carta-sitio { cursor: pointer; }
-.carta-sitio:focus-visible circle:first-child { stroke-width: 2; }
-.carta-sitio:hover circle:first-child { stroke-width: 1.8; }
+.carta-sitio .sitio-tela, .carta-sitio .sitio-asta { transition: stroke-width .12s ease; }
+.carta-sitio:hover .sitio-tela, .carta-sitio:focus-visible .sitio-tela { stroke-width: 1.2; }
+.carta-sitio:hover .sitio-asta, .carta-sitio:focus-visible .sitio-asta { stroke-width: 1.1; }
+/* Al pasar por encima, el banderín se levanta un pelo: lo justo para que se
+   note que se puede tocar, sin que parezca que se ha despegado del suelo. */
+.carta-sitio { transform-box: fill-box; transform-origin: 50% 100%; }
+.carta-sitio:hover, .carta-sitio:focus-visible { transform: translateY(-.4px); }
 
 /* La leyenda es la que se toca de verdad. En una tablet el dedo acierta más en
    una etiqueta con nombre que en un punto de doce píxeles, y de paso pone el
@@ -672,8 +677,12 @@ img.site-icon.site-img {
   display: inline-flex; align-items: center; gap: .4rem;
   font-family: inherit; font-size: var(--t-sm); color: var(--leather-dark);
   background: var(--surface); border: 0; cursor: pointer;
-  border-radius: var(--r-pill); padding: .3rem .7rem .3rem .5rem;
+  border-radius: var(--r-pill); padding: .3rem .9rem .3rem .7rem;
   box-shadow: inset 0 0 0 1px rgba(122, 74, 33, .2);
+  /* 44 px, como todo lo que se toca en esta casa. Medían 29 y eran el único
+     sitio de la app por debajo del mínimo: el comentario de aquí arriba ya
+     decía que son «las que se tocan de verdad», pero el relleno no daba. */
+  min-height: var(--tap);
 }
 .carta-chip b { font-variant-numeric: tabular-nums; color: var(--acento, var(--brass)); }
 .carta-chip-punto {
@@ -1953,6 +1962,16 @@ img.feedback-quien {
   background: var(--surface); border-radius: 50%;
   padding: .1em; box-shadow: var(--e-1);
 }
+/* La chapa cuando es un dibujo y no un emoji. Va en `em` para que siga al
+   tamaño del retrato que tenga debajo —el del HUD es pequeño y el de la
+   Cuadrilla grande—, y con un filete de papel alrededor para despegarla de la
+   cara sobre la que se apoya. */
+.avatar-gorro-img {
+  width: .82em; height: .82em;
+  padding: .06em; object-fit: contain;
+  border: 1px solid var(--brass-tint);
+  box-shadow: 0 1px 3px rgba(51, 36, 15, .28);
+}
 /* Un retrato aguanta —y pide— más tamaño que un emoji: es un dibujo con cara,
    y a 2 rem deja de reconocerse quién es. */
 .rol-img { width: 2.5rem; height: 2.5rem; border-radius: 50%; object-fit: cover; }
@@ -2585,6 +2604,16 @@ img.home-site-icon.home-site-img {
 .home-facts strong { color: var(--ink); }
 
 .home-note { font-size: var(--t-sm); color: var(--ink-soft); text-align: center; margin: var(--s-3) 0 var(--s-5); }
+/* Una nota que cae al final de la página, donde el pergamino se acaba y
+   empieza la duna oscura del horizonte. Es el mismo problema del pie de la
+   portada y se arregla igual: papel debajo. Va como clase aparte porque
+   `.home-note` también se usa arriba, sobre papel, donde no hace falta. */
+.nota-en-duna {
+  background: rgba(255, 253, 247, .88);
+  border: var(--line); border-radius: var(--r-lg);
+  padding: var(--s-3) var(--s-4);
+  max-width: 46rem; margin-left: auto; margin-right: auto;
+}
 /* Pie de la portada: cierra la página en vez de dejarla cortada.
    El panel es lo que hace falta para leerlo. A esa altura de la página el
    fondo ya es la duna oscura y la pirámide del horizonte, y el pie iba en

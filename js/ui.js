@@ -373,11 +373,42 @@ function renderHud() {
 }
 /* El sombrero que se ha comprado, si se ha comprado alguno. Se separa porque
    un gorro comprado y un rol repartido son dos cosas distintas y ninguna
-   puede borrar a la otra: la una es lo que ha ganado, la otra es quién es. */
+   puede borrar a la otra: la una es lo que ha ganado, la otra es quién es.
+
+   Devuelve la ENTRADA DEL CATÁLOGO, no un emoji. Antes devolvía '🤠' y ese
+   emoji se pegaba de chapa encima de la cara dibujada del niño, en cinco
+   pantallas: en el Campamento salía flotando sobre el pecho del personaje y
+   parecía un fallo de montaje más que un premio. El dibujo del sombrero ya
+   existía —`img/almacen/sombrero_ala_ancha.webp`, comprado en esa misma
+   tienda—; lo único que faltaba era venir a buscarlo aquí.
+
+   El emoji sigue en la entrada como respaldo, para un catálogo que el docente
+   haya tocado y donde el objeto nuevo no traiga dibujo. */
 function gorroEquipado() {
   const g = (S && S.inventory && S.inventory.gear_equipped) || [];
-  if (g.includes('salacot')) return '🧑‍🌾';
-  if (g.includes('sombrero_ala_ancha')) return '🤠';
+  const catalogo = (typeof shopCatalog === 'function' ? shopCatalog() : []) || [];
+  /* Los dos que son sombrero de verdad, en orden: el salacot manda porque es
+     el caro. El resto del equipo —mochila, botas, catalejo— no va en la
+     cabeza y no pinta nada de chapa en un retrato. */
+  for (const id of ['salacot', 'sombrero_ala_ancha']) {
+    if (!g.includes(id)) continue;
+    return catalogo.find(it => it && it.id === id) || { id, icon: '', name: '' };
+  }
+  return null;
+}
+
+/* La chapa del gorro sobre un retrato: dibujo si lo hay, emoji si no, nada si
+   no hay ni una cosa ni la otra. */
+function chapaDeGorro(gorro) {
+  if (!gorro) return '';
+  const nombre = gorro.name || 'Sombrero';
+  if (gorro.img) {
+    return `<img class="avatar-gorro avatar-gorro-img" src="${esc(gorro.img)}"
+                 alt="" title="${esc(nombre)}" loading="lazy">`;
+  }
+  if (gorro.icon) {
+    return `<span class="avatar-gorro" title="${esc(nombre)}" aria-hidden="true">${esc(gorro.icon)}</span>`;
+  }
   return '';
 }
 
@@ -401,11 +432,18 @@ function avatarDelExplorador(quien) {
   const cara = miCara(nombre);
   if (cara) {
     return `<img class="cara-explorador" src="${esc(cara.img)}" alt="${esc(cara.alt)}" loading="lazy">` +
-      (gorro ? `<span class="avatar-gorro" aria-hidden="true">${esc(gorro)}</span>` : '');
+      chapaDeGorro(gorro);
   }
-  if (!rol) return esc(gorro || '🧒');
-  return avatarDeRol(rol, 'rol-medallon') +
-    (gorro ? `<span class="avatar-gorro" aria-hidden="true">${esc(gorro)}</span>` : '');
+  /* Sin cara elegida y sin rol repartido, el gorro comprado ES el avatar: ahí
+     va entero y grande, no de chapa en una esquina. */
+  if (!rol) {
+    if (gorro && gorro.img) {
+      return `<img class="cara-explorador" src="${esc(gorro.img)}"
+                   alt="${esc(gorro.name || 'Tu sombrero')}" loading="lazy">`;
+    }
+    return esc((gorro && gorro.icon) || '🧒');
+  }
+  return avatarDeRol(rol, 'rol-medallon') + chapaDeGorro(gorro);
 }
 
 /* ══════════ LECTURA EN VOZ ALTA (DUA) ══════════
