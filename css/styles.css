@@ -1910,6 +1910,18 @@ img.feedback-quien {
   display: grid; place-items: center;
   background: rgba(255,255,255,.12); border-radius: var(--r-lg);
   border: 1px solid rgba(240, 195, 60, .3);
+  overflow: hidden;
+}
+/* El emblema dibujado llena el medallón; el emoji se queda como estaba. Un
+   pelo de relleno para que el animal no toque el filete de latón. */
+.team-icon .icono-dibujo { width: 100%; height: 100%; padding: .18rem; }
+
+/* El mismo emblema, en pequeño, en los sitios donde solo acompaña al nombre. */
+.icono-cuadrilla { width: 1.35em; height: 1.35em; vertical-align: -.3em; }
+.aula-grupo-icono .icono-dibujo,
+.amg-icono .icono-dibujo,
+.team-other-icon .icono-dibujo {
+  width: 1.5em; height: 1.5em; display: inline-block; vertical-align: -.35em;
 }
 .team-banner h3 { margin: 0; color: #fff6e2; }
 .team-banner h3::after { display: none; }

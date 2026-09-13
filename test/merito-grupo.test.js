@@ -277,7 +277,10 @@ test('el panel se pinta pegado al grupo al que va', () => {
   /* Con cinco cuadrillas abiertas, un panel suelto se pulsa sobre la que no
      es, y eso son doblones en el diario del niño equivocado. */
   const aula = leer('js/aula.js');
-  const i = aula.indexOf('const grupo = (id, titulo, icono, gente) =>');
+  /* Se ancla en el nombre, no en la lista de argumentos: el tercero pasó de
+     ser un emoji suelto a la ficha entera de la cuadrilla, para que la que
+     tenga dibujo lo enseñe, y esto no tiene nada que ver con el orden. */
+  const i = aula.indexOf('const grupo = (id, titulo,');
   const cuerpo = aula.slice(i, i + 1200);
   assert.ok(cuerpo.indexOf('lista.appendChild(cab)') < cuerpo.indexOf('panelDeMeritoGrupo(gente'));
   assert.ok(cuerpo.indexOf('panelDeMeritoGrupo(gente') < cuerpo.indexOf('aula-grupo-gente'));

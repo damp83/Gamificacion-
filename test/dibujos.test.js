@@ -551,3 +551,43 @@ test('todo lo que se toca llega al mínimo táctil', () => {
   assert.ok(i > 0);
   assert.match(css.slice(i, css.indexOf('}', i)), /min-height: var\(--tap\)/);
 });
+
+/* ── Los emblemas de cuadrilla ── */
+
+test('las cuadrillas se pintan con la misma puerta que todo lo demás', () => {
+  /* El emblema era el último emoji del sistema que llegaba a la pantalla del
+     alumno, y además grande: un medallón de 58 px sobre el cuero. Ahora pasa
+     por `iconoDeFicha`, que enseña el dibujo si lo hay y el emoji si no. */
+  const play = leer('js/play.js');
+  assert.match(play, /class="team-icon">\$\{iconoDeFicha\(team\)\}/,
+    'el estandarte de la cuadrilla sigue pintando el emoji a mano');
+  const aula = leer('js/aula.js');
+  assert.match(aula, /class-team-head"><span>\$\{iconoDeFicha\(t/);
+  assert.match(aula, /aula-grupo-icono">\$\{iconoDeFicha\(ficha\)\}/);
+});
+
+test('cada cuadrilla trae su hueco de dibujo y su emoji de respaldo', () => {
+  const c = cargarApp();
+  const lista = c.ev('JSON.parse(JSON.stringify(ATLAS_CONFIG.teams.list))');
+  assert.ok(lista.length >= 5, 'son cinco cuadrillas de fábrica');
+  const banco = new Set(c.ev('iconosTodos')());
+  lista.forEach(t => {
+    assert.strictEqual(typeof t.img, 'string', `${t.name} no tiene campo de dibujo`);
+    assert.ok(t.icon, `${t.name} se quedaría sin nada mientras no haya dibujo`);
+    /* Y su emoji tiene que estar en el banco: si no, el docente que lo cambie
+       por error no puede volver atrás desde el panel. */
+    assert.ok(banco.has(t.icon), `${t.icon} (${t.name}) no está en el banco de iconos`);
+  });
+});
+
+test('una ruta de dibujo que se escriba tiene que existir', () => {
+  /* Con la ruta puesta y el archivo ausente, el niño ve el hueco de una
+     imagen rota en mitad de su cuadrilla. Mejor el emoji que eso. */
+  const c = cargarApp();
+  const rutas = c.ev('JSON.parse(JSON.stringify(ATLAS_CONFIG.teams.list))').map(t => t.img)
+    .concat(c.ev('JSON.parse(JSON.stringify(DEMO_CUADRILLAS))').map(t => t.img))
+    .filter(Boolean);
+  rutas.forEach(r => {
+    assert.ok(fs.existsSync(path.join(RAIZ, r)), `falta el dibujo ${r}`);
+  });
+});

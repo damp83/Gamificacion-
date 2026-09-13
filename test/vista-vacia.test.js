@@ -34,7 +34,10 @@ test('las cuadrillas se calculan aunque no haya ni un diario', () => {
      queda flotando. Los datos estaban; lo que fallaba era el pintado. */
   const ctx = claseSinEmpezar();
   const d = ctx.ev('buildClassOverview')([], ctx.ev('todayStr()'));
-  assert.equal(d.teams.length, 3);
+  /* Tantas como haya configuradas, no un número escrito aquí: la lista de
+     cuadrillas de fábrica ha crecido una vez y volverá a crecer. */
+  assert.equal(d.teams.length, ctx.ev('ATLAS_CONFIG.teams.list').length);
+  assert.ok(d.teams.length >= 3, 'una clase se reparte al menos en tres');
   assert.ok(d.teams.every(t => t.members === 0 && t.contribution === 0));
 });
 

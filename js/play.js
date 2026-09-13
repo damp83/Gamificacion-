@@ -1412,7 +1412,7 @@ function renderTeam() {
 
   body.innerHTML = `
     <div class="team-banner">
-      <span class="team-icon">${esc(team.icon)}</span>
+      <span class="team-icon">${iconoDeFicha(team)}</span>
       <div><h3>${esc(team.name)}</h3>
         <p>${(team.members || []).length} exploradores</p></div>
     </div>
@@ -1452,7 +1452,7 @@ function renderTeam() {
 
     ${t.showComparison ? `<h3>Las demás cuadrillas</h3>
       <div class="team-others">${t.list.filter(x => x.id !== team.id).map(x =>
-        `<div class="team-other"><span>${esc(x.icon)}</span> ${esc(x.name)}
+        `<div class="team-other"><span class="team-other-icon">${iconoDeFicha(x)}</span> ${esc(x.name)}
          <small>${(x.members || []).length} exploradores</small></div>`).join('')}</div>` : ''}`;
 }
 

@@ -1410,7 +1410,7 @@ const ICONOS = [
      recuperarlo sin buscar ese emoji en el teclado. */
   { grupo: 'Almacén', lista: ['👒','⛑️','🧥','🥾','🫙','⛺','🚙','🎩','👓','🧢','🎨','🖌️','🧣','🥽','🪄','🧸','🎫','🍪','🍭','🧃'] },
   { grupo: 'Hitos y metas', lista: ['🌉','🚢','🗼','🏰','🚂','🏗️','🧗','🏁','🌅','🎪','🪁','🎈','🗻','🛶','🏜️','🌠'] },
-  { grupo: 'Cuadrillas', lista: ['🛖','🦅','🐺','🦉','🐬','🦁','🐉','🦊','🐴','🦌','🐆','🦈','🐘','🦩','🐙','🦔'] }
+  { grupo: 'Cuadrillas', lista: ['🛖','🦅','🐺','🦉','🐬','🦁','🐉','🦊','🐴','🦌','🐆','🐅','🦈','🐘','🦩','🐙','🦔'] }
 ];
 
 /* Todos en una lista, para comprobar si uno viene del banco. */

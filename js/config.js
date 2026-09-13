@@ -11,7 +11,7 @@
    copia guardada. Sin este número, «ya está arreglado» y «a mí no me pasa» son
    indistinguibles. Va junto al nombre de la caché del service worker, y una
    prueba comprueba que no se separen. */
-const ATLAS_VERSION = 'v118';
+const ATLAS_VERSION = 'v119';
 
 const ATLAS_DEFAULTS = {
 
@@ -188,10 +188,23 @@ const ATLAS_DEFAULTS = {
     /* Comparar cuadrillas entre sí. APAGADO por defecto: el PRD prohíbe
        rankings entre niños y canaliza la competición hacia los NPC (§0.2). */
     showComparison: false,
+    /* `img` vacío y a propósito, igual que hicieron los roles antes de tener
+       sus retratos: cada cuadrilla enseña su emoji hasta que exista el dibujo
+       en `img/cuadrillas/`. Escribir ahí la ruta es lo único que hace falta
+       para que pase a verse dibujada; no cambia nada más. Con la ruta puesta
+       y el archivo ausente saldría el hueco de una imagen rota delante de la
+       clase, así que se rellena CUANDO el archivo está.
+
+       El id de la primera es «cuervos» y no «condores»: es el que llevan
+       guardado los diarios de las clases que ya existen, y cambiarlo dejaría
+       a esos niños sin cuadrilla. El nombre y el dibujo sí dicen cóndor.
+       Las cinco están en docs/emblemas-de-cuadrilla.md. */
     list: [
-      { id: 'cuervos',  name: 'Cuadrilla del Cóndor',  icon: '🦅', members: [] },
-      { id: 'jaguares', name: 'Cuadrilla del Jaguar',  icon: '🐆', members: [] },
-      { id: 'tortugas', name: 'Cuadrilla de la Tortuga', icon: '🐢', members: [] }
+      { id: 'cuervos',   name: 'Cuadrilla del Cóndor',   icon: '🦅', img: '', members: [] },
+      { id: 'jaguares',  name: 'Cuadrilla del Jaguar',   icon: '🐆', img: '', members: [] },
+      { id: 'tortugas',  name: 'Cuadrilla de la Tortuga', icon: '🐢', img: '', members: [] },
+      { id: 'tigres',    name: 'Cuadrilla del Tigre',    icon: '🐅', img: '', members: [] },
+      { id: 'flamencos', name: 'Cuadrilla del Flamenco', icon: '🦩', img: '', members: [] }
     ]
   },
 

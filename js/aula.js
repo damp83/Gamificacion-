@@ -379,7 +379,7 @@ function aulaAlumnos() {
    cuántos les cabe todavía hoy ANTES de pulsarlo, y después se dice a quién
    no le llegó: un premio de grupo que calla eso es un premio que el docente
    cree haber dado. */
-function panelDeMeritoGrupo(gente, titulo, icono) {
+function panelDeMeritoGrupo(gente, titulo, ficha) {
   const caja = document.createElement('div');
   caja.className = 'aula-merito-grupo';
   caja.setAttribute('role', 'group');
@@ -387,7 +387,7 @@ function panelDeMeritoGrupo(gente, titulo, icono) {
 
   const cab = document.createElement('div');
   cab.className = 'amg-cab';
-  cab.innerHTML = `<span class="amg-icono">${esc(icono)}</span>
+  cab.innerHTML = `<span class="amg-icono">${iconoDeFicha(ficha)}</span>
     <strong>Mérito para ${esc(titulo)}</strong>
     <span class="amg-cuenta">${gente.length} explorador(es)</span>`;
   const cerrar = document.createElement('button');
@@ -701,18 +701,21 @@ function renderAula() {
     porCuadrilla.get(cu.id).gente.push(a);
   }
 
-  const grupo = (id, titulo, icono, gente) => {
+  /* `ficha` y no un emoji suelto: así la cuadrilla que tenga dibujo lo
+     enseña, y la que no, su emoji. Es la misma puerta que usan los méritos,
+     el almacén y los yacimientos. */
+  const grupo = (id, titulo, ficha, gente) => {
     const salidos = gente.filter(a => (turnos[diaryKey(a)] || {}).rondas).length;
     const cab = document.createElement('div');
     cab.className = 'aula-grupo-cab';
-    cab.innerHTML = `<span class="aula-grupo-icono">${esc(icono)}</span>
+    cab.innerHTML = `<span class="aula-grupo-icono">${iconoDeFicha(ficha)}</span>
       <strong>${esc(titulo)}</strong>
       <span class="aula-grupo-meta">${salidos} de ${gente.length} hoy</span>`;
     if (!eligiendo) cab.appendChild(botonDeMeritoGrupo(id, `Dar un mérito a ${titulo}`));
     lista.appendChild(cab);
     /* Pegado a su título, no en un cajón aparte: con cinco cuadrillas
        abiertas, un panel suelto se pulsa sobre la que no es. */
-    if (meritoGrupo === id) lista.appendChild(panelDeMeritoGrupo(gente, titulo, icono));
+    if (meritoGrupo === id) lista.appendChild(panelDeMeritoGrupo(gente, titulo, ficha));
     const caja = document.createElement('div');
     caja.className = 'aula-grupo-gente';
     for (const a of gente) pintarAlumno(a, caja);
@@ -721,9 +724,9 @@ function renderAula() {
 
   for (const t of (ATLAS_CONFIG.teams.list || [])) {
     const g = porCuadrilla.get(t.id);
-    if (g) grupo(t.id, g.cuadrilla.name, g.cuadrilla.icon || '🛖', g.gente);
+    if (g) grupo(t.id, g.cuadrilla.name, g.cuadrilla, g.gente);
   }
-  if (sueltos.length) grupo('sin-cuadrilla', 'Sin cuadrilla', '👤', sueltos);
+  if (sueltos.length) grupo('sin-cuadrilla', 'Sin cuadrilla', { icon: '👤' }, sueltos);
 
   pintarSelectorDeVista(hayCuadrillas, agrupar);
 }
@@ -2263,7 +2266,7 @@ function pintarCuadrillas(d) {
         const meta = ATLAS_CONFIG.teams.goalTarget || 1;
         const pct = Math.min(100, Math.round((t.contribution / meta) * 100));
         return `<div class="class-team">
-          <div class="class-team-head"><span>${esc(t.icon)} <strong>${esc(t.name)}</strong></span>
+          <div class="class-team-head"><span>${iconoDeFicha(t, 'icono-cuadrilla')} <strong>${esc(t.name)}</strong></span>
             <span class="student-num">${t.contribution} / ${meta} ${ico('coin')}</span></div>
           <div class="mastery-bar"><div class="mastery-fill${pct >= 100 ? ' gold' : ''}" style="width:${pct}%"></div></div>
           <small>${t.members} con diario${t.listed !== t.members ? ` de ${t.listed} asignados` : ''} · ${t.mastered} estratos entre todos</small>

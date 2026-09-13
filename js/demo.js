@@ -78,10 +78,19 @@ const DEMO_CLASE = [
   'Iris Vega',     'Gael Montero'
 ];
 
+/* Tres, y no las cinco de fábrica, a propósito: dieciocho alumnos repartidos
+   en cinco cuadrillas salen a tres y pico por grupo, y la demostración está
+   para enseñar cómo se ve una clase de verdad. Seis por cuadrilla es lo que
+   se parece a un aula.
+
+   `img` vacío como en el catálogo de fábrica: en cuanto haya dibujo en
+   `img/cuadrillas/`, la demostración lo enseña igual que una clase real, y
+   es justo donde más se mira, porque es la que abre el docente que viene a
+   ver qué es esto. */
 const DEMO_CUADRILLAS = [
-  { id: 'condor',  name: 'Cuadrilla del Cóndor',   icon: '🦅', desde: 0,  hasta: 6 },
-  { id: 'jaguar',  name: 'Cuadrilla del Jaguar',   icon: '🐆', desde: 6,  hasta: 12 },
-  { id: 'tortuga', name: 'Cuadrilla de la Tortuga', icon: '🐢', desde: 12, hasta: 18 }
+  { id: 'condor',  name: 'Cuadrilla del Cóndor',   icon: '🦅', img: '', desde: 0,  hasta: 6 },
+  { id: 'jaguar',  name: 'Cuadrilla del Jaguar',   icon: '🐆', img: '', desde: 6,  hasta: 12 },
+  { id: 'tortuga', name: 'Cuadrilla de la Tortuga', icon: '🐢', img: '', desde: 12, hasta: 18 }
 ];
 
 /* ── Azar con memoria ──
@@ -299,7 +308,7 @@ function ajustesDemo() {
     ROLES_CUADRILLA.filter(x => !x.especial).forEach((rol, k) => {
       if (gente[k]) roles[gente[k].trim().toLowerCase()] = rol.id;
     });
-    return { id: c.id, name: c.name, icon: c.icon, members: gente, roles };
+    return { id: c.id, name: c.name, icon: c.icon, img: c.img, members: gente, roles };
   });
   /* El Intendente es encargo de clase y no de cuadrilla: se le da a uno de la
      primera y ya, para que se vea que existe. */
