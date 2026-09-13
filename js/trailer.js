@@ -17,10 +17,39 @@
    una presentación, es un problema de disciplina.
    ═══════════════════════════════════════════════════════════ */
 
-/* Cuánto dura cada escena. Cuatro segundos y medio es lo que tarda un niño
-   de segundo en leer dos renglones sin agobio; el que lee rápido adelanta
-   tocando, y el que necesita más tiempo tiene la pausa. */
+/* Cuánto dura cada escena CUANDO NO HAY VOZ. Cuatro segundos y medio es lo
+   que tarda un niño de segundo en leer dos renglones sin agobio; el que lee
+   rápido adelanta tocando, y el que necesita más tiempo tiene la pausa. */
 const TRAILER_ESCENA_MS = 4500;
+
+/* ── El sonido ──
+   Un solo archivo, y de dos clases posibles:
+
+     · `voz`    — la narración entera. Las escenas dejan de ir por reloj y
+                  pasan a seguir al locutor, que es lo único que casa: si el
+                  reloj va por su cuenta, la escena cambia a media frase.
+     · `musica` — fondo. Las escenas siguen con su reloj y la música se
+                  repite por debajo.
+
+   Nace VACÍO a propósito. Mientras `src` esté vacío o el archivo no cargue,
+   el tráiler funciona exactamente igual que sin sonido y el botón del altavoz
+   ni se pinta: un archivo que falta no puede romper la portada.
+
+   Para ponerlo: se deja el archivo en `audio/` y se escribe su ruta aquí. Hay
+   que acordarse de dos cosas más —añadirlo a la lista de sw.js para que suene
+   sin wifi, y que la versión de un solo archivo NO incrusta audio, así que
+   allí seguirá mudo. */
+const TRAILER_AUDIO = { src: '', tipo: 'voz' };
+
+/* Arranca APAGADO y se recuerda por dispositivo. Veinticinco tabletas en un
+   aula descubriendo a la vez que esto habla es exactamente el motivo: que
+   suene tiene que ser una decisión de alguien, no lo que pasa por defecto. */
+const TRAILER_SONIDO_KEY = 'atlas_trailer_sonido_v1';
+/* Y si ya se ha visto una vez, para no seguir ofreciéndolo en cada arranque. */
+const TRAILER_VISTO_KEY = 'atlas_trailer_visto_v1';
+
+let trailerAudio = null;
+let trailerConSonido = false;
 
 /* ── El guion ──
    Nueve escenas: el gancho, el problema, los dos sitios, la rival, los tres
@@ -186,6 +215,121 @@ function pintarEscenaTrailer() {
   if (luego) luego.classList.toggle('hidden', trailerIndice >= TRAILER_GUION.length - 1);
 }
 
+/* ── El sonido ──
+   Todo lo de aquí abajo está escrito para que la ausencia del archivo sea un
+   caso normal y no un fallo: si no hay `src`, si el navegador no sabe
+   reproducirlo o si la descarga falla, `trailerAudio` se queda en null y el
+   resto del tráiler ni se entera. */
+
+function hayAudioDeTrailer() {
+  return !!(TRAILER_AUDIO && TRAILER_AUDIO.src);
+}
+/* ¿Manda la voz sobre el reloj? Solo si hay narración Y está sonando. Con
+   música, o en silencio, las escenas siguen yendo por tiempo. */
+function vozManda() {
+  return !!(trailerAudio && trailerConSonido && TRAILER_AUDIO.tipo === 'voz');
+}
+
+function sonidoGuardado() {
+  try { return almacen().getItem(TRAILER_SONIDO_KEY) === '1'; } catch (e) { return false; }
+}
+function guardarSonido(si) {
+  try { almacen().setItem(TRAILER_SONIDO_KEY, si ? '1' : '0'); } catch (e) { /* sin sitio */ }
+}
+
+/* ── Dónde empieza cada escena dentro de la narración ──
+   Repartido por la longitud de lo que se lee en cada una, que es la mejor
+   aproximación barata a lo que tarda en decirse: una escena con veinticinco
+   palabras se cuenta en el doble de tiempo que una de doce.
+
+   No es exacto y no hace falta que lo sea: la escena cambia con un segundo de
+   margen y nadie lo nota. Quien quiera afinarlo escribe `desde` en segundos
+   en la escena del guion y ese número manda sobre el reparto. */
+function repartoDeVoz(duracion) {
+  if (!(duracion > 0)) return TRAILER_GUION.map((e, i) => i * (TRAILER_ESCENA_MS / 1000));
+  const pesos = TRAILER_GUION.map(e => ((e.titulo || '') + ' ' + (e.texto || '')).length || 1);
+  const total = pesos.reduce((a, b) => a + b, 0);
+  const marcas = [];
+  let acumulado = 0;
+  TRAILER_GUION.forEach((e, i) => {
+    marcas.push(typeof e.desde === 'number' ? e.desde : (acumulado / total) * duracion);
+    acumulado += pesos[i];
+  });
+  return marcas;
+}
+let trailerMarcas = [];
+
+/* El locutor va por delante y la escena le sigue. Se escucha el reloj del
+   audio en vez de calcular un temporizador por escena porque así pausar,
+   rebobinar o que la descarga se atasque un segundo salen gratis: la escena
+   es siempre la que toca al tiempo que de verdad va sonando. */
+function alSonarLaVoz() {
+  if (!vozManda()) return;
+  const t = trailerAudio.currentTime;
+  let i = 0;
+  while (i + 1 < trailerMarcas.length && t >= trailerMarcas[i + 1]) i++;
+  if (i !== trailerIndice) {
+    trailerIndice = i;
+    pintarEscenaTrailer();
+  }
+}
+
+function prepararAudioTrailer() {
+  if (trailerAudio || !hayAudioDeTrailer() || typeof Audio !== 'function') return;
+  try {
+    trailerAudio = new Audio();
+    trailerAudio.preload = 'none';
+    trailerAudio.src = TRAILER_AUDIO.src;
+    if (TRAILER_AUDIO.tipo === 'musica') trailerAudio.loop = true;
+    trailerAudio.addEventListener('loadedmetadata', () => {
+      trailerMarcas = repartoDeVoz(trailerAudio.duration);
+    });
+    trailerAudio.addEventListener('timeupdate', alSonarLaVoz);
+    /* Si el archivo no está o el navegador no puede con él, se olvida el
+       asunto y el tráiler sigue por reloj, mudo, sin avisar de nada: el niño
+       no tiene que enterarse de que al maestro le falta un archivo. */
+    trailerAudio.addEventListener('error', () => {
+      trailerAudio = null;
+      trailerConSonido = false;
+      pintarBotonDeSonido();
+      armarRelojTrailer();
+    });
+  } catch (e) { trailerAudio = null; }
+}
+
+function pintarBotonDeSonido() {
+  const b = $('#tr-sonido');
+  if (!b) return;
+  /* Sin archivo no hay botón: un altavoz que no hace nada es peor que nada. */
+  b.classList.toggle('hidden', !trailerAudio);
+  if (!trailerAudio) return;
+  b.innerHTML = trailerConSonido ? ico('sound') + ' Sonido' : ico('mute') + ' Sin sonido';
+  b.setAttribute('aria-pressed', String(trailerConSonido));
+  b.setAttribute('aria-label', trailerConSonido ? 'Quitar el sonido' : 'Poner el sonido');
+}
+
+function sonidoTrailer(quiero) {
+  if (!trailerAudio) return;
+  trailerConSonido = quiero === undefined ? !trailerConSonido : !!quiero;
+  guardarSonido(trailerConSonido);
+  if (trailerConSonido) {
+    /* La narración empieza por donde va la escena, no por el principio: quien
+       enciende el sonido en la escena cinco no quiere volver a la uno. */
+    if (TRAILER_AUDIO.tipo === 'voz' && trailerMarcas[trailerIndice] != null) {
+      try { trailerAudio.currentTime = trailerMarcas[trailerIndice]; } catch (e) {}
+    }
+    /* `play()` devuelve una promesa que el navegador rechaza si decide que no
+       toca sonar. Se recoge y se apaga el interruptor, que mentir con el
+       botón encendido y nada sonando es lo peor de los dos mundos. */
+    const p = trailerAudio.play();
+    if (p && p.catch) p.catch(() => { trailerConSonido = false; pintarBotonDeSonido(); armarRelojTrailer(); });
+  } else {
+    try { trailerAudio.pause(); } catch (e) {}
+  }
+  pintarBotonDeSonido();
+  armarRelojTrailer();
+}
+
 /* ── El reloj ──
    Se rearma en cada escena en vez de dejar un intervalo suelto: así pausar,
    adelantar y retroceder son todos la misma operación —parar y volver a
@@ -193,6 +337,9 @@ function pintarEscenaTrailer() {
 function armarRelojTrailer() {
   pararRelojTrailer();
   if (trailerEnPausa) return;
+  /* Con narración sonando el reloj sobra: manda el locutor. Dejarlo puesto
+     sería tener dos cosas cambiando de escena a destiempo. */
+  if (vozManda()) return;
   /* La última escena no pasa sola a ningún sitio: se queda con el botón de
      entrar puesto hasta que el niño decida. */
   if (trailerIndice >= TRAILER_GUION.length - 1) return;
@@ -208,6 +355,11 @@ function avanzarTrailer(paso) {
   if (destino < 0) return;
   if (destino >= TRAILER_GUION.length) { cerrarTrailer(); return; }
   trailerIndice = destino;
+  /* Si hay narración, saltar de escena salta también al locutor: si no, la
+     voz sigue contando la escena anterior encima de la que ya se ve. */
+  if (vozManda() && trailerMarcas[destino] != null) {
+    try { trailerAudio.currentTime = trailerMarcas[destino]; } catch (e) {}
+  }
   pintarEscenaTrailer();
   armarRelojTrailer();
 }
@@ -223,6 +375,14 @@ function pausarTrailer(quieto) {
     b.setAttribute('aria-pressed', String(trailerEnPausa));
   }
   if (trailerEnPausa) pararRelojTrailer(); else armarRelojTrailer();
+  /* Pausar calla al locutor. Es la mitad de para lo que sirve la pausa en un
+     aula: congelar la escena y hablar tú encima. */
+  if (trailerAudio && trailerConSonido) {
+    try {
+      if (trailerEnPausa) trailerAudio.pause();
+      else { const p = trailerAudio.play(); if (p && p.catch) p.catch(() => {}); }
+    } catch (e) {}
+  }
 }
 
 function teclasTrailer(ev) {
@@ -253,9 +413,20 @@ function abrirTrailer() {
   if (barra) barra.innerHTML = TRAILER_GUION.map(() => '<span class="tr-tramo"></span>').join('');
   caja.classList.remove('hidden');
   document.body.classList.add('con-trailer');
+  prepararAudioTrailer();
+  trailerConSonido = false;
+  pintarBotonDeSonido();
   pausarTrailer(false);
   pintarEscenaTrailer();
   armarRelojTrailer();
+  /* Verlo cuenta como visto aunque se salga a la mitad: el ofrecimiento
+     destacado es para quien no sabe qué es esto, y con haberlo abierto ya lo
+     sabe. */
+  marcarTrailerVisto();
+  /* Si en este equipo ya se había puesto el sonido, se pone otra vez. Va
+     después de pintar la escena para que el locutor arranque con algo en
+     pantalla y no sobre el oscuro. */
+  if (trailerAudio && sonidoGuardado()) sonidoTrailer(true);
   document.addEventListener('keydown', teclasTrailer);
 }
 
@@ -263,6 +434,10 @@ function cerrarTrailer() {
   const caja = $('#trailer');
   if (!caja) return;
   pararRelojTrailer();
+  if (trailerAudio) {
+    try { trailerAudio.pause(); trailerAudio.currentTime = 0; } catch (e) {}
+  }
+  trailerConSonido = false;
   caja.classList.add('hidden');
   document.body.classList.remove('con-trailer');
   document.removeEventListener('keydown', teclasTrailer);
@@ -272,6 +447,31 @@ function cerrarTrailer() {
     try { trailerFocoPrevio.focus({ preventScroll: true }); } catch (e) {}
   }
   trailerFocoPrevio = null;
+}
+
+/* ── La primera vez ──
+   Quien abre esto por primera vez no sabe qué es, y el cartel del tráiler es
+   un renglón más entre otros diez. La primera vez, y solo la primera, se
+   destaca: un rótulo de «empieza por aquí» y algo más de presencia.
+
+   Destacar, no abrirse solo. Abrirse solo sería quitarle la pantalla de las
+   manos a un niño que a lo mejor venía a seguir excavando donde lo dejó, y en
+   un aula sería veinticinco tabletas arrancando a la vez. Se ofrece; lo de
+   aceptar es suyo.
+
+   La bandera va por dispositivo, que es lo honesto: es la tableta la que ya
+   ha visto el tráiler, y no hay forma de saber si hoy la coge el mismo niño.
+   Y va por `almacen()`, así que dentro de la demostración se escribe en el
+   cajón de mentira y no toca los datos de la clase de verdad. */
+function trailerYaVisto() {
+  try { return almacen().getItem(TRAILER_VISTO_KEY) === '1'; } catch (e) { return true; }
+}
+function marcarTrailerVisto() {
+  try { almacen().setItem(TRAILER_VISTO_KEY, '1'); } catch (e) { /* sin sitio */ }
+  const cartel = $('#home-trailer');
+  if (cartel) cartel.classList.remove('primera-vez');
+  const tag = $('#home-trailer-tag');
+  if (tag) tag.classList.add('hidden');
 }
 
 /* Los botones del tráiler y el cartel que lo abre. Lo llama app.js al
@@ -301,6 +501,16 @@ function prepararTrailer() {
     if (typeof requestIdleCallback === 'function') requestIdleCallback(precargarTrailer);
     else setTimeout(precargarTrailer, 2500);
   }
+  /* El destacado de la primera vez. Se decide aquí, al arrancar, y se quita
+     en cuanto se abre el tráiler una vez. */
+  if (cartel && !trailerYaVisto()) {
+    cartel.classList.add('primera-vez');
+    const tag = $('#home-trailer-tag');
+    if (tag) tag.classList.remove('hidden');
+  }
+
+  const sonido = $('#tr-sonido');
+  if (sonido) sonido.addEventListener('click', () => sonidoTrailer());
   const cerrar = $('#tr-cerrar');
   if (cerrar) cerrar.addEventListener('click', cerrarTrailer);
   const pausa = $('#tr-pausa');

@@ -3714,6 +3714,23 @@ body.en-consulta #shop-list button { display: none !important; }
   padding: .5rem .9rem;
 }
 
+/* ── La primera vez ──
+   Mismo cartel, más presencia: filete de latón, un fondo cálido y el rótulo
+   de «empieza por aquí». En cuanto se abre una vez vuelve a ser un cartel
+   normal y se queda ahí para siempre, por si alguien quiere repetir. */
+.home-trailer.primera-vez {
+  border-color: var(--brass);
+  background: linear-gradient(180deg, var(--brass-tint), var(--surface) 70%);
+  box-shadow: var(--e-2);
+}
+.home-trailer-tag {
+  display: inline-block; margin-bottom: .3rem;
+  background: var(--brass); color: #fff;
+  font-size: var(--t-xs); font-weight: 700;
+  letter-spacing: .06em; text-transform: uppercase;
+  padding: .2rem .6rem; border-radius: var(--r-pill);
+}
+
 @media (max-width: 34rem) {
   /* En un móvil las tres columnas dejan la lámina del tamaño de un sello. Se
      apila: lámina ancha arriba, texto debajo, y el rótulo de ir al final. */

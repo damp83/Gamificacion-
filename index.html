@@ -146,6 +146,21 @@
     <path d="M5.2 20.2h13.6"/>
   </symbol>
 
+  <!-- El altavoz del tráiler, encendido y apagado. El de «mudo» lleva la
+       aspa fuera del cono para que se distinga de un vistazo en una tableta
+       y no haya que mirarlo dos veces. -->
+  <symbol id="i-sound" viewBox="0 0 24 24">
+    <path d="M4 9.4h3.4L12 5.4v13.2l-4.6-4H4z"/>
+    <path d="M15.6 9.2a4 4 0 0 1 0 5.6"/>
+    <path d="M18.2 6.6a7.6 7.6 0 0 1 0 10.8"/>
+  </symbol>
+
+  <symbol id="i-mute" viewBox="0 0 24 24">
+    <path d="M4 9.4h3.4L12 5.4v13.2l-4.6-4H4z"/>
+    <path d="m16 9.6 4.4 4.8"/>
+    <path d="m20.4 9.6-4.4 4.8"/>
+  </symbol>
+
   <!-- Los dos del tráiler de la portada. Mismo trazo que el resto: un solo
        contorno, sin relleno, y el triángulo con la punta redondeada para que
        no pinche al lado del cuadrado de la pausa. -->
@@ -373,8 +388,10 @@
           </span>
         </span>
         <span class="home-trailer-texto">
+          <!-- Solo la primera vez que se abre la app en este equipo -->
+          <span class="home-trailer-tag hidden" id="home-trailer-tag">Empieza por aquí</span>
           <strong>¿Te cuento de qué va?</strong>
-          <small>Cuarenta segundos: los diarios perdidos, los dos yacimientos, quién te
+          <small>Menos de un minuto: los diarios perdidos, los dos yacimientos, quién te
           acompaña y quién te lo quiere quitar.</small>
         </span>
         <span class="home-trailer-ir">Ver el tráiler →</span>
@@ -1115,6 +1132,10 @@
 
       <div class="tr-cabecera">
         <span id="tr-cuenta" class="tr-cuenta"></span>
+        <!-- Nace escondido: trailer.js solo lo enseña si de verdad hay un
+             archivo de sonido que reproducir. -->
+        <button type="button" id="tr-sonido" class="btn btn-small tr-boton hidden"
+                aria-pressed="false"></button>
         <button type="button" id="tr-pausa" class="btn btn-small tr-boton" aria-pressed="false"></button>
         <button type="button" id="tr-cerrar" class="btn btn-small tr-boton tr-cerrar">
           <svg class="ico" viewBox="0 0 24 24" aria-hidden="true"><use href="#i-cross"/></svg>

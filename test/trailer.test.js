@@ -204,3 +204,115 @@ test('el cartel de la portada lleva a alguna parte', () => {
   /* Y nace escondido. */
   assert.ok(/id="trailer" class="trailer hidden"/.test(html));
 });
+
+/* ══════════════════════════════════════════════════════════
+   EL SONIDO
+   ══════════════════════════════════════════════════════════ */
+
+test('sale mudo de fábrica, y sin archivo no hay ni botón', () => {
+  /* Lo que se publica no lleva audio. Mientras no lo lleve, el tráiler tiene
+     que ir exactamente igual que antes: por reloj y sin ofrecer un altavoz
+     que no haría nada. */
+  const c = cargarApp();
+  assert.strictEqual(c.ev('TRAILER_AUDIO.src'), '', 'se ha colado un audio en lo publicado');
+  assert.strictEqual(c.ev('hayAudioDeTrailer()'), false);
+  assert.strictEqual(c.ev('vozManda()'), false);
+  /* Y el reloj sigue mandando. */
+  c.ev('trailerEnPausa = false; trailerIndice = 0; armarRelojTrailer()');
+  assert.notStrictEqual(c.ev('trailerReloj'), null, 'sin voz, las escenas van por reloj');
+  c.ev('pararRelojTrailer()');
+});
+
+test('el reparto de la voz va en orden y cabe en lo que dura', () => {
+  const c = cargarApp();
+  const marcas = c.ev('repartoDeVoz(50)');
+  const n = c.ev('TRAILER_GUION.length');
+  assert.strictEqual(marcas.length, n, 'una marca por escena');
+  assert.strictEqual(marcas[0], 0, 'la primera escena empieza cuando empieza la voz');
+  for (let i = 1; i < marcas.length; i++) {
+    assert.ok(marcas[i] > marcas[i - 1], `la escena ${i + 1} empieza antes que la anterior`);
+    assert.ok(marcas[i] < 50, 'una escena empieza después de que acabe la narración');
+  }
+  /* Las escenas largas de leer se llevan más tiempo que las cortas, que es
+     todo lo que pretende el reparto. */
+  const g = c.ev('JSON.parse(JSON.stringify(TRAILER_GUION))');
+  const largo = (e) => ((e.titulo || '') + (e.texto || '')).length;
+  const duras = g.map((e, i) => ({ l: largo(e), d: (marcas[i + 1] || 50) - marcas[i] }));
+  const masLarga = duras.reduce((a, b) => (b.l > a.l ? b : a));
+  const masCorta = duras.reduce((a, b) => (b.l < a.l ? b : a));
+  assert.ok(masLarga.d > masCorta.d, 'la escena con más texto tiene que durar más');
+});
+
+test('un segundo escrito a mano manda sobre el reparto', () => {
+  /* Para cuando una frase de la grabación no cae donde el cálculo supone. */
+  const c = cargarApp();
+  c.ev('TRAILER_GUION[2].desde = 12.5');
+  assert.strictEqual(c.ev('repartoDeVoz(50)')[2], 12.5);
+});
+
+test('con la voz sonando no hay además un reloj por detrás', () => {
+  /* Dos cosas cambiando de escena a destiempo es lo que se ve cuando la
+     imagen va por su lado y el locutor por el suyo. */
+  const c = cargarApp();
+  c.ev("TRAILER_AUDIO.src = 'audio/x.mp3'; TRAILER_AUDIO.tipo = 'voz'");
+  c.ev('trailerAudio = { pause() {}, play() {} }; trailerConSonido = true');
+  assert.strictEqual(c.ev('vozManda()'), true);
+  c.ev('trailerEnPausa = false; trailerIndice = 0; armarRelojTrailer()');
+  assert.strictEqual(c.ev('trailerReloj'), null, 'manda el locutor, no el reloj');
+  /* Con música de fondo, en cambio, el reloj sigue siendo quien manda. */
+  c.ev("TRAILER_AUDIO.tipo = 'musica'");
+  assert.strictEqual(c.ev('vozManda()'), false);
+  c.ev('armarRelojTrailer()');
+  assert.notStrictEqual(c.ev('trailerReloj'), null);
+  c.ev('pararRelojTrailer()');
+});
+
+/* ══════════════════════════════════════════════════════════
+   LA PRIMERA VEZ
+   ══════════════════════════════════════════════════════════ */
+
+test('el cartel se destaca la primera vez y nunca más', () => {
+  const c = cargarApp();
+  assert.strictEqual(c.ev('trailerYaVisto()'), false, 'en un equipo nuevo hay que ofrecerlo');
+  c.ev('marcarTrailerVisto()');
+  assert.strictEqual(c.ev('trailerYaVisto()'), true, 'una vez visto, deja de destacarse');
+  /* Y sobrevive a cerrar la app: la bandera está en el almacén, no en una
+     variable que se va con la pestaña. */
+  assert.strictEqual(c.ev("localStorage.getItem('atlas_trailer_visto_v1')"), '1');
+});
+
+test('destacarse es ofrecerlo, no abrirse solo', () => {
+  /* La diferencia importa: en un aula, un tráiler que se abre solo es
+     veinticinco pantallas secuestradas a la vez, y un niño que venía a seguir
+     excavando donde lo dejó se encuentra una película. */
+  const js = sinComentarios(leer('js/trailer.js'));
+  assert.ok(/classList\.add\('primera-vez'\)/.test(js), 'la primera vez tiene que destacar el cartel');
+  /* Lo de siempre: nadie lo abre por su cuenta. */
+  assert.ok(!/(?<!function\s)abrirTrailer\s*\(/.test(js));
+});
+
+test('la demostración no se lleva por delante las banderas del equipo', () => {
+  /* Un maestro que prueba la demostración en la tablet de clase no puede
+     dejar marcado como «ya visto» el tráiler que ese niño no ha visto. */
+  const c = cargarApp();
+  c.ev('DEMO = true');
+  c.ev('marcarTrailerVisto()');
+  c.ev("almacen().setItem(TRAILER_SONIDO_KEY, '1')");
+  assert.strictEqual(c.ev("localStorage.getItem('atlas_trailer_visto_v1')"), null,
+    'la demostración marcó el tráiler como visto en el equipo de verdad');
+  assert.strictEqual(c.ev("localStorage.getItem('atlas_trailer_sonido_v1')"), null);
+});
+
+/* ══════════════════════════════════════════════════════════
+   EL GUION PARA GRABAR
+   ══════════════════════════════════════════════════════════ */
+
+test('el texto de la voz tiene una frase por escena', () => {
+  /* Si alguien añade una escena y no toca el guion de voz, la narración se
+     queda corta y la última escena se ve en silencio. Esto lo dice antes. */
+  const doc = leer('docs/voz-del-trailer.md');
+  const frases = doc.match(/^> \*\*\d+\.\*\* .+$/gm) || [];
+  const escenas = cargarApp().ev('TRAILER_GUION.length');
+  assert.strictEqual(frases.length, escenas,
+    `hay ${escenas} escenas y ${frases.length} frases grabadas`);
+});
