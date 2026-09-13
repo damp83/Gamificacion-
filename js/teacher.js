@@ -2970,6 +2970,7 @@ function cfgCriterios(body) {
 
     <div class="cfg-row cfg-row-actions">
       <button class="btn btn-secondary btn-small" id="cr-add">➕ Nuevo criterio</button>
+      <button class="btn btn-small" id="cr-oaoa">➕ Los cuatro de OAOA</button>
       ${criterios.length ? '<button class="btn btn-quit btn-small" id="cr-clear">Vaciar la lista</button>' : ''}
     </div>
 
@@ -3019,6 +3020,30 @@ function cfgCriterios(body) {
     criterioAbierto = null;
     cfgSave('criterios', l, 'Criterio quitado ✓');
   }));
+
+  /* ── Los cuatro de OAOA ──
+     Se ofrecen hechos porque redactarlos en registro de criterio es trabajo, y
+     porque dos de los cuatro tienen una propiedad que conviene que el docente
+     vea: la app NO los mide. Se añaden con su aviso puesto en vez de dejar que
+     lo descubra al mirar una tabla vacía. */
+  const oaoa = $('#cr-oaoa');
+  if (oaoa) oaoa.addEventListener('click', async () => {
+    const l = deepClone(ATLAS_CONFIG.criterios || []);
+    const ya = new Set(l.map(x => (x.codigo || '').trim().toUpperCase()));
+    const nuevos = CRITERIOS_OAOA.filter(c => !ya.has(c.codigo.toUpperCase()));
+    if (!nuevos.length) { cfgNotice = 'Los cuatro de OAOA ya están en la lista.'; return renderTeacherConfig(); }
+    if (!(await askConfirm(
+      `Se añaden ${nuevos.length} criterio(s) de OAOA, redactados como un criterio de evaluación. `
+      + 'OJO: NO son del Real Decreto ni de tu comunidad; son los de OAOA vestidos de oficial, y '
+      + 'por eso su código empieza por «OAOA». Tú decides a qué competencia específica los cuelgas. '
+      + 'Dos de los cuatro esta app no los mide, y lo dirán.', 'Añadirlos'))) return;
+    nuevos.forEach(c => {
+      l.push({ id: idUnico('criterio', 'criterio', l.map(x => x.id)),
+               codigo: c.codigo, texto: c.texto, saberes: c.saberes.slice(),
+               conceptos: c.conceptos.slice() });
+    });
+    cfgSave('criterios', l, `${nuevos.length} criterio(s) de OAOA añadidos ✓`);
+  });
 
   $('#cr-add').addEventListener('click', () => {
     const l = deepClone(ATLAS_CONFIG.criterios || []);

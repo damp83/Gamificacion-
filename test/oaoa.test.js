@@ -298,3 +298,74 @@ test('el panel dice qué hace el interruptor y qué no', () => {
   const trozo = t.slice(i, i + 900);
   assert.match(trozo, /los retos de fábrica/i, 'tiene que avisar de lo que NO cambia');
 });
+
+/* ── Los cuatro criterios de evaluación ── */
+
+test('los criterios de OAOA no se disfrazan de oficiales', () => {
+  /* Lo más importante de este bloque. Van redactados en registro de criterio
+     para que entren en una programación sin reescribirlos, pero NO son del
+     Real Decreto 157/2022 ni de ninguna comunidad: son los de OAOA vestidos
+     de oficial. Quien los vea en una programación tiene que distinguirlos de
+     los del BOE de un vistazo, y por eso el código empieza por «OAOA» en vez
+     de por un número de competencia específica. */
+  const c = cargarApp();
+  const lista = c.ev('JSON.parse(JSON.stringify(CRITERIOS_OAOA))');
+  assert.strictEqual(lista.length, 4);
+  lista.forEach(x => {
+    assert.match(x.codigo, /^OAOA\.\d$/, `${x.codigo} puede confundirse con uno del currículo`);
+    assert.ok(!/^\d+\.\d+$/.test(x.codigo), 'un código «3.2» se lee como del Real Decreto');
+  });
+});
+
+test('están redactados como un criterio, no como una pregunta', () => {
+  /* En la formación son preguntas —«¿sabe estimar antes de operar?»— y así no
+     entran en una programación. Un criterio empieza por un verbo en
+     infinitivo y dice para qué. */
+  const c = cargarApp();
+  c.ev('JSON.parse(JSON.stringify(CRITERIOS_OAOA))').forEach(x => {
+    assert.ok(!x.texto.includes('¿'), `${x.codigo} sigue siendo una pregunta`);
+    assert.match(x.texto, /^[A-ZÁÉÍÓÚ][a-záéíóúñ]+(ar|er|ir)\b/,
+      `${x.codigo} no empieza por un verbo en infinitivo`);
+    assert.match(x.texto, /\bpara\b/, `${x.codigo} no dice para qué`);
+    assert.ok(x.saberes.length >= 1, `${x.codigo} no dice qué saberes toca`);
+  });
+});
+
+test('cada concepto que citan existe de verdad', () => {
+  /* Un criterio que apunta a un concepto inventado sale en la tabla con cero
+     intentos para siempre, y el docente no sabe si es que nadie lo ha
+     trabajado o que el enganche está roto. */
+  const c = cargarApp();
+  const catalogo = c.ev('JSON.parse(JSON.stringify(CONCEPTOS))');
+  c.ev('JSON.parse(JSON.stringify(CRITERIOS_OAOA))').forEach(x => {
+    x.conceptos.forEach(k => assert.ok(catalogo[k], `${x.codigo} cita «${k}», que no existe`));
+  });
+});
+
+test('los dos que la app no mide lo dicen, en vez de fingir', () => {
+  /* Explicar en voz alta por qué funciona una estrategia no cabe en un test
+     de cuatro opciones, y usar la calculadora para comprobar tampoco se ve
+     desde aquí. Enchufarles conceptos para que la tabla no salga vacía sería
+     mentir sobre lo que se ha medido. */
+  const c = cargarApp();
+  const lista = c.ev('JSON.parse(JSON.stringify(CRITERIOS_OAOA))');
+  const sinMedir = lista.filter(x => !x.conceptos.length);
+  assert.strictEqual(sinMedir.length, 2);
+  sinMedir.forEach(x => assert.ok(x.nota && x.nota.length > 20,
+    `${x.codigo} no explica por qué no se mide`));
+  /* Y los que sí se miden, apuntan a algo. */
+  lista.filter(x => x.conceptos.length).forEach(x => {
+    assert.ok(x.conceptos.length >= 2, `${x.codigo} se apoya en un solo concepto`);
+  });
+});
+
+test('el panel los ofrece, avisando de lo que son', () => {
+  const t = leer('js/teacher.js');
+  assert.match(t, /id="cr-oaoa"/, 'no está el botón en el panel');
+  const i = t.indexOf("$('#cr-oaoa')");
+  const trozo = t.slice(i, i + 1200);
+  assert.match(trozo, /NO son del Real Decreto/, 'el aviso tiene que estar donde se pulsa');
+  assert.match(trozo, /no los mide/, 'y decir que dos no se miden');
+  /* Y no se duplican si se pulsa dos veces. */
+  assert.match(trozo, /ya\.has|filter\(c => !ya/, 'pulsarlo dos veces duplicaría la lista');
+});

@@ -166,6 +166,62 @@ function porValores(n) {
   return trozos.length ? trozos.join(' + ') : '0';
 }
 
+/* ── Los cuatro criterios de evaluación de OAOA ──
+   La formación del centro evalúa «el razonamiento, no solo el resultado
+   final», y lo concreta en cuatro preguntas. Aquí van redactadas en el
+   registro de un criterio de evaluación —verbo en infinitivo, objeto,
+   contexto y finalidad—, para que entren en una programación sin tener que
+   reescribirlas.
+
+   AVISO, y va en el código porque es lo que impide un disgusto: NO son
+   criterios del Real Decreto 157/2022 ni de la Región de Murcia. Son los
+   criterios de OAOA vestidos de oficial. Por eso el código empieza por
+   «OAOA» y no por un número de competencia: quien los vea en una
+   programación tiene que poder distinguirlos de los del BOE de un vistazo, y
+   el docente decide a qué competencia específica los cuelga.
+
+   `conceptos` vacío no es un olvido: significa que esta app NO mide ese
+   criterio, y el panel ya sabe decirlo. Dos de los cuatro son así, y tiene
+   sentido que lo sean: explicar en voz alta por qué funciona una estrategia
+   no cabe en un test de cuatro opciones. */
+const CRITERIOS_OAOA = [
+  { codigo: 'OAOA.1',
+    texto: 'Explicar oralmente el procedimiento de cálculo elegido, justificando por qué '
+      + 'funciona a partir del valor de las cantidades implicadas, para consolidar el '
+      + 'razonamiento propio y reconocer como válidas otras estrategias distintas de la suya.',
+    saberes: ['Sentido numérico: estrategias de cálculo mental y algoritmos flexibles',
+              'Sentido socioafectivo: comunicación del razonamiento matemático'],
+    conceptos: [],
+    nota: 'Se evalúa en voz alta. La app no lo mide: el sitio natural es «Dirigir la clase».' },
+
+  { codigo: 'OAOA.2',
+    texto: 'Realizar estimaciones razonadas del resultado de una operación antes de calcularlo, '
+      + 'eligiendo el redondeo adecuado a la magnitud de los datos, para valorar si el resultado '
+      + 'obtenido después es plausible en el contexto del problema.',
+    saberes: ['Sentido numérico: estimación razonada de cantidades',
+              'Sentido numérico: redondeo y aproximación'],
+    conceptos: ['estimacion', 'redondeo'],
+    nota: '' },
+
+  { codigo: 'OAOA.3',
+    texto: 'Relacionar y transformar entre sí fracciones, números decimales y porcentajes '
+      + 'sencillos en contextos de compra, medida y reparto, para reconocer que expresan una '
+      + 'misma cantidad de tres formas distintas.',
+    saberes: ['Sentido numérico: fracciones, decimales y porcentajes como cantidades equivalentes',
+              'Sentido de la medida: contextos de compra y reparto'],
+    conceptos: ['decimal_fraccion', 'porcentaje', 'fraccion_de_cantidad', 'comparar_decimales'],
+    nota: '' },
+
+  { codigo: 'OAOA.4',
+    texto: 'Utilizar la calculadora para comprobar un resultado previamente estimado, y no '
+      + 'para sustituir el cálculo, para centrar el esfuerzo en la interpretación del problema '
+      + 'y no en la destreza operatoria.',
+    saberes: ['Sentido numérico: uso razonado de herramientas de cálculo',
+              'Sentido socioafectivo: autonomía y toma de decisiones'],
+    conceptos: [],
+    nota: 'Se evalúa observando cómo trabaja. La app no lo mide.' }
+];
+
 /* Las estrategias que un curso ya tiene a mano. */
 function estrategiasOAOA(operacion, curso) {
   const lista = OAOA_ESTRATEGIAS[operacion] || [];
