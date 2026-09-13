@@ -448,3 +448,87 @@ test('el bucle de la música se cierra antes de que se apague', () => {
   c.ev('trailerPistas.musica.currentTime = 30; cerrarBucleDeMusica()');
   assert.strictEqual(c.ev('trailerPistas.musica.currentTime'), 30);
 });
+
+/* Un `Audio` de mentira que deja disparar sus eventos a mano. Hace falta para
+   probar el camino de verdad: qué pasa cuando una pista TERMINA DE CARGAR,
+   que es donde estaba el fallo. */
+const AUDIO_FALSO = `
+  globalThis.__audios = [];
+  globalThis.Audio = function () {
+    const yo = this;
+    this.oyentes = {};
+    this.sonando = false; this.currentTime = 0; this.volume = 1; this.duration = 76;
+    this.addEventListener = (n, f) => { (yo.oyentes[n] = yo.oyentes[n] || []).push(f); };
+    this.play = () => { yo.sonando = true; return { catch() {} }; };
+    this.pause = () => { yo.sonando = false; };
+    this.cargada = () => (yo.oyentes['loadedmetadata'] || []).forEach(f => f());
+    globalThis.__audios.push(this);
+  };
+  trailerPistas = {}; trailerPistasPedidas = {}; trailerConSonido = false;
+  trailerIndice = 0; trailerEnPausa = false;`;
+
+test('la pista que carga la última también arranca', () => {
+  /* El fallo que se vio en clase: el equipo ya tenía el sonido encendido; la
+     música, que pesa menos, cargaba primero y encendía el sonido ella sola; y
+     cuando llegaba la voz —más pesada— ya no la arrancaba nadie. Se oía la
+     música y la narración se quedaba muda en el segundo cero. */
+  const c = cargarApp();
+  c.ev(AUDIO_FALSO);
+  c.ev("almacen().setItem(TRAILER_SONIDO_KEY, '1')");   // ya venía encendido
+  c.ev('prepararAudioTrailer()');
+  assert.strictEqual(c.ev('__audios.length'), 2, 'tienen que montarse las dos pistas');
+
+  /* Carga la música. Al ser la primera, enciende el sonido ella sola. */
+  c.ev('__audios[0].cargada()');
+  assert.strictEqual(c.ev('trailerConSonido'), true);
+  assert.strictEqual(c.ev('__audios[0].sonando'), true, 'la música no arrancó');
+
+  /* Y ahora carga la voz, con el sonido YA puesto. */
+  c.ev('__audios[1].cargada()');
+  assert.strictEqual(c.ev('__audios[1].sonando'), true,
+    'la voz cargó la última y nadie la puso en marcha: se oye la música y no la narración');
+  /* Colocada en la escena que se está viendo, no en el segundo cero. */
+  assert.strictEqual(c.ev('__audios[1].currentTime'), c.ev('trailerMarcas[0]'));
+  /* Y el reloj le ha cedido el mando. */
+  assert.strictEqual(c.ev('trailerReloj'), null,
+    'con la voz sonando no puede quedar un reloj moviendo las escenas por su cuenta');
+});
+
+test('y da igual cuál de las dos llegue primero', () => {
+  /* El mismo fallo al revés: si la voz cargara antes, la música se quedaría
+     muda. Que una pista dependa del orden de descarga es justo el problema. */
+  const c = cargarApp();
+  c.ev(AUDIO_FALSO);
+  c.ev("almacen().setItem(TRAILER_SONIDO_KEY, '1')");
+  c.ev('prepararAudioTrailer()');
+  c.ev('__audios[1].cargada()');    // primero la voz
+  c.ev('__audios[0].cargada()');    // después la música
+  assert.strictEqual(c.ev('__audios[1].sonando'), true, 'la voz no arrancó');
+  assert.strictEqual(c.ev('__audios[0].sonando'), true, 'la música no arrancó');
+});
+
+test('y el reloj le cede el mando en cuanto la voz entra', () => {
+  /* La otra mitad del mismo fallo: con la voz sonando seguía habiendo un
+     temporizador por detrás, así que las escenas iban por su cuenta. */
+  const c = cargarApp();
+  c.ev(`trailerPistas = {}; trailerEnPausa = false; trailerIndice = 0;
+        trailerConSonido = true; armarRelojTrailer();`);
+  assert.notStrictEqual(c.ev('trailerReloj'), null, 'sin voz manda el reloj');
+  c.ev(`trailerPistas.voz = { play() { return { catch() {} }; }, pause() {}, currentTime: 0 };
+        armarRelojTrailer();`);
+  assert.strictEqual(c.ev('trailerReloj'), null, 'con la voz puesta no puede quedar reloj');
+});
+
+test('encender el sonido arranca TODAS las pistas, no la primera', () => {
+  const c = cargarApp();
+  c.ev(`trailerPistas = {};
+        ['musica', 'voz'].forEach(n => {
+          trailerPistas[n] = { play() { this.sonando = true; return { catch() {} }; },
+                               pause() { this.sonando = false; }, sonando: false,
+                               currentTime: 0, volume: 1 };
+        });
+        trailerConSonido = false; trailerIndice = 0; trailerMarcas = repartoDeVoz(76);
+        sonidoTrailer(true);`);
+  assert.strictEqual(c.ev('trailerPistas.musica.sonando'), true, 'la música no arrancó');
+  assert.strictEqual(c.ev('trailerPistas.voz.sonando'), true, 'la voz no arrancó');
+});

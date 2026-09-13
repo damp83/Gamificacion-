@@ -347,9 +347,17 @@ function montarPista(nombre) {
       const m = pistaDeTrailer('musica');
       if (m) m.volume = volumenDeMusica();
       pintarBotonDeSonido();
-      /* Si en este equipo ya se había puesto el sonido, se pone otra vez, y
-         no antes: hasta este momento no había nada que reproducir. */
-      if (!trailerConSonido && sonidoGuardado()) sonidoTrailer(true);
+      if (trailerConSonido) {
+        /* El sonido ya estaba puesto y esta pista acaba de llegar: se suma.
+           Sin esto, la que cargara la última se quedaba muda para siempre. */
+        arrancarPista(nombre);
+        /* Y si la que ha llegado es la voz, el reloj le cede el mando. */
+        armarRelojTrailer();
+      } else if (sonidoGuardado()) {
+        /* Este equipo ya lo tenía encendido. Se enciende ahora y no antes:
+           hasta este momento no había nada que reproducir. */
+        sonidoTrailer(true);
+      }
     });
     if (nombre === 'voz') a.addEventListener('timeupdate', alSonarLaVoz);
 
@@ -430,6 +438,31 @@ function sonarPista(a, alFallar) {
   } catch (e) { if (alFallar) alFallar(); }
 }
 
+/* Poner en marcha UNA pista, colocada donde toca. Existe porque hay dos
+   caminos que arrancan sonido y antes solo uno lo hacía bien: el del botón, y
+   el de «este equipo ya lo tenía encendido», que se dispara en cuanto una
+   pista termina de cargar. Como la música pesa menos que la voz, cargaba
+   antes, encendía el sonido ella sola y la voz —que llegaba después— no la
+   arrancaba nadie. Resultado: música sí, narración no, y el reloj y la voz
+   mandando a la vez sobre las escenas. */
+function arrancarPista(nombre) {
+  const a = pistaDeTrailer(nombre);
+  if (!a) return;
+  if (nombre === 'musica') a.volume = volumenDeMusica();
+  if (nombre === 'voz' && trailerMarcas[trailerIndice] != null) {
+    /* La narración empieza por donde va la escena, no por el principio: quien
+       enciende el sonido en la escena cinco no quiere volver a la uno. */
+    try { a.currentTime = trailerMarcas[trailerIndice]; } catch (e) {}
+  }
+  sonarPista(a, () => {
+    /* Si el navegador se niega a reproducir, se apaga el interruptor: mentir
+       con el botón encendido y nada sonando es lo peor de los dos mundos. */
+    trailerConSonido = false;
+    pintarBotonDeSonido();
+    armarRelojTrailer();
+  });
+}
+
 function sonidoTrailer(quiero) {
   if (!hayAudioDeTrailer()) return;
   trailerConSonido = quiero === undefined ? !trailerConSonido : !!quiero;
@@ -439,19 +472,7 @@ function sonidoTrailer(quiero) {
 
   if (trailerConSonido) {
     guardarAudioParaSinRed();
-    if (musica) { musica.volume = volumenDeMusica(); sonarPista(musica); }
-    if (voz) {
-      /* La narración empieza por donde va la escena, no por el principio:
-         quien enciende el sonido en la escena cinco no quiere volver a la 1. */
-      if (trailerMarcas[trailerIndice] != null) {
-        try { voz.currentTime = trailerMarcas[trailerIndice]; } catch (e) {}
-      }
-      sonarPista(voz, () => {
-        trailerConSonido = false;
-        pintarBotonDeSonido();
-        armarRelojTrailer();
-      });
-    }
+    ['musica', 'voz'].forEach(arrancarPista);
   } else {
     [musica, voz].forEach(a => { if (a) { try { a.pause(); } catch (e) {} } });
   }
