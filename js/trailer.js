@@ -59,8 +59,27 @@ const TRAILER_AUDIO = {
   voz:    { src: 'audio/voz-trailer.mp3', volumen: 1 }
 };
 
-/* Con voz encima, la música baja todavía más: el fondo es fondo. */
-const TRAILER_MUSICA_BAJO_VOZ = .18;
+/* ── Cuánto baja la música cuando hay alguien hablando ──
+   No se pone a ojo, y la primera vez lo puse a ojo: eché un .18 pensando que
+   «poco menos de un quinto» sonaría a fondo, y quedó al MISMO nivel que la
+   voz. Un multiplicador no dice nada por sí solo; depende de lo alto que vaya
+   grabada cada pista, y estas dos van muy distintas:
+
+     · la música está comprimida a tope, como casi toda la música producida:
+       pico a 0 dB y una media de −14,8 dB, o sea casi siempre igual de alta;
+     · la voz tiene el rango de una persona hablando: picos a −2,9 dB pero una
+       media de −30,5 dB, con sus silencios y sus sílabas flojas.
+
+   Sube la media dieciséis decibelios la música. Con la misma ganancia, suena
+   dieciséis veces más presente aunque el número diga lo contrario.
+
+   Así que la ganancia se CALCULA: se parte de lo que mide cada pista y de
+   cuántos decibelios se quiere la voz por encima. Quince es lo que se usa
+   para una narración con cama musical —por debajo de doce la música compite,
+   por encima de veinte desaparece— y con esta voz, que ya es de por sí
+   tranquila, quedarse en quince deja el fondo audible sin estorbar. */
+const TRAILER_NIVELES = { musica: .182, voz: .030 };   /* RMS medio, medido */
+const TRAILER_VOZ_ENCIMA_DB = 15;
 /* Y al cerrar se apaga en medio segundo en vez de cortarse en seco, que es la
    diferencia entre que algo termine y que alguien desenchufe el cable. */
 const TRAILER_FUNDIDO_MS = 500;
@@ -282,9 +301,12 @@ function guardarSonido(si) {
   try { almacen().setItem(TRAILER_SONIDO_KEY, si ? '1' : '0'); } catch (e) { /* sin sitio */ }
 }
 
-/* El fondo baja cuando hay alguien hablando encima. */
+/* El fondo baja cuando hay alguien hablando encima. Sin voz, la música es lo
+   único que suena y va a su volumen normal. */
 function volumenDeMusica() {
-  return pistaDeTrailer('voz') ? TRAILER_MUSICA_BAJO_VOZ : TRAILER_AUDIO.musica.volumen;
+  if (!pistaDeTrailer('voz')) return TRAILER_AUDIO.musica.volumen;
+  const g = (TRAILER_NIVELES.voz * Math.pow(10, -TRAILER_VOZ_ENCIMA_DB / 20)) / TRAILER_NIVELES.musica;
+  return Math.max(0, Math.min(1, g));
 }
 
 /* ── Dónde empieza cada escena dentro de la narración ──

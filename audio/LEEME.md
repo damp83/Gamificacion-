@@ -14,8 +14,29 @@ la portada.
 ## La música
 
 `donde-apunta-la-brujula.mp3` — 62 segundos, 192 kbps, 1,5 MB. Se repite en
-bucle por debajo de las escenas, al 38 % de volumen. Cuando haya voz bajará
-sola al 18 %: el fondo es fondo.
+bucle por debajo de las escenas.
+
+**Su volumen con la voz encima no es un número a ojo: se calcula.** Y conviene
+saber por qué, porque a ojo salió mal. Un multiplicador no dice nada por sí
+solo; depende de lo alto que vaya grabada cada pista, y estas dos van muy
+distintas:
+
+| | pico | media |
+|---|---|---|
+| Música | 0 dB | **−14,8 dB** (comprimida, como casi toda la música producida) |
+| Voz | −2,9 dB | **−30,5 dB** (el rango normal de una persona hablando) |
+
+Dieciséis decibelios de diferencia en la media. Con la misma ganancia, la
+música suena dieciséis veces más presente aunque el número diga lo contrario:
+puesta «al 18 %» quedaba a 0,8 dB de la voz, o sea al mismo nivel.
+
+Ahora se parte de esas dos medidas y de cuántos decibelios se quiere la voz
+por encima (`TRAILER_VOZ_ENCIMA_DB`, quince), y la ganancia sale sola: 0,029.
+Por debajo de doce la música compite con quien habla; por encima de veinte no
+se oye y sobra ponerla.
+
+Si algún día se cambia una de las dos pistas, hay que volver a medir su RMS
+medio y actualizar `TRAILER_NIVELES`.
 
 Está generada con la IA de música de Google y lleva dentro su marca de agua
 SynthID y el manifiesto C2PA que lo declara. **No los quites**: son 6 KB y son

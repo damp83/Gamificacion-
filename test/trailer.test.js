@@ -255,15 +255,30 @@ test('la música se pide entera una vez para que quede guardada', () => {
   assert.strictEqual(c.ev('trailerCacheado'), true);
 });
 
-test('con voz, la música se aparta por debajo', () => {
+test('con voz, la música se aparta de verdad', () => {
+  /* La primera vez puse la ganancia a ojo —un .18 que «sonaba a fondo»— y la
+     música quedó al MISMO nivel que la voz: 0,8 dB de separación. Un
+     multiplicador no dice nada solo; depende de lo alto que vaya grabada cada
+     pista, y la música va comprimida (media −14,8 dB) mientras que la voz
+     tiene el rango del habla (media −30,5 dB). Ahora se calcula. */
   const c = cargarApp();
   const fondo = c.ev('TRAILER_AUDIO.musica.volumen');
   assert.ok(fondo > 0 && fondo < 1, 'la música de fondo no puede ir a todo volumen');
   /* Sin voz, su volumen normal. */
   assert.strictEqual(c.ev('volumenDeMusica()'), fondo);
-  /* Con voz montada, más bajo todavía. */
+
+  /* Con voz montada, la separación tiene que ser la pedida, de verdad. */
   c.ev("trailerPistas.voz = { volume: 1 }");
-  assert.ok(c.ev('volumenDeMusica()') < fondo, 'con alguien hablando encima, el fondo baja');
+  const g = c.ev('volumenDeMusica()');
+  const niveles = { musica: c.ev('TRAILER_NIVELES.musica'), voz: c.ev('TRAILER_NIVELES.voz') };
+  const separacion = 20 * Math.log10(niveles.voz / (niveles.musica * g));
+  assert.ok(Math.abs(separacion - c.ev('TRAILER_VOZ_ENCIMA_DB')) < 0.1,
+    `la voz queda ${separacion.toFixed(1)} dB sobre la música, no los pedidos`);
+  /* Y esa separación tiene que estar en la banda en la que una cama musical
+     es cama: por debajo de doce compite con quien habla, por encima de
+     veinte no se oye y sobra ponerla. */
+  assert.ok(separacion >= 12 && separacion <= 20,
+    `${separacion.toFixed(1)} dB no es una cama musical`);
 });
 
 /* Cuánto dura un mp3 de tasa constante, leído de su cabecera. Sin librerías:
