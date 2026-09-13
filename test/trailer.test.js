@@ -209,18 +209,61 @@ test('el cartel de la portada lleva a alguna parte', () => {
    EL SONIDO
    ══════════════════════════════════════════════════════════ */
 
-test('sale mudo de fábrica, y sin archivo no hay ni botón', () => {
-  /* Lo que se publica no lleva audio. Mientras no lo lleve, el tráiler tiene
-     que ir exactamente igual que antes: por reloj y sin ofrecer un altavoz
-     que no haría nada. */
+test('sale apagado, y sin ninguna pista cargada no hay ni botón', () => {
+  /* Aunque haya archivos declarados, hasta que una pista no carga de verdad
+     no hay sonido que ofrecer: en un aula sin wifi que nunca lo haya puesto,
+     el tráiler tiene que ir como iba, por reloj y mudo. */
   const c = cargarApp();
-  assert.strictEqual(c.ev('TRAILER_AUDIO.src'), '', 'se ha colado un audio en lo publicado');
+  assert.strictEqual(c.ev('trailerConSonido'), false, 'el sonido no puede nacer encendido');
+  assert.strictEqual(c.ev('Object.keys(trailerPistas).length'), 0,
+    'no puede haber ninguna pista montada antes de abrir el tráiler');
   assert.strictEqual(c.ev('hayAudioDeTrailer()'), false);
   assert.strictEqual(c.ev('vozManda()'), false);
   /* Y el reloj sigue mandando. */
   c.ev('trailerEnPausa = false; trailerIndice = 0; armarRelojTrailer()');
   assert.notStrictEqual(c.ev('trailerReloj'), null, 'sin voz, las escenas van por reloj');
   c.ev('pararRelojTrailer()');
+});
+
+test('la música no se cuela en la instalación del service worker', () => {
+  /* Son 1,5 MB: más que los sesenta y siete dibujos juntos. Meterlos en la
+     lista de ASSETS dobla lo que se descarga la primera vez una tableta de
+     colegio, y para algo que además nace apagado. Se guarda sola cuando
+     alguien la pone, por el camino normal del `fetch` del service worker. */
+  const c = cargarApp();
+  const musica = c.ev('TRAILER_AUDIO.musica.src');
+  assert.ok(musica, 'debería haber música de fondo declarada');
+  assert.ok(fs.existsSync(path.join(RAIZ, musica)), `falta el archivo ${musica}`);
+  assert.ok(!leer('sw.js').includes(musica),
+    'la música está en la precarga del service worker y no debe estarlo');
+});
+
+test('la música se pide entera una vez para que quede guardada', () => {
+  /* Un <audio> pide el archivo por trozos y el servidor contesta 206. Una
+     respuesta parcial no se puede guardar en la caché —la API lo prohíbe—,
+     así que por el camino de la reproducción esto no se guardaría NUNCA y el
+     tráiler sería mudo en cuanto se fuera la red. Por eso se pide además una
+     vez del tirón, que sí devuelve 200 y sí se guarda. */
+  const js = sinComentarios(leer('js/trailer.js'));
+  assert.ok(/function guardarAudioParaSinRed/.test(js));
+  assert.ok(/guardarAudioParaSinRed\(\)/.test(js.replace('function guardarAudioParaSinRed()', '')),
+    'nadie llama a guardar el audio para sin red');
+  const c = cargarApp();
+  /* Y solo una vez: no se vuelve a bajar en cada encendido. */
+  assert.strictEqual(c.ev('trailerCacheado'), false);
+  c.ev('guardarAudioParaSinRed()');
+  assert.strictEqual(c.ev('trailerCacheado'), true);
+});
+
+test('con voz, la música se aparta por debajo', () => {
+  const c = cargarApp();
+  const fondo = c.ev('TRAILER_AUDIO.musica.volumen');
+  assert.ok(fondo > 0 && fondo < 1, 'la música de fondo no puede ir a todo volumen');
+  /* Sin voz, su volumen normal. */
+  assert.strictEqual(c.ev('volumenDeMusica()'), fondo);
+  /* Con voz montada, más bajo todavía. */
+  c.ev("trailerPistas.voz = { volume: 1 }");
+  assert.ok(c.ev('volumenDeMusica()') < fondo, 'con alguien hablando encima, el fondo baja');
 });
 
 test('el reparto de la voz va en orden y cabe en lo que dura', () => {
@@ -254,13 +297,13 @@ test('con la voz sonando no hay además un reloj por detrás', () => {
   /* Dos cosas cambiando de escena a destiempo es lo que se ve cuando la
      imagen va por su lado y el locutor por el suyo. */
   const c = cargarApp();
-  c.ev("TRAILER_AUDIO.src = 'audio/x.mp3'; TRAILER_AUDIO.tipo = 'voz'");
-  c.ev('trailerAudio = { pause() {}, play() {} }; trailerConSonido = true');
+  c.ev("trailerPistas.voz = { pause() {}, play() {}, currentTime: 0 }; trailerConSonido = true");
   assert.strictEqual(c.ev('vozManda()'), true);
   c.ev('trailerEnPausa = false; trailerIndice = 0; armarRelojTrailer()');
   assert.strictEqual(c.ev('trailerReloj'), null, 'manda el locutor, no el reloj');
-  /* Con música de fondo, en cambio, el reloj sigue siendo quien manda. */
-  c.ev("TRAILER_AUDIO.tipo = 'musica'");
+  /* Con música sola, en cambio, el reloj sigue siendo quien manda: una pista
+     de fondo no sabe por dónde va la historia. */
+  c.ev("delete trailerPistas.voz; trailerPistas.musica = { pause() {}, play() {}, volume: .4 }");
   assert.strictEqual(c.ev('vozManda()'), false);
   c.ev('armarRelojTrailer()');
   assert.notStrictEqual(c.ev('trailerReloj'), null);
@@ -315,4 +358,20 @@ test('el texto de la voz tiene una frase por escena', () => {
   const escenas = cargarApp().ev('TRAILER_GUION.length');
   assert.strictEqual(frases.length, escenas,
     `hay ${escenas} escenas y ${frases.length} frases grabadas`);
+});
+
+test('el altavoz no se enseña hasta que hay algo que de verdad suena', () => {
+  /* Con `preload: 'none'` el navegador no toca el archivo hasta el play, así
+     que un mp3 que falta no daba error nunca: el botón salía puesto y al
+     tocarlo no pasaba nada. Pasa en cuanto el servidor del colegio se queda
+     sin el archivo, y pasa siempre en la versión de un solo archivo, que no
+     lleva audio dentro. Ahora la pista no cuenta hasta que dice cuánto dura. */
+  const js = sinComentarios(leer('js/trailer.js'));
+  assert.ok(/preload = 'metadata'/.test(js),
+    "con preload 'none' no hay forma de saber si el archivo existe");
+  /* La pista se apunta dentro del manejador de «ya sé cuánto duro», no antes. */
+  const i = js.indexOf("addEventListener('loadedmetadata'");
+  const j = js.indexOf('trailerPistas[nombre] = a');
+  assert.ok(i > 0 && j > i && j - i < 200,
+    'la pista se da por buena antes de saber si se puede reproducir');
 });

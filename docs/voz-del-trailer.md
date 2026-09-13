@@ -75,7 +75,10 @@ Lo que sí encaja es un conversor de texto a voz con voz en español. Pide:
 
 ## Cuando tengas el archivo
 
-Sigue los cuatro pasos de `audio/LEEME.md`. El tráiler reparte solo el sitio
+Sigue los pasos de `audio/LEEME.md`. Sonará **encima de la música de fondo**,
+que baja sola del 38 % al 18 % en cuanto hay alguien hablando.
+
+El tráiler reparte solo el sitio
 de cada escena según lo largo que es su texto, así que con este guion debería
 cuadrar sin tocar nada. Si alguna frase se queda corta o larga, se escribe su
 segundo exacto en `desde`, dentro de la escena, en `js/trailer.js`.

@@ -7695,7 +7695,7 @@ function cruzarVerificacion(retos, respuestas) {
    copia guardada. Sin este número, «ya está arreglado» y «a mí no me pasa» son
    indistinguibles. Va junto al nombre de la caché del service worker, y una
    prueba comprueba que no se separen. */
-const ATLAS_VERSION = 'v110';
+const ATLAS_VERSION = 'v111';
 
 const ATLAS_DEFAULTS = {
 
@@ -23252,23 +23252,38 @@ async function aplicarCopia(raw, destino) {
 const TRAILER_ESCENA_MS = 4500;
 
 /* ── El sonido ──
-   Un solo archivo, y de dos clases posibles:
+   Dos pistas, y las dos opcionales por separado:
 
-     · `voz`    — la narración entera. Las escenas dejan de ir por reloj y
-                  pasan a seguir al locutor, que es lo único que casa: si el
-                  reloj va por su cuenta, la escena cambia a media frase.
-     · `musica` — fondo. Las escenas siguen con su reloj y la música se
-                  repite por debajo.
+     · `musica` — el fondo. Suena bajo y no manda sobre nada.
+     · `voz`    — la narración. Cuando la hay, las escenas dejan el reloj y
+                  siguen al locutor, que es lo único que casa: si el reloj va
+                  por su cuenta, la escena cambia a media frase.
 
-   Nace VACÍO a propósito. Mientras `src` esté vacío o el archivo no cargue,
-   el tráiler funciona exactamente igual que sin sonido y el botón del altavoz
-   ni se pinta: un archivo que falta no puede romper la portada.
+   Van juntas a propósito y no como dos modos excluyentes: un tráiler con
+   música Y voz es lo normal, y tenerlas separadas evita reescribir esto el
+   día que aparezca la segunda.
 
-   Para ponerlo: se deja el archivo en `audio/` y se escribe su ruta aquí. Hay
-   que acordarse de dos cosas más —añadirlo a la lista de sw.js para que suene
-   sin wifi, y que la versión de un solo archivo NO incrusta audio, así que
-   allí seguirá mudo. */
-const TRAILER_AUDIO = { src: '', tipo: 'voz' };
+   Lo que falte, no existe. Con `src` vacío, o si el archivo no carga, esa
+   pista se olvida sin decir nada; si no queda ninguna, el botón del altavoz
+   ni se pinta. Un archivo que falta no puede romper la portada.
+
+   La música NO está en la lista de `ASSETS` de sw.js, y es adrede: son 1,5 MB
+   —más que los sesenta y siete dibujos juntos— y meterlos en la instalación
+   doblaría lo que se descarga la primera vez una tableta de colegio para algo
+   que, además, nace apagado. El service worker guarda igualmente lo que se
+   descarga bien, así que la primera vez que alguien la pone con wifi queda
+   guardada y a partir de ahí suena sin conexión. Y si nunca se ha puesto y no
+   hay red, el tráiler va mudo, que es justo lo que hacía ayer. */
+const TRAILER_AUDIO = {
+  musica: { src: 'audio/donde-apunta-la-brujula.mp3', volumen: .38 },
+  voz:    { src: '', volumen: 1 }
+};
+
+/* Con voz encima, la música baja todavía más: el fondo es fondo. */
+const TRAILER_MUSICA_BAJO_VOZ = .18;
+/* Y al cerrar se apaga en medio segundo en vez de cortarse en seco, que es la
+   diferencia entre que algo termine y que alguien desenchufe el cable. */
+const TRAILER_FUNDIDO_MS = 500;
 
 /* Arranca APAGADO y se recuerda por dispositivo. Veinticinco tabletas en un
    aula descubriendo a la vez que esto habla es exactamente el motivo: que
@@ -23277,7 +23292,9 @@ const TRAILER_SONIDO_KEY = 'atlas_trailer_sonido_v1';
 /* Y si ya se ha visto una vez, para no seguir ofreciéndolo en cada arranque. */
 const TRAILER_VISTO_KEY = 'atlas_trailer_visto_v1';
 
-let trailerAudio = null;
+/* Las dos pistas vivas, por nombre: { musica: <Audio>, voz: <Audio> }. Solo
+   están las que de verdad han podido cargarse. */
+let trailerPistas = {};
 let trailerConSonido = false;
 
 /* ── El guion ──
@@ -23445,18 +23462,19 @@ function pintarEscenaTrailer() {
 }
 
 /* ── El sonido ──
-   Todo lo de aquí abajo está escrito para que la ausencia del archivo sea un
-   caso normal y no un fallo: si no hay `src`, si el navegador no sabe
-   reproducirlo o si la descarga falla, `trailerAudio` se queda en null y el
+   Todo lo de aquí abajo está escrito para que la ausencia de un archivo sea
+   un caso normal y no un fallo: si no hay `src`, si el navegador no sabe
+   reproducirlo o si la descarga falla, esa pista no llega a existir y el
    resto del tráiler ni se entera. */
 
+function pistaDeTrailer(nombre) { return trailerPistas[nombre] || null; }
 function hayAudioDeTrailer() {
-  return !!(TRAILER_AUDIO && TRAILER_AUDIO.src);
+  return !!(pistaDeTrailer('musica') || pistaDeTrailer('voz'));
 }
 /* ¿Manda la voz sobre el reloj? Solo si hay narración Y está sonando. Con
-   música, o en silencio, las escenas siguen yendo por tiempo. */
+   música sola, o en silencio, las escenas siguen yendo por tiempo. */
 function vozManda() {
-  return !!(trailerAudio && trailerConSonido && TRAILER_AUDIO.tipo === 'voz');
+  return !!(pistaDeTrailer('voz') && trailerConSonido);
 }
 
 function sonidoGuardado() {
@@ -23464,6 +23482,11 @@ function sonidoGuardado() {
 }
 function guardarSonido(si) {
   try { almacen().setItem(TRAILER_SONIDO_KEY, si ? '1' : '0'); } catch (e) { /* sin sitio */ }
+}
+
+/* El fondo baja cuando hay alguien hablando encima. */
+function volumenDeMusica() {
+  return pistaDeTrailer('voz') ? TRAILER_MUSICA_BAJO_VOZ : TRAILER_AUDIO.musica.volumen;
 }
 
 /* ── Dónde empieza cada escena dentro de la narración ──
@@ -23493,8 +23516,9 @@ let trailerMarcas = [];
    rebobinar o que la descarga se atasque un segundo salen gratis: la escena
    es siempre la que toca al tiempo que de verdad va sonando. */
 function alSonarLaVoz() {
-  if (!vozManda()) return;
-  const t = trailerAudio.currentTime;
+  const voz = pistaDeTrailer('voz');
+  if (!voz || !vozManda()) return;
+  const t = voz.currentTime;
   let i = 0;
   while (i + 1 < trailerMarcas.length && t >= trailerMarcas[i + 1]) i++;
   if (i !== trailerIndice) {
@@ -23503,60 +23527,155 @@ function alSonarLaVoz() {
   }
 }
 
-function prepararAudioTrailer() {
-  if (trailerAudio || !hayAudioDeTrailer() || typeof Audio !== 'function') return;
+/* Cada pista se monta una vez y se queda.
+
+   `preload: 'metadata'` y no `'none'`: con `'none'` el navegador no toca el
+   archivo hasta que se le da al play, así que un archivo que no está no da
+   error hasta ese momento —y mientras tanto el botón del altavoz sale puesto
+   y no hace nada al tocarlo. Con `'metadata'` se baja la cabecera, que son
+   unos kilobytes, y ahí se sabe ya si el archivo existe y cuánto dura.
+
+   De ahí que la pista NO se dé por buena hasta que dice cuánto dura: el botón
+   solo aparece cuando hay algo que de verdad se puede reproducir. Y como las
+   pistas se montan al ABRIR el tráiler y no al cargar la portada, quien nunca
+   lo abra no se descarga nada. */
+function montarPista(nombre) {
+  const cfg = TRAILER_AUDIO[nombre];
+  if (!cfg || !cfg.src || typeof Audio !== 'function') return;
+  if (trailerPistasPedidas[nombre]) return;
+  trailerPistasPedidas[nombre] = true;
   try {
-    trailerAudio = new Audio();
-    trailerAudio.preload = 'none';
-    trailerAudio.src = TRAILER_AUDIO.src;
-    if (TRAILER_AUDIO.tipo === 'musica') trailerAudio.loop = true;
-    trailerAudio.addEventListener('loadedmetadata', () => {
-      trailerMarcas = repartoDeVoz(trailerAudio.duration);
+    const a = new Audio();
+    a.preload = 'metadata';
+    if (nombre === 'musica') a.loop = true;
+
+    a.addEventListener('loadedmetadata', () => {
+      trailerPistas[nombre] = a;
+      if (nombre === 'voz') trailerMarcas = repartoDeVoz(a.duration);
+      /* El fondo se ajusta aquí y no al montarlo: si la voz ha llegado
+         después, ahora es cuando hay que apartar la música. */
+      const m = pistaDeTrailer('musica');
+      if (m) m.volume = volumenDeMusica();
+      pintarBotonDeSonido();
+      /* Si en este equipo ya se había puesto el sonido, se pone otra vez, y
+         no antes: hasta este momento no había nada que reproducir. */
+      if (!trailerConSonido && sonidoGuardado()) sonidoTrailer(true);
     });
-    trailerAudio.addEventListener('timeupdate', alSonarLaVoz);
-    /* Si el archivo no está o el navegador no puede con él, se olvida el
-       asunto y el tráiler sigue por reloj, mudo, sin avisar de nada: el niño
-       no tiene que enterarse de que al maestro le falta un archivo. */
-    trailerAudio.addEventListener('error', () => {
-      trailerAudio = null;
-      trailerConSonido = false;
+    if (nombre === 'voz') a.addEventListener('timeupdate', alSonarLaVoz);
+
+    /* Si el archivo no está o el navegador no puede con él, esa pista no
+       llega a existir y el tráiler sigue con lo que quede —o mudo, y por
+       reloj—, sin avisar de nada: el niño no tiene que enterarse de que falta
+       un archivo en el servidor de su colegio. Es también lo que pasa en la
+       versión de un solo archivo, que no lleva audio dentro. */
+    a.addEventListener('error', () => {
+      delete trailerPistas[nombre];
+      if (!hayAudioDeTrailer()) trailerConSonido = false;
       pintarBotonDeSonido();
       armarRelojTrailer();
     });
-  } catch (e) { trailerAudio = null; }
+
+    a.src = cfg.src;
+  } catch (e) { delete trailerPistas[nombre]; }
+}
+let trailerPistasPedidas = {};
+
+function prepararAudioTrailer() {
+  ['musica', 'voz'].forEach(n => { if (!pistaDeTrailer(n)) montarPista(n); });
+}
+
+/* ── Dejarla guardada para el día que no haya wifi ──
+   El service worker guarda todo lo que se descarga entero y bien, pero un
+   `<audio>` no pide el archivo entero: pide trozos («Range»), y el servidor
+   responde 206. Una respuesta parcial no se puede guardar en la caché —la API
+   lo prohíbe— así que por el camino de la reproducción esto NUNCA se quedaría
+   guardado, y el tráiler volvería a ser mudo en cuanto se fuera la red.
+
+   Se pide entonces una vez, aparte y del tirón, que sí devuelve un 200 y sí se
+   guarda. Cuesta una descarga repetida la primera vez que alguien enciende el
+   sonido, y a cambio la música ya no depende de la red nunca más. Solo una
+   vez por sesión y sin esperar a que termine: si falla, no ha pasado nada. */
+let trailerCacheado = false;
+function guardarAudioParaSinRed() {
+  if (trailerCacheado || typeof fetch !== 'function') return;
+  trailerCacheado = true;
+  ['musica', 'voz'].forEach(n => {
+    const cfg = TRAILER_AUDIO[n];
+    if (cfg && cfg.src) fetch(cfg.src).catch(() => {});
+  });
 }
 
 function pintarBotonDeSonido() {
   const b = $('#tr-sonido');
   if (!b) return;
-  /* Sin archivo no hay botón: un altavoz que no hace nada es peor que nada. */
-  b.classList.toggle('hidden', !trailerAudio);
-  if (!trailerAudio) return;
+  /* Sin ninguna pista no hay botón: un altavoz que no hace nada es peor que
+     nada. */
+  b.classList.toggle('hidden', !hayAudioDeTrailer());
+  if (!hayAudioDeTrailer()) return;
   b.innerHTML = trailerConSonido ? ico('sound') + ' Sonido' : ico('mute') + ' Sin sonido';
   b.setAttribute('aria-pressed', String(trailerConSonido));
   b.setAttribute('aria-label', trailerConSonido ? 'Quitar el sonido' : 'Poner el sonido');
 }
 
+/* Arrancar una pista sin que un rechazo tumbe nada. `play()` devuelve una
+   promesa que el navegador rechaza si decide que no toca sonar; se recoge y
+   se apaga el interruptor, que mentir con el botón encendido y nada sonando
+   es lo peor de los dos mundos. */
+function sonarPista(a, alFallar) {
+  if (!a) return;
+  try {
+    const p = a.play();
+    if (p && p.catch) p.catch(() => { if (alFallar) alFallar(); });
+  } catch (e) { if (alFallar) alFallar(); }
+}
+
 function sonidoTrailer(quiero) {
-  if (!trailerAudio) return;
+  if (!hayAudioDeTrailer()) return;
   trailerConSonido = quiero === undefined ? !trailerConSonido : !!quiero;
   guardarSonido(trailerConSonido);
+  const musica = pistaDeTrailer('musica');
+  const voz = pistaDeTrailer('voz');
+
   if (trailerConSonido) {
-    /* La narración empieza por donde va la escena, no por el principio: quien
-       enciende el sonido en la escena cinco no quiere volver a la uno. */
-    if (TRAILER_AUDIO.tipo === 'voz' && trailerMarcas[trailerIndice] != null) {
-      try { trailerAudio.currentTime = trailerMarcas[trailerIndice]; } catch (e) {}
+    guardarAudioParaSinRed();
+    if (musica) { musica.volume = volumenDeMusica(); sonarPista(musica); }
+    if (voz) {
+      /* La narración empieza por donde va la escena, no por el principio:
+         quien enciende el sonido en la escena cinco no quiere volver a la 1. */
+      if (trailerMarcas[trailerIndice] != null) {
+        try { voz.currentTime = trailerMarcas[trailerIndice]; } catch (e) {}
+      }
+      sonarPista(voz, () => {
+        trailerConSonido = false;
+        pintarBotonDeSonido();
+        armarRelojTrailer();
+      });
     }
-    /* `play()` devuelve una promesa que el navegador rechaza si decide que no
-       toca sonar. Se recoge y se apaga el interruptor, que mentir con el
-       botón encendido y nada sonando es lo peor de los dos mundos. */
-    const p = trailerAudio.play();
-    if (p && p.catch) p.catch(() => { trailerConSonido = false; pintarBotonDeSonido(); armarRelojTrailer(); });
   } else {
-    try { trailerAudio.pause(); } catch (e) {}
+    [musica, voz].forEach(a => { if (a) { try { a.pause(); } catch (e) {} } });
   }
   pintarBotonDeSonido();
   armarRelojTrailer();
+}
+
+/* Bajar el telón: se apaga en medio segundo y se rebobina. Sin el fundido, al
+   dar a «Saltar» la música se corta de golpe en mitad de un compás y suena a
+   avería, no a final. */
+function callarTrailer() {
+  const pistas = ['musica', 'voz'].map(pistaDeTrailer).filter(Boolean);
+  pistas.forEach(a => {
+    const v0 = a.volume;
+    const paso = v0 / Math.max(1, TRAILER_FUNDIDO_MS / 50);
+    const baja = setInterval(() => {
+      try {
+        a.volume = Math.max(0, a.volume - paso);
+        if (a.volume <= 0.001) throw new Error('fin');
+      } catch (e) {
+        clearInterval(baja);
+        try { a.pause(); a.currentTime = 0; a.volume = v0; } catch (e2) {}
+      }
+    }, 50);
+  });
 }
 
 /* ── El reloj ──
@@ -23587,7 +23706,7 @@ function avanzarTrailer(paso) {
   /* Si hay narración, saltar de escena salta también al locutor: si no, la
      voz sigue contando la escena anterior encima de la que ya se ve. */
   if (vozManda() && trailerMarcas[destino] != null) {
-    try { trailerAudio.currentTime = trailerMarcas[destino]; } catch (e) {}
+    try { pistaDeTrailer('voz').currentTime = trailerMarcas[destino]; } catch (e) {}
   }
   pintarEscenaTrailer();
   armarRelojTrailer();
@@ -23606,11 +23725,11 @@ function pausarTrailer(quieto) {
   if (trailerEnPausa) pararRelojTrailer(); else armarRelojTrailer();
   /* Pausar calla al locutor. Es la mitad de para lo que sirve la pausa en un
      aula: congelar la escena y hablar tú encima. */
-  if (trailerAudio && trailerConSonido) {
-    try {
-      if (trailerEnPausa) trailerAudio.pause();
-      else { const p = trailerAudio.play(); if (p && p.catch) p.catch(() => {}); }
-    } catch (e) {}
+  if (trailerConSonido) {
+    ['musica', 'voz'].map(pistaDeTrailer).filter(Boolean).forEach(a => {
+      if (trailerEnPausa) { try { a.pause(); } catch (e) {} }
+      else sonarPista(a);
+    });
   }
 }
 
@@ -23652,10 +23771,6 @@ function abrirTrailer() {
      destacado es para quien no sabe qué es esto, y con haberlo abierto ya lo
      sabe. */
   marcarTrailerVisto();
-  /* Si en este equipo ya se había puesto el sonido, se pone otra vez. Va
-     después de pintar la escena para que el locutor arranque con algo en
-     pantalla y no sobre el oscuro. */
-  if (trailerAudio && sonidoGuardado()) sonidoTrailer(true);
   document.addEventListener('keydown', teclasTrailer);
 }
 
@@ -23663,9 +23778,7 @@ function cerrarTrailer() {
   const caja = $('#trailer');
   if (!caja) return;
   pararRelojTrailer();
-  if (trailerAudio) {
-    try { trailerAudio.pause(); trailerAudio.currentTime = 0; } catch (e) {}
-  }
+  callarTrailer();
   trailerConSonido = false;
   caja.classList.add('hidden');
   document.body.classList.remove('con-trailer');
