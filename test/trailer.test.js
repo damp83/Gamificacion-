@@ -308,6 +308,47 @@ test('el reparto automático va en orden y cabe en lo que dura', () => {
   assert.ok(masLarga.d > masCorta.d, 'la escena con más texto tiene que durar más');
 });
 
+/* Los silencios LARGOS de `voz-trailer.mp3`, medidos decodificando la onda:
+   los sitios donde el locutor termina una idea y empieza otra. Van aquí como
+   datos del archivo que se publica —el tamaño lo identifica— porque Node no
+   sabe abrir un mp3 y esto es lo que hace falta para comprobar los cortes. */
+const VOZ_BYTES = 1821312;
+const VOZ_PAUSAS = [[8.56, 9.90], [17.62, 19.38], [24.54, 26.02], [30.76, 32.14],
+                    [33.58, 34.60], [37.72, 39.02], [40.68, 42.00], [63.24, 64.42],
+                    [69.64, 71.00],
+                    /* La excepción, y conviene que esté señalada: entre el 42,00 y
+                       el 63,24 el locutor no hace UNA sola pausa larga —encadenó dos
+                       frases del guion sin respirar entre ellas—, así que el corte de
+                       la escena 7 no puede caer entre frases porque ahí no hay hueco
+                       entre frases. Se usa el silencio más ancho que hay en ese
+                       tramo, 0,92 s. Es el único de los nueve que es un juicio y no
+                       una medida, y si alguna escena va a bailar, es esa. */
+                    [52.64, 53.56]];
+
+test('cada escena entra en una pausa de frase, no en una respiración', () => {
+  /* El fallo que se vio: los cortes se ajustaron al silencio MÁS CERCANO, y
+     un locutor calla medio segundo para respirar a mitad de frase. Las tres
+     primeras escenas cambiaban en una respiración y adelantaban a la voz.
+     Solo valen los silencios largos. */
+  const c = cargarApp();
+  const voz = c.ev('TRAILER_AUDIO.voz.src');
+  if (!voz) return;
+  const tam = fs.statSync(path.join(RAIZ, voz)).size;
+  if (tam !== VOZ_BYTES) return;    // otra grabación: estas pausas ya no valen
+
+  const g = c.ev('JSON.parse(JSON.stringify(TRAILER_GUION))');
+  g.forEach((e, i) => {
+    if (i === 0) {
+      assert.strictEqual(e.desde, 0, 'la primera escena entra con la narración');
+      return;
+    }
+    const dentro = VOZ_PAUSAS.some(([a, b]) => e.desde >= a && e.desde <= b);
+    assert.ok(dentro,
+      `la escena ${i + 1} entra en el segundo ${e.desde}, que cae con el locutor ` +
+      'hablando o en una pausa de respiración, no entre dos frases');
+  });
+});
+
 test('los segundos de la narración caben dentro de la narración', () => {
   /* Están medidos sobre la onda del mp3 de verdad. Si alguien cambia el
      archivo por otro más corto y no toca los números, la última escena

@@ -39,10 +39,18 @@ El segundo en el que entra cada escena está escrito en `desde`, dentro de
 { tipo: 'escenario', desde: 13.55, img: '...', titulo: '...', ... }
 ```
 
-Esos números **no están puestos a ojo**. Se sacaron midiendo la onda del mp3
-para saber dónde calla el locutor, y colocando cada corte dentro de un
-silencio de verdad: así una escena nunca cambia a mitad de palabra. Por eso
-llevan dos decimales.
+Esos números **no están puestos a ojo**: salen de medir la onda del mp3 y
+colocar cada corte en un silencio del locutor. Pero no vale cualquier
+silencio, y ahí estuvo el fallo la primera vez. Un locutor calla medio
+segundo para respirar **a mitad de frase**, y ajustando al silencio más
+cercano las tres primeras escenas se cambiaban en una respiración y
+adelantaban a la voz. Los cortes de verdad son solo los **silencios largos**,
+de un segundo para arriba, que es donde termina una idea y empieza otra.
+
+Con una excepción, señalada en las pruebas: entre el segundo 42 y el 63 el
+locutor no hace ni una pausa larga —encadenó dos frases sin respirar—, así
+que el corte de la escena 7 usa el silencio más ancho de ese tramo (0,92 s).
+Es el único de los nueve que es un juicio y no una medida.
 
 Si una escena entra pronto o tarde, se cambia **solo ese número**. Y si algún
 día se sustituye la grabación por otra, se borran todos los `desde` y el

@@ -95,35 +95,45 @@ let trailerConSonido = false;
    `alt` no es decorativo: si un dibujo no llega, es lo único que queda en
    pantalla, y es lo que lee un lector de pantalla.
 
-   `desde` es el segundo de la narración en el que entra cada escena. No están
-   puestos a ojo ni calculados a partir del texto: se sacaron midiendo la onda
-   del mp3 —dónde calla el locutor— y colocando cada corte DENTRO de un
-   silencio de verdad. Por eso son números con dos decimales y no redondos. La
-   diferencia importa: un corte a medio segundo de distancia cae en mitad de
-   una palabra, y eso se oye. Si alguna escena entra pronto o tarde, se cambia
-   su número aquí y ya está. */
+   `desde` es el segundo de la narración en el que entra cada escena. Salen de
+   medir la onda del mp3 y colocar cada corte dentro de un silencio del
+   locutor, no a ojo; por eso llevan dos decimales.
+
+   Pero no vale cualquier silencio, y ahí estuvo el fallo la primera vez: un
+   locutor calla medio segundo para respirar A MITAD DE FRASE, y esas pausas
+   cortas no son cortes. Ajustando al silencio más cercano, las tres primeras
+   escenas se cambiaban en una respiración y adelantaban a la voz. Los cortes
+   de verdad son solo los silencios LARGOS —de un segundo para arriba—, que es
+   donde el locutor termina una idea y empieza otra.
+
+   Comprobación de que ahora encajan: con estos números, las nueve escenas dan
+   un ritmo de entre 100 y 140 palabras por minuto. Una misma persona leyendo
+   del tirón no puede ir a 110 en una frase y a 300 en la siguiente, así que
+   un ritmo parejo es la señal de que cada escena dura lo que dura su frase.
+
+   Si alguna entra pronto o tarde, se cambia su número aquí y ya está. */
 const TRAILER_GUION = [
-  { tipo: 'escenario', desde: 0.0, img: 'img/carta.webp',
+  { tipo: 'escenario', desde: 0, img: 'img/carta.webp',
     alt: 'Una carta del mundo dibujada a mano sobre pergamino, con dunas, ruinas y un oasis',
     titulo: 'Hace cien años',
     texto: 'La Expedición Atlas salió a cartografiar el mundo entero.' },
 
-  { tipo: 'figura', desde: 6.09, img: 'img/fragmento.webp',
+  { tipo: 'figura', desde: 9.23, img: 'img/fragmento.webp',
     alt: 'Un trozo de mapa con forma de pieza de puzle, con un templo dibujado dentro',
     titulo: 'Nunca volvió',
     texto: 'Solo quedaron sus diarios, rotos en mil pedazos y repartidos bajo tierra.' },
 
-  { tipo: 'escenario', desde: 13.55, img: 'img/fondos/kaldros.webp',
+  { tipo: 'escenario', desde: 18.5, img: 'img/fondos/kaldros.webp',
     alt: 'El interior del templo de Kaldros: columnas, engranajes y un haz de luz',
     titulo: 'Ruinas de Kaldros',
     texto: 'Unas páginas están aquí, bajo el templo de los engranajes y los relojes.' },
 
-  { tipo: 'escenario', desde: 23.47, img: 'img/fondos/biblioteca.webp',
+  { tipo: 'escenario', desde: 25.28, img: 'img/fondos/biblioteca.webp',
     alt: 'Una biblioteca sepultada por la arena, con estanterías medio enterradas',
     titulo: 'Biblioteca de Arena',
     texto: 'Otras, en una biblioteca que se tragó el desierto hace siglos.' },
 
-  { tipo: 'figura', desde: 29.8, img: 'img/vera.webp', tono: 'peligro',
+  { tipo: 'figura', desde: 31.45, img: 'img/vera.webp', tono: 'peligro',
     alt: 'Vera Kovak, con un cuaderno robado bajo el brazo',
     titulo: 'Y no eres el único que las busca',
     texto: 'Vera Kovak quiere venderlas al mejor postor. Se le dan mal las cuentas… ¿sabrás pillarla?' },
@@ -141,7 +151,7 @@ const TRAILER_GUION = [
     titulo: 'De aprendiz a leyenda',
     texto: 'Página a página, el mapa se dibuja… y tú subes de rango hasta lo más alto.' },
 
-  { tipo: 'cierre', desde: 71.67,
+  { tipo: 'cierre', desde: 70.32,
     titulo: 'El mapa lleva cien años esperándote',
     texto: '¿Empezamos?' }
 ];
