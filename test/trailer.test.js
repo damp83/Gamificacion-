@@ -266,8 +266,30 @@ test('con voz, la música se aparta por debajo', () => {
   assert.ok(c.ev('volumenDeMusica()') < fondo, 'con alguien hablando encima, el fondo baja');
 });
 
-test('el reparto de la voz va en orden y cabe en lo que dura', () => {
+/* Cuánto dura un mp3 de tasa constante, leído de su cabecera. Sin librerías:
+   es el tamaño del audio partido por los bits por segundo. */
+function duracionMp3(rel) {
+  const d = fs.readFileSync(path.join(RAIZ, rel));
+  let off = 0;
+  if (d.slice(0, 3).toString('latin1') === 'ID3') {
+    off = 10 + ((d[6] & 0x7f) << 21 | (d[7] & 0x7f) << 14 | (d[8] & 0x7f) << 7 | (d[9] & 0x7f));
+  }
+  const TASAS = [0, 32, 40, 48, 56, 64, 80, 96, 112, 128, 160, 192, 224, 256, 320];
+  for (let i = off; i < d.length - 4; i++) {
+    if (d[i] === 0xFF && (d[i + 1] & 0xE0) === 0xE0) {
+      const kbps = TASAS[(d[i + 2] >> 4) & 0xF];
+      if (!kbps) continue;
+      return (d.length - off) * 8 / (kbps * 1000);
+    }
+  }
+  return 0;
+}
+
+test('el reparto automático va en orden y cabe en lo que dura', () => {
+  /* Es lo que se usa cuando una escena no trae su segundo escrito: reparte
+     por la longitud del texto, que es lo que tarda en decirse. */
   const c = cargarApp();
+  c.ev('TRAILER_GUION.forEach(e => { delete e.desde; })');
   const marcas = c.ev('repartoDeVoz(50)');
   const n = c.ev('TRAILER_GUION.length');
   assert.strictEqual(marcas.length, n, 'una marca por escena');
@@ -284,6 +306,31 @@ test('el reparto de la voz va en orden y cabe en lo que dura', () => {
   const masLarga = duras.reduce((a, b) => (b.l > a.l ? b : a));
   const masCorta = duras.reduce((a, b) => (b.l < a.l ? b : a));
   assert.ok(masLarga.d > masCorta.d, 'la escena con más texto tiene que durar más');
+});
+
+test('los segundos de la narración caben dentro de la narración', () => {
+  /* Están medidos sobre la onda del mp3 de verdad. Si alguien cambia el
+     archivo por otro más corto y no toca los números, la última escena
+     entraría después del final y el tráiler se quedaría clavado en una de en
+     medio. Esto lo dice antes de que pase en un aula. */
+  const c = cargarApp();
+  const voz = c.ev('TRAILER_AUDIO.voz.src');
+  if (!voz) return;                       // sin voz montada no hay nada que comprobar
+  assert.ok(fs.existsSync(path.join(RAIZ, voz)), `falta el archivo ${voz}`);
+  const dura = duracionMp3(voz);
+  assert.ok(dura > 5, 'no se ha podido leer cuánto dura la narración');
+
+  const g = c.ev('JSON.parse(JSON.stringify(TRAILER_GUION))');
+  g.forEach((e, i) => {
+    assert.strictEqual(typeof e.desde, 'number', `la escena ${i + 1} no tiene su segundo`);
+    assert.ok(e.desde >= 0 && e.desde < dura,
+      `la escena ${i + 1} entra en el segundo ${e.desde} y la narración dura ${dura.toFixed(1)}`);
+    if (i > 0) assert.ok(e.desde > g[i - 1].desde, `la escena ${i + 1} entra antes que la anterior`);
+  });
+  /* Y a la última le queda tiempo de decirse: si entrase en el último medio
+     segundo, no se vería. */
+  assert.ok(dura - g[g.length - 1].desde > 2,
+    'la última escena entra tan al final que no da tiempo a leerla');
 });
 
 test('un segundo escrito a mano manda sobre el reparto', () => {
@@ -374,4 +421,30 @@ test('el altavoz no se enseña hasta que hay algo que de verdad suena', () => {
   const j = js.indexOf('trailerPistas[nombre] = a');
   assert.ok(i > 0 && j > i && j - i < 200,
     'la pista se da por buena antes de saber si se puede reproducir');
+});
+
+test('el bucle de la música se cierra antes de que se apague', () => {
+  /* La pista dura 62,4 s pero se desvanece a partir del 58,9 y deja tres
+     segundos y medio de silencio. Con el `loop` del navegador —que reproduce
+     el archivo entero— eso es un agujero de casi cinco segundos de nada por
+     debajo de la escena 7. Se cierra a mano antes. */
+  const js = sinComentarios(leer('js/trailer.js'));
+  assert.ok(!/\.loop = true/.test(js),
+    'con el bucle del navegador suena también la cola de silencio');
+  const c = cargarApp();
+  const b = c.ev('TRAILER_AUDIO.musica.bucle');
+  assert.ok(b, 'la música necesita saber dónde cerrar el bucle');
+  const dura = duracionMp3(c.ev('TRAILER_AUDIO.musica.src'));
+  assert.ok(c.ev('TRAILER_AUDIO.musica.bucle.hasta') < dura - 1,
+    'el bucle se cierra tan al final que suena el silencio de la cola');
+  assert.ok(c.ev('TRAILER_AUDIO.musica.bucle.vuelveA') < c.ev('TRAILER_AUDIO.musica.bucle.hasta'));
+
+  /* Y que de verdad rebobine al llegar. */
+  c.ev("trailerPistas.musica = { currentTime: 60, volume: .2 }");
+  c.ev('cerrarBucleDeMusica()');
+  assert.strictEqual(c.ev('trailerPistas.musica.currentTime'),
+    c.ev('TRAILER_AUDIO.musica.bucle.vuelveA'));
+  /* Pero no antes de tiempo. */
+  c.ev('trailerPistas.musica.currentTime = 30; cerrarBucleDeMusica()');
+  assert.strictEqual(c.ev('trailerPistas.musica.currentTime'), 30);
 });

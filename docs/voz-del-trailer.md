@@ -1,7 +1,10 @@
 # Voz en off del tráiler
 
-Texto para grabar o generar. Son **nueve frases, unos 50 segundos**, una por
-escena del tráiler de la portada.
+> **Grabada y montada.** El archivo es `audio/voz-trailer.mp3`, dura 75,9
+> segundos, y el segundo en el que entra cada escena está en `desde`, dentro
+> de `TRAILER_GUION`. Lo de abajo es el texto que se lee.
+
+Son **nueve frases**, una por escena del tráiler de la portada.
 
 Está escrito para que **diga casi lo mismo que se lee en pantalla**. Eso no es
 un descuido: los que abren esto tienen entre 6 y 12 años, y los de 1.º todavía

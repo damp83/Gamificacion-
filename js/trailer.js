@@ -46,8 +46,17 @@ const TRAILER_ESCENA_MS = 4500;
    guardada y a partir de ahí suena sin conexión. Y si nunca se ha puesto y no
    hay red, el tráiler va mudo, que es justo lo que hacía ayer. */
 const TRAILER_AUDIO = {
-  musica: { src: 'audio/donde-apunta-la-brujula.mp3', volumen: .38 },
-  voz:    { src: '', volumen: 1 }
+  /* `bucle` no es adorno. La pista dura 62,4 s pero la música de verdad se
+     acaba antes: se desvanece a partir del segundo 58,9 y deja tres segundos
+     y medio de silencio al final. Con el bucle del navegador —que reproduce
+     el archivo ENTERO y vuelve a empezar— eso es un agujero de casi cinco
+     segundos de nada justo debajo de la escena 7, y luego un arranque. Así
+     que se cierra a mano antes de que empiece el desvanecido, volviendo a un
+     punto donde la entrada ya ha arrancado. Los dos números salen de medir la
+     onda del mp3, no de escucharlo a ojo. */
+  musica: { src: 'audio/donde-apunta-la-brujula.mp3', volumen: .38,
+            bucle: { hasta: 58.8, vuelveA: 1.2 } },
+  voz:    { src: 'audio/voz-trailer.mp3', volumen: 1 }
 };
 
 /* Con voz encima, la música baja todavía más: el fondo es fondo. */
@@ -84,47 +93,55 @@ let trailerConSonido = false;
      · `fila`      — varios recortes en fila, con su nombre debajo.
 
    `alt` no es decorativo: si un dibujo no llega, es lo único que queda en
-   pantalla, y es lo que lee un lector de pantalla. */
+   pantalla, y es lo que lee un lector de pantalla.
+
+   `desde` es el segundo de la narración en el que entra cada escena. No están
+   puestos a ojo ni calculados a partir del texto: se sacaron midiendo la onda
+   del mp3 —dónde calla el locutor— y colocando cada corte DENTRO de un
+   silencio de verdad. Por eso son números con dos decimales y no redondos. La
+   diferencia importa: un corte a medio segundo de distancia cae en mitad de
+   una palabra, y eso se oye. Si alguna escena entra pronto o tarde, se cambia
+   su número aquí y ya está. */
 const TRAILER_GUION = [
-  { tipo: 'escenario', img: 'img/carta.webp',
+  { tipo: 'escenario', desde: 0.0, img: 'img/carta.webp',
     alt: 'Una carta del mundo dibujada a mano sobre pergamino, con dunas, ruinas y un oasis',
     titulo: 'Hace cien años',
     texto: 'La Expedición Atlas salió a cartografiar el mundo entero.' },
 
-  { tipo: 'figura', img: 'img/fragmento.webp',
+  { tipo: 'figura', desde: 6.09, img: 'img/fragmento.webp',
     alt: 'Un trozo de mapa con forma de pieza de puzle, con un templo dibujado dentro',
     titulo: 'Nunca volvió',
     texto: 'Solo quedaron sus diarios, rotos en mil pedazos y repartidos bajo tierra.' },
 
-  { tipo: 'escenario', img: 'img/fondos/kaldros.webp',
+  { tipo: 'escenario', desde: 13.55, img: 'img/fondos/kaldros.webp',
     alt: 'El interior del templo de Kaldros: columnas, engranajes y un haz de luz',
     titulo: 'Ruinas de Kaldros',
     texto: 'Unas páginas están aquí, bajo el templo de los engranajes y los relojes.' },
 
-  { tipo: 'escenario', img: 'img/fondos/biblioteca.webp',
+  { tipo: 'escenario', desde: 23.47, img: 'img/fondos/biblioteca.webp',
     alt: 'Una biblioteca sepultada por la arena, con estanterías medio enterradas',
     titulo: 'Biblioteca de Arena',
     texto: 'Otras, en una biblioteca que se tragó el desierto hace siglos.' },
 
-  { tipo: 'figura', img: 'img/vera.webp', tono: 'peligro',
+  { tipo: 'figura', desde: 29.8, img: 'img/vera.webp', tono: 'peligro',
     alt: 'Vera Kovak, con un cuaderno robado bajo el brazo',
     titulo: 'Y no eres el único que las busca',
     texto: 'Vera Kovak quiere venderlas al mejor postor. Se le dan mal las cuentas… ¿sabrás pillarla?' },
 
-  { tipo: 'fila', retratos: ['bruno', 'kira', 'tobias'],
+  { tipo: 'fila', desde: 41.34, retratos: ['bruno', 'kira', 'tobias'],
     titulo: 'Pero no vas solo',
     texto: 'El Prof. Ocaña, que ya se equivocó antes y peor. Kira, que traduce jeroglíficos. Y Tobías, que huele tesoros.' },
 
-  { tipo: 'figura', img: 'img/sello.webp',
+  { tipo: 'figura', desde: 53.1, img: 'img/sello.webp',
     alt: 'Un sello de lacre dorado con una pala y una brújula grabadas',
     titulo: 'Así se excava',
     texto: 'Cada cosa que aprendes de verdad desentierra una página. Equivocarse no quita nada: es parte de cavar.' },
 
-  { tipo: 'fila', rangos: true,
+  { tipo: 'fila', desde: 63.83, rangos: true,
     titulo: 'De aprendiz a leyenda',
     texto: 'Página a página, el mapa se dibuja… y tú subes de rango hasta lo más alto.' },
 
-  { tipo: 'cierre',
+  { tipo: 'cierre', desde: 71.67,
     titulo: 'El mapa lleva cien años esperándote',
     texto: '¿Empezamos?' }
 ];
@@ -318,7 +335,9 @@ function montarPista(nombre) {
   try {
     const a = new Audio();
     a.preload = 'metadata';
-    if (nombre === 'musica') a.loop = true;
+    /* Nada de `a.loop`: el navegador reproduce el archivo entero, cola de
+       silencio incluida. El cierre lo lleva `cerrarBucleDeMusica`. */
+    if (nombre === 'musica' && cfg.bucle) a.addEventListener('timeupdate', cerrarBucleDeMusica);
 
     a.addEventListener('loadedmetadata', () => {
       trailerPistas[nombre] = a;
@@ -350,6 +369,17 @@ function montarPista(nombre) {
   } catch (e) { delete trailerPistas[nombre]; }
 }
 let trailerPistasPedidas = {};
+
+/* Volver al principio antes de que la pista se apague, para que el fondo no
+   deje nunca un hueco. */
+function cerrarBucleDeMusica() {
+  const m = pistaDeTrailer('musica');
+  const b = TRAILER_AUDIO.musica.bucle;
+  if (!m || !b) return;
+  if (m.currentTime >= b.hasta) {
+    try { m.currentTime = b.vuelveA; } catch (e) {}
+  }
+}
 
 function prepararAudioTrailer() {
   ['musica', 'voz'].forEach(n => { if (!pistaDeTrailer(n)) montarPista(n); });

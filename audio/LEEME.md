@@ -2,10 +2,10 @@
 
 Dos pistas, independientes la una de la otra:
 
-| | archivo | estado |
-|---|---|---|
-| **Música de fondo** | `donde-apunta-la-brujula.mp3` | puesta |
-| **Voz en off** | — | falta |
+| | archivo | dura | estado |
+|---|---|---|---|
+| **Música de fondo** | `donde-apunta-la-brujula.mp3` | 62,4 s | puesta |
+| **Voz en off** | `voz-trailer.mp3` | 75,9 s | puesta |
 
 Lo que falte, no existe: esa pista se olvida sin decir nada, y si no queda
 ninguna el botón del altavoz ni se pinta. Un archivo que falta no puede romper
@@ -22,32 +22,33 @@ SynthID y el manifiesto C2PA que lo declara. **No los quites**: son 6 KB y son
 la trazabilidad de que esto lo compuso una máquina, que en una plataforma para
 menores conviene poder demostrar.
 
-## Para añadir la voz en off
+El bucle de la música se cierra **a mano** en el segundo 58,8, no con el
+`loop` del navegador: la pista se desvanece a partir de ahí y deja tres
+segundos y medio de silencio al final, que en bucle serían casi cinco
+segundos de agujero por debajo de la escena 7.
 
-1. Deja el archivo aquí en **.mp3** (el .ogg no lo lee Safari y en un colegio
-   hay iPads).
-2. Abre `js/trailer.js` y escribe la ruta:
+## La voz
 
-   ```js
-   const TRAILER_AUDIO = {
-     musica: { src: 'audio/donde-apunta-la-brujula.mp3', volumen: .38 },
-     voz:    { src: 'audio/voz-trailer.mp3', volumen: 1 }
-   };
-   ```
+`voz-trailer.mp3` — 75,9 segundos. Manda ella: **las escenas dejan el reloj y
+siguen al locutor**.
 
-3. Sube `ATLAS_VERSION` en `js/config.js` y `CACHE` en `sw.js`, que si no las
-   tabletas siguen con la versión guardada.
-
-Con voz, **las escenas dejan el reloj y siguen al locutor**: el sitio donde
-empieza cada una se reparte según lo largo que es su texto, que es lo que
-tarda en decirse. Si alguna frase cae donde no toca, se escribe su segundo
-exacto dentro de la escena, en `TRAILER_GUION`:
+El segundo en el que entra cada escena está escrito en `desde`, dentro de
+`TRAILER_GUION`:
 
 ```js
-{ tipo: 'escenario', img: '...', desde: 14.8, titulo: '...', ... }
+{ tipo: 'escenario', desde: 13.55, img: '...', titulo: '...', ... }
 ```
 
-El texto para grabar está en `docs/voz-del-trailer.md`.
+Esos números **no están puestos a ojo**. Se sacaron midiendo la onda del mp3
+para saber dónde calla el locutor, y colocando cada corte dentro de un
+silencio de verdad: así una escena nunca cambia a mitad de palabra. Por eso
+llevan dos decimales.
+
+Si una escena entra pronto o tarde, se cambia **solo ese número**. Y si algún
+día se sustituye la grabación por otra, se borran todos los `desde` y el
+tráiler vuelve a repartir solo, por la longitud del texto de cada escena.
+
+El texto que se lee está en `docs/voz-del-trailer.md`.
 
 ## Tres cosas que conviene saber
 
