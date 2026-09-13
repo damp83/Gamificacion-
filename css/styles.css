@@ -3656,3 +3656,245 @@ body.en-consulta #shop-list button { display: none !important; }
   position: fixed; left: -12000px; top: 0;
   width: 820px; height: 1100px; border: 0;
 }
+
+/* ══════════════════════════════════════════════════════════
+   EL TRÁILER DE LA PORTADA
+   ══════════════════════════════════════════════════════════ */
+
+/* ── El cartel que lo abre ──
+   Mismo molde que la tercera puerta (la demostración) para que se lean como
+   dos ofertas del mismo rango, no como un botón y un anuncio. La lámina de la
+   izquierda es un dibujo de verdad del juego, oscurecido, con el triángulo
+   encima: eso es lo que dice «esto se reproduce» sin escribirlo. */
+.home-trailer {
+  display: flex; align-items: center; gap: var(--s-4);
+  width: 100%; text-align: left;
+  margin: var(--s-4) 0 var(--s-2);
+  padding: var(--s-3);
+  background: var(--surface);
+  border: var(--line-strong); border-radius: var(--r-lg);
+  box-shadow: var(--e-1);
+  font-family: var(--font-text); color: var(--ink);
+  cursor: pointer;
+  transition: transform .12s ease, box-shadow .12s ease, border-color .12s ease;
+}
+.home-trailer:hover { box-shadow: var(--e-2); border-color: var(--brass); transform: translateY(-1px); }
+.home-trailer:active { transform: translateY(0); box-shadow: var(--e-1); }
+
+.home-trailer-lam {
+  position: relative; flex-shrink: 0;
+  width: 7.5rem; height: 4.6rem;
+  border-radius: var(--r-md); overflow: hidden;
+  background: var(--leather-dark);
+}
+.home-trailer-fondo {
+  width: 100%; height: 100%; object-fit: cover; display: block;
+  /* Oscurecido para que el triángulo blanco de encima se lea siempre, sea cual
+     sea el trozo de templo que toque. */
+  filter: brightness(.62) saturate(.9);
+}
+.home-trailer-play {
+  position: absolute; inset: 0; display: grid; place-items: center;
+  color: #fff;
+}
+.home-trailer-play .ico {
+  filter: drop-shadow(0 2px 6px rgba(0,0,0,.55));
+  /* El triángulo va relleno, que es como se reconoce un «play»: el resto de
+     iconos de la casa son de contorno, pero este símbolo sin relleno parece
+     una señal de ceda el paso. */
+  fill: currentColor;
+}
+.home-trailer-texto { flex: 1; min-width: 0; }
+.home-trailer-texto strong { display: block; font-size: var(--t-base); }
+.home-trailer-texto small { display: block; color: var(--ink-soft); font-size: var(--t-sm); line-height: 1.45; }
+.home-trailer-ir {
+  flex-shrink: 0; align-self: center;
+  color: var(--leather-dark); font-weight: 700; font-size: var(--t-sm);
+  background: var(--brass-tint); border-radius: var(--r-pill);
+  padding: .5rem .9rem;
+}
+
+@media (max-width: 34rem) {
+  /* En un móvil las tres columnas dejan la lámina del tamaño de un sello. Se
+     apila: lámina ancha arriba, texto debajo, y el rótulo de ir al final. */
+  .home-trailer { flex-direction: column; align-items: stretch; text-align: center; }
+  .home-trailer-lam { width: 100%; height: 8rem; }
+  .home-trailer-ir { align-self: center; }
+}
+
+/* ── El reproductor ──
+   A pantalla completa y en oscuro. Lo segundo importa tanto como lo primero:
+   sobre el pergamino de la portada los dibujos se confunden con el fondo, y
+   apagando la luz alrededor se miran como se mira una proyección. */
+.trailer {
+  position: fixed; inset: 0; z-index: 70;
+  display: flex; align-items: center; justify-content: center;
+  padding: clamp(.6rem, 2vw, 1.4rem);
+  background: #241606;
+  /* Un poco de la arena de siempre en las esquinas: negro del todo sería
+     cualquier app, y esto sigue siendo un desierto. */
+  background-image:
+    radial-gradient(120% 80% at 50% 0%, rgba(138, 90, 11, .30), transparent 62%),
+    radial-gradient(120% 90% at 50% 100%, rgba(74, 44, 18, .55), transparent 60%);
+  color: #f7ead2;
+}
+.trailer.hidden { display: none; }
+/* Mientras está puesto, la portada de debajo no se desplaza. */
+body.con-trailer { overflow: hidden; }
+
+.tr-marco {
+  display: flex; flex-direction: column;
+  width: min(60rem, 100%); height: 100%;
+  max-height: 100%;
+}
+
+/* Los tramos de arriba: cuántas escenas hay y por cuál vas. */
+.tr-barra { display: flex; gap: 4px; flex-shrink: 0; }
+.tr-tramo {
+  flex: 1; height: 4px; border-radius: 2px;
+  background: rgba(247, 234, 210, .22);
+  transition: background-color .3s ease;
+}
+.tr-tramo.vista { background: rgba(247, 234, 210, .55); }
+.tr-tramo.actual { background: var(--brass-light); }
+
+.tr-cabecera {
+  display: flex; align-items: center; gap: var(--s-2);
+  padding: var(--s-3) 0; flex-shrink: 0;
+}
+.tr-cuenta {
+  flex: 1; font-size: var(--t-xs); letter-spacing: .1em; text-transform: uppercase;
+  color: rgba(247, 234, 210, .7);
+}
+/* Los botones del tráiler: el mismo filete claro sobre oscuro que el botón de
+   salir de la cabecera de cuero, para no inventar un cuarto estilo de botón. */
+.tr-boton {
+  background: rgba(255, 255, 255, .12); color: #f7ead2;
+  border: 1px solid rgba(247, 234, 210, .45);
+  box-shadow: none;
+}
+.tr-boton:hover { background: rgba(255, 255, 255, .24); border-color: rgba(247, 234, 210, .75); box-shadow: none; }
+
+.tr-lienzo {
+  flex: 1; min-height: 0;
+  display: flex; align-items: center; justify-content: center;
+}
+/* La escena se centra como un bloque. El dibujo NO crece para llenar el
+   hueco: si lo hiciera, el título y el texto se irían al borde de abajo y la
+   escena quedaría descuadrada, con un palmo de oscuro encima del dibujo. */
+.tr-escena {
+  display: flex; flex-direction: column; align-items: center; justify-content: center;
+  gap: var(--s-3); height: 100%; width: 100%; text-align: center;
+}
+
+/* ── Dibujo ancho a sangre ── (la carta y los dos fondos de yacimiento) */
+.tr-escenario {
+  flex: 0 1 auto; min-height: 0;
+  max-width: 100%; max-height: 58vh; object-fit: contain;
+  border-radius: var(--r-lg);
+  box-shadow: 0 10px 40px rgba(0, 0, 0, .5);
+  /* El acercamiento lento. Es lo único que separa esto de un pase de
+     diapositivas: la imagen nunca está del todo quieta, así que el ojo la
+     sigue mirando mientras se lee el renglón de abajo. */
+  animation: tr-acerca 5s ease-out both;
+}
+
+/* ── Recortes ──
+   Con el fondo transparente y a su tamaño: el más pequeño del guion mide 91
+   píxeles de ancho, así que se topa antes de empezar a verse pastoso. */
+.tr-figura {
+  display: block;
+  max-width: 100%; height: auto;
+  animation: tr-entra .5s cubic-bezier(.2,.8,.3,1) both;
+}
+.tr-figura-sola { width: clamp(9rem, 26vw, 15rem); }
+/* El halo. Una figura recortada sobre el oscuro se queda flotando sin peso;
+   esto le pone suelo sin dibujarle una caja alrededor. */
+.tr-halo {
+  flex: 0 1 auto; min-height: 0;
+  display: grid; place-items: center;
+  padding: clamp(1rem, 4vw, 2.5rem);
+  background: radial-gradient(closest-side, rgba(230, 185, 63, .22), transparent 72%);
+}
+
+.tr-fila {
+  flex: 0 1 auto; min-height: 0;
+  display: flex; gap: clamp(.6rem, 3vw, 2rem);
+  flex-wrap: wrap; justify-content: center; align-items: flex-end;
+}
+.tr-pieza { margin: 0; display: flex; flex-direction: column; align-items: center; gap: .4rem; }
+.tr-pieza .tr-figura { width: clamp(4.5rem, 13vw, 8rem); }
+.tr-pieza figcaption {
+  font-size: var(--t-xs); color: rgba(247, 234, 210, .8);
+  max-width: 7rem; line-height: 1.3;
+}
+/* Los cinco rangos van en escalera: la medalla de leyenda, la última, se mira
+   por encima de las otras cuatro. Es la promesa de la escena. */
+.tr-fila-rangos .tr-pieza:nth-child(2) { transform: translateY(-.5rem); }
+.tr-fila-rangos .tr-pieza:nth-child(3) { transform: translateY(-1rem); }
+.tr-fila-rangos .tr-pieza:nth-child(4) { transform: translateY(-1.5rem); }
+.tr-fila-rangos .tr-pieza:nth-child(5) { transform: translateY(-2rem); }
+.tr-fila-rangos .tr-pieza:nth-child(5) .tr-figura { width: clamp(5.5rem, 16vw, 9.5rem); }
+.tr-fila .tr-pieza:nth-child(2) .tr-figura { animation-delay: .1s; }
+.tr-fila .tr-pieza:nth-child(3) .tr-figura { animation-delay: .2s; }
+.tr-fila .tr-pieza:nth-child(4) .tr-figura { animation-delay: .3s; }
+.tr-fila .tr-pieza:nth-child(5) .tr-figura { animation-delay: .4s; }
+
+/* En un móvil los cinco rangos no caben en una fila, y la escalera con las
+   piezas partidas en dos renglones deja cada rótulo encima de la medalla de
+   arriba. Ahí se quita el escalonado y se reparten de tres en tres, todas del
+   mismo ancho y alineadas por arriba: dos renglones ordenados se leen; uno
+   desordenado, no. */
+@media (max-width: 34rem) {
+  .tr-fila { align-items: flex-start; gap: var(--s-3) var(--s-2); }
+  .tr-fila-rangos .tr-pieza { transform: none; width: 30%; }
+  .tr-fila-rangos .tr-pieza .tr-figura,
+  .tr-fila-rangos .tr-pieza:nth-child(5) .tr-figura { width: 100%; max-width: 5.5rem; }
+  .tr-pieza figcaption { max-width: none; }
+}
+
+.tr-titulo {
+  font-family: var(--font-display); font-weight: 400;
+  font-size: clamp(1.5rem, 5vw, 2.6rem); line-height: 1.15;
+  color: var(--brass-light);
+  margin: 0; flex-shrink: 0;
+  animation: tr-entra .45s cubic-bezier(.2,.8,.3,1) .1s both;
+}
+.tr-texto {
+  font-size: clamp(1rem, 2.4vw, 1.3rem); line-height: 1.5;
+  max-width: 44rem; margin: 0; flex-shrink: 0;
+  color: #f7ead2;
+  animation: tr-entra .45s cubic-bezier(.2,.8,.3,1) .22s both;
+}
+/* La escena de Vera. El rojo no es decorativo: es la única del guion que
+   presenta un problema, y tiene que notarse sin leerla. */
+.tr-peligro .tr-titulo { color: #f0a58a; }
+.tr-peligro .tr-halo { background: radial-gradient(closest-side, rgba(200, 90, 60, .26), transparent 72%); }
+
+.tr-cierre { gap: var(--s-4); }
+.tr-crest {
+  display: grid; place-items: center;
+  width: 6.5rem; height: 6.5rem; border-radius: 50%;
+  font-size: 1.5rem;
+  background: var(--brass-tint); color: var(--leather-dark);
+  box-shadow: 0 6px 24px rgba(0,0,0,.45);
+  animation: tr-entra .5s cubic-bezier(.2,.8,.3,1) both;
+}
+.tr-empezar { font-size: var(--t-lg); padding: .85rem 1.6rem; flex-shrink: 0; }
+
+.tr-mandos {
+  display: flex; gap: var(--s-2); justify-content: center;
+  padding: var(--s-3) 0; flex-shrink: 0;
+}
+
+@keyframes tr-acerca { from { transform: scale(1); } to { transform: scale(1.07); } }
+@keyframes tr-entra { from { opacity: 0; transform: translateY(10px); } to { opacity: 1; transform: none; } }
+
+/* Quien pide menos movimiento se queda con el tráiler entero: las escenas
+   siguen pasando —eso es tiempo, no movimiento— pero nada se acerca ni entra
+   deslizándose. */
+@media (prefers-reduced-motion: reduce) {
+  .tr-escenario, .tr-figura, .tr-titulo, .tr-texto, .tr-crest { animation: none; }
+  .tr-fila-rangos .tr-pieza { transform: none; }
+  .home-trailer:hover { transform: none; }
+}

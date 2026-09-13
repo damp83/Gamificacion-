@@ -77,6 +77,17 @@ test('todos los dibujos están en la caché del service worker', () => {
   }
 });
 
+test('ningún dibujo se cuela por el HTML, que el archivo suelto no los ve', () => {
+  /* El guion del archivo suelto incrusta los dibujos buscando su ruta EN EL
+     CÓDIGO (`js.replace("'img/...'")`). Una etiqueta <img src="img/...">
+     escrita a mano en index.html se le escapa, y sale rota justo en la
+     versión que se reparte sin carpetas al lado. Por eso todo dibujo se pinta
+     desde JS: la regla es fácil de romper sin enterarse. */
+  const sueltos = (leer('index.html').match(/src="img\/[^"]*"/g) || []);
+  assert.deepStrictEqual(sueltos, [],
+    'hay dibujos escritos en el HTML; se pintan desde JS o el archivo suelto los pierde');
+});
+
 test('el archivo suelto se los lleva dentro, sea cual sea su formato', () => {
   const t = leer('tools/build-standalone.py');
   assert.match(t, /rglob\('\*'\)/, 'recorre img/ entero, no solo una subcarpeta');

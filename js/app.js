@@ -490,6 +490,7 @@ function wireGlobalListeners() {
   /* La tercera puerta de la portada, y la salida de la demostración. */
   const puertaDemo = $('#home-demo');
   if (puertaDemo) puertaDemo.addEventListener('click', entrarEnDemo);
+  prepararTrailer();
   const salida = $('#demo-salir');
   if (salida) salida.addEventListener('click', salirDeDemo);
 

@@ -15,7 +15,7 @@ SALIDA = pathlib.Path(sys.argv[1]) if len(sys.argv) > 1 else RAIZ / 'dist' / 'Ex
 
 # Orden de carga idéntico al de index.html (menos el SDK remoto)
 ORDEN = ['demo', 'content', 'generador', 'config', 'cloud', 'state', 'game', 'classview',
-         'ui', 'play', 'aula', 'teacher', 'app']
+         'ui', 'play', 'aula', 'teacher', 'trailer', 'app']
 
 html = (RAIZ / 'index.html').read_text(encoding='utf-8')
 
@@ -29,7 +29,7 @@ cuerpo = html[html.index('<body>') + len('<body>'):html.index('</body>')]
 PATRON_SCRIPT = re.compile(
     r'\s*(?:<!--(?:(?!-->).)*-->\s*)?<script\s+src="[^"]*"[^>]*></script>', re.S)
 cuerpo, n_scripts = PATRON_SCRIPT.subn('', cuerpo)
-if n_scripts != len(ORDEN) + 1:      # los ocho de js/ más el SDK del CDN
+if n_scripts != len(ORDEN) + 1:      # los de js/ más el SDK del CDN
     sys.exit(f'ERROR: se esperaban {len(ORDEN) + 1} etiquetas <script src=...> y se han '
              f'quitado {n_scripts}. La versión de un solo archivo no se ha generado.')
 if re.search(r'<script\s+src', cuerpo):

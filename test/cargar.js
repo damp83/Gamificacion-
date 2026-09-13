@@ -16,7 +16,7 @@ const vm = require('node:vm');
 const RAIZ = path.join(__dirname, '..');
 /* El mismo orden que index.html y que tools/build-standalone.py */
 const ORDEN = ['demo', 'content', 'generador', 'config', 'cloud', 'state', 'game', 'classview',
-               'ui', 'play', 'aula', 'teacher', 'app'];
+               'ui', 'play', 'aula', 'teacher', 'trailer', 'app'];
 
 function almacenDeMentira() {
   const datos = new Map();
@@ -99,7 +99,10 @@ function documentoDeMentira() {
     querySelector: () => nodo,
     querySelectorAll: () => [],
     createElement: () => nodoDeMentira(),
-    addEventListener() {},
+    addEventListener() {}, removeEventListener() {},
+    /* Quién tiene el foco. El tráiler lo guarda al abrirse para devolverlo al
+       cerrar, y sin esto la lectura daba undefined. */
+    activeElement: nodo,
     body: nodo,
     documentElement: nodo,
     /* De dónde cuelgan las rutas relativas. Hace falta desde que el fondo del

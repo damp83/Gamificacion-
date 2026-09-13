@@ -1,5 +1,5 @@
 /* Expedición Atlas — service worker: caché de la app shell para uso sin conexión */
-const CACHE = 'atlas-shell-v108';
+const CACHE = 'atlas-shell-v109';
 const ASSETS = [
   './',
   './index.html',
@@ -17,6 +17,7 @@ const ASSETS = [
   './js/play.js',
   './js/aula.js',
   './js/teacher.js',
+  './js/trailer.js',
   './js/app.js',
   './icons/icon.svg',
   /* Los retratos de los roles: el niño los ve en su pantalla de Cuadrilla y

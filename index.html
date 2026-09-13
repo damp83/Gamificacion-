@@ -146,6 +146,18 @@
     <path d="M5.2 20.2h13.6"/>
   </symbol>
 
+  <!-- Los dos del tráiler de la portada. Mismo trazo que el resto: un solo
+       contorno, sin relleno, y el triángulo con la punta redondeada para que
+       no pinche al lado del cuadrado de la pausa. -->
+  <symbol id="i-play" viewBox="0 0 24 24">
+    <path d="M8.4 5.6 18.6 12 8.4 18.4z"/>
+  </symbol>
+
+  <symbol id="i-pause" viewBox="0 0 24 24">
+    <path d="M9 5.4v13.2"/>
+    <path d="M15 5.4v13.2"/>
+  </symbol>
+
   <symbol id="i-flag" viewBox="0 0 24 24">
     <path d="M6.2 20.4V4"/>
     <path d="M6.2 5.2h11.5l-2.4 3.6 2.4 3.6H6.2"/>
@@ -344,6 +356,29 @@
       <p id="home-doors-note" class="home-note hidden">Esta clase funciona <strong>dirigida por el
       docente</strong>: se pregunta desde su equipo y el alumnado responde en voz alta, sin entrar
       a la app. Se puede cambiar en <em>Configuración → Alumnado</em>.</p>
+
+      <!-- ── El cartel del tráiler ──
+           Va DEBAJO de las puertas a propósito. Quien ya tiene diario entra y
+           punto; esto es para el que abre la portada sin saber qué es y le
+           apetece que se lo cuenten antes de leerlo. Es el mismo relato que el
+           bloque de abajo, en cuarenta segundos y con los dibujos. -->
+      <button type="button" id="home-trailer" class="home-trailer">
+        <!-- La lámina la rellena trailer.js con el primer fotograma del
+             guion. No va escrita aquí porque la versión de un solo archivo
+             solo sabe incrustar los dibujos que se nombran desde el código:
+             una ruta suelta en el HTML sale rota en ese archivo. -->
+        <span class="home-trailer-lam" id="home-trailer-lam" aria-hidden="true">
+          <span class="home-trailer-play">
+            <svg class="ico ico-lg" viewBox="0 0 24 24" aria-hidden="true"><use href="#i-play"/></svg>
+          </span>
+        </span>
+        <span class="home-trailer-texto">
+          <strong>¿Te cuento de qué va?</strong>
+          <small>Cuarenta segundos: los diarios perdidos, los dos yacimientos, quién te
+          acompaña y quién te lo quiere quitar.</small>
+        </span>
+        <span class="home-trailer-ir">Ver el tráiler →</span>
+      </button>
 
       <!-- ── La historia, contada para el alumnado ── -->
       <section class="home-block">
@@ -1067,6 +1102,36 @@
 
   <!-- Diálogo propio: los del navegador (prompt/confirm) están bloqueados
        dentro de un iframe restringido, y además se manejan peor en tablet. -->
+  <!-- ══════════ EL TRÁILER ══════════
+       Ocupa la ventana entera porque es lo que lo hace parecer un vídeo y no
+       un cartel más de la portada. Nace escondido y no arranca nunca solo.
+       `aria-modal` y el atrapa-foco de trailer.js van juntos: por debajo hay
+       una portada llena de botones que ahora mismo no se ven. -->
+  <div id="trailer" class="trailer hidden" role="dialog" aria-modal="true"
+       aria-label="Tráiler de Expedición Atlas">
+    <div class="tr-marco">
+      <!-- Un tramo por escena, como las historias de las apps que ya usan -->
+      <div id="tr-barra" class="tr-barra" aria-hidden="true"></div>
+
+      <div class="tr-cabecera">
+        <span id="tr-cuenta" class="tr-cuenta"></span>
+        <button type="button" id="tr-pausa" class="btn btn-small tr-boton" aria-pressed="false"></button>
+        <button type="button" id="tr-cerrar" class="btn btn-small tr-boton tr-cerrar">
+          <svg class="ico" viewBox="0 0 24 24" aria-hidden="true"><use href="#i-cross"/></svg>
+          Saltar</button>
+      </div>
+
+      <!-- Aquí se pinta cada escena. Es una zona viva: se avisa de que cambia
+           sola para que un lector de pantalla lea la escena nueva. -->
+      <div id="tr-lienzo" class="tr-lienzo" aria-live="polite"></div>
+
+      <div class="tr-mandos">
+        <button type="button" id="tr-antes" class="btn btn-small tr-boton">← Atrás</button>
+        <button type="button" id="tr-luego" class="btn btn-small tr-boton">Siguiente →</button>
+      </div>
+    </div>
+  </div>
+
   <div id="modal" class="modal hidden" role="dialog" aria-modal="true" aria-labelledby="modal-text">
     <div class="modal-card">
       <p id="modal-text" class="modal-text"></p>
@@ -1130,6 +1195,7 @@
   <script src="js/play.js"></script>
   <script src="js/aula.js"></script>
   <script src="js/teacher.js"></script>
+  <script src="js/trailer.js"></script>
   <script src="js/app.js"></script>
 </body>
 </html>
