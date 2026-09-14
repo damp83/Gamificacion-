@@ -870,7 +870,48 @@ function aulaFeedback(res, restaurando, coins) {
   }
   $('#aula-continuar').textContent = mission.index + 1 >= mission.questions.length
     ? 'Terminar el turno →' : 'Siguiente reto →';
+  pintarComoLoHaHecho();
   renderAulaMeritos();
+}
+
+/* ── «¿Cómo lo ha hecho?» ──
+   El pensamiento oral de OAOA: ante 5+4 valen tres caminos y el objetivo es
+   que el niño construya un repertorio. Un test solo ve el resultado; el
+   docente que dirige la clase acaba de oír el camino.
+
+   Tres decisiones, y las tres son para que esto no estorbe en un aula:
+     · es opcional —no marcar nada es lo normal y no pasa nada—;
+     · es un toque, sin diálogo ni confirmación;
+     · y no sale si no hay nada que ofrecer para ese concepto y ese curso,
+       que es el caso de toda Lengua. */
+function pintarComoLoHaHecho() {
+  const caja = $('#aula-como');
+  const chips = $('#aula-como-chips');
+  if (!caja || !chips) return;
+  const q = mission && mission.current;
+  /* El curso del niño que tiene el turno; si no, el del diario abierto. Las
+     estrategias que se ofrecen dependen de él: el Árbol en 2.º sería ofrecer
+     algo que aún no ha tocado con las manos. */
+  const curso = (aulaAlumno && aulaAlumno.grade) || (S && S.profile && S.profile.grade) || currentGrade();
+  const lista = q ? estrategiasParaConcepto(q.skill, curso) : [];
+  if (!lista.length) { caja.classList.add('hidden'); chips.innerHTML = ''; return; }
+
+  caja.classList.remove('hidden');
+  chips.innerHTML = lista.map((e, i) =>
+    `<button class="aula-como-chip" data-estr="${i}" title="${esc(e.dice)}">${esc(e.nombre)}</button>`
+  ).join('') + `<button class="aula-como-chip aula-como-otra" data-estr="otra">Otra forma suya</button>`;
+
+  chips.querySelectorAll('[data-estr]').forEach(b => b.addEventListener('click', () => {
+    if (b.classList.contains('marcado')) return;
+    const cual = b.dataset.estr;
+    const nombre = cual === 'otra' ? 'Otra forma suya' : lista[Number(cual)].nombre;
+    recordEstrategia(nombre, q.skill);
+    b.classList.add('marcado');
+    /* Solo una por reto: el niño ha contado UN camino. Las demás se apagan en
+       vez de desaparecer, para que se vea qué había. */
+    chips.querySelectorAll('[data-estr]').forEach(o => { if (o !== b) o.disabled = true; });
+    toast(`Anotado: ${nombre}`, 1800);
+  }));
 }
 
 function aulaContinuar() {
@@ -1770,7 +1811,7 @@ el propio error da premio dentro del juego.
 ${tri ? `<br><br><strong>Qué periodo cubre cada parte.</strong> «Constancia» y «Pruebas» son de
 este trimestre. «Lo que ya le sale», «en lo que está trabajando» y «por dónde va la expedición»
 cuentan desde que empezó a excavar, porque el aprendizaje no se reinicia en enero.` : ''}</p>
-${bloqueOficial(saberes, criterios, evidencia, triOficial, tri)}
+${bloqueOficial(saberes, criterios, evidencia, triOficial, tri, s)}
 </article>`;
 }
 
@@ -1790,16 +1831,17 @@ ${bloqueOficial(saberes, criterios, evidencia, triOficial, tri)}
 
    Lo que no cambia en ninguna de las dos: aquí no se compara a un niño con
    nadie. */
-function bloqueOficial(saberes, criterios, evidencia, triOficial, triPedido) {
+function bloqueOficial(saberes, criterios, evidencia, triOficial, triPedido, estado) {
   const s1 = bloqueSaberes(saberes, triOficial);
   const s2 = bloqueCriterios(criterios, evidencia, triOficial);
-  if (!s1 && !s2) return '';
+  const s3 = bloqueRepertorio(estado);
+  if (!s1 && !s2 && !s3) return '';
   /* Cuando no se ha podido acotar al trimestre se dice aquí, una vez, y no en
      cada tabla: la familia y la secretaría tienen que saber de qué periodo
      hablan los números que van a archivar. */
   const aviso = (triPedido && !triOficial)
-    ? `<p class="oficial-intro"><strong>Estas dos tablas cuentan todo el curso, no solo el
-       ${esc(triPedido.name)}</strong>: este diario es anterior al desglose por trimestres y no
+    ? `<p class="oficial-intro"><strong>Los saberes y los criterios cuentan todo el curso, no solo
+       el ${esc(triPedido.name)}</strong>: este diario es anterior al desglose por trimestres y no
        puede separarlos. Los diarios nuevos sí lo hacen.</p>` : '';
   return `<div class="oficial">
 <hr class="corte">
@@ -1809,7 +1851,46 @@ contados en el lenguaje de la programación.</p>
 ${aviso}
 ${s1}
 ${s2}
+${s3}
 </div>`;
+}
+
+/* ── El repertorio de estrategias ──
+   Lo único de este informe que no sale de un test: son los caminos que el
+   niño ha contado en voz alta mientras el docente dirigía la clase, anotados
+   de un toque en ese momento.
+
+   Es la evidencia de OAOA.1 —«explicar el procedimiento elegido»— y de lo que
+   la formación llama el objetivo: «construir un repertorio de estrategias».
+   Que use tres caminos es una cosa; que use siempre el mismo, otra, y las dos
+   se leen aquí de un vistazo.
+
+   Sin nada anotado no se pinta la sección, en vez de dejar una tabla vacía
+   que parece un fallo. */
+function bloqueRepertorio(estado) {
+  const rep = typeof repertorioDe === 'function' ? repertorioDe(estado) : [];
+  if (!rep.length) return '';
+  const total = rep.reduce((a, x) => a + x.veces, 0);
+  return `<h2>Cómo resuelve</h2>
+<p class="sub-seccion">Los caminos que ha explicado en voz alta durante las sesiones dirigidas por
+el maestro, desde que empezó y sin separar por trimestres. No sale de los retos que hace solo:
+esto lo ha contado él.</p>
+<table class="tabla-saberes">
+  <thead><tr><th>Estrategia</th><th class="num">Veces</th><th class="num">Días</th><th>Dónde la usa</th></tr></thead>
+  <tbody>${rep.map(x => `<tr>
+    <td>${esc(x.nombre)}</td>
+    <td class="num">${x.veces}</td>
+    <td class="num">${x.dias}</td>
+    <td>${x.conceptos.length
+      ? esc(x.conceptos.map(k => (CONCEPTOS[k] || {}).label || k).join(', '))
+      : '<span class="pocos">—</span>'}</td>
+  </tr>`).join('')}</tbody>
+</table>
+<p class="sub-seccion">${rep.length === 1
+  ? `De momento cuenta siempre el mismo camino (${esc(rep[0].nombre)}). Tener más de uno y saber
+     elegir según los números es justo lo que se busca.`
+  : `Ha explicado <strong>${rep.length} caminos distintos</strong> en ${total} ocasiones. Elegir
+     el que mejor viene a cada número es la meta.`}</p>`;
 }
 
 /* ── Los saberes recorridos ──

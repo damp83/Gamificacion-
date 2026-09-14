@@ -2257,6 +2257,49 @@ function recordConcepto(skill, acierto, stratumId) {
   if (!acierto) e.tri[t].e++;
 }
 
+/* ── El repertorio de estrategias ──
+   Lo que OAOA llama pensamiento oral: ante 5+4 valen «cuento desde el 5»,
+   «5+5 son 10, uno menos» y «4+4 y uno más», y el objetivo declarado de la
+   formación es «construir un repertorio de estrategias». Un test de cuatro
+   opciones no puede verlo —solo ve el resultado—, pero el docente que dirige
+   la clase SÍ: el niño lo acaba de decir en voz alta.
+
+   Por eso esto solo se anota desde «Dirigir la clase». No es un contador de
+   aciertos: es la lista de caminos que ese niño ha demostrado tener. Que use
+   uno solo y siempre el mismo es información; que use tres, también.
+
+   Se guarda por nombre de estrategia y no por concepto a propósito: el
+   repertorio es de la persona, no de la operación. Quien sabe buscar el 10 lo
+   sabe en la suma y en la resta. */
+function recordEstrategia(nombre, skill) {
+  const n = String(nombre || '').trim();
+  if (!n || !S) return null;
+  if (!S.metrics.estrategias) S.metrics.estrategias = {};
+  const m = S.metrics.estrategias;
+  if (!m[n]) m[n] = { veces: 0, dias: 0, ultimo: '', conceptos: {} };
+  const e = m[n];
+  e.veces++;
+  const hoy = todayStr();
+  if (e.ultimo !== hoy) { e.dias = (Number(e.dias) || 0) + 1; e.ultimo = hoy; }
+  /* Dónde la usó: sirve para ver si la aplica en un sitio o en varios, que es
+     la diferencia entre saberla y haberla memorizado para un tipo de reto. */
+  if (skill) e.conceptos[skill] = (Number(e.conceptos[skill]) || 0) + 1;
+  saveState();
+  return e;
+}
+
+/* El repertorio, ordenado por lo usada que está cada una. */
+function repertorioDe(estado) {
+  const m = ((estado || S || {}).metrics || {}).estrategias || {};
+  return Object.keys(m).map(nombre => ({
+    nombre,
+    veces: Number(m[nombre].veces) || 0,
+    dias: Number(m[nombre].dias) || 0,
+    ultimo: m[nombre].ultimo || '',
+    conceptos: Object.keys(m[nombre].conceptos || {})
+  })).sort((a, b) => b.veces - a.veces || a.nombre.localeCompare(b.nombre));
+}
+
 /* ── Cuándo un concepto se declara flojo ──
    Dos condiciones, y las dos hacen falta:
 

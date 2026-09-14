@@ -3956,3 +3956,34 @@ body.con-trailer { overflow: hidden; }
   .tr-fila-rangos .tr-pieza { transform: none; }
   .home-trailer:hover { transform: none; }
 }
+
+/* ── «¿Cómo lo ha hecho?» en Dirigir la clase ──
+   El pensamiento oral de OAOA: el niño acaba de contar su camino y el docente
+   lo anota de un toque. Va discreto a propósito —filete punteado, sin fondo
+   fuerte— porque es opcional y no debe competir con «Siguiente reto». */
+.aula-como {
+  margin: var(--s-4) 0 var(--s-3);
+  padding-top: var(--s-3);
+  border-top: 1px dashed rgba(122, 74, 33, .3);
+}
+.aula-como-tit {
+  font-size: var(--t-sm); font-weight: 700; color: var(--ink-soft);
+  margin: 0 0 var(--s-2);
+}
+.aula-como-opt { font-weight: 400; color: var(--ink-faint); }
+.aula-como-chips { display: flex; flex-wrap: wrap; gap: .4rem; justify-content: center; }
+.aula-como-chip {
+  font-family: inherit; font-size: var(--t-sm); color: var(--leather-dark);
+  background: var(--surface); border: var(--line-strong);
+  border-radius: var(--r-pill); padding: .4rem .9rem;
+  min-height: var(--tap); cursor: pointer;
+  transition: background-color .12s ease, border-color .12s ease;
+}
+.aula-como-chip:hover:not(:disabled) { background: var(--brass-tint); border-color: var(--brass); }
+.aula-como-chip.marcado {
+  background: var(--jungle); border-color: var(--jungle); color: #fff; font-weight: 700;
+}
+/* Las demás se apagan en vez de desaparecer: así se sigue viendo qué había
+   para elegir, que es la mitad del valor de la lista para el docente. */
+.aula-como-chip:disabled { opacity: .4; cursor: default; }
+.aula-como-otra { font-style: italic; }

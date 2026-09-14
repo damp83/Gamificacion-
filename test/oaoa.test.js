@@ -369,3 +369,133 @@ test('el panel los ofrece, avisando de lo que son', () => {
   /* Y no se duplican si se pulsa dos veces. */
   assert.match(trozo, /ya\.has|filter\(c => !ya/, 'pulsarlo dos veces duplicaría la lista');
 });
+
+/* ── «¿Cómo lo ha hecho?», el repertorio de estrategias ──
+
+   OAOA.1 —explicar el procedimiento elegido— no se puede medir con un test de
+   cuatro opciones: solo ve el resultado. Pero el docente que dirige la clase
+   acaba de oír el camino, así que se anota de un toque ahí, y solo ahí. Lo que
+   se comprueba aquí es que lo que se ofrece es lo que ese niño ya ha tocado
+   con las manos, que en Lengua no se ofrece nada, y que lo anotado llega al
+   informe. */
+
+test('a cada concepto se le ofrecen las estrategias de SU operación', () => {
+  const c = cargarApp();
+  const para = (skill, curso) => c.ev('estrategiasParaConcepto')(skill, curso)
+    .map(e => e.nombre);
+
+  /* Una suma ofrece caminos de suma, no de división. */
+  const suma = para('suma_llevada', 4);
+  assert.ok(suma.includes('Buscar el 10'), 'falta el camino de siempre de la suma');
+  assert.ok(!suma.includes('Cocientes parciales'), 'le ofrece un camino de división');
+
+  /* Y un problema ofrece los de problemas, que no son una operación. */
+  assert.ok(para('problema_suma', 4).includes('Partes y todo'));
+});
+
+test('no se le ofrece a un niño un camino que su curso aún no ha tocado', () => {
+  /* La fase manipulativa es obligatoria en OAOA: «saltarse la fase 1 está
+     prohibido». Ofrecer el Árbol en 2.º es ofrecer un símbolo sin la mano
+     detrás. */
+  const c = cargarApp();
+  const n = (skill, curso) => c.ev('estrategiasParaConcepto')(skill, curso).map(e => e.nombre);
+
+  assert.ok(!n('suma_llevada', 2).includes('El Árbol'), 'el Árbol no es de 2.º');
+  assert.ok(n('suma_llevada', 4).includes('El Árbol'), 'en 4.º sí');
+  /* Lo de 1.º está disponible desde el primer día, que es el punto. */
+  assert.ok(n('suma_llevada', 1).includes('Buscar el 10'));
+  /* Y nunca se queda a cero por un curso raro: sin curso se asume el de enmedio. */
+  assert.ok(c.ev('estrategiasParaConcepto')('suma_llevada', null).length > 0);
+});
+
+test('en Lengua no se ofrece nada, en vez de ofrecer matemáticas', () => {
+  const c = cargarApp();
+  const conceptos = c.ev('JSON.parse(JSON.stringify(CONCEPTOS))');
+  const lengua = Object.keys(conceptos).filter(k => !conceptos[k].oaoa);
+  assert.ok(lengua.length, 'algo va mal: todos los conceptos declaran operación');
+  lengua.forEach(k => {
+    assert.strictEqual(c.ev('estrategiasParaConcepto')(k, 4).length, 0,
+      `${k} no es de matemáticas y se le ofrecen estrategias`);
+  });
+});
+
+test('marcar un camino lo apunta, y marcarlo otra vez no inventa otro día', () => {
+  const c = cargarApp();
+  c.ev('S = defaultState("Vega")');
+  c.ev('recordEstrategia')('Buscar el 10', 'suma_llevada');
+  c.ev('recordEstrategia')('Buscar el 10', 'resta_llevada');
+  c.ev('recordEstrategia')('El Árbol', 'suma_llevada');
+
+  const rep = c.ev('JSON.parse(JSON.stringify(repertorioDe(S)))');
+  assert.strictEqual(rep.length, 2);
+  /* Ordenado por uso: el más contado primero. */
+  assert.strictEqual(rep[0].nombre, 'Buscar el 10');
+  assert.strictEqual(rep[0].veces, 2);
+  /* Dos veces el mismo día es un día, no dos: la constancia no se infla. */
+  assert.strictEqual(rep[0].dias, 1);
+  /* El repertorio es de la persona, pero se ve dónde lo usa. */
+  assert.strictEqual(rep[0].conceptos.length, 2);
+  assert.strictEqual(rep[1].veces, 1);
+});
+
+test('un nombre vacío no ensucia el repertorio', () => {
+  const c = cargarApp();
+  c.ev('S = defaultState("Vega")');
+  c.ev('recordEstrategia')('', 'suma_llevada');
+  c.ev('recordEstrategia')('   ', 'suma_llevada');
+  assert.strictEqual(c.ev('repertorioDe(S)').length, 0);
+});
+
+test('el informe cuenta cómo resuelve, y del alumno de la hoja, no del que mire', () => {
+  const c = cargarApp();
+  const texto = h => String(h).replace(/<[^>]+>/g, ' ').replace(/\s+/g, ' ');
+
+  /* El diario abierto en el dispositivo es el del maestro mirando; el informe
+     es de Vega. Si se colara el global, el maestro imprimiría su repertorio en
+     la hoja de la niña. */
+  c.ev('S = defaultState("Maestro")');
+  c.ev('recordEstrategia')('Doble y mitad', 'tabla_multiplicar');
+
+  const vega = c.ev('defaultState')('Vega');
+  vega.metrics.questions_answered = 12;
+  vega.metrics.estrategias = { 'Buscar el 10': { veces: 3, dias: 2, ultimo: '2026-03-02',
+                                                 conceptos: { suma_llevada: 3 } } };
+  const t = texto(c.ev('informeFamilia')(vega, {}));
+  assert.match(t, /Cómo resuelve/, 'la sección no sale en el informe');
+  assert.match(t, /Buscar el 10/);
+  assert.ok(!/Doble y mitad/.test(t), 'se ha colado el repertorio de quien imprime');
+});
+
+test('sin nada anotado no se pinta una tabla vacía', () => {
+  const c = cargarApp();
+  c.ev('S = defaultState("Maestro")');
+  const vega = c.ev('defaultState')('Vega');
+  vega.metrics.questions_answered = 12;
+  const t = String(c.ev('informeFamilia')(vega, {}));
+  assert.ok(!/Cómo resuelve/.test(t), 'pinta la sección sin tener nada que contar');
+});
+
+test('el turno dirigido ofrece marcarlo, y es opcional', () => {
+  const a = leer('js/aula.js');
+  const h = leer('index.html');
+  assert.match(h, /id="aula-como"/, 'no está el sitio donde se marca');
+  assert.match(h, /id="aula-como-chips"/);
+  /* Se pinta al dar el feedback, que es cuando el niño acaba de explicarse. */
+  assert.match(a, /pintarComoLoHaHecho\(\)/);
+  /* Un toque, sin diálogo: si esto pidiera confirmación nadie lo usaría con
+     veintidós niños esperando. */
+  const i = a.indexOf('function pintarComoLoHaHecho');
+  const trozo = a.slice(i, i + 1600);
+  assert.ok(!/confirm\(/.test(trozo), 'un diálogo por reto no se usa en un aula');
+  assert.match(trozo, /recordEstrategia\(/);
+  /* Y sin estrategias que ofrecer se esconde, no se queda una fila vacía. */
+  assert.match(trozo, /if \(!lista\.length\)[\s\S]{0,80}hidden/);
+});
+
+test('OAOA.1 dice dónde se anota ahora, en vez de decir que no se mide', () => {
+  const c = cargarApp();
+  const uno = c.ev('JSON.parse(JSON.stringify(CRITERIOS_OAOA))')
+    .find(x => x.codigo === 'OAOA.1');
+  assert.match(uno.nota, /Dirigir la clase/);
+  assert.ok(!/no lo mide/.test(uno.nota), 'la nota se quedó vieja: ya se mide');
+});

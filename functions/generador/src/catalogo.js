@@ -12,68 +12,68 @@ export const STRATA_META = {
 
 export const CONCEPTOS = {
   /* ── Numeración ── */
-  serie_numerica:      { area: 'Numeración', label: 'Anterior y posterior',
+  serie_numerica:      { area: 'Numeración', label: 'Anterior y posterior', oaoa: 'numeracion',
                          casa: 'Al subir portales o escaleras: «vivimos en el 7, ¿quién vive justo antes?».' },
-  valor_posicional:    { area: 'Numeración', label: 'Valor posicional',
+  valor_posicional:    { area: 'Numeración', label: 'Valor posicional', oaoa: 'numeracion',
                          casa: 'Con el número de un recibo o una matrícula: «¿cuántas decenas hay en 340?».' },
-  comparar_numeros:    { area: 'Numeración', label: 'Comparar números',
+  comparar_numeros:    { area: 'Numeración', label: 'Comparar números', oaoa: 'numeracion',
                          casa: 'Dos precios en la mano en el súper: «¿cuál es mayor?», sin hacer la resta.' },
-  redondeo:            { area: 'Numeración', label: 'Redondeo',
+  redondeo:            { area: 'Numeración', label: 'Redondeo', oaoa: 'estimacion',
                          casa: 'Antes de pagar, «¿cuánto es más o menos?». Redondear a euros y comprobar con el ticket.' },
-  ordenar_numeros:     { area: 'Numeración', label: 'Ordenar de menor a mayor',
+  ordenar_numeros:     { area: 'Numeración', label: 'Ordenar de menor a mayor', oaoa: 'numeracion',
                          casa: 'Ordenar los dorsales de un partido, las páginas de un cómic o las tallas de la ropa tendida.' },
-  contar_agrupando:    { area: 'Numeración', label: 'Contar agrupando de diez',
+  contar_agrupando:    { area: 'Numeración', label: 'Contar agrupando de diez', oaoa: 'numeracion',
                          casa: 'Contar cromos, garbanzos o calcetines haciendo montones de diez antes de sumar.' },
-  series:              { area: 'Numeración', label: 'Continuar una serie',
+  series:              { area: 'Numeración', label: 'Continuar una serie', oaoa: 'numeracion',
                          casa: 'Poner la mesa contando de dos en dos; subir los escalones de tres en tres.' },
-  par_impar:           { area: 'Numeración', label: 'Pares e impares',
+  par_impar:           { area: 'Numeración', label: 'Pares e impares', oaoa: 'numeracion',
                          casa: 'Repartir algo entre dos: si sobra uno, es impar. Con la fruta o con las cartas.' },
 
   /* ── Cálculo ── */
-  suma_basica:         { area: 'Cálculo', label: 'Sumar sin completar decenas',
+  suma_basica:         { area: 'Cálculo', label: 'Sumar sin completar decenas', oaoa: 'suma',
                          casa: 'Sumar en voz alta lo que se va echando al carro, sin decimales.' },
   /* El id se queda: lo llevan guardado los diarios de las clases que ya
      existen y cambiarlo borraría el historial de esos niños. Lo que cambia
      es lo que se lee: la etiqueta y, sobre todo, el consejo para casa, que
      mandaba a las familias a decir «me llevo una». */
-  suma_llevada:        { area: 'Cálculo', label: 'Suma completando decenas',
+  suma_llevada:        { area: 'Cálculo', label: 'Suma completando decenas', oaoa: 'suma',
                          casa: 'Sumar dos precios en voz alta buscando el 10: «48 y 24… 40 y 20 son 60, 8 y 4 son 12: 72».' },
-  resta_llevada:       { area: 'Cálculo', label: 'Resta descomponiendo',
+  resta_llevada:       { area: 'Cálculo', label: 'Resta descomponiendo', oaoa: 'resta',
                          casa: 'El cambio de la compra: «he pagado 20 y ha costado 13, ¿cuánto me devuelven?».' },
-  detectar_llevada:    { area: 'Cálculo', label: 'Ver si se completa una decena',
+  detectar_llevada:    { area: 'Cálculo', label: 'Ver si se completa una decena', oaoa: 'suma',
                          casa: 'Antes de hacer la cuenta, preguntar solo «¿las unidades llegan a diez?». Nada más.' },
   /* Estimar es competencia propia en OAOA, no un adorno previo al cálculo:
      «¿sabe estimar antes de operar?» es uno de los criterios de evaluación de
      la formación. En la vida real hace falta la magnitud, no el decimal. */
-  estimacion:          { area: 'Cálculo', label: 'Estimar antes de calcular',
+  estimacion:          { area: 'Cálculo', label: 'Estimar antes de calcular', oaoa: 'estimacion',
                          casa: 'Antes de pagar en la caja: «¿nos vamos a pasar de 20 euros?». Sin calcularlo exacto.' },
-  error_suma:          { area: 'Cálculo', label: 'Encontrar el error en una suma',
+  error_suma:          { area: 'Cálculo', label: 'Encontrar el error en una suma', oaoa: 'suma',
                          casa: 'Hacer una suma mal a propósito y pedirle que encuentre el fallo.' },
-  problema_suma:       { area: 'Cálculo', label: 'Problema de sumar (enunciado)',
+  problema_suma:       { area: 'Cálculo', label: 'Problema de sumar (enunciado)', oaoa: 'problemas',
                          casa: 'Al revés: dar el resultado y que sea él quien invente el problema.' },
 
   /* ── Fracciones ── */
-  fraccion_leer:       { area: 'Fracciones', label: 'Leer una fracción',
+  fraccion_leer:       { area: 'Fracciones', label: 'Leer una fracción', oaoa: 'fdp',
                          casa: 'Al partir la pizza o la tortilla: «esto es un cuarto, dilo tú».' },
-  fraccion_terminos:   { area: 'Fracciones', label: 'Numerador y denominador',
+  fraccion_terminos:   { area: 'Fracciones', label: 'Numerador y denominador', oaoa: 'fdp',
                          casa: 'Con la tableta de chocolate: cuántos trozos hay en total y cuántos te llevas.' },
-  comparar_fracciones: { area: 'Fracciones', label: 'Comparar fracciones',
+  comparar_fracciones: { area: 'Fracciones', label: 'Comparar fracciones', oaoa: 'fdp',
                          casa: 'Dos vasos con distinta cantidad: «¿medio o un tercio?». Que lo vea antes de decirlo.' },
-  fraccion_significado:{ area: 'Fracciones', label: 'Qué representa una fracción',
+  fraccion_significado:{ area: 'Fracciones', label: 'Qué representa una fracción', oaoa: 'fdp',
                          casa: 'Repartir de verdad seis galletas entre cuatro, y que explique cómo lo ha hecho.' },
-  fraccion_de_cantidad:{ area: 'Fracciones', label: 'Fracción de una cantidad',
+  fraccion_de_cantidad:{ area: 'Fracciones', label: 'Fracción de una cantidad', oaoa: 'fdp',
                          casa: '«Bébete la mitad del zumo» o «un tercio», y que lo sirva él.' },
-  error_fraccion:      { area: 'Fracciones', label: 'Encontrar el error en un reparto',
+  error_fraccion:      { area: 'Fracciones', label: 'Encontrar el error en un reparto', oaoa: 'fdp',
                          casa: 'Repartir mal a propósito, con trozos desiguales, y que diga por qué no vale.' },
 
   /* ── Decimales y porcentajes ── */
-  decimal_posicion:    { area: 'Decimales', label: 'Décimas y centésimas',
+  decimal_posicion:    { area: 'Decimales', label: 'Décimas y centésimas', oaoa: 'fdp',
                          casa: 'Los precios del súper: «1,25 es un euro y…». Con monedas se toca mejor que se explica.' },
-  decimal_fraccion:    { area: 'Decimales', label: 'Decimal y fracción equivalentes',
+  decimal_fraccion:    { area: 'Decimales', label: 'Decimal y fracción equivalentes', oaoa: 'fdp',
                          casa: 'Medio euro es 0,50. Con monedas de 50 y de 20 céntimos se ve solo.' },
-  porcentaje:          { area: 'Decimales', label: 'Porcentaje de una cantidad',
+  porcentaje:          { area: 'Decimales', label: 'Porcentaje de una cantidad', oaoa: 'fdp',
                          casa: 'Los carteles de rebajas: «un 20 % de 30 euros, ¿cuánto se quita?».' },
-  comparar_decimales:  { area: 'Decimales', label: 'Comparar decimales',
+  comparar_decimales:  { area: 'Decimales', label: 'Comparar decimales', oaoa: 'fdp',
                          casa: 'Dos precios parecidos, 1,9 y 1,15: cuál es más caro y por qué engaña.' },
 
   /* ── Vocabulario ── */
