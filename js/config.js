@@ -11,7 +11,7 @@
    copia guardada. Sin este número, «ya está arreglado» y «a mí no me pasa» son
    indistinguibles. Va junto al nombre de la caché del service worker, y una
    prueba comprueba que no se separen. */
-const ATLAS_VERSION = 'v125';
+const ATLAS_VERSION = 'v126';
 
 const ATLAS_DEFAULTS = {
 
@@ -360,11 +360,63 @@ let ATLAS_CONFIG = deepClone(ATLAS_DEFAULTS);
 function applyOverlay(overlay) {
   ATLAS_OVERLAY = overlay && typeof overlay === 'object' ? overlay : {};
   ATLAS_CONFIG = deepMerge(ATLAS_DEFAULTS, ATLAS_OVERLAY);
+  devolverEmblemas(ATLAS_CONFIG);
   /* Recalcular la config borra los retos que se hubieran inyectado en los
      pozos, porque no están en el overlay. Se vuelven a poner aquí: es el
      único sitio por el que pasa todo recálculo. */
   aplicarRetosDeLaNube();
   return ATLAS_CONFIG;
+}
+
+/* ── Por qué los emblemas no llegaban a quien ya tenía cuadrillas ──
+
+   La regla de la fusión es que un array se sustituye entero: la lista que ha
+   editado el docente es la lista definitiva, no una mezcla con la de fábrica.
+   Es la regla correcta —si borra una cuadrilla, tiene que quedarse borrada— y
+   aquí se volvió en contra.
+
+   Los dibujos de las cinco cuadrillas llegaron después. Un docente que ya
+   había tocado las suyas —renombrar una, meter a un niño, rotar los roles:
+   cualquier cosa guarda la lista entera— tenía congelada en sus ajustes una
+   copia SIN el campo del dibujo, y su clase siguió viendo el emoji para
+   siempre. Los archivos estaban, las rutas estaban, y no aparecían.
+
+   Así que el dibujo de fábrica se devuelve aquí, a la lista ya fusionada y
+   solo donde falta. No se toca nada que el docente haya elegido: si una
+   cuadrilla lleva su propio dibujo, se queda con el suyo.
+
+   Se hace en la config calculada y no en los ajustes guardados a propósito:
+   así se arregla igual la que viene de la nube, la de una copia de seguridad
+   y la que se comparte con las tablets, sin escribir nada en el disco de
+   nadie. */
+function devolverEmblemas(config) {
+  const lista = ((config || {}).teams || {}).list;
+  if (!Array.isArray(lista)) return config;
+  const fabrica = ((ATLAS_DEFAULTS.teams || {}).list) || [];
+  /* Lo que ya está pedido, para no repartir el mismo dibujo dos veces. */
+  const pillados = new Set(lista.map(t => t && t.img).filter(Boolean));
+
+  lista.forEach(t => {
+    if (!t || t.img) return;
+    const porId = fabrica.find(f => f.id === t.id);
+    if (porId && porId.img) { t.img = porId.img; pillados.add(t.img); }
+  });
+
+  /* Y una segunda pasada por el emoji, para las cuadrillas que el docente
+     creó él. Una que se llama «Nueva cuadrilla» y a la que le ha puesto el
+     tigre quiere el tigre; el id no lo puede saber porque lo inventó el
+     panel. Solo si ese emoji es de una sola cuadrilla de fábrica y ese
+     dibujo no se lo ha llevado ya otra: repetido delante de la clase, dos
+     cuadrillas distintas parecerían la misma. */
+  lista.forEach(t => {
+    if (!t || t.img || !t.icon) return;
+    const iguales = fabrica.filter(f => f.icon === t.icon && f.img);
+    if (iguales.length !== 1) return;
+    if (pillados.has(iguales[0].img)) return;
+    t.img = iguales[0].img;
+    pillados.add(t.img);
+  });
+  return config;
 }
 /* Ajustes guardados por versiones anteriores: branchOverrides era un mapa
    suelto de {pozoId: {name, desc, enabled}}; ahora todo vive dentro de sites. */
