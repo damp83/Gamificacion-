@@ -3961,6 +3961,16 @@ body.con-trailer { overflow: hidden; }
    El pensamiento oral de OAOA: el niño acaba de contar su camino y el docente
    lo anota de un toque. Va discreto a propósito —filete punteado, sin fondo
    fuerte— porque es opcional y no debe competir con «Siguiente reto». */
+/* ── Mientras suena ──
+   Con veintidós niños delante, el maestro mira la tablet de reojo: el
+   pictograma latiendo dice «esto está sonando» sin tener que leer la
+   palabra. Es un adorno con función, y por eso se apaga entero para quien
+   haya pedido menos movimiento: la información ya está en el texto. */
+.aula-voz-sonando .ico { animation: voz-late 1.1s ease-in-out infinite; transform-origin: center; }
+@keyframes voz-late { 0%, 100% { opacity: 1; transform: scale(1); }
+                      50% { opacity: .55; transform: scale(.86); } }
+@media (prefers-reduced-motion: reduce) { .aula-voz-sonando .ico { animation: none; } }
+
 .aula-como {
   margin: var(--s-4) 0 var(--s-3);
   padding-top: var(--s-3);

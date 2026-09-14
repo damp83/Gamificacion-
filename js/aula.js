@@ -818,10 +818,68 @@ function renderAulaPregunta() {
     cont.appendChild(btn);
   });
   $('#aula-pista').disabled = false;
+  /* Cada reto empieza en silencio: si el anterior seguía sonando, se corta.
+     Si no, el aula oiría las opciones de una pregunta que ya no está. */
+  aulaVozReposo();
   renderAulaMeritos();
 }
 
+/* ══════════ ESCUCHAR EL RETO EN LA MESA DEL DOCENTE ══════════
+
+   El botón de escuchar existía solo en la pantalla del niño, y ahí está bien:
+   es una adaptación suya, y por eso se le ofrece a quien la tiene activada.
+
+   Pero «Dirigir la clase» es otra cosa. Ahí el reto no lo lee un niño en su
+   tablet: lo lee el maestro en alto para el grupo, con la tablet en la mano y
+   veintidós críos delante. Poder darle a un botón y que lo lea el dispositivo
+   sirve para dos cosas a la vez: le deja las manos y la voz libres para mirar
+   a quien responde, y le da al grupo el enunciado dos veces —una leída y otra
+   oída— que es justo lo que pide quien todavía descifra.
+
+   Por eso aquí NO se mira `vozActiva()`. Esa función responde a «¿este niño
+   necesita que le lean?», y la respuesta no manda sobre lo que hace el
+   maestro con su propio dispositivo delante de toda la clase. Si el navegador
+   tiene voces, el botón está; si no, no aparece.
+
+   Y lee lo que hay en pantalla, en el orden en que se lee: el enunciado, las
+   cuatro opciones nombradas por su letra —«la C» es como se responde en voz
+   alta— y, si Kira ya ha dado su pista, también la pista. Repetir el
+   enunciado después de la pista sería empezar otra vez desde el principio. */
+function aulaVozReposo() {
+  vozParar();
+  const b = $('#aula-voz');
+  if (!b) return;
+  b.classList.toggle('hidden', !VOZ.disponible);
+  b.classList.remove('aula-voz-sonando');
+  const txt = $('#aula-voz-txt');
+  if (txt) txt.textContent = 'Escuchar';
+}
+
+function aulaLeerReto() {
+  if (!mission || !mission.current) return;
+  const txt = $('#aula-voz-txt');
+  /* Segundo toque: se calla. En mitad de una clase hace falta poder cortarlo
+     sin esperar a que termine de decir las cuatro opciones. */
+  if (VOZ.leyendo) { aulaVozReposo(); return; }
+  const q = mission.current;
+  const trozos = [q.question]
+    .concat(q.options.map((o, i) => `Opción ${'ABCD'[i]}. ${o}`));
+  const kira = $('#aula-kira');
+  if (kira && !kira.classList.contains('hidden')) {
+    const p = kira.querySelector ? kira.querySelector('.dialog-text p') : null;
+    if (p && p.textContent) trozos.push(`Pista de Kira. ${p.textContent}`);
+  }
+  const b = $('#aula-voz');
+  if (vozLeer(trozos, () => aulaVozReposo())) {
+    if (txt) txt.textContent = 'Parar';
+    if (b) b.classList.add('aula-voz-sonando');
+  }
+}
+
 function aulaResponder(index, btn) {
+  /* Ya ha contestado: seguir leyendo las opciones que quedan no informa a
+     nadie y tapa lo que el maestro va a decir ahora. */
+  aulaVozReposo();
   $$('#aula-opciones .option').forEach(o => o.disabled = true);
   const restaurando = mission.restoring;
   const res = answerQuestion(index);
@@ -936,6 +994,7 @@ function aulaTerminar() {
 }
 
 function volverATurnos() {
+  vozParar();                 /* el reto ya no está en pantalla */
   aulaAlumno = null;
   closeDiary();               /* se vuelve al diario propio del dispositivo */
   renderAula();
@@ -1123,6 +1182,7 @@ function wireAula() {
     if (a) empezarTurno(a);
   });
   $('#aula-terminar').addEventListener('click', aulaTerminar);
+  $('#aula-voz').addEventListener('click', aulaLeerReto);
   $('#aula-continuar').addEventListener('click', aulaContinuar);
   $('#aula-saltar').addEventListener('click', () => {
     /* Saltar no cuenta ni a favor ni en contra: la pregunta se cambia por otra */

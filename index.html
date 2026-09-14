@@ -787,11 +787,18 @@
           </div>
 
           <div class="question-card" id="aula-pregunta-card">
-            <p class="aula-instruccion">Lee la pregunta en voz alta y marca lo que responda.</p>
+            <p class="aula-instruccion">Lee la pregunta en voz alta —o dale a «Escuchar»— y marca lo que responda.</p>
             <p class="question-text" id="aula-pregunta"></p>
             <div class="options" id="aula-opciones"></div>
             <div class="mission-tools">
               <button class="btn btn-hint btn-small" id="aula-pista"><svg class="ico" viewBox="0 0 24 24" aria-hidden="true"><use href="#i-beetle"/></svg> Dar la pista de Kira</button>
+              <!-- Que lo lea el dispositivo. Nace oculto: si el navegador no
+                   tiene voces, el botón no aparece en vez de aparecer y no
+                   hacer nada. -->
+              <button class="btn btn-secondary btn-small hidden" type="button" id="aula-voz"
+                      title="Lee en voz alta lo que hay en pantalla">
+                <svg class="ico" viewBox="0 0 24 24" aria-hidden="true"><use href="#i-mic"/></svg>
+                <span id="aula-voz-txt">Escuchar</span></button>
               <button class="btn btn-quit btn-small" id="aula-saltar">Saltar esta</button>
             </div>
             <div id="aula-kira" class="dialog kira hidden"></div>

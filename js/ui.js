@@ -459,7 +459,7 @@ function avatarDelExplorador(quien) {
    Usa la voz del propio navegador (Web Speech API), así que no manda nada a
    ningún servidor ni necesita conexión. Donde no exista, el botón no aparece
    en vez de aparecer y no hacer nada. */
-const VOZ = { disponible: false, voz: null, leyendo: false };
+const VOZ = { disponible: false, voz: null, leyendo: false, alAcabar: null };
 
 function vozSoportada() {
   return typeof speechSynthesis !== 'undefined' && typeof SpeechSynthesisUtterance !== 'undefined';
@@ -498,18 +498,23 @@ function textoParaVoz(t) {
 function vozParar() {
   if (!VOZ.disponible) return;
   try { speechSynthesis.cancel(); } catch (e) { /* algunos navegadores se quejan */ }
-  VOZ.leyendo = false;
+  vozAcabada();
 }
 
 /* Lee una lista de trozos con una pausa entre ellos: el enunciado primero y
-   luego las opciones, que es el orden en que hay que oírlas. */
-function vozLeer(trozos) {
+   luego las opciones, que es el orden en que hay que oírlas.
+
+   `alAcabar` es para quien pinte un botón que diga «Parar» mientras suena:
+   sin esto, el botón se queda en «Parar» para siempre cuando la voz termina
+   sola y el siguiente toque no hace nada visible. */
+function vozLeer(trozos, alAcabar) {
   if (!VOZ.disponible) return false;
   vozParar();
   const lista = (Array.isArray(trozos) ? trozos : [trozos])
     .map(textoParaVoz).filter(Boolean);
   if (!lista.length) return false;
   VOZ.leyendo = true;
+  VOZ.alAcabar = typeof alAcabar === 'function' ? alAcabar : null;
   lista.forEach((t, i) => {
     const u = new SpeechSynthesisUtterance(t);
     u.lang = 'es-ES';
@@ -517,10 +522,19 @@ function vozLeer(trozos) {
     /* Más despacio de lo normal: es para quien aún no lee con soltura. */
     u.rate = 0.85;
     u.pitch = 1;
-    if (i === lista.length - 1) u.onend = () => { VOZ.leyendo = false; };
-    try { speechSynthesis.speak(u); } catch (e) { VOZ.leyendo = false; }
+    if (i === lista.length - 1) u.onend = () => vozAcabada();
+    try { speechSynthesis.speak(u); } catch (e) { vozAcabada(); }
   });
   return true;
+}
+
+/* Un solo sitio donde se apaga la bandera y se avisa, lo termine la voz sola
+   o lo corte alguien. El aviso se consume: no se llama dos veces. */
+function vozAcabada() {
+  VOZ.leyendo = false;
+  const f = VOZ.alAcabar;
+  VOZ.alAcabar = null;
+  if (f) { try { f(); } catch (e) { /* el botón ya no está en pantalla */ } }
 }
 
 /* ¿Se le ofrece a este alumno? De fábrica, sí en 1.º y 2.º —donde la lectura
