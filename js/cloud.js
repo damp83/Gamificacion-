@@ -41,6 +41,28 @@ function cloudInit() {
    NO hay clave ni la puede haber: este código se sirve a la tablet de cada niño.
 
    Lo que vuelve no entra en el banco: va a la cola de revisión del docente. */
+/* ── Qué versión está corriendo la función ──
+   La app web se actualiza sola al publicar; la función de Appwrite NO: hay que
+   redesplegarla. Cuando las dos se separan, el docente ve en pantalla arreglos
+   que no se están ejecutando, y nada lo dice. Se pierden tardes así.
+
+   No gasta ni un céntimo: no lleva clave ni llama al modelo. Si la función es
+   vieja no conocerá el paso `ping` y hará lo de siempre —pedir la clave, o
+   intentar generar—, así que cualquier respuesta que no traiga `version` se
+   toma por «anterior a esto», que es justo lo que se quiere saber. */
+async function cloudVersionGenerador() {
+  const id = ((ATLAS_CONFIG.appwrite || {}).generadorFunctionId || '').trim();
+  if (!CLOUD.enabled || !CLOUD.functions || !CLOUD.user || !id) {
+    return { ok: false, reason: 'sin-nube' };
+  }
+  /* Por el envoltorio de reintentos como todo lo demás: un wifi que parpadea
+     no puede acabar diciéndole al docente que su función está vieja. */
+  const r = await ejecutarConReintento(id, { paso: 'ping' });
+  if (!r.ok) return r;
+  return { ok: true, version: r.version || '', modelo: r.modelo || '',
+           alDia: r.version === ATLAS_VERSION };
+}
+
 /* El orden en que se piden los niveles de una tanda: siempre el que menos
    retos tiene, y a igualdad el más bajo —un pozo sin retos fáciles deja fuera
    al alumno que va justo, que es el que menos lo aguanta—.
@@ -2330,6 +2352,25 @@ async function cloudDiagnostico() {
   anotar('Versión de la app', { ok: true, texto:
     `${ATLAS_VERSION}. Si aquí sale una versión vieja, el navegador está sirviendo una copia `
     + 'guardada: recarga forzando (Ctrl+May+R, o mantén pulsado el botón de recargar).' });
+
+  /* ── Y la versión de la FUNCIÓN, que es otra cosa ──
+     La app se actualiza sola al publicar; la función de Appwrite hay que
+     redesplegarla. Separadas, el docente ve en pantalla arreglos que no se
+     están ejecutando y nada se lo dice: se pierden tardes arreglando código
+     que no corre. No cuesta nada preguntárselo. */
+  if ((c.generadorFunctionId || '').trim()) {
+    const v = await cloudVersionGenerador();
+    /* Si no se ha podido ni preguntar —sin sesión, o un SDK sin Functions— no
+       se apunta nada: eso no es un fallo de configuración, y marcarlo en rojo
+       enseña a ignorar el diagnóstico. */
+    if (v.ok || v.reason !== 'sin-nube') anotar('Versión de la función', v.ok
+      ? (v.alDia
+        ? { ok: true, texto: `${v.version}, la misma que la app.` }
+        : { ok: false, texto: `La función corre ${v.version || 'una versión anterior a este aviso'} y `
+          + `la app ${ATLAS_VERSION}. Los arreglos del generador NO se están ejecutando: redespliega `
+          + 'la función en Appwrite → Functions → generador → Deployments.' })
+      : { ok: false, texto: 'No ha contestado: ' + (v.texto || v.reason || 'sin motivo') });
+  }
 
   /* Con sesión se cuenta, que dice más y cuesta la misma petición: si la
      colección no existiera o no hubiera red, el conteo lo interpreta igual. */

@@ -42,6 +42,12 @@ import {
 
 const MODELO = 'claude-opus-5';
 
+/* La versión de ESTE fichero, que es lo que corre dentro de Appwrite. Tiene
+   que coincidir con la de la app; una prueba lo fija para que no se separen
+   sin que nadie se entere. Lo que las separa de verdad es olvidarse de
+   redesplegar la función, y para eso está el paso `ping`. */
+const GENERADOR_VERSION = 'v139';
+
 /* ── Modo rápido, y solo donde compensa ──
    Appwrite corta toda llamada a los 30 segundos y ese tope no se puede subir.
    Los retos se piden de uno en uno para caber, y un corte suelto ya no rompe
@@ -101,7 +107,20 @@ export default async ({ req, res, log, error }) => {
   try { p = typeof req.body === 'string' ? JSON.parse(req.body || '{}') : (req.body || {}); }
   catch (e) { return res.json({ ok: false, reason: 'peticion', texto: 'La petición no se entiende.' }, 400); }
 
-  const paso = ['verificar', 'yacimiento', 'criterios'].includes(p.paso) ? p.paso : 'generar';
+  const paso = ['ping', 'verificar', 'yacimiento', 'criterios'].includes(p.paso) ? p.paso : 'generar';
+
+  /* ── ¿Qué versión estás ejecutando? ──
+     La app web se actualiza sola al publicar; ESTA función no: vive dentro de
+     Appwrite y hay que redesplegarla a mano (o dejar que su integración con
+     Git lo haga). Cuando las dos versiones se separan, el docente ve arreglos
+     que no están corriendo y nadie lo dice: se pasan tardes arreglando código
+     que no se ejecuta. Pasó, y por eso existe esto.
+
+     No gasta nada: ni clave, ni llamada al modelo. Va lo primero, antes que
+     cualquier comprobación, para que conteste aunque no haya clave puesta. */
+  if (paso === 'ping') {
+    return res.json({ ok: true, version: GENERADOR_VERSION, modelo: MODELO });
+  }
 
   /* ── Segundo encargo: resolverlos otra vez ──
      No necesita currículo ni esfuerzo alto: es resolver ejercicios de

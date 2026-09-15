@@ -610,8 +610,14 @@ test('la comprobación es otra llamada, y en tandas', () => {
   assert.match(cloud, /paso: 'verificar'/);
   assert.match(cloud, /i \+= 4/, 'se parte por si el docente pidió muchos');
   const main = leer('functions/generador/src/main.js');
-  assert.match(main, /const paso = \['verificar', 'yacimiento', 'criterios'\]\.includes\(p\.paso\)/,
+  /* Se comprueba que cada encargo tenga su rama, no la lista literal: fijarla
+     entera obliga a tocar esta prueba cada vez que se añade un paso, y
+     entonces deja de decir nada. */
+  assert.match(main, /const paso = \[[^\]]*\]\.includes\(p\.paso\)/,
     'la función reparte los encargos por «paso»');
+  for (const x of ['verificar', 'yacimiento', 'criterios']) {
+    assert.ok(main.includes(`paso === '${x}'`), `falta la rama de «${x}»`);
+  }
 });
 
 test('la llamada se hace síncrona a propósito', () => {

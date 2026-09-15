@@ -1840,7 +1840,9 @@ function cfgAsistenteYacimiento(body) {
       } : null
     });
     a.cargando = false;
-    if (!r.ok) { a.error = esc(r.texto || 'No se ha podido pedir la propuesta.'); }
+    if (!r.ok) {
+      a.error = esc((r.texto || 'No se ha podido pedir la propuesta.') + await avisoDeFuncionVieja(r));
+    }
     else { a.propuesta = r.yacimiento; a.usados = r.usados; }
     renderTeacherConfig();
   });
@@ -3389,6 +3391,25 @@ function gastoDeLaTanda(u, retos) {
          ` y ${cache.toLocaleString('es')} de caché, el ${pct} % · salida: ${salida.toLocaleString('es')})`;
 }
 
+/* ── «¿Y si el arreglo no se está ejecutando?» ──
+   La app web se actualiza sola al publicar; la función de Appwrite hay que
+   redesplegarla. Separadas, el docente ve arreglos en pantalla que no corren,
+   y el síntoma es idéntico a que no funcionaran: se pierden tardes así.
+
+   Se pregunta SOLO cuando algo ha fallado por tiempo, que es cuando importa, y
+   no cuesta nada: el paso `ping` no lleva clave ni llama al modelo. Si la
+   función es tan vieja que no lo conoce, tampoco devolverá versión, y eso ya
+   es la respuesta. */
+async function avisoDeFuncionVieja(r) {
+  if (!r || r.reason !== 'tope' || typeof cloudVersionGenerador !== 'function') return '';
+  let v = null;
+  try { v = await cloudVersionGenerador(); } catch (e) { return ''; }
+  if (!v || !v.ok || v.alDia) return '';
+  return ' ⚠️ Y ojo: tu función de Appwrite corre ' + (v.version || 'una versión anterior')
+       + ' mientras la app va por ' + ATLAS_VERSION + '. Los arreglos del generador NO se están '
+       + 'ejecutando. Redespliégala en Appwrite → Functions → generador → Deployments.';
+}
+
 function yaPorNivelDe(siteId, branchId, estrato) {
   const cuenta = [0, 0, 0, 0, 0];
   const suma = n => { const i = (Number(n) || 0) - 1; if (i >= 0 && i < 5) cuenta[i]++; };
@@ -3993,7 +4014,10 @@ function cfgIA(body) {
     iaGenerando = false; iaProgreso = '';
     soltarPantallaDespierta();
 
-    if (!r.ok) { iaEstado = '⚠️ ' + r.texto; iaDescartados = []; renderTeacherConfig(); return; }
+    if (!r.ok) {
+      iaEstado = '⚠️ ' + r.texto + await avisoDeFuncionVieja(r);
+      iaDescartados = []; renderTeacherConfig(); return;
+    }
 
     const nombrePozo = (iaPozos().find(p => p.id === pozo.join('/')) || {}).name || '';
     const nuevos = r.retos.map(x => Object.assign({}, x, {

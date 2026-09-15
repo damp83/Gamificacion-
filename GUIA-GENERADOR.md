@@ -311,6 +311,29 @@ Para ver qué pasó de verdad: en Appwrite, la función → pestaña **Execution
 
 ---
 
+## La función y la app son dos despliegues distintos
+
+**Esto es lo que más tiempo hace perder, y no avisa.** La app web se actualiza
+sola al publicar. La función **no**: vive dentro de Appwrite y hay que
+redesplegarla —a mano, o dejando que su integración con Git lo haga—.
+
+Cuando se separan, ves en pantalla arreglos que **no se están ejecutando**, y
+el síntoma es idéntico a que no funcionaran. Se pueden pasar tardes así.
+
+Para salir de dudas: **Configuración → Acceso y nube → ¿Está bien puesto?**
+Hay dos líneas seguidas, y tienen que coincidir:
+
+| | |
+|---|---|
+| **Versión de la app** | Si sale una vieja, es la caché del navegador: recarga forzando |
+| **Versión de la función** | Si sale una vieja, **redespliega**: Functions → generador → Deployments |
+
+Preguntárselo no cuesta nada: no lleva clave ni llama al modelo. Y cuando algo
+se corte por tiempo, el aviso lo comprueba solo y te lo dice ahí mismo, porque
+es justo cuando importa.
+
+---
+
 ## Lo que cuesta
 
 Medido sobre tandas de verdad, no estimado. La horquilla la marca **lo largo
