@@ -15,8 +15,8 @@ cuidado en el paso 5, que es donde se atasca todo el mundo.
 **Create key**.
 
 > **Ponle límite de gasto.** En *Settings → Limits* fijas un tope mensual. Una
-> tanda de diez retos cuesta unos 6 céntimos, así que con 10 € al mes vas
-> sobradísimo — y si algo va mal, no puede irse de las manos.
+> tanda de diez retos cuesta entre 45 y 70 céntimos, así que con 10 € al mes
+> tienes para unas quince tandas — y si algo va mal, no puede irse de las manos.
 
 Copia la clave (empieza por `sk-ant-`) y guárdala: la consola no vuelve a
 enseñártela.
@@ -203,8 +203,8 @@ se queda solo en ese equipo.
    Cuando los tengas puestos, **💾 Guardar todos en un fichero**: eso te
    ahorra volver a pegarlos en el portátil, y se lo puedes pasar a un
    compañero. Al traerlo se fusiona con lo que ya haya, no lo borra.
-3. Elige pozo, estrato, curso y cuántos. **Empieza con 3**, no con 10: si algo
-   está mal configurado, lo sabrás por seis céntimos menos.
+3. Elige pozo, estrato, curso y cuántos. **Empieza con 3**, no con 20: si algo
+   está mal configurado, lo sabrás por veinte céntimos en vez de por un euro.
 4. **Generar retos.** Tarda, y el botón va contando: «Escribiendo el 2 de 3…».
    Es normal, y es a propósito: cada reto es una llamada aparte porque
    Appwrite corta toda ejecución síncrona a los 30 segundos. Diez retos son
@@ -313,11 +313,21 @@ Para ver qué pasó de verdad: en Appwrite, la función → pestaña **Execution
 
 ## Lo que cuesta
 
+Medido sobre tandas de verdad, no estimado. La horquilla la marca **lo largo
+que sea tu currículo**: es lo que más pesa en la entrada.
+
 | | |
 |---|---|
-| Una tanda de 10 retos | ~6 céntimos |
-| El banco de un curso entero (~1 600 retos) | ~9 €, una vez |
+| Un reto | 4-7 céntimos |
+| Una tanda de 10 retos | 45-70 céntimos |
+| Una tanda de 20 (4 por nivel, lo recomendado) | 0,90-1,40 € |
+| El banco de un curso entero (~1 600 retos) | 70-110 €, una vez |
 | Una propuesta de yacimiento | Una sola llamada: menos que un reto |
+
+> La mayor parte no es el currículo que mandas: es **la salida**, el
+> razonamiento del modelo escribiendo cada reto y la segunda pasada que lo
+> vuelve a resolver para comprobar que la respuesta marcada es la buena. Es
+> justo lo que impide que a un niño le digan «has fallado» cuando acertó.
 
 El currículo se cachea, así que la segunda tanda de la misma área cuesta menos
 que la primera. En el panel te sale el gasto en tokens de cada generación.

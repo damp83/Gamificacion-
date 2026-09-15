@@ -140,3 +140,78 @@ test('la tanda reparte los cinco niveles aunque se corte alguna', async () => {
   assert.deepEqual(niveles.slice(0, 6), [1, 2, 3, 4, 5, 1], 'la rotación no es la de siempre');
   assert.equal(new Set(niveles).size, 5, 'tendría que tocar los cinco niveles');
 });
+
+/* ══════════ Completar una tanda cortada ══════════ */
+
+test('la tanda pide primero los niveles que faltan, no siempre el 1', () => {
+  const c = cargarApp();
+  const orden = c.ev('ordenDeNiveles');
+  /* El caso que lo motiva: una tanda de 20 se cortó y dejó el estrato con
+     cuatro retos en los niveles 1-3, tres en el 4 y NINGUNO en el 5. Volver a
+     darle a Generar repetía 1,2,3,4,5 desde el principio y amontonaba más
+     retos fáciles encima de los que ya sobraban, dejando el hueco donde
+     estaba. */
+  const o = orden(5, [4, 4, 4, 3, 0]);
+  assert.equal(o[0], 5, 'el primero tiene que ser el que no tiene ninguno');
+  assert.deepEqual(o.slice(0, 4), [5, 5, 5, 4], 'rellena el hueco antes de tocar nada más');
+});
+
+test('con el estrato vacío se comporta EXACTAMENTE como la rotación de antes', () => {
+  const c = cargarApp();
+  const orden = c.ev('ordenDeNiveles');
+  /* El reparto rotando existe para que una tanda cortada cubra el dial entero.
+     Priorizar lo que falta no puede romper eso cuando no falta nada. */
+  assert.deepEqual(orden(10, [0, 0, 0, 0, 0]), [1, 2, 3, 4, 5, 1, 2, 3, 4, 5]);
+  assert.deepEqual(orden(10, null), [1, 2, 3, 4, 5, 1, 2, 3, 4, 5], 'sin recuento, igual');
+  assert.deepEqual(orden(7, undefined).slice(0, 5), [1, 2, 3, 4, 5]);
+});
+
+test('a igualdad de retos manda el nivel más bajo', () => {
+  const c = cargarApp();
+  /* Un pozo sin retos fáciles deja fuera al alumno que va justo, que es el que
+     menos aguanta quedarse sin nada que pueda hacer. */
+  assert.deepEqual(c.ev('ordenDeNiveles')(5, [2, 2, 2, 2, 2]), [1, 2, 3, 4, 5]);
+});
+
+test('una segunda tanda completa el estrato en vez de desnivelarlo', async () => {
+  const c = conPlan(Array(30).fill('ok'));
+  /* Los cinco que faltan tras el corte del caso real. */
+  await c.ev(`cloudGenerarRetos({ materia: 'matematicas', curso: 4, estrato: 'recordar',
+    n: 1, porNivel: true, yaPorNivel: [4, 4, 4, 3, 0], curriculo: 'x'.repeat(200) })`);
+  const niveles = c.ev('__llamadas').filter(x => x.paso === 'generar').map(x => x.nivel);
+  /* Tras la segunda tanda, ningún nivel puede quedar a cero. */
+  const total = [4, 4, 4, 3, 0].slice();
+  niveles.forEach(n => total[n - 1]++);
+  assert.ok(Math.min(...total) > 0, `sigue habiendo un nivel vacío: ${total.join(',')}`);
+  assert.ok(Math.max(...total) - Math.min(...total) <= 1,
+    `el estrato queda desnivelado: ${total.join(',')}`);
+});
+
+/* ══════════ Lo que cuesta, dicho en dinero ══════════ */
+
+test('la tanda dice lo que ha costado, no cuántos tokens', () => {
+  const c = cargarApp();
+  /* «12.684 tokens de entrada» no le dice nada a nadie, y el panel llegó a
+     prometer 0,6 céntimos por reto cuando la realidad son entre 4 y 7. Un
+     docente que presupueste con ese número se lleva un susto. */
+  const t = c.ev('gastoDeLaTanda')({ entrada: 9000, cacheados: 81000, salida: 22383 }, 15);
+  assert.match(t, /céntimos/);
+  assert.match(t, /por reto/);
+  /* 9000×5 + 81.000×0,5 + 22.383×25, por millón = 0,645 $ ≈ 65 céntimos, y
+     entre quince retos salen a 4,3. */
+  assert.match(t, /^\(65 céntimos, 4\.3 por reto/, `dice: ${t}`);
+});
+
+test('y separa la entrada nueva de la leída de caché', () => {
+  const c = cargarApp();
+  /* Sumarlas es lo que escondió durante meses que el currículo no se estaba
+     cacheando: el total se veía igual de grande con caché y sin él. Si «de
+     caché» no es la mayor con diferencia, algo se ha roto en el prompt. */
+  const t = c.ev('gastoDeLaTanda')({ entrada: 9000, cacheados: 81000, salida: 22383 }, 15);
+  /* Sin separador en cuatro cifras, que es lo que toca en español. */
+  assert.match(t, /9000 nueva/);
+  assert.match(t, /81\.000 de caché, el 90 %/);
+  /* Y el caso enfermo, el de antes del arreglo: se tiene que ver. */
+  const malo = c.ev('gastoDeLaTanda')({ entrada: 80000, cacheados: 10000, salida: 22383 }, 15);
+  assert.match(malo, /el 11 %/, `un caché roto tendría que cantar: ${malo}`);
+});

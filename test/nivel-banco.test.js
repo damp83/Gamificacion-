@@ -355,8 +355,14 @@ test('la tanda rota los niveles en vez de escribirlos en bloque', () => {
   const cloud = leer('js/cloud.js');
   const i = cloud.indexOf('async function cloudGenerarRetos(');
   const cuerpo = cloud.slice(i, cloud.indexOf('\n/* Una llamada a la función', i));
-  assert.match(cuerpo, /nivelDe = i => porNivel \? \(i % NIVELES\) \+ 1/,
-    'rota 1,2,3,4,5,1,2… en vez de agrupar');
+  assert.match(cuerpo, /const ordenNiveles = ordenDeNiveles\(cuantos, peticion\.yaPorNivel\);/,
+    'el orden lo decide ordenDeNiveles, contando lo que el pozo ya tiene');
+  /* Con el estrato vacío eso ES la rotación 1,2,3,4,5,1,2…; con uno a medias,
+     tapa antes los huecos. Las dos cosas están probadas corriendo la función
+     de verdad, en `test/tanda-cortes.test.js`. */
+  const c = cargarApp();
+  assert.deepEqual(c.ev('ordenDeNiveles')(7, null), [1, 2, 3, 4, 5, 1, 2],
+    'con el estrato vacío tiene que rotar como siempre');
   /* Y el porqué, escrito donde se lee: una tanda se corta —se acabó el saldo,
      el iPad apagó la pantalla— y rotando, lo que quedó cubre el dial entero.
      Escribiendo los del nivel 1 primero, media tanda deja un pozo que solo

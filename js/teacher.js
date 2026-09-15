@@ -3355,6 +3355,52 @@ function claveEnmascarada(v) {
 
    `iaCola` de los ajustes se sigue leyendo mientras quede algo, para no
    perder lo que hubiera antes de la migración. */
+/* Cuántos retos hay ya en cada nivel de un estrato, del 1 al 5.
+
+   Cuenta el banco Y la cola: un reto escrito y aún sin aprobar ya está pagado
+   y va a entrar. Sin contarlo, darle dos veces a Generar antes de revisar
+   escribiría los mismos niveles dos veces.
+
+   Es lo que hace que una tanda cortada se pueda completar en un clic: la
+   siguiente pide los niveles que faltan en vez de empezar otra vez por el 1. */
+/* ── Lo que ha costado la tanda, en dinero y no en tokens ──
+   «12.684 tokens de entrada» no le dice nada a nadie. Lo que un docente
+   necesita saber es cuánto le ha costado y si el caché está funcionando.
+
+   El desglose del caché va aparte a propósito, y no sumado: la entrada nueva
+   se paga entera y la leída de caché a una décima parte, así que son dos cosas
+   distintas. Y verlas juntas es lo que habría delatado el día uno que el
+   currículo no se estaba cacheando. Si «de caché» no es la mayor con
+   diferencia, algo se ha roto en el prompt. */
+function gastoDeLaTanda(u, retos) {
+  const nueva = Number(u.entrada) || 0;
+  const cache = Number(u.cacheados) || 0;
+  const salida = Number(u.salida) || 0;
+  /* Tarifas de la API por millón de tokens. La escritura en caché cuesta algo
+     más que la entrada normal y la lectura una décima parte; aquí se cobra
+     todo lo cacheado como lectura, que es lo que es salvo la primera llamada
+     de la tanda: el error es de céntimos y evita pedirle a la función que
+     desglose una cosa más. */
+  const dolares = (nueva * 5 + cache * 0.5 + salida * 25) / 1e6;
+  const cent = Math.round(dolares * 100);
+  const porReto = retos ? (dolares * 100 / retos) : 0;
+  const pct = (nueva + cache) ? Math.round(cache / (nueva + cache) * 100) : 0;
+  return `(${cent} céntimos, ${porReto.toFixed(1)} por reto · entrada: ${nueva.toLocaleString('es')} nueva` +
+         ` y ${cache.toLocaleString('es')} de caché, el ${pct} % · salida: ${salida.toLocaleString('es')})`;
+}
+
+function yaPorNivelDe(siteId, branchId, estrato) {
+  const cuenta = [0, 0, 0, 0, 0];
+  const suma = n => { const i = (Number(n) || 0) - 1; if (i >= 0 && i < 5) cuenta[i]++; };
+  const site = (ATLAS_CONFIG.sites || []).find(x => x.id === siteId);
+  const br = site && (site.branches || []).find(x => x.id === branchId);
+  ((br && (br.bank || {})[estrato]) || []).forEach(q => suma(q && q.nivel));
+  iaCola().forEach(c => {
+    if (c.siteId === siteId && c.branchId === branchId && c.estrato === estrato) suma(c.nivel);
+  });
+  return cuenta;
+}
+
 function iaCola() {
   const nube = (typeof retosDeLaCola === 'function' ? retosDeLaCola() : [])
     .map(r => Object.assign({}, r, { id: r.$id }));
@@ -3689,8 +3735,15 @@ function cfgIA(body) {
                doble de lo que pone por nivel, ni que con la reserva justa el
                reparto se estira hacia arriba. Así que se le dice, con su
                expedición y con lo que ya tiene en ese estrato. */
-            `Son <strong>${porNivel * 5} retos</strong> (${porNivel} de cada nivel), unos ${
-              Math.round(porNivel * 5 * 0.6)} céntimos.` +
+            /* ── El precio, medido ──
+               Esto decía «diez cuestan unos 6 céntimos», o sea 0,6 por reto.
+               La realidad, sacada de tandas de verdad, son entre 4 y 7
+               céntimos por reto: diez veces más. Un docente que presupueste
+               con el número viejo se lleva un susto en la factura, así que se
+               dice el rango real y de dónde sale la horquilla. */
+            `Son <strong>${porNivel * 5} retos</strong> (${porNivel} de cada nivel), entre ${
+              Math.round(porNivel * 5 * 4.5)} céntimos y ${
+              Math.round(porNivel * 5 * 7)} según lo largo que sea tu currículo.` +
             ` Cada alumno tira de <strong>dos niveles</strong> —el suyo y el de al lado—, así que ` +
             `con ${porNivel} por nivel su reserva son <strong>${porNivel * 2} retos</strong> ` +
             `y la expedición son ${ECO().missionQuestions}.` +
@@ -3702,7 +3755,8 @@ function cfgIA(body) {
               : ` <strong>Se le queda corta</strong>: la gasta entera y el reparto se estira hacia ` +
                 `arriba. Con ${rec} por nivel (${rec * 5} retos) deja de pasar.`))
           : field('Cuántos', `<input type="number" id="ia-cuantos" min="1" max="20" value="${ATLAS_CONFIG.iaCuantos || 10}">`,
-            'Diez cuestan unos 6 céntimos. El currículo va cacheado, así que las tandas siguientes de la misma área cuestan menos.'));
+            'Cada reto cuesta entre 4 y 7 céntimos, según lo largo que sea tu currículo. El encargo va '
+            + 'cacheado, así que dentro de una misma tanda las llamadas siguientes cuestan una décima parte.'));
     })()}
     <button class="btn btn-primary btn-small" id="ia-generar"${
       (!nube || !conFuncion || !curr || iaGenerando) ? ' disabled' : ''}>${
@@ -3916,7 +3970,8 @@ function cfgIA(body) {
        Balanza del Mercader» y salían de numeración, bien escritos y en el
        sitio equivocado, y el docente los movía uno a uno. */
     const r = await cloudGenerarRetos(
-      { materia, curso, estrato, n: cuantos, porNivel, curriculo: iaCurriculo(materia, curso),
+      { materia, curso, estrato, n: cuantos, porNivel, yaPorNivel: yaPorNivelDe(pozo[0], pozo[1], estrato),
+        curriculo: iaCurriculo(materia, curso),
         conceptosYaEnElPozo: yaEnElPozo, pozo: temaDelPozo(pozo[0], pozo[1]),
         /* Vienen de «Lo que conviene repasar»: el concepto que la clase falla
            y por qué interesa. El prompt los admitía desde el principio y no
@@ -3985,7 +4040,7 @@ function cfgIA(body) {
         ? ` ${r.cortados} se pasaron de los 30 segundos y se saltaron; el resto entró.`
         : ''}${
       r.parado && r.corte ? ` ⚠️ Se paró antes de acabar: ${r.corte}` : ''}${
-      r.usados ? ` (${r.usados.entrada + r.usados.cacheados} tokens de entrada, ${r.usados.salida} de salida)` : ''}`;
+      r.usados ? ' ' + gastoDeLaTanda(r.usados, nuevos.length) : ''}`;
     renderTeacherConfig();
   });
 

@@ -781,6 +781,42 @@ currículo que no cabe es tirar el dinero del docente.
 > Si te pasa con dos seguidas, lo que hay que recortar es el **currículo**:
 > manda solo el bloque del área que estás trabajando, no el documento entero.
 
+### Y completar en un clic lo que quedó a medias
+
+Una tanda cortada no deja el estrato «con menos de todo»: deja **vacíos los
+últimos niveles de la rotación**. Un caso real: se pidieron veinte y entraron
+quince, con cuatro retos en los niveles 1-3, tres en el 4 y **ninguno en el 5**.
+
+Volver a darle a Generar repetía `1,2,3,4,5` desde el principio y amontonaba
+más retos fáciles encima de los que ya sobraban, dejando el agujero donde
+estaba. Ahora la tanda **pide siempre el nivel que menos tiene** —contando el
+banco *y* la cola sin aprobar, que también está pagada—, así que la segunda
+tanda tapa el hueco. Con el estrato vacío el orden es exactamente la rotación
+de antes; a igualdad de retos manda el nivel más bajo, porque un pozo sin retos
+fáciles deja fuera al alumno que va justo.
+
+### Lo que cuesta, con la cuenta hecha de verdad
+
+El panel prometía **0,6 céntimos por reto**. Medido sobre tandas reales son
+entre **4 y 7**: diez veces más. Un docente que presupuestara con ese número se
+llevaba un susto en la factura.
+
+| | |
+|---|---|
+| Un reto | 4-7 céntimos |
+| Una tanda de 20 (lo recomendado) | 0,90-1,40 € |
+
+La horquilla la marca lo largo que sea el currículo. Y la mayor parte no es lo
+que se manda: es **la salida**, el razonamiento escribiendo cada reto más la
+segunda pasada que lo vuelve a resolver. Es justo lo que impide que a un niño
+le digan «has fallado» cuando acertó.
+
+Ahora cada tanda dice lo que ha costado en céntimos, y **separa la entrada
+nueva de la leída de caché** en vez de sumarlas. No es un adorno: sumadas, el
+total se veía igual de grande con caché y sin él, y eso es lo que escondió
+durante meses que el currículo no se estaba cacheando. Si «de caché» no es la
+mayor con diferencia, algo se ha roto en el prompt.
+
 > **Cuidado al tocar el prompt.** El caché es un acierto de **prefijo**: basta
 > con meter en el mensaje de sistema una sola cosa que cambie entre llamadas
 > —la hora, el nivel, la lista de evitados— para que deje de coincidir y no se

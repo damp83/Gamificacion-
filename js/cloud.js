@@ -41,6 +41,23 @@ function cloudInit() {
    NO hay clave ni la puede haber: este código se sirve a la tablet de cada niño.
 
    Lo que vuelve no entra en el banco: va a la cola de revisión del docente. */
+/* El orden en que se piden los niveles de una tanda: siempre el que menos
+   retos tiene, y a igualdad el más bajo —un pozo sin retos fáciles deja fuera
+   al alumno que va justo, que es el que menos lo aguanta—.
+
+   `ya` son los cinco recuentos del estrato, del nivel 1 al 5. Sin él, o con
+   todo a cero, devuelve 1,2,3,4,5,1,2… que es lo que hacía antes. */
+function ordenDeNiveles(cuantos, ya) {
+  const cuenta = [1, 2, 3, 4, 5].map(n => ({ n, tiene: Number((ya || [])[n - 1]) || 0 }));
+  const fuera = [];
+  for (let i = 0; i < cuantos; i++) {
+    cuenta.sort((a, b) => a.tiene - b.tiene || a.n - b.n);
+    fuera.push(cuenta[0].n);
+    cuenta[0].tiene++;
+  }
+  return fuera;
+}
+
 async function cloudGenerarRetos(peticion, onProgreso) {
   if (!CLOUD.enabled) return { ok: false, reason: 'sin-nube', texto: 'No hay conexión con Appwrite.' };
   if (!CLOUD.functions) {
@@ -69,7 +86,20 @@ async function cloudGenerarRetos(peticion, onProgreso) {
   const cuantos = porNivel
     ? Math.max(1, Math.min(8, Number(peticion.n) || 4)) * NIVELES
     : Math.max(1, Math.min(20, Number(peticion.n) || 1));
-  const nivelDe = i => porNivel ? (i % NIVELES) + 1 : (Number(peticion.nivel) || 0);
+  /* Qué nivel le toca a cada llamada, contando lo que el pozo YA tiene.
+
+     Rotar 1,2,3,4,5 a secas está bien para un estrato vacío, y era lo que
+     había. Pero una tanda se corta —dos cortes de 30 s seguidos y para—, y
+     entonces lo que falta no son «los cinco por igual»: son los últimos de la
+     rotación. Volver a darle a Generar repetía 1,2,3,4,5 desde el principio y
+     amontonaba más retos fáciles encima de los que ya sobraban, dejando el
+     hueco donde estaba.
+
+     Así que se pide siempre el que menos tiene. Con el estrato vacío sale
+     exactamente la rotación de antes; con un estrato a medias, la segunda
+     tanda tapa el agujero en un clic. */
+  const ordenNiveles = ordenDeNiveles(cuantos, peticion.yaPorNivel);
+  const nivelDe = i => porNivel ? ordenNiveles[i] : (Number(peticion.nivel) || 0);
   const avisar = (hechos, fase) => { if (typeof onProgreso === 'function') onProgreso(hechos, cuantos, fase); };
 
   const buenos = [], descartados = [];
