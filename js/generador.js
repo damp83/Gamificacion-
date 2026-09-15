@@ -383,10 +383,34 @@ function promptGenerador(p) {
     ? [pozo.name, pozo.contenido || '', pozo.desc || ''].filter(x => String(x).trim())
     : [];
 
-  const usuario = [
+  /* ══════════ QUÉ VA CACHEADO Y QUÉ NO ══════════
+
+     Los retos se piden DE UNO EN UNO —el tope de 30 s de Appwrite—, así que
+     una tanda de veinte son veinte llamadas con casi el mismo encargo. El
+     mensaje de sistema lleva un punto de caché, y lo que va detrás de él se
+     paga entero la primera vez y a una décima parte las diecinueve siguientes.
+
+     Durante mucho tiempo el currículo viajó en el mensaje de USUARIO, que no
+     está cacheado, y es con diferencia lo más largo que se manda: hasta
+     20.000 caracteres —unos 5.000 tokens— reenviados a precio completo en
+     cada una de las veinte llamadas. El comentario de la función decía que
+     iba cacheado; no era verdad, y se notaba en la factura: de 563.000 tokens
+     de entrada, solo el 30 % se leyó de caché.
+
+     La regla, ahora: al SISTEMA todo lo que NO cambia dentro de una tanda
+     —materia, curso, estrato, pozo, concepto, foco y el currículo—, y al
+     USUARIO solo lo que cambia de una llamada a la siguiente: el nivel, que
+     rota del 1 al 5, y las listas de lo ya escrito, que crecen.
+
+     Cuidado al tocar esto: basta con meter en el sistema UNA cosa que cambie
+     entre llamadas —la hora, el nivel, la lista de evitados— para que el
+     prefijo deje de coincidir y no se cachee nada. No avisa; solo sube la
+     factura. Hay una prueba que lo fija. */
+  const encargo = [
+    '',
+    '═══ EL ENCARGO ═══',
     `Materia: ${materia.nombre}. Curso: ${curso}.º de Primaria.`,
     `Nivel cognitivo: ${estrato.label}${estrato.name ? ' (' + estrato.name + ')' : ''}.`,
-    nivelParaElPrompt(p.nivel),
     temaDelPozo.length
       ? `Pozo al que va: «${textoLimpio(temaDelPozo[0], 80)}»` +
         (pozo.yacimiento ? `, del yacimiento «${textoLimpio(pozo.yacimiento, 80)}»` : '') + '.\n' +
@@ -403,11 +427,16 @@ function promptGenerador(p) {
     'Currículo (saberes básicos) del que no puedes salirte:',
     '"""',
     textoLimpio(p.curriculo, 20000),
-    '"""',
+    '"""'
+  ].filter(x => x !== '').join('\n');
+
+  const usuario = [
+    nivelParaElPrompt(p.nivel),
     '',
-    /* Los retos se piden de uno en uno (el tope de 30 s de Appwrite), así que
-       el modelo no ve los anteriores: sin esta lista, la segunda llamada
-       vuelve a escribir la misma pregunta que la primera. */
+    /* Los retos se piden de uno en uno, así que el modelo no ve los
+       anteriores: sin esta lista, la segunda llamada vuelve a escribir la
+       misma pregunta que la primera. Crece en cada llamada, y por eso vive
+       aquí y no en el sistema. */
     Array.isArray(p.evitar) && p.evitar.length
       ? 'Ya has escrito estos retos. Escribe uno DISTINTO, de otro aspecto del concepto:\n' +
         p.evitar.slice(-12).map(q => '  · ' + textoLimpio(q, 200)).join('\n')
@@ -424,10 +453,10 @@ function promptGenerador(p) {
           '  · ' + id + (CONCEPTOS[id] ? ' — ' + CONCEPTOS[id].label : '')).join('\n')
       : '',
     '',
-    `Escribe ${cuantos} ${cuantos === 1 ? 'reto' : 'retos distintos entre sí'}.`
+    `Escribe ${cuantos} ${cuantos === 1 ? 'reto' : 'retos distintos entre sí'}, con el encargo de arriba.`
   ].filter(x => x !== '').join('\n');
 
-  return { sistema, usuario, cuantos };
+  return { sistema: sistema + '\n' + encargo, usuario, cuantos };
 }
 
 /* El esquema con el que se pide la salida: el modelo no puede devolver otra

@@ -726,6 +726,41 @@ la función puso una en su variable de entorno.
 > profesores está ahí para quien se siente después; con techo, lo peor que
 > puede pasar lo tiene.
 
+### Lo que cuesta, y el fallo que lo triplicaba
+
+Los retos se piden **de uno en uno** —el tope de 30 segundos de Appwrite—, así
+que una tanda de veinte son veinte llamadas con casi el mismo encargo. El
+mensaje de sistema lleva un **punto de caché**: lo que va detrás se paga entero
+la primera vez y a una décima parte las diecinueve siguientes.
+
+Durante mucho tiempo el **currículo viajaba en el mensaje de usuario**, que no
+se cachea, y es con diferencia lo más largo que se manda: hasta 20.000
+caracteres —unos 5.000 tokens— reenviados a precio completo en cada llamada. El
+comentario del código decía que iba cacheado. No era verdad, y **no lo dijo
+ningún error**: se vio en el desglose de tokens de la consola, con solo el 30 %
+de la entrada leída de caché.
+
+La regla, ahora:
+
+| Va en el mensaje… | Qué lleva | Se paga |
+|---|---|---|
+| **Sistema** (cacheado) | Reglas, catálogo de conceptos, y el encargo entero: materia, curso, estrato, pozo, concepto, foco y **currículo** | Una vez por tanda |
+| **Usuario** | Solo lo que cambia en cada llamada: el nivel, que rota del 1 al 5, y las listas de lo ya escrito, que crecen | Cada llamada, pero son ~220 tokens |
+
+En una tanda de veinte retos eso baja la parte de entrada un **68 %**. La
+salida no cambia: son el razonamiento y los retos, y es ahí donde se va la
+mayor parte de la factura, con razón —la segunda pasada, la que vuelve a
+resolver cada reto para comprobar que la respuesta marcada es la buena, ya va
+a esfuerzo bajo.
+
+> **Cuidado al tocar el prompt.** El caché es un acierto de **prefijo**: basta
+> con meter en el mensaje de sistema una sola cosa que cambie entre llamadas
+> —la hora, el nivel, la lista de evitados— para que deje de coincidir y no se
+> cachee nada. No se cae, no da error y no cambia ni un reto: solo cuesta
+> dinero, en silencio, hasta que alguien mira la consola un mes después. Por
+> eso hay pruebas que montan una tanda de veinte y exigen que el prefijo sea
+> idéntico byte a byte en las veinte.
+
 El currículo y la cola **se quedan en tu equipo**: son decenas de miles de
 caracteres que a un niño no le sirven, y un borrador sin aprobar no se enseña.
 Si trabajas desde dos dispositivos, el currículo se pega en cada uno.

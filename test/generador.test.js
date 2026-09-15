@@ -144,8 +144,12 @@ test('el encargo lleva el currículo y solo los conceptos de su materia', () => 
   const p = ctx.ev('promptGenerador')({
     materia: 'lengua', curso: 5, estrato: 'comprender',
     curriculo: 'Uso de la tilde diacrítica en monosílabos.', n: 8 });
-  assert.match(p.usuario, /Uso de la tilde diacrítica/);
-  assert.match(p.usuario, /5\.º de Primaria/);
+  /* El currículo y el curso van en el mensaje de SISTEMA, que es el que lleva
+     el punto de caché: son iguales en las veinte llamadas de una tanda y
+     pagarlos veinte veces era el grueso de la factura. Lo fija
+     `test/cache-generador.test.js`. */
+  assert.match(p.sistema, /Uso de la tilde diacrítica/);
+  assert.match(p.sistema, /5\.º de Primaria/);
   assert.match(p.usuario, /Escribe 8 retos/);
   assert.match(p.sistema, /orto_tilde/);
   assert.ok(!/valor_posicional/.test(p.sistema), 'no ofrece conceptos de matemáticas');
@@ -642,7 +646,8 @@ test('el encargo dice qué retos NO repetir', () => {
     n: 1, evitar: ['¿Cuánto es 8 × 3?'] });
   assert.match(p.usuario, /Ya has escrito estos retos/);
   assert.match(p.usuario, /8 × 3/);
-  assert.match(p.usuario, /Escribe 1 reto\./, 'en singular, que se pide uno');
+  assert.match(p.usuario, /Escribe 1 reto,/, 'en singular, que se pide uno');
+  assert.ok(!/retos distintos/.test(p.usuario), 'no puede pedir varios cuando es uno');
 
   const solo = ctx.ev('promptGenerador')({
     materia: 'matematicas', curso: 4, estrato: 'recordar', curriculo: 'La tabla del 8.', n: 1 });

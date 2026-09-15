@@ -242,8 +242,14 @@ export default async ({ req, res, log, error }) => {
       model: MODELO,
       max_tokens: 16000,
       thinking: { type: 'adaptive' },
-      /* El currículo se repite en cada tanda de la misma área: cacheado, las
-         siguientes cuestan una fracción. */
+      /* El punto de caché. Todo lo que `promptGenerador` mete en el sistema
+         —reglas, catálogo de conceptos, y el ENCARGO entero con su currículo—
+         es idéntico en las veinte llamadas de una tanda: se paga entero una
+         vez y se lee a una décima parte las diecinueve siguientes.
+
+         Estuvo mal montado: el currículo viajaba en el mensaje de usuario, que
+         no se cachea, y se reenviaba a precio completo veinte veces. Lo que
+         decide qué va aquí es `promptGenerador`, y allí está explicado. */
       system: [{ type: 'text', text: enc.sistema, cache_control: { type: 'ephemeral' } }],
       output_config: { effort: 'high', format: { type: 'json_schema', schema: esquemaRetos() } },
       messages: [{ role: 'user', content: enc.usuario }]

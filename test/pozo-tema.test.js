@@ -22,9 +22,11 @@ test('el pozo viaja en el encargo, con lo que se trabaja dentro', () => {
     pozo: { name: 'La Balanza del Mercader', contenido: 'Fracciones: comparar y equivalentes.',
             yacimiento: 'Ruinas de Kaldros' }
   });
-  assert.match(p.usuario, /La Balanza del Mercader/);
-  assert.match(p.usuario, /Ruinas de Kaldros/);
-  assert.match(p.usuario, /Fracciones: comparar y equivalentes/);
+  /* En el mensaje de sistema: el pozo es el mismo en toda la tanda, así que
+     va detrás del punto de caché. */
+  assert.match(p.sistema, /La Balanza del Mercader/);
+  assert.match(p.sistema, /Ruinas de Kaldros/);
+  assert.match(p.sistema, /Fracciones: comparar y equivalentes/);
 });
 
 test('y la regla dice que el tema del pozo manda sobre la variedad', () => {
@@ -43,8 +45,8 @@ test('un pozo sin «qué se trabaja» cae en su ambientación, no en nada', () =
     materia: 'lengua', curso: 3, estrato: 'recordar',
     pozo: { name: 'Las Tablillas Rotas', contenido: '', desc: 'Copias mal escritas de un texto.' }
   });
-  assert.match(p.usuario, /Las Tablillas Rotas/);
-  assert.match(p.usuario, /Copias mal escritas/);
+  assert.match(p.sistema, /Las Tablillas Rotas/);
+  assert.match(p.sistema, /Copias mal escritas/);
 });
 
 test('sin pozo, el encargo sigue siendo válido', () => {
@@ -52,8 +54,8 @@ test('sin pozo, el encargo sigue siendo válido', () => {
      llamada desde otro sitio no traen pozo. */
   const c = gen();
   const p = c.ev('promptGenerador')({ materia: 'lengua', curso: 3, estrato: 'recordar', n: 2 });
-  assert.match(p.usuario, /Materia: Lengua/);
-  assert.ok(!/Pozo al que va/.test(p.usuario));
+  assert.match(p.sistema, /Materia: Lengua/);
+  assert.ok(!/Pozo al que va/.test(p.sistema + p.usuario));
 });
 
 test('los ocho pozos de fábrica dicen de qué van', () => {

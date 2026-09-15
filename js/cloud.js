@@ -83,8 +83,12 @@ async function cloudGenerarRetos(peticion, onProgreso) {
      no habría forma de leer el resultado. Una llamada por reto cabe de
      sobra; una tanda entera con su comprobación, no.
 
-     Sale casi igual de caro porque el currículo va cacheado: la primera
-     llamada lo paga y las demás lo leen a una fracción del precio. */
+     Sale casi igual de caro que pedirlos de golpe porque el encargo entero
+     —currículo incluido— va en el mensaje de sistema, detrás del punto de
+     caché: la primera llamada lo paga y las diecinueve siguientes lo leen a
+     una décima parte. Cuidado si alguna vez se mueve algo de sitio: basta con
+     que una sola cosa cambie entre llamadas para que deje de cachearse, y eso
+     no da ningún error, solo factura. */
   const evitar = [];
   /* Los conceptos que ya están trabajados: los que trae el pozo de antes más
      los de esta tanda. Sin esto, diez llamadas con el mismo currículo caen
