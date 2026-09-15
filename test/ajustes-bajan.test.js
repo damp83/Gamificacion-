@@ -8,6 +8,7 @@ const { test } = require('node:test');
 const assert = require('node:assert');
 const fs = require('node:fs');
 const path = require('node:path');
+const { cargarApp } = require('./cargar.js');
 const leer = f => fs.readFileSync(path.join(__dirname, '..', f), 'utf8');
 
 test('al arrancar se bajan los ajustes de la clase abierta', () => {
@@ -23,7 +24,13 @@ test('no baja nada si hay cambios de este equipo sin subir', () => {
   const cloud = leer('js/cloud.js');
   const i = cloud.indexOf('async function traerAjustesDeAula()');
   const cuerpo = cloud.slice(i, cloud.indexOf('\n}\n', i));
-  assert.match(cuerpo, /if \(ajustesPendientes\) return \{ ok: false, reason: 'hay-pendientes' \}/);
+  /* El resultado va envuelto en `anotar()` para poder enseñarlo en pantalla,
+     así que se fija el GUARDA y no la forma exacta del return: lo que no
+     puede desaparecer es la condición. */
+  assert.match(cuerpo, /if \(ajustesPendientes\) return anotar\(\{ ok: false, reason: 'hay-pendientes' \}\)/);
+  /* Y que se pueda ver por qué no baja: callarlo deja al docente mirando un
+     equipo que no se actualiza nunca sin saber que es esto. */
+  assert.match(cuerpo, /callarlo/i);
 });
 
 test('solo se adopta lo más nuevo que lo último que este equipo vio', () => {
@@ -31,7 +38,7 @@ test('solo se adopta lo más nuevo que lo último que este equipo vio', () => {
   const cloud = leer('js/cloud.js');
   const i = cloud.indexOf('async function traerAjustesDeAula()');
   const cuerpo = cloud.slice(i, cloud.indexOf('\n}\n', i));
-  assert.match(cuerpo, /if \(marca <= \(ATLAS_CONFIG_META\.sharedAt \|\| 0\)\) return \{ ok: true, adoptado: false \}/);
+  assert.match(cuerpo, /if \(marca <= \(ATLAS_CONFIG_META\.sharedAt \|\| 0\)\) return anotar\(\{ ok: true, adoptado: false \}\)/);
 });
 
 test('al subir se anota la marca, para no tragarse la propia copia', () => {
@@ -97,4 +104,43 @@ test('la lista de clase no baja a la tablet de un niño', () => {
   const iBorra = cuerpo.indexOf('delete ajustes.roster');
   const iAdopta = cuerpo.indexOf('adoptSharedConfig(');
   assert.ok(iBorra < iAdopta, 'se quita ANTES de adoptarlo, no después');
+});
+
+/* ══════════ Por qué no ha bajado ══════════ */
+
+test('cada intento de bajada deja constancia de cómo fue', async () => {
+  /* El síntoma que lo motivó: un yacimiento creado en el portátil no aparecía
+     en el iPad, y no había NADA donde mirar. La bajada se intentaba al
+     arrancar, el único sitio que la llama descarta el resultado, y ni error ni
+     aviso ni rastro. */
+  const c = cargarApp();
+  assert.equal(c.ev('ajustesAbajo()').estado, 'sin-intentar');
+
+  /* Sin nube configurada ni clase: se anota, no se calla. */
+  await c.ev('traerAjustesDeAula()');
+  assert.equal(c.ev('ajustesAbajo()').estado, 'sin-aula');
+});
+
+test('«hay cambios sin subir» es un motivo que se puede leer', async () => {
+  const c = cargarApp();
+  c.ev(`ATLAS_CONFIG.appwrite = Object.assign({}, ATLAS_CONFIG.appwrite,
+          { aulasCollectionId: 'aulas' })`);
+  c.ev(`CLOUD.enabled = true; CLOUD.user = { $id: 'd1' }`);
+  c.ev(`setAulaActiva('aulaX', 'Clase')`);
+  /* Es el caso más desconcertante: no baja nada NUNCA y es a propósito, para
+     no pisar trabajo sin subir. Sin decirlo, el equipo parece estropeado. */
+  c.ev('programarSubidaAjustes()');
+  const r = await c.ev('traerAjustesDeAula()');
+  assert.equal(r.reason, 'hay-pendientes');
+  assert.equal(c.ev('ajustesAbajo()').estado, 'hay-pendientes');
+});
+
+test('la pantalla lo cuenta, y deja traerlos sin reiniciar', () => {
+  const t = require('node:fs').readFileSync(
+    require('node:path').join(__dirname, '..', 'js/teacher.js'), 'utf8');
+  /* Se bajaban solo al arrancar, así que la respuesta a «lo he creado en el
+     portátil y aquí no está» era cerrar y abrir la app. */
+  assert.match(t, /id="cfg-traer"/);
+  assert.match(t, /await traerAjustesDeAula\(\)/);
+  assert.match(t, /No se está trayendo nada de la clase/);
 });

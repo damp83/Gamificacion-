@@ -1228,22 +1228,37 @@ function miAula() {
      · Solo se adopta lo que sea MÁS NUEVO que lo último que este equipo vio
        o escribió. Si no, cada arranque pisaría los cambios locales con una
        copia vieja. */
+/* ── La otra mitad del indicador ──
+   `ajustesArriba()` dice si lo de este equipo ha subido. Faltaba lo contrario:
+   si lo de la clase ha BAJADO, y si no, por qué. El resultado se tiraba —el
+   único sitio que la llama hace `catch` y sigue—, así que un yacimiento creado
+   en el portátil que no aparecía en el iPad no daba ni una pista: ni error, ni
+   aviso, ni nada donde mirar. Se guarda el último resultado para poder
+   enseñarlo. */
+let ultimaBajada = { estado: 'sin-intentar', cuando: 0 };
+function ajustesAbajo() { return Object.assign({}, ultimaBajada); }
+
 async function traerAjustesDeAula() {
   /* `miAula()` sirve a los dos: al docente le da la clase que tiene abierta,
      y a un alumno la que dice su diario. Antes exigía clase ABIERTA, que es
      cosa del panel del docente, así que una tablet de alumno no bajaba nada
      nunca. */
+  const anotar = r => { ultimaBajada = { estado: r.ok ? (r.adoptado ? 'traido' : 'al-dia') : r.reason,
+                                        cuando: Date.now(), detalle: r.detail || '' }; return r; };
   const id = miAula();
-  if (!aulasOn() || !id || !CLOUD.user) return { ok: false, reason: 'sin-aula' };
-  if (ajustesPendientes) return { ok: false, reason: 'hay-pendientes' };
+  if (!aulasOn() || !id || !CLOUD.user) return anotar({ ok: false, reason: 'sin-aula' });
+  /* A propósito: traer lo de la nube encima de trabajo sin subir es perderlo.
+     Pero callarlo deja al docente mirando un equipo que no se actualiza nunca
+     sin saber que es esto. */
+  if (ajustesPendientes) return anotar({ ok: false, reason: 'hay-pendientes' });
   const c = ATLAS_CONFIG.appwrite;
   try {
     const doc = await CLOUD.db.getDocument(c.databaseId, c.aulasCollectionId, id);
     const marca = Number(doc.updated_at) || 0;
-    if (marca <= (ATLAS_CONFIG_META.sharedAt || 0)) return { ok: true, adoptado: false };
+    if (marca <= (ATLAS_CONFIG_META.sharedAt || 0)) return anotar({ ok: true, adoptado: false });
     let ajustes = null;
-    try { ajustes = JSON.parse(doc.config || '{}'); } catch (e) { return { ok: false, reason: 'ilegible' }; }
-    if (!ajustes || typeof ajustes !== 'object') return { ok: true, adoptado: false };
+    try { ajustes = JSON.parse(doc.config || '{}'); } catch (e) { return anotar({ ok: false, reason: 'ilegible' }); }
+    if (!ajustes || typeof ajustes !== 'object') return anotar({ ok: true, adoptado: false });
     /* La lista de clase no baja a la tablet de un niño: la usan el panel y
        la clase dirigida, ninguno de los dos vive ahí, y son nombres de
        menores. Menos datos donde no hacen falta. */
@@ -1255,8 +1270,8 @@ async function traerAjustesDeAula() {
     const traiaLaLista = Array.isArray(ajustes.roster) && ajustes.roster.length > 0;
     adoptSharedConfig({ overlay: ajustes, updated_at: marca, by: doc.teacher || '' });
     if (traiaLaLista && aulaActiva()) programarSubidaAjustes();
-    return { ok: true, adoptado: true, limpiando: traiaLaLista };
-  } catch (e) { return errorNube(e); }
+    return anotar({ ok: true, adoptado: true, limpiando: traiaLaLista });
+  } catch (e) { return anotar(errorNube(e)); }
 }
 
 /* ── Mudanza de lo que ya había ──

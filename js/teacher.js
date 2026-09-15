@@ -135,8 +135,41 @@ function pintarEstadoAjustes() {
                  s.detalle ? ' (' + esc(s.detalle) + ')' : ''}. Están guardados en este equipo y se ` +
                'reintenta solo. Si esto no se quita, haz una copia de seguridad.'
   };
-  el.innerHTML = textos[s.estado] || textos.local;
-  el.classList.toggle('cfg-top-warn', s.estado === 'pendiente');
+  /* ── Y la otra dirección ──
+     Lo de arriba dice si lo de ESTE equipo ha subido. Un docente que crea un
+     yacimiento en el portátil y no lo ve en el iPad tiene el problema al
+     revés, y de eso no se decía nada: la bajada se intentaba al arrancar, se
+     descartaba el resultado y no quedaba ni un rastro donde mirar. */
+  const b = (typeof ajustesAbajo === 'function') ? ajustesAbajo() : { estado: 'sin-intentar' };
+  const bajada = {
+    traido: '⬇️ Traídos los cambios de la clase.',
+    'al-dia': 'Y lo de la clase ya lo tienes.',
+    'sin-aula': '',    /* lo dice ya el texto de arriba */
+    'sin-intentar': '',
+    'hay-pendientes': '⚠️ <strong>No se está trayendo nada de la clase</strong> porque este equipo '
+      + 'tiene cambios sin subir, y traerlos encima los perdería. En cuanto suban, se traerá solo.',
+    ilegible: '⚠️ Los ajustes de la clase no se entienden: algo los ha dejado a medias.'
+  }[b.estado];
+  const extra = bajada === undefined
+    ? '⚠️ No se han podido traer los ajustes de la clase' + (b.detalle ? ' (' + esc(b.detalle) + ')' : '') + '.'
+    : bajada;
+
+  el.innerHTML = (textos[s.estado] || textos.local)
+    + (extra ? ' ' + extra : '')
+    + (s.estado !== 'local'
+      ? ' <button class="btn btn-secondary btn-small" id="cfg-traer">⬇️ Traer ahora</button>'
+      : '');
+  el.classList.toggle('cfg-top-warn', s.estado === 'pendiente' || (extra || '').startsWith('⚠️'));
+
+  /* Traer sin reiniciar. Se bajaban solo al arrancar, así que la respuesta a
+     «lo he creado en el portátil y aquí no está» era cerrar y abrir la app. */
+  const traer = $('#cfg-traer');
+  if (traer) traer.addEventListener('click', async () => {
+    traer.disabled = true;
+    traer.textContent = 'Trayendo…';
+    try { await traerAjustesDeAula(); } catch (e) { /* lo dirá el indicador */ }
+    renderTeacherConfig();
+  });
 }
 
 /* ── El banco de iconos ──

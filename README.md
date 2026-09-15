@@ -1992,6 +1992,28 @@ nivel hay un niño.
 > retos se guardan sin ella y se avisa una vez, en vez de callar que el reparto
 > no va a funcionar.
 
+## «Lo he creado en el portátil y en el iPad no está»
+
+Los ajustes de la clase —yacimientos, pozos, méritos— **suben solos** con cada
+cambio y **bajan al arrancar**. Cuando aun así no aparecen, siempre es una de
+estas cuatro, y hasta ahora ninguna se decía:
+
+| Qué pasa | Qué hacer |
+|---|---|
+| **No hay clase abierta** en el equipo donde creaste | Ábrela en «Mis clases». Sin clase no hay dónde subir, y nada sube |
+| **El otro equipo no ha arrancado** desde entonces | Ya no hace falta cerrarlo: **⬇️ Traer ahora**, arriba de Configuración |
+| **Ese equipo tiene cambios sin subir** | No baja nada **a propósito**: traer lo de la nube encima de trabajo sin subir es perderlo. En cuanto suban, se trae solo |
+| **No hay tabla de clases configurada** | Todo es local en cada equipo. Se configura en «Acceso y nube» |
+
+El indicador de arriba del panel decía solo la mitad: si lo de **este** equipo
+había subido. Un docente con el problema al revés no tenía dónde mirar — la
+bajada se intentaba al arrancar, el resultado se descartaba, y no quedaba ni
+error ni aviso ni rastro. Ahora cuenta las dos direcciones y, cuando no puede
+traer nada, dice por qué.
+
+> El caso que más desconcierta es el tercero: **no baja nada nunca, y es
+> deliberado**. Sin decirlo, el equipo parece estropeado.
+
 ## Adaptaciones para el alumnado ACNEAE
 
 En una clase de veintidós hay tres o cuatro con adaptación, y hasta ahora el
