@@ -537,6 +537,7 @@
         <h1>Sala de mapas</h1>
         <p id="teacher-greeting" class="home-lead">Desde aquí ves cómo va la clase y preparas la expedición.</p>
       </header>
+      <div id="teacher-guia" class="teacher-guia hidden"></div>
       <div id="teacher-pulse" class="teacher-pulse hidden"></div>
       <div id="teacher-backup-warn" class="teacher-warn hidden"></div>
       <div id="teacher-aula-bar" class="teacher-aula hidden"></div>
@@ -1028,6 +1029,17 @@
       </section>
 
       <!-- ══════════ VISTA GENERAL DE LA CLASE ══════════ -->
+      <!-- ══════════ CÓMO FUNCIONA (guía del docente) ══════════
+           No es un tutorial que se abre encima de nada: es una pantalla más,
+           a la que se entra desde la sala de mapas y a la que se puede volver
+           en octubre, cuando se te ha olvidado, o enseñársela a un compañero.
+           La lista de abajo se marca sola mirando el estado real. -->
+      <section id="screen-guia" class="screen hidden">
+        <button class="btn btn-back" data-nav="dashboard">← Volver a la sala de mapas</button>
+        <h2><svg class="ico" viewBox="0 0 24 24" aria-hidden="true"><use href="#i-compass"/></svg> Cómo funciona</h2>
+        <div id="guia-body"></div>
+      </section>
+
       <section id="screen-class" class="screen hidden">
         <button class="btn btn-back" data-nav="dashboard">← Volver al cuaderno</button>
         <h2><svg class="ico" viewBox="0 0 24 24" aria-hidden="true"><use href="#i-group"/></svg> Vista general de la clase</h2>

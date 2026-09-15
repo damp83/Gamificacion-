@@ -42,7 +42,7 @@ function ico(nombre, clase) {
 /* Icono de cada estrato de Bloom, dibujado y no emoji. */
 const ICO_ESTRATO = { recordar: 'shard', comprender: 'vessel', aplicar: 'scales', analizar: 'lens' };
 
-const SCREENS = ['map', 'branch', 'guardian', 'mission', 'result', 'camp', 'merits', 'team', 'logbook', 'dashboard', 'class', 'config', 'aula', 'aulas'];
+const SCREENS = ['map', 'branch', 'guardian', 'mission', 'result', 'camp', 'merits', 'team', 'logbook', 'dashboard', 'class', 'config', 'aula', 'aulas', 'guia'];
 
 function show(screenId) {
   SCREENS.forEach(s => $(`#screen-${s}`).classList.toggle('hidden', s !== screenId));
@@ -62,6 +62,7 @@ function show(screenId) {
   if (screenId === 'aulas') { renderAulas(); syncBackLabels(); }
   if (screenId === 'config') { renderTeacherConfig(); syncBackLabels(); }
   if (screenId === 'class') { renderClassView(); syncBackLabels(); }
+  if (screenId === 'guia') { renderGuia(); syncBackLabels(); }
   if (screenId === 'logbook') renderLogbook();
   if (screenId === 'dashboard') renderDashboard();
   window.scrollTo(0, 0);

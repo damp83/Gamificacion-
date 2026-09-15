@@ -326,6 +326,7 @@ function showTeacherPortal() {
     $('#teacher-go-backup').addEventListener('click', () => { cfgSection = 'copia'; teacherScreen('config'); });
   }
 
+  renderGuiaDocente();
   renderPulsoDocente();
   renderAulaBar();
   $('#screen-home').classList.add('hidden');
@@ -349,6 +350,8 @@ function teacherScreen(which) {
 function syncBackLabels() {
   const label = teacherOnly ? '← Volver a la sala de mapas' : '← Volver al cuaderno';
   $$('#screen-class .btn-back, #screen-config .btn-back').forEach(b => { b.textContent = label; });
+  /* A la guía solo se entra desde la sala de mapas, y ahí es donde vuelve. */
+  $$('#screen-guia .btn-back').forEach(b => { b.textContent = '← Volver a la sala de mapas'; });
 }
 
 /* ── Arranque ── */

@@ -1206,6 +1206,183 @@ function wireAula() {
   });
 }
 
+/* ══════════ CÓMO FUNCIONA ══════════
+
+   Un docente que abre esto por primera vez aterriza en la sala de mapas y ve
+   tres puertas. Nadie le ha dicho para qué sirve la plataforma desde SU lado
+   ni por dónde empezar, y lo más importante —que puede dar clase con un solo
+   dispositivo, el suyo— es justo lo menos evidente: cualquiera asume que hace
+   falta una tablet por niño, que es lo contrario de lo que esto resuelve.
+
+   Tres decisiones sobre la forma:
+
+     · Es una PANTALLA, no un diálogo que se abre encima. Un modal se cierra
+       sin leer, no se vuelve a encontrar, y si te pilla con la clase delante
+       estorba. Esto se puede reabrir en octubre o enseñárselo a un compañero.
+
+     · No se abre sola nunca. Se ofrece desde la sala de mapas, igual que el
+       tráiler se ofrece en la portada y no se impone.
+
+     · Y la lista de «por dónde empiezo» MIRA EL ESTADO DE VERDAD. Es lo único
+       que un papel no puede hacer: los pasos se marcan solos. Una lista que
+       hay que ir tachando a mano es una lista que nadie tacha. */
+
+/* Los pasos, con lo que hace falta para darlos por hechos. Cada uno dice
+   adónde lleva, y los opcionales lo dicen: que la lista quede a medias a
+   propósito no puede parecer que falta algo. */
+function pasosGuia() {
+  const alumnos = typeof aulaAlumnos === 'function' ? aulaAlumnos().length : 0;
+  const diarios = typeof loadDiaries === 'function' ? Object.keys(loadDiaries()).length : 0;
+  const copia = typeof diasSinCopia === 'function' ? diasSinCopia() : null;
+  const cola = typeof iaCola === 'function' ? iaCola().length : 0;
+  const curriculo = ATLAS_CONFIG.curriculo && Object.keys(ATLAS_CONFIG.curriculo).length;
+  const equipos = ((ATLAS_CONFIG.teams || {}).list || [])
+    .filter(x => (x.members || []).length).length;
+
+  return [
+    { id: 'clase', hecho: alumnos > 0, ir: 'alumnado',
+      que: 'Apunta a tu clase',
+      como: 'Pega los nombres, uno por línea. Nada más: los retos ya están dentro.',
+      ya: alumnos === 1 ? '1 explorador' : `${alumnos} exploradores`,
+      falta: 'todavía no hay nadie en la lista' },
+
+    { id: 'turno', hecho: diarios > 0, ir: null, aula: true,
+      que: 'Dirige tu primer turno',
+      como: 'Tú preguntas desde este equipo y marcas lo que responde cada uno en voz alta. '
+          + 'El alumnado no necesita ni tablet ni cuenta.',
+      ya: diarios === 1 ? '1 diario empezado' : `${diarios} diarios empezados`,
+      falta: 'aún no ha excavado nadie' },
+
+    { id: 'copia', hecho: copia !== null, ir: 'copia', urgente: diarios > 0 && copia === null,
+      que: 'Guarda tu primera copia',
+      como: 'En clase dirigida el curso entero vive en el navegador de este equipo. '
+          + 'Si el centro borra el perfil, se pierde.',
+      ya: copia === 0 ? 'guardada hoy' : copia === 1 ? 'hace 1 día' : `hace ${copia} días`,
+      falta: 'nunca se ha guardado ninguna' },
+
+    { id: 'equipos', hecho: equipos > 0, ir: 'equipos', opcional: true,
+      que: 'Reparte las cuadrillas',
+      como: 'Equipos cooperativos con un rol para cada uno, que rotan al terminar la semana.',
+      ya: equipos === 1 ? '1 cuadrilla con gente' : `${equipos} cuadrillas con gente`,
+      falta: 'sin repartir' },
+
+    { id: 'ia', hecho: !!curriculo, ir: 'ia', opcional: true,
+      que: 'Pega tu currículo y genera retos',
+      como: 'Los pozos de fábrica ya generan retos solos. Esto es para que además hablen '
+          + 'de lo que tú estás dando.',
+      ya: cola ? `${cola} por revisar` : 'currículo pegado',
+      falta: 'opcional' }
+  ];
+}
+
+/* Cuántos pasos de los que no son opcionales quedan por dar. Es lo que decide
+   si la tarjeta de la sala de mapas se enseña grande o encogida. */
+function pasosGuiaPendientes() {
+  return pasosGuia().filter(p => !p.opcional && !p.hecho).length;
+}
+
+function marcarGuiaVista() {
+  ATLAS_CONFIG_META.guiaAt = Date.now();
+  saveConfigMeta();
+}
+
+const GUIA_BUCLE = [
+  ['Elegir', 'El niño abre el mapa y decide por dónde excavar hoy. La autonomía es parte del diseño.'],
+  ['Excavar', 'Un reto ajustado a su nivel. Si se atasca, Kira da una pista graduada, nunca la respuesta.'],
+  ['Hallazgo', 'Acierte o falle, sale la explicación. Y corregirse a uno mismo da premio.'],
+  ['Botín', 'Puntos por lo aprendido y Doblones por el hábito. Son dos cosas y no se mezclan.'],
+  ['El mapa crece', 'Un poco más dibujado. Solo con lo demostrado: ahí está todo el sentido.']
+];
+
+/* ── La puerta a la guía, en la sala de mapas ──
+   Grande mientras queden pasos por dar, encogida a un enlace cuando estén
+   todos. Encogida, pero nunca escondida: dentro de dos meses habrá que volver
+   a leerla, o enseñársela a quien coja la clase. */
+function renderGuiaDocente() {
+  const caja = $('#teacher-guia');
+  if (!caja) return;
+  const quedan = pasosGuiaPendientes();
+  const nueva = !ATLAS_CONFIG_META.guiaAt;
+  caja.classList.remove('hidden');
+  caja.classList.toggle('teacher-guia-mini', !quedan && !nueva);
+
+  caja.innerHTML = (!quedan && !nueva)
+    ? `<button class="guia-enlace" id="teacher-go-guia">${ico('compass')} Cómo funciona</button>`
+    : `<span class="teacher-guia-icono">${ico('compass')}</span>
+       <div>
+         <strong>${nueva ? '¿Primera vez? Cómo funciona esto, en dos minutos'
+                          : 'Cómo funciona esto'}</strong>
+         <p>Para qué sirve, cómo es una sesión y por dónde empezar.${quedan
+            ? ` Te quedan <strong>${quedan}</strong> ${quedan === 1 ? 'paso' : 'pasos'}.` : ''}</p>
+       </div>
+       <button class="btn btn-secondary btn-small" id="teacher-go-guia">Verlo →</button>`;
+
+  const b = $('#teacher-go-guia');
+  if (b) b.addEventListener('click', () => teacherScreen('guia'));
+}
+
+function renderGuia() {
+  const caja = $('#guia-body');
+  if (!caja) return;
+  marcarGuiaVista();
+  const pasos = pasosGuia();
+
+  const bucle = GUIA_BUCLE.map(([t, d], i) => `
+    <li class="guia-paso${i === GUIA_BUCLE.length - 1 ? ' guia-paso-meta' : ''}">
+      <span class="guia-n">${i + 1}</span>
+      <strong>${esc(t)}</strong>
+      <span>${esc(d)}</span>
+    </li>`).join('');
+
+  const lista = pasos.map((p, i) => `
+    <li class="guia-tarea${p.hecho ? ' guia-hecha' : ''}${p.urgente ? ' guia-urge' : ''}">
+      <span class="guia-marca">${p.hecho ? ico('check') : '<i class="guia-aro"></i>'}</span>
+      <div class="guia-tarea-txt">
+        <strong>${esc(p.que)}</strong>
+        <p>${esc(p.como)}</p>
+        <span class="guia-estado">${esc(p.hecho ? p.ya : p.falta)}</span>
+      </div>
+      ${p.hecho ? '' : `<button class="btn btn-secondary btn-small" data-guia="${i}">Ir →</button>`}
+    </li>`).join('');
+
+  caja.innerHTML = `
+<p class="cfg-intro">Una aventura de arqueología donde <strong>el tesoro se llama aprender</strong>:
+cada cosa que un niño domina de verdad recupera un trozo del mapa del mundo. No hay una capa de
+juego pegada encima del contenido —el reto <em>es</em> el contenido— y excavar más hondo es subir
+de nivel cognitivo: los cuatro estratos de cada pozo son Recordar, Comprender, Aplicar y Analizar.</p>
+
+<h3>Así es una sesión de diez minutos</h3>
+<ol class="guia-bucle">${bucle}</ol>
+<p class="guia-vuelta">y vuelta a empezar, por donde él quiera</p>
+
+<h3>Y tú, ¿qué haces?</h3>
+<div class="guia-papel">
+  <div><strong>Antes · una vez</strong><p>Pegas la lista de clase. Los retos de Matemáticas y
+    Lengua ya están dentro y se generan solos, ajustados al curso de cada alumno.</p></div>
+  <div><strong>Durante · diez minutos</strong><p>Preguntas tú desde este equipo y marcas lo que
+    responde cada uno en voz alta. Nadie más necesita entrar en la app.</p></div>
+  <div><strong>Después · cuando quieras</strong><p>Miras quién necesita un empujón, das méritos, y
+    al trimestre sacas el informe de familias y la tabla de criterios ya hechos.</p></div>
+</div>
+
+<h3>Por dónde empiezo</h3>
+<p class="cfg-hint">Esta lista se marca sola: no hay nada que tachar a mano.</p>
+<ul class="guia-tareas">${lista}</ul>
+
+<div class="guia-nota">
+  <strong>Y lo que no hace falta:</strong> ni una tablet por niño, ni cuentas, ni internet, ni
+  instalar nada. Todo lo demás —que entren desde casa, generar retos con IA, la evaluación por
+  criterios— se añade encima cuando quieras, y cada cosa por separado.
+</div>`;
+
+  caja.querySelectorAll('[data-guia]').forEach(b => b.addEventListener('click', () => {
+    const p = pasos[+b.dataset.guia];
+    if (p.aula) { show('aula'); return; }
+    cfgSection = p.ir;
+    show('config');
+  }));
+}
+
 /* ── Vista general de la clase ── */
 let classData = null;
 let classSort = 'atencion';
