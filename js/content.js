@@ -768,23 +768,31 @@ const sumas_llevando = {
       };
     }
 
+    /* ── Aquí había un reto con más de una respuesta buena ──
+       Se construían UNA suma que completaba decena y OTRA que no, y las dos
+       opciones que faltaban se rellenaban con sumas al azar SIN comprobarlas
+       contra lo que se estaba preguntando. Medido: el 75 % de estas preguntas
+       tenía dos, tres o cuatro opciones válidas, y solo una marcada. Un niño
+       que razonaba bien y elegía otra recibía «has fallado».
+
+       Ahora las tres falsas se CONSTRUYEN incumpliendo la condición, con el
+       mismo generador que la buena. Y el rango de decenas sube por la rampa,
+       que era otro `tier <= 2`. */
+    const tope = 2 + (Math.max(1, Math.min(5, tier || 2)));
     const mk = (carry) => {
       const u1 = carry ? ri(5, 9) : ri(0, 4);
       const u2 = carry ? ri(10 - u1, 9) : ri(0, Math.max(0, 4 - u1));
-      const d1 = ri(1, tier <= 2 ? 4 : 8), d2 = ri(1, tier <= 2 ? 4 : 8);
-      return [d1 * 10 + u1, d2 * 10 + u2];
+      const d1 = ri(1, tope), d2 = ri(1, tope);
+      return `${d1 * 10 + u1} + ${d2 * 10 + u2}`;
     };
-    const withCarry = mk(true), noCarry = mk(false);
-    const pairs = shuffle([
-      { txt: `${withCarry[0]} + ${withCarry[1]}`, carry: true },
-      { txt: `${noCarry[0]} + ${noCarry[1]}`, carry: false }
-    ]);
     const target = pick([true, false]);
-    const correctPair = pairs.find(p => p.carry === target);
-    const { options, answer } = buildOptions(
-      correctPair.txt,
-      pairs.filter(p => p !== correctPair).map(p => p.txt).concat([`${ri(11, 44)} + ${ri(11, 44)}`, `${ri(11, 44)} + ${ri(11, 44)}`])
-    );
+    const correctPair = mk(target);
+    const falsas = [];
+    for (let i = 0; i < 24 && falsas.length < 5; i++) {
+      const s = mk(!target);
+      if (s !== correctPair && !falsas.includes(s)) falsas.push(s);
+    }
+    const { options, answer } = buildOptions(correctPair, falsas);
     return {
       skill: 'detectar_llevada',
       question: `Para engrasar el engranaje correcto, Kira busca una suma en la que las unidades ${target ? 'SÍ completan una decena' : 'NO llegan a completar una decena'}. ¿Cuál elige?`,
@@ -894,6 +902,19 @@ const FRACT = [
   { n: 2, d: 5, txt: 'dos quintos', uni: '2/5' },
   { n: 5, d: 6, txt: 'cinco sextos', uni: '5/6' }
 ];
+/* ── Hasta dónde llega la lista en este nivel ──
+   Con la lista ordenada de fácil a difícil, el nivel decide cuánto se abre:
+   en el 1 solo lo de delante, en el 5 entera. Es una rampa de cinco pasos de
+   verdad y no un interruptor, y por eso la usan también las fracciones desde
+   que se les quitó el `tier <= 2` que las partía en dos. */
+function hastaTier(lista, tier) {
+  if (lista.length < 4) return lista;
+  const t = Math.max(1, Math.min(5, tier || 2));
+  const corte = Math.ceil(lista.length * (0.35 + 0.13 * t));
+  return lista.slice(0, Math.max(3, corte));
+}
+function porTier(lista, tier) { return pick(hastaTier(lista, tier)); }
+
 function fractPool(grade) {
   return bandOf(grade || DEFAULT_GRADE) === 3 ? FRACT : FRACT.slice(0, 5);
 }
@@ -902,7 +923,7 @@ function fractPicture(n, d) { return '🟩'.repeat(n) + '⬜'.repeat(d - n); }
 const fracciones = {
   recordar(tier, grade) {
     const g = grade || DEFAULT_GRADE;
-    const pool = tier <= 2 ? fractPool(g).slice(0, 3) : fractPool(g);
+    const pool = hastaTier(fractPool(g), tier);
     const f = pick(pool);
     if (Math.random() < 0.5) {
       const { options, answer } = buildOptions(f.uni, FRACT.filter(x => x !== f).map(x => x.uni));
@@ -947,7 +968,7 @@ const fracciones = {
         explanation: `Con el mismo denominador (${d}), es mayor la que tiene más numerador: ${correct}.`
       };
     }
-    const f = pick(tier <= 2 ? fractPool(g).slice(0, 3) : fractPool(g));
+    const f = porTier(fractPool(g), tier);
     const situations = {
       '1/2': 'la mitad de un bocadillo',
       '1/3': 'una de las 3 raciones iguales de la cantimplora',
@@ -972,8 +993,11 @@ const fracciones = {
 
   aplicar(tier, grade) {
     const g = grade || DEFAULT_GRADE;
-    const f = pick(tier <= 2 ? fractPool(g).slice(0, 3) : fractPool(g));
-    const mult = bandOf(g) === 3 ? ri(6, 20) : (tier <= 2 ? ri(2, 5) : ri(4, 12));
+    const f = porTier(fractPool(g), tier);
+    /* El multiplicador también sube por la rampa: en el nivel 1 la cantidad
+       cabe en los dedos, en el 5 hay que repartir de verdad. */
+    const tope = bandOf(g) === 3 ? 6 + tier * 4 : 3 + tier * 2;
+    const mult = ri(Math.max(2, Math.floor(tope / 2)), tope);
     const total = f.d * mult;
     const correct = f.n * mult;
     const t = pick(['galletas', 'cuerdas', 'antorchas', 'mapas', 'cantimploras']);
@@ -990,17 +1014,32 @@ const fracciones = {
 
   analizar(tier, grade) {
     const g = grade || DEFAULT_GRADE;
-    const f = pick(bandOf(g) === 3 ? fractPool(g) : [FRACT[0], FRACT[2], FRACT[1]]);
-    const mult = ri(2, bandOf(g) === 3 ? 12 : 6);
+    /* También por la rampa: en el nivel 1, las fracciones que se ven de un
+       vistazo y cantidades pequeñas; en el 5, todas y repartos de verdad. */
+    const f = porTier(bandOf(g) === 3 ? fractPool(g) : [FRACT[0], FRACT[2], FRACT[1]], tier);
+    const tope = bandOf(g) === 3 ? 2 + tier * 2 : 2 + tier;
+    const mult = ri(2, Math.max(3, tope));
     const total = f.d * mult;
     const real = f.n * mult;
     const veraSays = pick([real + mult, Math.floor(total / 2) === real ? real + 1 : Math.floor(total / 2)]);
+    /* ── Las falsas, sin repetirse entre ellas ──
+       Estaban escritas a mano y dos coincidían cuando `real + f.d` daba justo
+       `total` —que con ½ pasa siempre—, así que quedaban tres opciones y
+       buildOptions rellenaba la cuarta repitiendo la BUENA con un «?» detrás.
+       Un niño que marcaba esa recibía «has fallado» habiendo acertado, que es
+       lo peor que puede hacer esta plataforma.
+
+       Ahora se listan los repartos equivocados que un niño hace de verdad
+       —quedarse con todo, confundirse de parte, sumar el denominador— y se
+       quitan los repetidos y el que coincida con el bueno. */
+    const equivocados = [];
+    [total, total - real, real + f.d, f.n * f.d, real + 1, real + mult]
+      .forEach(v => {
+        if (v !== real && v > 0 && v <= total * 2 && !equivocados.includes(v)) equivocados.push(v);
+      });
     const correctOpt = `No: ${f.uni} de ${total} son ${real}`;
-    const { options, answer } = buildOptions(correctOpt, [
-      `Sí, Vera tiene razón`,
-      `No: ${f.uni} de ${total} son ${real + f.d}`,
-      `No: ${f.uni} de ${total} son ${total}`
-    ]);
+    const { options, answer } = buildOptions(correctOpt,
+      ['Sí, Vera tiene razón'].concat(equivocados.map(v => `No: ${f.uni} de ${total} son ${v}`)));
     return {
       skill: 'error_fraccion',
       question: `Vera Kovak reparte el botín y anuncia: «${f.uni} de ${total} monedas son ${veraSays} monedas, ¡me las quedo!». ¿Es correcto su reparto?`,
@@ -1018,7 +1057,9 @@ const fracciones = {
 const sendero = {
   recordar(tier, grade) {
     const g = grade || 1;
-    const max = g === 1 ? 30 : 100;
+    /* También aquí manda la rampa, aunque el techo del curso sea pequeño: a
+       los seis años contar 8 monedas y contar 28 no es lo mismo. */
+    const max = rampaTier(g === 1 ? 30 : 100, tier, 6);
     const n = ri(3, max);
     const dedos = Math.min(10, n);
     const correct = n;
@@ -1035,18 +1076,33 @@ const sendero = {
   },
   comprender(tier, grade) {
     const g = grade || 1;
-    const paso = pick(g === 1 ? [1, 2, 5, 10] : [2, 3, 5, 10]);
-    const inicio = ri(1, g === 1 ? 20 : 50);
-    const serie = [inicio, inicio + paso, inicio + paso * 2, inicio + paso * 3];
-    const correct = inicio + paso * 4;
+    const t = Math.max(1, Math.min(5, tier || 2));
+    /* ── Niveles 4 y 5: la serie va hacia atrás ──
+       Contar hacia atrás es bastante más difícil que contar hacia delante a
+       esta edad, y es contenido de 1.º y 2.º: no es una dificultad inventada
+       para que el nivel 5 tenga algo. */
+    const atras = t >= 4;
+    const techo = g === 1 ? 30 : 99;
+    /* Y el paso tiene que CABER hacia atrás. Con paso 10 desde 30 la serie
+       llegaba a −5, y un niño de seis años contando monedas no tiene números
+       negativos: se descartan los pasos que no quepan antes de elegir. */
+    const pasos = (g === 1 ? [1, 2, 10, 5, 3] : [2, 10, 5, 3, 4])
+      .filter(p => !atras || p * 4 < techo);
+    const paso = porTier(pasos.length ? pasos : [1], t);
+    const inicio = atras
+      ? ri(paso * 4 + 1, techo)
+      : ri(1, g === 1 ? 20 : 50);
+    const signo = atras ? -1 : 1;
+    const serie = [0, 1, 2, 3].map(i => inicio + signo * paso * i);
+    const correct = inicio + signo * paso * 4;
     const { options, answer } = buildOptions(correct, nearMisses(correct), fmtNum);
     return {
       skill: 'series',
       question: `Sigue las huellas:\n${serie.join(' → ')} → ?`,
       options, answer,
-      hint1: 'Mira cuánto sube de un número al siguiente.',
-      hint2: `Cada paso suma ${paso}.`,
-      explanation: `La serie sube de ${paso} en ${paso}: después de ${serie[3]} va ${correct}.`
+      hint1: `Mira cuánto ${atras ? 'baja' : 'sube'} de un número al siguiente.`,
+      hint2: `Cada paso ${atras ? 'quita' : 'suma'} ${paso}.`,
+      explanation: `La serie ${atras ? 'baja' : 'sube'} de ${paso} en ${paso}: después de ${serie[3]} va ${correct}.`
     };
   },
   aplicar(tier, grade) {
@@ -1087,29 +1143,84 @@ const sendero = {
 
 /* ═══════════════ POZO 5 · CÁMARA DECIMAL (5.º y 6.º) ═══════════════ */
 const decimales = {
+  /* ── Este pozo no usaba el nivel en ninguno de sus cuatro estratos ──
+     Recibía `tier` y lo ignoraba: los cinco niveles daban exactamente lo
+     mismo. Y es el pozo de 5.º y 6.º, que es donde la ampliación importa
+     más. Ahora el nivel decide cuántos lugares decimales hay en juego y, a
+     partir del 4, qué se pregunta. */
   recordar(tier) {
-    const ent = ri(1, 99), dec = ri(1, 99);
-    const n = ent + dec / 100;
-    const txt = n.toLocaleString('es-ES', { minimumFractionDigits: 2 });
-    const parte = pick(['décimas', 'centésimas']);
-    const correct = parte === 'décimas' ? Math.floor(dec / 10) : dec % 10;
-    const { options, answer } = buildOptions(correct, [Math.floor(dec / 10), dec % 10, ent % 10, ri(0, 9)]);
+    const t = Math.max(1, Math.min(5, tier || 2));
+    /* Décimas hasta el nivel 2, centésimas del 3 al 4, milésimas en el 5. */
+    const lugares = t <= 2 ? 1 : t <= 4 ? 2 : 3;
+    const NOMBRES = ['décimas', 'centésimas', 'milésimas'];
+    const ent = ri(1, 99);
+    const dec = ri(1, Math.pow(10, lugares) - 1);
+    const cifras = String(dec).padStart(lugares, '0');
+    const txt = `${ent},${cifras}`;
+    const i = ri(0, lugares - 1);
+    const parte = NOMBRES[i];
+    const cifra = Number(cifras[i]);
+
+    /* ── Niveles 4 y 5: cuánto VALE, no qué cifra es ──
+       Igual que en la bóveda: señalar la cifra se resuelve contando lugares
+       con el dedo; decir cuánto vale obliga a leer la cantidad. Y con
+       decimales el error típico es justo el contrario del de los enteros —se
+       lee «siete centésimas» como 0,7— así que ese valor está entre las
+       falsas. */
+    if (t >= 4 && cifra > 0) {
+      const valor = cifra / Math.pow(10, i + 1);
+      const fmt = v => v.toLocaleString('es-ES', { maximumFractionDigits: 3 });
+      const falsas = [cifra, cifra / 10, cifra / 100, cifra / 1000]
+        .filter(v => v !== valor).map(fmt);
+      const { options, answer } = buildOptions(fmt(valor), falsas);
+      return {
+        skill: 'decimal_posicion',
+        question: `El manómetro del templo marca ${txt}. ¿Cuánto VALE la cifra ${cifra} que ocupa el lugar de las ${parte}?`,
+        options, answer,
+        hint1: 'No es la cifra que ves: es la cantidad que representa en ese lugar.',
+        hint2: `Una décima es 0,1; una centésima, 0,01; una milésima, 0,001. Tienes ${cifra} de esas.`,
+        explanation: `${cifra} ${parte} son ${fmt(valor)}.`
+      };
+    }
+
+    const { options, answer } = buildOptions(cifra,
+      cifras.split('').map(Number).concat([ent % 10, ri(0, 9)]));
     return {
       skill: 'decimal_posicion',
       question: `El manómetro del templo marca ${txt}. ¿Qué cifra ocupa el lugar de las ${parte}?`,
       options, answer,
-      hint1: 'Tras la coma va primero el lugar de las décimas y luego el de las centésimas.',
-      hint2: `En ${txt}, después de la coma están ${String(dec).padStart(2, '0')}.`,
-      explanation: `En ${txt}, la cifra de las ${parte} es ${correct}.`
+      hint1: `Tras la coma va primero el lugar de las décimas${lugares > 1 ? ', luego el de las centésimas' : ''}${lugares > 2 ? ' y después el de las milésimas' : ''}.`,
+      hint2: `En ${txt}, después de la coma están ${cifras}.`,
+      explanation: `En ${txt}, la cifra de las ${parte} es ${cifra}.`
     };
   },
   comprender(tier) {
-    const pares = [
+    /* Ordenadas de fácil a difícil: la mitad y los cuartos se ven, los octavos
+       y los quintos altos hay que pensarlos. La rampa decide hasta dónde. */
+    const PARES = [
       { d: '0,5', f: '½' }, { d: '0,25', f: '¼' }, { d: '0,75', f: '¾' },
-      { d: '0,2', f: '⅕' }, { d: '0,1', f: '1/10' }
+      { d: '0,1', f: '1/10' }, { d: '0,2', f: '⅕' }, { d: '0,4', f: '⅖' },
+      { d: '0,6', f: '⅗' }, { d: '0,125', f: '⅛' }, { d: '0,375', f: '⅜' }
     ];
+    const t = Math.max(1, Math.min(5, tier || 2));
+    const pares = hastaTier(PARES, t);
     const p = pick(pares);
-    const { options, answer } = buildOptions(p.f, pares.filter(x => x !== p).map(x => x.f));
+    /* En el nivel 5 se pregunta al revés la mitad de las veces: de la fracción
+       al decimal es el camino que no se puede resolver reconociendo el dibujo
+       de memoria, hay que hacer la división. */
+    const alReves = t >= 5 && pick([true, false]);
+    if (alReves) {
+      const { options, answer } = buildOptions(p.d, PARES.filter(x => x !== p).map(x => x.d));
+      return {
+        skill: 'decimal_fraccion',
+        question: `Kira anota ${p.f} en la bitácora. ¿Qué número decimal es?`,
+        options, answer,
+        hint1: 'Una fracción es un reparto: el de arriba entre el de abajo.',
+        hint2: `${p.f} es una parte de las que hacen 1 entero. ¿Cuánto vale esa parte?`,
+        explanation: `${p.f} equivale a ${p.d}.`
+      };
+    }
+    const { options, answer } = buildOptions(p.f, PARES.filter(x => x !== p).map(x => x.f));
     return {
       skill: 'decimal_fraccion',
       question: `Kira anota ${p.d} en la bitácora. ¿A qué fracción equivale?`,
@@ -1120,17 +1231,35 @@ const decimales = {
     };
   },
   aplicar(tier) {
-    const total = ri(2, 40) * 10;
-    const pct = pick([10, 20, 25, 50, 75]);
+    /* De fácil a difícil, y la dificultad aquí no es el número: es si el
+       porcentaje sale de cabeza de un tirón (la mitad, dividir entre diez) o
+       hay que componerlo con dos (el 15 % es 10 % y 5 %). Eso es lo que OAOA
+       llama porcentajes de cabeza, y es la estrategia que se nombra en la
+       pista en vez de mandar dividir entre 100 y multiplicar. */
+    /* Ordenados por PASOS de cabeza, no por tamaño: uno (la mitad, entre
+       diez), dos (la mitad de la mitad, el 10 % dos veces) y tres o más. */
+    const PCT = [50, 10, 25, 20, 5, 75, 30, 15, 35];
+    const t = Math.max(1, Math.min(5, tier || 2));
+    const pct = pick(hastaTier(PCT, t));
+    const total = ri(2, 20 + t * 8) * 10;
     const correct = Math.round(total * pct / 100);
-    const { options, answer } = buildOptions(correct, [Math.round(total * (pct + 10) / 100), Math.round(total / 2), total - correct].concat(nearMisses(correct)), fmtNum);
+    const diez = total / 10;
+    /* Cómo se saca de cabeza ESTE porcentaje, con la estrategia por su
+       nombre. Componer dos es lo que separa el nivel alto del bajo. */
+    const camino = { 50: 'la mitad', 25: 'la mitad de la mitad', 75: 'la mitad más la mitad de la mitad',
+                     10: 'dividir entre 10', 20: 'el 10 % dos veces',
+                     30: 'el 10 % tres veces', 5: 'la mitad del 10 %',
+                     15: 'el 10 % más su mitad', 35: 'el 10 % tres veces más la mitad de uno' }[pct];
+    const { options, answer } = buildOptions(correct,
+      [Math.round(total * (pct + 10) / 100), Math.round(total / 2), total - correct, pct]
+        .concat(nearMisses(correct)), fmtNum);
     return {
       skill: 'porcentaje',
       question: `El botín es de ${fmtNum(total)} doblones y la Sociedad se queda el ${pct} %. ¿Cuántos doblones son?`,
       options, answer,
-      hint1: `El ${pct} % significa ${pct} de cada 100.`,
-      hint2: `Divide ${fmtNum(total)} entre 100 y multiplica por ${pct}.`,
-      explanation: `${pct} % de ${fmtNum(total)} = ${fmtNum(total)} ÷ 100 × ${pct} = ${fmtNum(correct)} doblones.`
+      hint1: `El ${pct} % de algo es ${camino}.`,
+      hint2: `El 10 % de ${fmtNum(total)} es ${fmtNum(diez)}. Desde ahí sale el resto.`,
+      explanation: `El ${pct} % de ${fmtNum(total)} es ${camino}: ${fmtNum(correct)} doblones.`
     };
   },
   analizar(tier) {
@@ -1157,6 +1286,42 @@ const decimales = {
     }
     const masCifras = `${ent1},${dec1}${ri(1, 9)}`;   /* dos decimales */
     const menosCifras = `${ent2},${dec2}`;            /* un decimal */
+
+    /* ── Nivel 5: ordenar tres, no juzgar a Vera ──
+       Con dos números y cuatro opciones se puede acertar descartando: «Vera
+       casi nunca tiene razón». Ordenar tres no se puede descartar, y obliga a
+       comparar por pares mirando de verdad el valor de cada posición. */
+    if ((tier || 2) >= 5) {
+      const base = ri(2, 8);
+      const tres = [`${base},${ri(0, 4)}${ri(1, 9)}`, `${base},${ri(5, 9)}`, `${base + 1},${ri(0, 9)}`];
+      const num = s => Number(s.replace(',', '.'));
+      const ordenado = [...tres].sort((a, b) => num(a) - num(b));
+      /* Las falsas salen de las SEIS ordenaciones posibles quitando la buena:
+         así son siempre tres distintas y de verdad. Derivarlas ordenando la
+         misma lista de tres maneras las hacía coincidir entre sí, y la opción
+         que faltaba la rellenaba buildOptions con un «…?» que no significa
+         nada. Entre ellas está siempre la de «más cifras, mayor», que es el
+         error que este reto viene a corregir. */
+      const perms = [];
+      for (const a of tres) for (const b of tres) for (const c2 of tres) {
+        if (a !== b && b !== c2 && a !== c2) perms.push([a, b, c2].join(' < '));
+      }
+      const bueno = ordenado.join(' < ');
+      const masCifrasPrimero = [...tres].sort((a, b) => a.length - b.length).join(' < ');
+      const falsas = [masCifrasPrimero, [...ordenado].reverse().join(' < ')]
+        .concat(shuffle(perms))
+        .filter(x => x !== bueno);
+      const { options, answer } = buildOptions(bueno, falsas);
+      return {
+        skill: 'comparar_decimales',
+        question: `Vera tiene que colocar tres pesas en la balanza, de la más ligera a la más pesada: `
+                + `${tres.join(' · ')}. ¿Cuál es el orden correcto?`,
+        options, answer,
+        hint1: 'Compara primero la parte entera. Solo si empata hay que mirar las décimas.',
+        hint2: 'Tener más cifras detrás de la coma no hace un número mayor: 0,5 es mayor que 0,25.',
+        explanation: `De menor a mayor: ${ordenado.join(' < ')}.`
+      };
+    }
 
     const correctOpt = `${menosCifras} es mayor`;
     const { options, answer } = buildOptions(correctOpt, [
@@ -1199,12 +1364,7 @@ const decimales = {
    coge de la mitad fácil o de la difícil del banco. */
 
 /* Del banco de un ciclo, el tramo que toca según el tier (1-5) */
-function porTier(lista, tier) {
-  if (lista.length < 4) return pick(lista);
-  const t = Math.max(1, Math.min(5, tier || 2));
-  const corte = Math.ceil(lista.length * (0.35 + 0.13 * t));
-  return pick(lista.slice(0, Math.max(3, corte)));
-}
+
 /* Los distractores se pasan de sobra y barajados: buildOptions() descarta los
    repetidos, y con solo tres candidatos una regla duplicada dejaba la pregunta
    con opciones de relleno tipo «palabra?». */
@@ -1323,6 +1483,21 @@ const TEXTOS = {
     inferencia: { p: 'El jueves no estaban perdidas. ¿Dónde estaban?', r: 'Puestas en su cara', d: ['En la zanja', 'En la tienda', 'En el mapa'] },
     idea: { p: '¿Cómo es Bruno según el texto?', r: 'Despistado', d: ['Valiente', 'Tacaño', 'Enfadado'] },
     critica: { p: '¿Qué día NO perdió las gafas de verdad?', r: 'El jueves', d: ['El lunes', 'El martes', 'Ningún día'] }
+    }, {
+    /* Los dos últimos de cada ciclo son los más exigentes: es el orden que
+       lee la rampa, y por eso solo salen en los niveles altos. Aquí la
+       respuesta ya no está en una sola frase: hay que juntar dos. */
+    texto: 'Vera llegó al pozo antes que nadie. Cogió la lámpara de Bruno sin pedirla. Cuando Bruno bajó, no veía nada y tuvo que subir otra vez.',
+    literal: { p: '¿Qué cogió Vera?', r: 'La lámpara de Bruno', d: ['Una vasija', 'El mapa', 'Una cuerda'] },
+    inferencia: { p: '¿Por qué tuvo que subir Bruno?', r: 'Porque no veía sin la lámpara', d: ['Porque tenía hambre', 'Porque Vera le llamó', 'Porque el pozo estaba lleno'] },
+    idea: { p: '¿Qué hizo mal Vera?', r: 'Coger algo sin pedirlo', d: ['Llegar temprano', 'Bajar al pozo', 'Encender la lámpara'] },
+    critica: { p: 'Kira dice que Bruno bajó sin lámpara porque quiso. ¿Es verdad?', r: 'No: Vera se la había llevado', d: ['Sí, a Bruno no le gustan las lámparas', 'Sí, quería probar a oscuras', 'El texto no lo cuenta'] }
+  }, {
+    texto: 'Ayer llovió en el campamento. Hoy la arena está dura y cuesta cavar. Bruno dice que mañana será más fácil, cuando el sol la seque.',
+    literal: { p: '¿Cómo está la arena hoy?', r: 'Dura', d: ['Blanda', 'Caliente', 'Seca'] },
+    inferencia: { p: '¿Por qué está dura la arena?', r: 'Porque ayer llovió', d: ['Porque hace sol', 'Porque nadie cava', 'Porque es de noche'] },
+    idea: { p: '¿Qué espera Bruno?', r: 'Que el sol seque la arena', d: ['Que vuelva a llover', 'Que llegue Vera', 'Que se acabe la arena'] },
+    critica: { p: 'Tobías dice que hoy es el mejor día para cavar. ¿Tiene razón?', r: 'No: hoy cuesta más que mañana', d: ['Sí, la arena está perfecta', 'Sí, porque llovió', 'El texto no habla de cavar'] }
   }],
   2: [{
     texto: 'La expedición llegó al Valle Fósil al amanecer. Bruno quería excavar enseguida, pero Kira le hizo esperar: la arena estaba húmeda por la lluvia de la noche y las paredes de la zanja podían derrumbarse. Esperaron tres horas al sol. Cuando por fin cavaron, encontraron una tablilla con signos que nadie había visto en cien años.',
@@ -1336,6 +1511,18 @@ const TEXTOS = {
     inferencia: { p: 'Según el texto, ¿qué se pierde aunque la pieza siga entera?', r: 'La información de dónde estaba', d: ['Su valor en dinero', 'Su color original', 'Su nombre antiguo'] },
     idea: { p: '¿Qué quiere explicar el texto?', r: 'Que sacar una pieza sin anotar su sitio destruye conocimiento', d: ['Que los coleccionistas pagan mucho', 'Que Vera Kovak es rica', 'Que excavar es difícil'] },
     critica: { p: '¿Cuál de estas frases es una opinión y no un dato del texto?', r: '«Los coleccionistas son personas horribles»', d: ['«Vera Kovak paga por piezas antiguas»', '«Los Saqueadores no excavan»', '«La información se pierde»'] }
+    }, {
+    texto: 'Bruno anotó en su diario que la tablilla pesaba dos kilos. Kira la pesó después: pesaba ochocientos gramos. Bruno no había limpiado la arena pegada antes de pesarla, y esa arena era casi todo el peso de más.',
+    literal: { p: '¿Cuánto pesaba la tablilla de verdad?', r: 'Ochocientos gramos', d: ['Dos kilos', 'Un kilo', 'Ochenta gramos'] },
+    inferencia: { p: '¿Por qué le salió a Bruno un peso mayor?', r: 'Porque pesó también la arena pegada', d: ['Porque su balanza era vieja', 'Porque la tablilla se rompió', 'Porque midió dos veces'] },
+    idea: { p: '¿Qué enseña este episodio?', r: 'Que hay que limpiar antes de medir', d: ['Que las tablillas pesan mucho', 'Que Kira pesa mejor', 'Que el diario se equivoca solo'] },
+    critica: { p: 'Vera dice que la balanza de Bruno está estropeada. ¿Es esa la causa?', r: 'No: el error fue no limpiar la arena', d: ['Sí, la balanza falla', 'Sí, marca de más siempre', 'El texto dice que se rompió'] }
+  }, {
+    texto: 'La Sociedad manda dos cajas al campamento cada mes. Este mes solo llegó una. Bruno repartió la comida igual que siempre y a mitad de mes no quedaba nada. Kira se lo había advertido el primer día.',
+    literal: { p: '¿Cuántas cajas llegaron este mes?', r: 'Una', d: ['Dos', 'Ninguna', 'Tres'] },
+    inferencia: { p: '¿Por qué se acabó la comida antes?', r: 'Porque repartió igual habiendo la mitad', d: ['Porque llegaron tarde', 'Porque comieron más', 'Porque Kira se la llevó'] },
+    idea: { p: '¿Qué debería haber hecho Bruno?', r: 'Ajustar el reparto a lo que había', d: ['Pedir tres cajas', 'Comer solo él', 'Esperar al mes siguiente'] },
+    critica: { p: 'Bruno dice que nadie podía saberlo. ¿Es cierto?', r: 'No: Kira se lo advirtió el primer día', d: ['Sí, fue una sorpresa', 'Sí, la Sociedad no avisó', 'El texto no habla de Kira'] }
   }],
   3: [{
     texto: 'Durante décadas se creyó que la Ciudad de Ossian era una leyenda. El único indicio era un mapa del siglo XVIII que situaba unas ruinas junto a un río que hoy no existe. En 1998, un satélite detectó bajo la arena la huella de un cauce seco exactamente donde el mapa lo dibujaba. La expedición que cavó allí no encontró la ciudad, pero sí un muro de doce metros. El hallazgo no demostró la leyenda: demostró que el mapa era fiable.',
@@ -1349,6 +1536,18 @@ const TEXTOS = {
     inferencia: { p: '¿Por qué el material se describe como «visible de cerca e invisible de lejos»?', r: 'Para que se entienda la forma sin ocultar qué es original', d: ['Porque es más barato', 'Porque se desgasta con el tiempo', 'Porque brilla con la luz'] },
     idea: { p: '¿Qué estructura sigue el texto?', r: 'Plantea dos opciones opuestas y presenta una tercera que las concilia', d: ['Narra una restauración paso a paso', 'Defiende no restaurar nunca', 'Compara dos museos concretos'] },
     critica: { p: '¿Qué supuesto acepta el autor sin discutirlo?', r: 'Que las piezas deben exponerse al público', d: ['Que restaurar plantea un dilema', 'Que hay varias soluciones posibles', 'Que el color distinto se ve de cerca'] }
+    }, {
+    texto: 'Durante cuarenta años se creyó que el Atlas de Ossian era un solo mapa. La hipótesis se sostenía en un único testimonio: el diario de un marinero que decía haberlo visto entero. Cuando aparecieron dos fragmentos idénticos en continentes distintos, la explicación se vino abajo: un mapa único no puede estar en dos sitios, y lo que el marinero vio debió de ser una copia.',
+    literal: { p: '¿En qué se apoyaba la hipótesis del mapa único?', r: 'En el diario de un marinero', d: ['En dos fragmentos idénticos', 'En los archivos de la Sociedad', 'En una copia del Atlas'] },
+    inferencia: { p: '¿Por qué los dos fragmentos desmontan la hipótesis?', r: 'Porque un mapa único no puede estar en dos sitios', d: ['Porque el marinero mintió', 'Porque estaban en mal estado', 'Porque nadie los examinó'] },
+    idea: { p: '¿Cuál es la idea central del texto?', r: 'Que una prueba nueva puede derribar una creencia antigua', d: ['Que los marineros no son de fiar', 'Que el Atlas tiene dos partes', 'Que cuarenta años son muchos'] },
+    critica: { p: 'Vera concluye que el marinero inventó su diario. ¿Se puede afirmar eso?', r: 'No: pudo ver una copia sin mentir', d: ['Sí, queda demostrado', 'Sí, porque el mapa no existía', 'Sí, lo dice el texto'] }
+  }, {
+    texto: 'El informe de la excavación afirma que la cámara se selló en el año 300. La datación de la madera de la puerta da el año 450. Los autores explican la diferencia diciendo que la puerta se repuso más tarde, pero no aportan ninguna prueba de esa reposición: es una suposición que encaja con sus fechas.',
+    literal: { p: '¿Qué año da la datación de la madera?', r: 'El año 450', d: ['El año 300', 'El año 400', 'El año 150'] },
+    inferencia: { p: '¿Qué problema tiene la explicación de los autores?', r: 'Que no aportan pruebas de la reposición', d: ['Que la madera es moderna', 'Que no dataron la puerta', 'Que confunden dos cámaras'] },
+    idea: { p: '¿Qué distingue una prueba de una suposición?', r: 'Que la prueba se puede comprobar', d: ['Que la suposición es más antigua', 'Que la prueba la firma un experto', 'Que la suposición no se escribe'] },
+    critica: { p: '¿Se puede dar por buena la fecha del año 300?', r: 'No mientras la diferencia no se explique con pruebas', d: ['Sí, lo dice el informe', 'No, la buena es el 450 seguro', 'Sí, la madera se repone siempre'] }
   }]
 };
 
@@ -1387,9 +1586,11 @@ const vocabulario = {
   aplicar(tier, grade) {
     const banda = bandOf(grade);
     const cats = LEX.categorias[banda];
-    const nombres = Object.keys(cats);
+    /* Las categorías van ordenadas de concreta a abstracta dentro de cada
+       ciclo, así que la rampa sirve igual que con las palabras sueltas. */
+    const nombres = hastaTier(Object.keys(cats), tier);
     const cat = pick(nombres);
-    const correct = pick(cats[cat]);
+    const correct = porTier(cats[cat], tier);
     const otras = nombres.filter(n => n !== cat).flatMap(n => cats[n]);
     const { options, answer } = buildOptions(correct, distractores(otras));
     const explica = {

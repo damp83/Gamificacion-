@@ -269,3 +269,170 @@ test('la tarjeta del estrato le dice SU puerta, no la de todos', () => {
   assert.match(p, /dominioParaAbrir\(\)/, 'el porcentaje sale de su puerta');
   assert.ok(!/≥80%/.test(p), 'no puede quedar ningún 80 escrito a mano');
 });
+
+/* ══════════ Los pozos que faltaban ══════════ */
+
+test('ningún pozo ignora el nivel de dificultad', () => {
+  /* «decimales» recibía `tier` en sus cuatro estratos y no lo usaba en
+     ninguno: los cinco niveles daban exactamente lo mismo. Y es el pozo de
+     5.º y 6.º, que es donde la ampliación importa más. */
+  const c = cargarApp();
+  const G = gen(c);
+  const planos = [];
+  for (const pozo of Object.keys(JSON.parse(JSON.stringify(G)))) {
+    for (const estrato of ['recordar', 'comprender', 'aplicar', 'analizar']) {
+      const curso = pozo === 'sendero' ? 2 : pozo === 'decimales' ? 6 : 4;
+      /* Se compara el enunciado Y la respuesta buena: en ortografía el
+         enunciado es siempre «¿cuál está bien escrita?» y lo que cambia con el
+         nivel son las palabras, así que mirar solo la pregunta daría plano un
+         estrato que sí gradúa. */
+      const junta = t => new Set(Array.from({ length: 160 }, () => {
+        const q = G[pozo][estrato](t, curso);
+        return q.question + ' ‖ ' + JSON.parse(JSON.stringify(q.options))[q.answer];
+      }));
+      const bajo = junta(1), alto = junta(5);
+      /* Si los dos niveles producen exactamente el mismo repertorio, el nivel
+         no está haciendo nada ahí. */
+      const soloArriba = [...alto].filter(q => !bajo.has(q));
+      if (!soloArriba.length) planos.push(`${pozo}/${estrato}`);
+    }
+  }
+  assert.deepStrictEqual(planos.length, 0,
+    `estos estratos dan lo mismo en el nivel 1 que en el 5: ${planos.join(', ')}`);
+});
+
+test('las fracciones ya no usan un interruptor de dos posiciones', () => {
+  /* Era `tier <= 2 ? las 3 fáciles : todas`. Ahora es la misma rampa de cinco
+     pasos que usa Lengua. */
+  const c = cargarApp();
+  const cuantas = t => {
+    const v = new Set();
+    for (let i = 0; i < 300; i++) v.add(gen(c).fracciones.recordar(t, 6).question.replace(/\d+/g, ''));
+    return v.size;
+  };
+  const v = [1, 2, 3, 4, 5].map(cuantas);
+  assert.ok(v[4] > v[0], `el nivel 5 tiene que abrir más que el 1: ${v.join(', ')}`);
+  const f = leerFuente('js/content.js');
+  assert.ok(!/tier <= 2 \? fractPool/.test(f), 'queda el interruptor binario');
+  assert.match(f, /function hastaTier/, 'la rampa vive en un solo sitio');
+});
+
+test('en decimales el nivel decide cuántos lugares hay en juego', () => {
+  const c = cargarApp();
+  const lugares = t => {
+    const v = new Set();
+    for (let i = 0; i < 120; i++) {
+      const m = gen(c).decimales.recordar(t).question.match(/(décimas|centésimas|milésimas)/g) || [];
+      m.forEach(x => v.add(x));
+    }
+    return v;
+  };
+  assert.ok(!lugares(1).has('centésimas'), 'en el nivel 1 solo décimas');
+  assert.ok(lugares(3).has('centésimas'), 'en el 3 ya hay centésimas');
+  assert.ok(lugares(5).has('milésimas'), 'y en el 5, milésimas');
+});
+
+test('los porcentajes se ordenan por pasos de cabeza, no por tamaño', () => {
+  /* La dificultad de un porcentaje no es el número: es si sale de un tirón
+     (la mitad, dividir entre diez) o hay que componerlo con dos. Es la
+     estrategia que OAOA llama porcentajes de cabeza. */
+  const c = cargarApp();
+  const vistos = t => {
+    const v = new Set();
+    for (let i = 0; i < 400; i++) {
+      v.add(Number(gen(c).decimales.aplicar(t).question.match(/el (\d+) %/)[1]));
+    }
+    return v;
+  };
+  const bajo = vistos(1), alto = vistos(5);
+  assert.ok(bajo.has(50) && bajo.has(10), 'los de un paso tienen que estar desde el principio');
+  assert.ok(!bajo.has(35), 'el de cuatro pasos no puede salir en el nivel 1');
+  assert.ok(alto.has(35) && alto.size > bajo.size, 'y en el 5 tienen que estar todos');
+  /* Y la pista nombra la estrategia en vez de mandar dividir entre 100. */
+  const q = gen(c).decimales.aplicar(3);
+  assert.ok(!/entre 100/.test(q.hint1), 'la pista 1 nombra el camino de cabeza');
+});
+
+test('una serie hacia atrás nunca llega a números negativos', () => {
+  /* Con paso 10 desde 30 la serie acababa en −5, y un niño de seis años
+     contando monedas no tiene números negativos. */
+  const c = cargarApp();
+  const malos = [];
+  for (const g of [1, 2]) for (const t of [4, 5]) {
+    for (let i = 0; i < 400; i++) {
+      const q = gen(c).sendero.comprender(t, g);
+      const nums = (q.question.match(/-?\d+/g) || []).map(Number)
+        .concat(JSON.parse(JSON.stringify(q.options)).map(o => Number(String(o).replace(/\./g, ''))));
+      if (nums.some(n => n < 0)) malos.push(`${g}.º nivel ${t}: ${q.question.replace(/\n/g, ' ')}`);
+    }
+  }
+  assert.deepStrictEqual(malos.length, 0, malos[0]);
+  /* Y en el 4 y el 5 la serie baja, que es lo que la hace más difícil. */
+  const atras = Array.from({ length: 30 }, () => gen(c).sendero.comprender(5, 2).hint1);
+  assert.ok(atras.every(h => /baja/.test(h)), 'en el nivel 5 la serie va hacia atrás');
+});
+
+test('un reto de «busca la suma» tiene UNA sola respuesta válida', () => {
+  /* Aquí había un fallo serio y viejo: las dos opciones de relleno se
+     sorteaban al azar SIN comprobarlas contra lo que se preguntaba. Medido
+     antes de arreglarlo: el 75 % de estas preguntas tenía dos, tres o cuatro
+     opciones válidas y solo una marcada, así que un niño que razonaba bien y
+     elegía otra recibía «has fallado». */
+  const c = cargarApp();
+  const completa = s => {
+    const m = String(s).match(/(\d+) \+ (\d+)/);
+    return m ? ((+m[1]) % 10 + (+m[2]) % 10) >= 10 : null;
+  };
+  let vistos = 0;
+  for (let g = 3; g <= 6; g++) for (let t = 1; t <= 5; t++) {
+    for (let i = 0; i < 60; i++) {
+      const q = gen(c).sumas_llevando.comprender(t, g);
+      if (!/engranaje correcto/.test(q.question)) continue;
+      vistos++;
+      const pide = /SÍ completan/.test(q.question);
+      const ops = JSON.parse(JSON.stringify(q.options));
+      const validas = ops.filter(o => completa(o) === pide);
+      assert.equal(validas.length, 1,
+        `${q.question} → válidas: ${validas.join(' · ')} de ${ops.join(' · ')}`);
+      assert.equal(completa(ops[q.answer]), pide, 'y la marcada tiene que ser la válida');
+    }
+  }
+  assert.ok(vistos > 200, 'la barrida tiene que ver bastantes');
+});
+
+test('la respuesta correcta nunca aparece dos veces', () => {
+  /* Pasaba en el reparto de Vera: dos falsas coincidían, buildOptions
+     rellenaba la cuarta repitiendo la BUENA con un «?» detrás, y quien la
+     marcaba recibía «has fallado» habiendo acertado. */
+  const c = cargarApp();
+  const G = gen(c);
+  const malos = [];
+  for (const pozo of Object.keys(JSON.parse(JSON.stringify(G)))) {
+    for (const estrato of ['recordar', 'comprender', 'aplicar', 'analizar']) {
+      for (let g = 1; g <= 6; g++) for (let t = 1; t <= 5; t++) for (let i = 0; i < 6; i++) {
+        const q = G[pozo][estrato](t, g);
+        const ops = JSON.parse(JSON.stringify(q.options)).map(String);
+        if (ops.some(o => /\?$/.test(o))) malos.push(`${pozo}/${estrato}: opción de relleno «${ops.find(o => /\?$/.test(o))}»`);
+        if (new Set(ops).size !== 4) malos.push(`${pozo}/${estrato}: opciones repetidas`);
+      }
+    }
+  }
+  assert.deepStrictEqual(malos.length, 0, [...new Set(malos)].slice(0, 3).join(' · '));
+});
+
+test('cada ciclo tiene textos suficientes para que la rampa abra algo', () => {
+  /* Con menos de cuatro, `hastaTier` devuelve la lista entera y los cinco
+     niveles leen lo mismo. No es un fallo del código: es que faltaba
+     contenido. */
+  const c = cargarApp();
+  const T = c.ev('JSON.parse(JSON.stringify(TEXTOS))');
+  [1, 2, 3].forEach(ciclo => {
+    assert.ok(T[ciclo].length >= 4, `el ciclo ${ciclo} solo tiene ${T[ciclo].length} textos`);
+    /* Y cada texto, sus cuatro niveles de Bloom completos. */
+    T[ciclo].forEach(x => ['literal', 'inferencia', 'idea', 'critica'].forEach(k => {
+      assert.ok(x[k] && x[k].p && x[k].r && x[k].d.length >= 3,
+        `un texto del ciclo ${ciclo} no tiene bien el nivel «${k}»`);
+      assert.ok(!x[k].d.includes(x[k].r), 'la respuesta buena no puede estar entre las falsas');
+    }));
+  });
+});

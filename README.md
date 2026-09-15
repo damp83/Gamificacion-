@@ -1704,6 +1704,38 @@ la cifra suelta, el total cuando se pedía la parte, y sumarlo todo sin leer el
 final. Y las pistas siguen hablando OAOA — hay una prueba que pasa el
 reglamento por los textos de los cinco niveles.
 
+### Los ocho pozos, no solo dos
+
+La primera tanda arregló numeración y sumas. El resto de los pozos seguía con
+el mismo interruptor binario, así que un alumno en el nivel 5 de fracciones
+veía lo mismo que uno en el 3. Ahora **los ocho reparten a lo largo de los
+cinco niveles**, cada uno con la palanca que le corresponde:
+
+| Pozo | Lo que ramponea | Lo que aparece arriba |
+|---|---|---|
+| **Fracciones** | El repertorio de fracciones, ordenado de la mitad a los quintos | Fracción de una cantidad con multiplicador mayor, y falsas que son los errores reales: el total cuando se pedía la parte, la parte que sobra, numerador por denominador |
+| **Decimales** | Los lugares —décimas, centésimas, milésimas— y los porcentajes | «¿Cuánto **vale** la cifra?» en vez de cuál es; el par leído al revés; y en el 5, **ordenar tres decimales**, donde 8,08 y 8,6 separan a quien compara cifra a cifra |
+| **Sendero** | El rango de monedas, contra el techo del curso | **Series hacia atrás**, con el paso filtrado para que la cuenta no cruce el cero: restar de tres en tres no es contar de tres en tres |
+| **Vocabulario · Ortografía · Comprensión** | La lista de palabras y de textos, de lo frecuente a lo raro | Seis **textos nuevos** —dos por ciclo, el más exigente al final— porque no se puede repartir en cinco niveles lo que solo tenía tres escalones |
+
+Los porcentajes van ordenados **por pasos mentales**, no por tamaño: el 50 y el
+10 primero, el 75 y el 35 al final. Y las pistas siguen siendo el camino OAOA,
+no la regla de tres.
+
+> **Dos fallos viejos salieron a la luz al medirlo.** Generar 67.200 retos y
+> revisarlos uno a uno enseña lo que no se ve jugando:
+>
+> - En «busca la suma que lleva», **tres de cada cuatro retos tenían más de una
+>   respuesta válida**. Las falsas se sorteaban al azar y nadie comprobaba si
+>   cumplían también la condición preguntada. Un alumno acertaba y se le decía
+>   que no. Ahora las falsas se **construyen** con la condición contraria.
+> - En fracciones, uno de cada quince duplicaba la respuesta correcta entre las
+>   falsas —con la mitad, «lo que sobra» y «el total» caen en el mismo número—.
+>   El que señalaba la copia fallaba.
+>
+> Ninguno de los dos se habría encontrado jugando: hay que generarlos a miles y
+> comprobar el enunciado contra las cuatro opciones. Eso es ahora una prueba.
+
 ### Y las dos palancas que faltaban
 
 Había **techo y no había suelo**: el motor podía bajarle el nivel a quien no lo
