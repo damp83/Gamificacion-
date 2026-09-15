@@ -781,6 +781,31 @@ currículo que no cabe es tirar el dinero del docente.
 > Si te pasa con dos seguidas, lo que hay que recortar es el **currículo**:
 > manda solo el bloque del área que estás trabajando, no el documento entero.
 
+### Las dos llamadas que no se pueden trocear
+
+Los retos caben en los 30 segundos porque se piden de uno en uno. Pero el
+**yacimiento propuesto** y la **extracción de criterios** son una sola llamada
+larga cada uno: ahí no hay nada que trocear ni que saltarse, y o entra o no
+entra. Encima el aviso les hablaba de «dos seguidas» a quien solo había hecho
+una, que es dejarle sin saber qué hacer.
+
+Las dos corren ahora en **modo rápido**: el mismo modelo con la salida bastante
+más deprisa. Cuesta el doble por token, y por eso **no** se usa en el bucle de
+retos — allí el coste se multiplica por veinte y, peor, cambiar de velocidad
+invalidaría el caché del encargo, que es justo lo que abarata la tanda. En una
+llamada suelta y rara, doblar unos céntimos a cambio de que termine es un buen
+trato.
+
+Si la cuenta no tiene el modo rápido, o su límite aparte está lleno, se repite
+a velocidad normal en vez de fallar: más lento, pero es exactamente lo que
+había antes. Lo que no se reintenta es un error de verdad —clave mala, sin
+saldo—, porque repetirlo solo haría esperar el doble para el mismo fallo.
+
+> Y se decide por el **código** del error, nunca por su texto: el mensaje de un
+> error del SDK puede traer la clave dentro, y en una función suelta no hay con
+> qué taparla. Hay una prueba que exige que todo lo que lea `e.message` pase
+> antes por `sinClave`, y cazó este código cuando lo escribí mirando el texto.
+
 ### Y completar en un clic lo que quedó a medias
 
 Una tanda cortada no deja el estrato «con menos de todo»: deja **vacíos los

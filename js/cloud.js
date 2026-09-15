@@ -275,11 +275,22 @@ async function ejecutarGenerador(id, cuerpo) {
        puede subir. Por eso se pide un reto por llamada. Si aun así salta, lo
        que hay que bajar es el esfuerzo, no el número. */
     if (/timed out|timeout/i.test(m)) {
+      /* El mismo tope, pero no el mismo consejo: los retos se piden de uno en
+         uno y un corte suelto ya no para la tanda, mientras que el yacimiento
+         o los criterios son UNA llamada y ahí no hay nada que saltarse.
+         Decirle «dos seguidas» a quien solo hizo una lo deja sin saber qué
+         hacer, y es lo que estaba pasando. */
+      const enTanda = cuerpo && cuerpo.paso === 'generar';
       return { ok: false, reason: 'tope',
         texto: 'Appwrite corta toda llamada a los 30 segundos, y ese tope no se puede subir: el ajuste '
-             + '«Timeout» de la función es otra cosa. Dos seguidas quieren decir que al modelo no le da '
-             + 'tiempo con este currículo: manda solo el bloque del área que estás trabajando en vez del '
-             + 'documento entero, y vuelve a darle.' };
+             + '«Timeout» de la función es otra cosa. '
+             + (enTanda
+               ? 'Dos seguidas quieren decir que al modelo no le da tiempo con este currículo: manda '
+                 + 'solo el bloque del área que estás trabajando en vez del documento entero, y vuelve '
+                 + 'a darle.'
+               : 'Esto es una sola llamada, así que no hay nada que saltarse: al modelo no le ha dado '
+                 + 'tiempo. Pídele menos de golpe —la mitad de pozos, y luego «ampliar»— o manda solo '
+                 + 'el bloque del área que estás trabajando en vez del documento entero.') };
     }
     /* ── Se cayó el transporte, no la función ──
        «Load failed» es lo que dice Safari cuando aborta una petición: la

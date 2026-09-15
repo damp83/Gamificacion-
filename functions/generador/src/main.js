@@ -41,6 +41,49 @@ import {
 } from './generador.js';
 
 const MODELO = 'claude-opus-5';
+
+/* ── Modo rápido, y solo donde compensa ──
+   Appwrite corta toda llamada a los 30 segundos y ese tope no se puede subir.
+   Los retos se piden de uno en uno para caber, y un corte suelto ya no rompe
+   la tanda. Pero el yacimiento y los criterios son UNA llamada larga: ahí no
+   hay nada que trocear ni que saltarse, y o entra en treinta segundos o no
+   entra.
+
+   El modo rápido corre el MISMO modelo con la salida bastante más deprisa.
+   Cuesta el doble por token, y por eso no se usa en el bucle de retos —donde
+   el coste se multiplica por veinte, y donde además cambiar de velocidad
+   invalida el caché del encargo, que es lo que abarata la tanda—. En una
+   llamada suelta y rara, doblar unos céntimos a cambio de que termine es un
+   buen trato.
+
+   Si no está disponible —la cuenta no tiene el modo rápido, o su límite
+   aparte está lleno—, se repite a velocidad normal en vez de fallar: es más
+   lento, pero es exactamente lo que había antes. Lo que NO se reintenta es un
+   error de verdad (clave mala, sin saldo): eso se sube tal cual, porque
+   repetirlo solo haría esperar el doble para el mismo fallo. */
+async function deprisa(cli, peticion) {
+  try {
+    return await cli.beta.messages.create(Object.assign({}, peticion, {
+      betas: ['fast-mode-2026-02-01'], speed: 'fast'
+    }));
+  } catch (e) {
+    /* Se decide por el CÓDIGO, nunca por el texto del error: el mensaje de un
+       error del SDK puede traer la clave dentro, y aquí no hay forma de
+       taparlo —`sinClave` vive donde está la clave, y esto es una función
+       suelta—. Leerlo «solo para mirarlo» es justo como acaban las claves en
+       un registro: alguien añade un log al lado seis meses después.
+
+         · 429 — el límite aparte del modo rápido, que está lleno.
+         · 400 / 404 — la cuenta no tiene el modo rápido, o no reconoce el
+           parámetro.
+
+       Cualquier otra cosa (clave mala, sin permiso, la API caída) se sube tal
+       cual: repetirla solo haría esperar el doble para el mismo fallo. */
+    const codigo = Number(e && e.status) || 0;
+    if (codigo !== 429 && codigo !== 400 && codigo !== 404) throw e;
+    return await cli.messages.create(peticion);
+  }
+}
 const CURRICULO_MAX = 20000;   /* caracteres: un área y un ciclo, no la ley entera */
 
 export default async ({ req, res, log, error }) => {
@@ -125,7 +168,9 @@ export default async ({ req, res, log, error }) => {
       : { apiKey: clave4 });
     try {
       const enc4 = promptCriterios(p);
-      const c = await cli4.messages.create({
+      /* Otra llamada suelta y larga —16.000 de salida—: mismo muro de 30 s,
+         misma razón para correr. Ver `deprisa`. */
+      const c = await deprisa(cli4, {
         model: MODELO,
         max_tokens: 16000,
         thinking: { type: 'adaptive' },
@@ -174,7 +219,7 @@ export default async ({ req, res, log, error }) => {
       : { apiKey: clave3 });
     try {
       const enc3 = promptYacimiento(p);
-      const y = await cli3.messages.create({
+      const y = await deprisa(cli3, {
         model: MODELO,
         max_tokens: 8000,
         thinking: { type: 'adaptive' },

@@ -205,7 +205,14 @@ test('sin currículo pegado no se llama a la API', () => {
   const cuerpo = main.slice(i, main.indexOf('Tercer encargo', i));
   assert.match(cuerpo, /reason: 'sin-curriculo'/);
   assert.match(cuerpo, /reason: 'sin-clave'/, 'ni sin clave de API');
-  assert.ok(cuerpo.indexOf('sin-curriculo') < cuerpo.indexOf('messages.create'),
+  /* Lo que gasta es la llamada a la API, se llame como se llame: directa o a
+     través de `deprisa`, que es la que la hace correr. Se busca la primera de
+     las dos para que renombrarla no rompa la prueba sin que nadie mire por
+     qué. */
+  const gasta = [cuerpo.indexOf('messages.create'), cuerpo.indexOf('deprisa(')]
+    .filter(i => i >= 0);
+  assert.ok(gasta.length, 'la prueba no vale si aquí no se llama a la API');
+  assert.ok(cuerpo.indexOf('sin-curriculo') < Math.min(...gasta),
     'se comprueba antes de gastar la cuenta');
 });
 
