@@ -270,6 +270,53 @@ function siguienteReto(grade) {
   return mejor;
 }
 
+/* ── Por qué este alumno no tiene nada que excavar ──
+   «No hay ningún pozo disponible para su curso» es verdad y no sirve de nada:
+   hay TRES motivos distintos detrás, se arreglan en tres sitios distintos, y
+   el docente no tiene forma de saber cuál le ha tocado. Con veinticuatro
+   alumnos y un yacimiento recién creado, eso es una tarde de prueba y error.
+
+   Se mira en el mismo orden en que se descarta un pozo, para nombrar lo
+   primero que falla y no lo último. */
+function porQueNoHayPozo(grade) {
+  const g = grade === undefined ? currentGrade() : grade;
+  const activos = sitesEnabled();
+  const visibles = [];
+  for (const s of activos) for (const b of branchesOf(s)) if (b.enabled !== false) visibles.push(b);
+
+  if (!visibles.length) {
+    return { motivo: 'sin-pozos', grade: g,
+      texto: 'No hay ningún pozo activo. Actívalos en Configuración → Yacimientos y pozos.' };
+  }
+
+  const deSuCurso = visibles.filter(b => branchFitsGrade(b, g));
+  if (!deSuCurso.length) {
+    /* Los cursos que SÍ cubren los pozos que hay: con eso se ve de un vistazo
+       si el que baila es el curso del alumno o el del pozo. */
+    const cursos = [];
+    for (const b of visibles) for (const n of (b.grades || [])) if (!cursos.includes(n)) cursos.push(n);
+    cursos.sort((a, b2) => a - b2);
+    return { motivo: 'otro-curso', grade: g, cursos,
+      texto: `Está en ${g}.º y ${visibles.length === 1 ? 'el único pozo activo no es' : 'ninguno de los ' + visibles.length + ' pozos activos es'} para ese curso`
+           + (cursos.length ? ` (los hay de ${cursos.map(n => n + '.º').join(', ')})` : '')
+           + '. Cámbiale el curso en Alumnado, o los cursos del pozo en su ficha.' };
+  }
+
+  const conRetos = deSuCurso.filter(branchPlayable);
+  if (!conRetos.length) {
+    return { motivo: 'sin-retos', grade: g,
+      texto: `Tiene ${deSuCurso.length} pozo(s) de ${g}.º, pero ninguno con retos en su primer `
+           + 'estrato («Recordar»). Escríbelos o genéralos en «Retos con IA».' };
+  }
+
+  /* Hay pozos suyos y con retos: entonces lo que pasa es que todo lo que
+     podría tocarle está cerrado. Raro, porque el primer estrato nace abierto,
+     pero es lo único que queda y callarlo sería volver a lo de antes. */
+  return { motivo: 'todo-bloqueado', grade: g,
+    texto: `Tiene ${conRetos.length} pozo(s) con retos, pero todos sus estratos están bloqueados. `
+         + 'Mira su ficha en Alumnado.' };
+}
+
 /* Abre el turno de un alumno: carga su diario y arranca la ronda.
    `branchId`/`stratumId` son opcionales: si el docente no elige, decide el
    propio motor con siguienteReto(). */

@@ -46,7 +46,7 @@ const MODELO = 'claude-opus-5';
    que coincidir con la de la app; una prueba lo fija para que no se separen
    sin que nadie se entere. Lo que las separa de verdad es olvidarse de
    redesplegar la función, y para eso está el paso `ping`. */
-const GENERADOR_VERSION = 'v141';
+const GENERADOR_VERSION = 'v142';
 
 /* ── Modo rápido, y solo donde compensa ──
    Appwrite corta toda llamada a los 30 segundos y ese tope no se puede subir.

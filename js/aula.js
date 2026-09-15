@@ -773,9 +773,11 @@ function empezarTurno(alumno) {
 
   const r = startClassTurn(alumno, destino && destino.branchId, destino && destino.stratumId);
   if (!r.ok) {
+    /* El diario del alumno está cargado —`startClassTurn` lo abre antes de
+       fallar—, así que el diagnóstico mira SU curso y no el de la clase. */
     toast(r.reason === 'sin-contenido'
-      ? 'No hay ningún pozo disponible para su curso.'
-      : 'Ese estrato todavía no tiene retos preparados.');
+      ? alumno.name + ': ' + porQueNoHayPozo().texto
+      : 'Ese estrato todavía no tiene retos preparados.', 7000);
     return;
   }
   aulaAlumno = alumno;

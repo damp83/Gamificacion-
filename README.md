@@ -1992,6 +1992,41 @@ nivel hay un niño.
 > retos se guardan sin ella y se avisa una vez, en vez de callar que el reparto
 > no va a funcionar.
 
+## El curso que se quedaba congelado
+
+Al abrir el diario de un alumno, el nombre se corregía desde la lista de clase
+—«si el docente lo corrige, se corrige»— y **el curso no**: solo se ponía al
+CREAR el diario, y a partir de ahí quedaba fijo para siempre.
+
+El curso no es una etiqueta: es **lo que decide qué pozos ve el niño**. Un
+alumno con el curso viejo se quedaba sin nada que excavar, y el docente lo
+cambiaba en Alumnado una y otra vez sin que pasara nada.
+
+Ahora manda la lista, igual que con el nombre. Quien entra sin traer ficha —un
+alumno en su propia tablet— no toca nada, y un curso imposible tampoco entra.
+
+## «No hay ningún pozo disponible para su curso»
+
+Verdad, y sin ninguna utilidad. Detrás hay **tres motivos distintos**, se
+arreglan en tres sitios distintos, y el docente no tenía forma de saber cuál le
+había tocado: ni el curso del alumno, ni los cursos que sí cubren sus pozos, ni
+si el problema era que el pozo está vacío. Con veinticuatro alumnos y la clase
+delante, eso es una tarde de prueba y error.
+
+Ahora el aviso lo dice, con su nombre:
+
+| Lo que pasa | Lo que se lee |
+|---|---|
+| Ningún pozo activo | «No hay ningún pozo activo. Actívalos en Configuración → Yacimientos y pozos» |
+| Su curso no lo cubre nadie | «Está en 2.º y el único pozo activo no es para ese curso (los hay de 3.º, 4.º). Cámbiale el curso en Alumnado, o los cursos del pozo en su ficha» |
+| Su pozo está vacío | «Tiene 2 pozos de 2.º, pero ninguno con retos en su primer estrato («Recordar»)» |
+| Todo bloqueado | Lo dice, en vez de fingir que no hay contenido |
+
+Se mira en el mismo orden en que se descarta un pozo, para nombrar **lo primero
+que falla** y no lo último. Y el diagnóstico usa el curso del ALUMNO, no el de
+la clase: si mirara el de la clase diría que todo está bien mientras el niño se
+queda sin turno.
+
 ## Un `null` que decía dos cosas distintas
 
 Al mirar el cuaderno de un alumno, `startMission` devuelve `null` **a

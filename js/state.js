@@ -469,6 +469,18 @@ function openDiary(quien, grade) {
     S = migrateState(map[k]);
     /* el nombre visible manda el de la lista: si el docente lo corrige, se corrige */
     S.profile.explorer_name = nombre;
+    /* ── Y el curso, por la misma razón y con más motivo ──
+       El nombre se corregía y el curso no: solo se ponía al CREAR el diario, y
+       a partir de ahí quedaba congelado. Cambiarlo en Alumnado no hacía nada,
+       y el curso no es una etiqueta: es lo que decide qué pozos ve el niño.
+
+       Un alumno con el curso viejo se quedaba sin nada que excavar —«no hay
+       ningún pozo disponible para su curso»— y el docente lo arreglaba en la
+       lista una y otra vez sin que cambiara nada. Los que llaman aquí pasan
+       siempre una ficha de la lista de clase, que es de quien es esa decisión;
+       un alumno entrando en su tablet no trae curso y no toca nada. */
+    const suCurso = Number(grade) || Number(quien && typeof quien === 'object' && quien.grade) || 0;
+    if (suCurso >= 1 && suCurso <= 6) S.profile.grade = suCurso;
   } else {
     S = defaultState(nombre);
     if (grade) S.profile.grade = grade;
