@@ -2653,6 +2653,18 @@ img.home-site-icon.home-site-img {
 }
 .home-autor strong { color: var(--ink); }
 
+/* ── La licencia, bajo la autoría ──
+   Más pequeña y más apagada que el nombre de quien la hizo: es letra legal,
+   y tiene que estar sin robarle la vista a nada. El enlace sí se subraya —es
+   lo único de este pie que lleva a alguna parte. */
+.home-licencia {
+  text-align: center; margin: var(--s-2) 0 0;
+  font-size: var(--t-xs); color: var(--ink-faint); line-height: 1.6;
+}
+.home-licencia a { color: var(--brass); text-decoration: underline; }
+.home-licencia a:hover { color: var(--leather-dark); }
+.licencia-que { display: inline-block; max-width: 34rem; }
+
 #teacher-exit { display: block; margin: 0 auto; }
 
 /* Modo docente: sin HUD de alumno ni pestañas de juego */

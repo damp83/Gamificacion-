@@ -4130,7 +4130,11 @@ function cfgAcceso(body) {
   body.innerHTML = `
     <p class="cfg-intro">Estado: <strong>${estado}</strong> · versión <strong>${esc(ATLAS_VERSION)}</strong></p>
     <p class="cfg-hint">Expedición Atlas · creado por ${esc(AUTOR_ATLAS.nombre)} · ${
-      esc(AUTOR_ATLAS.oficio)} · ${esc(AUTOR_ATLAS.lugar)}.</p>
+      esc(AUTOR_ATLAS.oficio)} · ${esc(AUTOR_ATLAS.lugar)}.<br>
+      © ${esc(String(AUTOR_ATLAS.licencia.desde))} · <a href="${esc(AUTOR_ATLAS.licencia.url)}"
+        target="_blank" rel="license noopener noreferrer">${esc(AUTOR_ATLAS.licencia.nombre)}</a>
+      — ${esc(AUTOR_ATLAS.licencia.largo)}. Puedes usarla y adaptarla en tu centro citando la
+      autoría; no se puede vender, y lo que salga de ella queda igual de libre.</p>
     <p class="cfg-hint">Si la versión no coincide con la que se acaba de publicar, este navegador está
     sirviendo una copia guardada: recarga forzando (Ctrl+May+R, o mantén pulsado el botón de recargar).</p>
     ${field('PIN del panel', `<input type="text" id="cfg-pin" value="${esc(ATLAS_CONFIG.teacherPin)}" maxlength="8" inputmode="numeric">`,

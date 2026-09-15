@@ -2328,6 +2328,26 @@ versión web son islas separadas**, no se sincronizan.
 avisos de SmartScreen, sin permisos de instalación en un PC gestionado y con
 actualizaciones a mano. La PWA instalada da lo mismo sin ninguno de esos problemas.
 
+## Licencia
+
+**CC BY-NC-SA 4.0** — Reconocimiento · NoComercial · CompartirIgual.
+El texto completo, con lo que cubre y lo que no, está en [`LICENSE.md`](LICENSE.md).
+
+En corto: cualquier docente puede **usarla y adaptarla en su aula y en su
+centro** citando la autoría, sin pedir permiso y sin pagar nada. Dar clase no
+es un uso comercial; venderla o cobrar por el acceso, sí. Y lo que salga de
+ella queda con esta misma licencia, igual de libre para el siguiente.
+
+Aparece en el pie de la portada y en el panel del docente, y las dos salen de
+la misma ficha (`AUTOR_ATLAS.licencia`, en `js/content.js`): escrita dos veces
+a mano, un día dejarían de coincidir.
+
+> Las **tipografías** no entran aquí: Bree Serif y Nunito tienen su propia
+> licencia, la SIL Open Font License 1.1, en [`fonts/LICENCIA.md`](fonts/LICENCIA.md).
+> Y los **datos del alumnado** no son parte de la obra ni viajan con ella:
+> viven en el navegador del docente y, si se configura, en su propio proyecto
+> de Appwrite.
+
 ## Restricciones éticas (PRD §0.2)
 
 - Sin compras reales ni economía convertible a dinero.

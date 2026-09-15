@@ -123,6 +123,7 @@ function showHome() {
   renderHomeSites();
   renderHomeRoles();
   renderAutor();
+  renderLicencia();
   renderTeacherSignature();
   window.scrollTo(0, 0);
 }
@@ -135,6 +136,24 @@ function renderAutor() {
   if (!el) return;
   el.innerHTML = `Creado por <strong>${esc(AUTOR_ATLAS.nombre)}</strong><br>
     ${esc(AUTOR_ATLAS.oficio)} · ${esc(AUTOR_ATLAS.lugar)}`;
+}
+
+/* La licencia, debajo de quién lo hizo: dice qué puede hacer con esto el
+   maestro que se la encuentre. Va en su propia función y no dentro de
+   renderAutor() por lo de siempre —una función, una cosa— y porque así cada
+   una escribe en un solo sitio.
+
+   El enlace se abre fuera y con `rel="license noopener"`: es una pestaña que
+   no controlamos, y `license` es lo que hace que un buscador entienda de qué
+   va el enlace. */
+function renderLicencia() {
+  const el = $('#home-licencia');
+  const l = AUTOR_ATLAS.licencia;
+  if (!el || !l) return;
+  el.innerHTML = `© ${esc(String(l.desde))} ${esc(AUTOR_ATLAS.nombre)} ·
+    <a href="${esc(l.url)}" target="_blank" rel="license noopener noreferrer">${esc(l.nombre)}</a><br>
+    <span class="licencia-que">Puedes usarla y adaptarla en tu aula citando la autoría.
+    No se puede vender, y lo que salga de ella queda igual de libre.</span>`;
 }
 
 /* Quién dirige esta expedición: solo se muestra si el docente lo ha puesto */

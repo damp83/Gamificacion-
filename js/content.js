@@ -1536,7 +1536,23 @@ const RETRATOS = {
 const AUTOR_ATLAS = {
   nombre: 'Diego Alberto Moya Puerta',
   oficio: 'Maestro de Educación Primaria y Educación Física',
-  lugar: 'Murcia'
+  lugar: 'Murcia',
+  /* ── La licencia ──
+     Es la que usan los materiales educativos publicados en España —INTEF,
+     Procomún, los CEP— y dice tres cosas: cualquier maestro puede llevársela
+     a su aula y adaptarla citando a quien la hizo; nadie puede venderla; y lo
+     que salga de ella sigue siendo igual de libre para el siguiente.
+
+     Va aquí y no suelta en el pie porque se enseña en dos sitios —la portada
+     y el panel— y una licencia escrita dos veces se contradice a la tercera.
+     Los datos de la licencia son suyos, no de la app: quien la cambie cambia
+     esta ficha y ya. */
+  licencia: {
+    nombre: 'CC BY-NC-SA 4.0',
+    largo: 'Reconocimiento-NoComercial-CompartirIgual 4.0 Internacional',
+    url: 'https://creativecommons.org/licenses/by-nc-sa/4.0/deed.es',
+    desde: 2026
+  }
 };
 
 /* El dibujo del mapa. Va aquí y no dentro del SVG que lo pinta por lo mismo
