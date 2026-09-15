@@ -2117,6 +2117,18 @@ img.feedback-quien {
    tarjeta de revisión y en la ficha del editor manual. */
 .ia-nivel { background: var(--brass-light); color: var(--ink); border-radius: 999px;
   padding: .05rem .5rem; font-weight: 700; white-space: nowrap; }
+/* El reparto por niveles de un estrato, en el editor del banco: se lee de un
+   vistazo cuál está flojo, que es el que manda. */
+.cfg-reparto { border: 2px solid var(--brass-light); border-radius: 12px;
+  padding: .7rem .9rem; margin: .6rem 0; background: rgba(255, 255, 255, .45); }
+.cfg-reparto-ok { border-color: #5a8a4a; }
+.cfg-reparto-lista { list-style: none; margin: .5rem 0; padding: 0;
+  display: flex; flex-wrap: wrap; gap: .4rem; }
+.cfg-reparto-lista li { display: flex; flex-direction: column; align-items: center;
+  min-width: 62px; padding: .3rem .5rem; border-radius: 8px; background: rgba(0, 0, 0, .05); }
+.cfg-reparto-lista span { font-size: .72rem; opacity: .75; }
+.cfg-reparto-lista b { font-size: 1.15rem; }
+
 .cfg-q-nivel { align-items: center; gap: .5rem; margin-top: .4rem; }
 .cfg-q-nivel select { min-height: 44px; flex: 1; }
 

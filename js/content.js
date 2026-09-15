@@ -2086,6 +2086,51 @@ function branchPlayable(branch) {
    Los pozos de fábrica generan uno nuevo cada vez. Los del docente sacan del
    banco evitando repetir dentro de la misma misión, y barajan las opciones
    para que no se memorice la posición de la respuesta. */
+/* ── Cuántos retos hacen falta por nivel ──
+   No es una cifra a ojo: sale de medir el reparto con el código de abajo.
+
+   Cada alumno tira de DOS niveles —el suyo y el de al lado—, así que su
+   reserva real es el doble de lo que se ponga por nivel, no el banco entero.
+   Cuando esa reserva es igual de grande que la expedición, se la gasta entera
+   y el reparto empieza a estirarse hacia arriba: con 2 por nivel (reserva 4,
+   expedición 6), al alumno de nivel 1 le llega un reto de nivel 3 en el 86 %
+   de las expediciones, y uno de nivel 4 en el 14 %. Con reserva igual a la
+   expedición más dos, se queda en el escalón de al lado el 96 % de las veces,
+   y con uno más, el 99,9 %.
+
+   De ahí la cuenta: reserva = expedición + 2, o sea la mitad de eso por
+   nivel. Con la expedición de fábrica, que son seis, salen cuatro por nivel:
+   veinte retos por estrato. */
+function porNivelRecomendado(retosPorExpedicion) {
+  const m = Math.max(1, Number(retosPorExpedicion) || 6);
+  return Math.max(2, Math.ceil((m + 2) / 2));
+}
+
+/* Cómo está repartido el banco de un estrato, para poder decírselo al docente
+   en vez de que lo adivine: cuántos hay de cada nivel, cuál es el nivel peor
+   servido —que es el que manda, porque hay un alumno en él— y cuántos le
+   faltan a ese para que el pozo adapte de verdad. */
+function repartoDelBanco(bank, retosPorExpedicion) {
+  const lista = Array.isArray(bank) ? bank : [];
+  const cuenta = [0, 0, 0, 0, 0, 0];   /* cuenta[0] = los que valen para todos */
+  for (const q of lista) {
+    const n = Number((q || {}).nivel) || 0;
+    cuenta[n >= 1 && n <= 5 ? n : 0]++;
+  }
+  const recomendado = porNivelRecomendado(retosPorExpedicion);
+  const conNivel = lista.length - cuenta[0];
+  /* El peor nivel, no la media: la media puede estar bien y haber un nivel
+     vacío, y en ese nivel hay un niño. */
+  const flojo = Math.min(cuenta[1], cuenta[2], cuenta[3], cuenta[4], cuenta[5]);
+  return {
+    total: lista.length, cuenta, conNivel, flojo, recomendado,
+    faltan: Math.max(0, recomendado - flojo),
+    /* Sin un solo reto con nivel no hay nada que reprochar: es un pozo de los
+       de siempre y se juega como siempre. */
+    reparte: conNivel > 0
+  };
+}
+
 /* Los seis valores del dial, tal como se leen en el panel del docente. El 0
    no es «sin poner»: es una decisión, «este vale para cualquiera», y es lo que
    traen todos los retos escritos a mano. */
@@ -2136,7 +2181,25 @@ function retosParaElNivel(bank, indices, tier) {
   const dist = i => distanciaNivel((bank[i] || {}).nivel, tier);
   let cerca = Infinity;
   for (const i of indices) cerca = Math.min(cerca, dist(i));
-  return indices.filter(i => dist(i) <= cerca + 1);
+  const franja = indices.filter(i => dist(i) <= cerca + 1);
+
+  /* ── El borde de abajo ──
+     Subir cuesta más que bajar, y en el nivel 1 no hay nada por debajo: la
+     franja se quedaba en un ÚNICO nivel. Con seis retos de nivel 1 y una
+     expedición de seis, el alumno veía exactamente los mismos seis una y otra
+     vez, y daba igual cuántos generara el docente. Era el peor sitio posible
+     para que pasara: el que va justo es el que menos aguanta repetir.
+
+     Así que cuando la franja tiene un solo nivel y el alumno está EN él
+     —`cerca` es 0—, se abre al de al lado. Solo ahí: una vez que se ha pasado
+     de su nivel, la deriva sigue siendo de uno en uno, que si no un pozo
+     pequeño le planta un nivel 4 a quien está en el 1. */
+  const niveles = new Set(franja.map(i => Number((bank[i] || {}).nivel) || 0));
+  if (cerca !== 0 || niveles.size > 1 || franja.length === indices.length) return franja;
+  const resto = indices.filter(i => dist(i) > cerca + 1);
+  let siguiente = Infinity;
+  for (const i of resto) siguiente = Math.min(siguiente, dist(i));
+  return franja.concat(resto.filter(i => dist(i) <= siguiente));
 }
 
 function makeQuestion(branch, stratumId, tier, usedIdx, grade) {

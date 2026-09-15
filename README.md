@@ -1824,6 +1824,44 @@ Dos decisiones que no son obvias, y que hay una prueba para cada una:
   sin nadie a quien preguntar, lo hunde. Es la misma regla que ya decide el
   techo frente al suelo.
 
+### Cuántos hay que generar, y por qué ese número
+
+Un docente no puede adivinar que **cada alumno tira solo de dos niveles** —el
+suyo y el de al lado—, así que su reserva real es el doble de lo que haya por
+nivel, no el banco entero. Generaba diez retos, los veía repartidos en el panel
+y daba por hecho que el pozo adaptaba.
+
+El número está **medido**, no estimado: se generan bancos de distinto tamaño y
+se cuenta cuánto se sale el reparto de lo que le toca a cada alumno.
+
+| Por nivel | Retos | Reserva | Al alumno de nivel 1 le llegan |
+|---|---|---|---|
+| 2 | 10 | 4 | Nivel 3 en el **86 %** de las expediciones, nivel 4 en el 14 % |
+| 3 | 15 | 6 | Nivel 3 en el 41 % |
+| **4** | **20** | **8** | Se queda en el nivel 2 el **96 %** |
+| 5 | 25 | 10 | El **99,9 %** |
+
+Cuando la reserva es igual de grande que la expedición, el alumno **se la gasta
+entera** y el reparto se estira hacia arriba. De ahí la cuenta que hace la
+plataforma: reserva = expedición + 2, o sea `(expedición + 2) / 2` por nivel.
+Con la expedición de fábrica, seis, salen **cuatro por nivel: veinte retos por
+estrato**, y ese es el valor que viene puesto.
+
+No es un texto fijo: se calcula con *tu* expedición y con lo que ya tienes en
+ese estrato. En «Retos con IA» te dice si la tanda que vas a pedir se queda
+corta, y en el banco de cada estrato hay un recuento por niveles que mira el
+**peor servido** —la media puede estar perfecta y haber un nivel vacío, y en ese
+nivel hay un niño.
+
+> **El borde de abajo tuvo un fallo de los que no se ven jugando.** Como subir
+> cuesta más que bajar y en el nivel 1 no hay nada por debajo, la franja se
+> quedaba en un único escalón: con seis retos de nivel 1 y una expedición de
+> seis, el alumno veía **exactamente los mismos seis** una y otra vez, y daba
+> igual cuántos generara el docente, porque su reserva no crecía. Era el peor
+> sitio posible para que ocurriera: el que va justo es el que menos aguanta
+> repetir. Ahora, cuando la franja se queda en un solo escalón y el alumno está
+> en él, se abre al de al lado.
+
 > **La tabla `retos` necesita una columna `nivel`** (Integer, opcional). Quien
 > creó la suya antes no la tiene, y perder por eso una tanda pagada sería
 > convertir una mejora en una avería: si Appwrite se queja de esa columna, los

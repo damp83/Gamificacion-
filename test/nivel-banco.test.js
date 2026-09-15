@@ -135,26 +135,119 @@ test('los escritos a mano no se le esconden a nadie', () => {
   }
 });
 
-test('si se le acaban los suyos, la franja se abre sola', () => {
-  const c = cargarApp();
-  /* Un pozo pequeño: dos retos por nivel y una expedición de seis. El alumno
-     de nivel 1 no puede quedarse sin retos porque solo haya dos de los suyos:
-     la franja se ensancha hacia el 2, luego al 3… pero EN ORDEN, sin saltar
-     al 5 mientras queden más cercanos. */
-  const pozo = pozoConNiveles(c, [1, 1, 2, 2, 3, 3, 4, 4, 5, 5]);
+/* Una expedición entera, devolviendo los niveles que salieron. */
+function unaExpedicion(c, pozo, tier, cuantos) {
   const usados = [];
   const salidos = [];
-  for (let i = 0; i < 6; i++) {
-    const q = c.ev('makeQuestion')(pozo, 'recordar', 1, usados, 4);
-    assert.ok(q, `el reto ${i + 1} ha salido vacío`);
+  for (let i = 0; i < (cuantos || 6); i++) {
+    const q = c.ev('makeQuestion')(pozo, 'recordar', tier, usados, 4);
+    assert.ok(q && q.question, `el reto ${i + 1} ha salido vacío`);
     salidos.push(q.nivel);
   }
-  /* Seis índices distintos del banco: dentro de una misión no se repite. Los
-     NIVELES sí se repiten, claro, que hay dos retos de cada uno. */
-  assert.equal(new Set(usados).size, 6, 'seis retos distintos del banco');
-  assert.ok(Math.max(...salidos) <= 3,
-    `ha llegado al nivel ${Math.max(...salidos)} teniendo más cerca`);
-  assert.ok(salidos.filter(n => n === 1).length === 2, 'se gasta primero los suyos');
+  assert.equal(new Set(usados).size, salidos.length, 'no repite dentro de la expedición');
+  return salidos;
+}
+
+/* Un banco con `n` retos de cada nivel. */
+function bancoDe(n) {
+  const fuera = [];
+  for (let niv = 1; niv <= 5; niv++) for (let k = 0; k < n; k++) fuera.push(niv);
+  return fuera;
+}
+
+test('si se le acaban los suyos, la franja se abre sola y en orden', () => {
+  const c = cargarApp();
+  /* Un pozo pequeño: dos por nivel y una expedición de seis. El alumno de
+     nivel 1 no puede quedarse sin retos porque solo haya dos de los suyos: la
+     franja se ensancha. Lo que NO puede pasar es que salte al extremo: hasta
+     con el banco casi agotado, el nivel 5 no le llega. */
+  const pozo = pozoConNiveles(c, bancoDe(2));
+  for (let v = 0; v < 400; v++) {
+    const salidos = unaExpedicion(c, pozo, 1);
+    assert.ok(!salidos.includes(5), `le ha salido un nivel 5: ${salidos.join(',')}`);
+  }
+});
+
+test('en el nivel 1 la franja no se queda en un solo escalón', () => {
+  const c = cargarApp();
+  /* El borde de abajo tuvo un fallo de los que no se ven jugando: como subir
+     cuesta más que bajar y en el nivel 1 no hay nada por debajo, la franja se
+     quedaba en el nivel 1 a secas. Con seis retos de nivel 1 y una expedición
+     de seis, el alumno veía EXACTAMENTE los mismos seis cada vez, y daba
+     igual cuántos generara el docente: la reserva no crecía.
+
+     Y era el peor sitio posible para que ocurriera: el que va justo es el que
+     menos aguanta repetir. */
+  const pozo = pozoConNiveles(c, bancoDe(6));
+  const vistos = new Set();
+  for (let v = 0; v < 60; v++) {
+    for (const n of unaExpedicion(c, pozo, 1)) vistos.add(n);
+  }
+  assert.ok(vistos.has(1) && vistos.has(2),
+    `el de nivel 1 solo ve los niveles ${[...vistos].join(',')}`);
+  /* Dos escalones, no cinco: abrirse no es dejar de repartir. */
+  assert.deepEqual([...vistos].sort(), [1, 2]);
+});
+
+test('un pozo bien surtido no estira el reparto hacia arriba', () => {
+  const c = cargarApp();
+  /* De aquí sale la recomendación que se le enseña al docente, y por eso está
+     medida y no estimada. Cada alumno tira de DOS niveles, así que su reserva
+     es el doble de lo que haya por nivel. Cuando esa reserva es igual que la
+     expedición, se la gasta entera y el reparto se estira hacia arriba. */
+  const desvioMaximo = (n, tier, veces) => {
+    const pozo = pozoConNiveles(c, bancoDe(n));
+    let peor = 0;
+    for (let v = 0; v < veces; v++) {
+      for (const niv of unaExpedicion(c, pozo, tier)) peor = Math.max(peor, niv - tier);
+    }
+    return peor;
+  };
+  /* Con 2 por nivel —reserva 4, expedición 6— al de nivel 1 le llegan retos
+     dos y tres escalones por encima. */
+  assert.ok(desvioMaximo(2, 1, 300) >= 2, 'con la reserva justa debería estirarse');
+  /* Con el recomendado para una expedición de 6, que son 4 por nivel
+     (reserva 8), se queda en el escalón de al lado. */
+  assert.equal(c.ev('porNivelRecomendado')(6), 4);
+  assert.ok(desvioMaximo(5, 3, 300) <= 1,
+    'con el pozo surtido no debería salirse de su escalón');
+});
+
+test('la recomendación sale de la expedición, no de una cifra a ojo', () => {
+  const c = cargarApp();
+  const r = c.ev('porNivelRecomendado');
+  /* La reserva de un alumno es el doble de lo que haya por nivel, y tiene que
+     ser mayor que la expedición para que no se la gaste entera. */
+  for (const mision of [4, 6, 8, 10]) {
+    assert.ok(r(mision) * 2 >= mision + 2,
+      `con expedición de ${mision} recomienda ${r(mision)}, que no da reserva`);
+  }
+  /* Un docente que acorte la expedición no necesita generar tanto. */
+  assert.ok(r(4) < r(10), 'no puede recomendar lo mismo para 4 que para 10');
+  assert.equal(r(1), 2, 'y nunca menos de dos, que si no no hay reparto');
+  /* Sin dato, la expedición de fábrica: seis retos, cuatro por nivel. Caer a
+     dos «por si acaso» sería recomendar el pozo que no adapta. */
+  assert.equal(r(0), r(6));
+  assert.equal(r(undefined), r(6));
+});
+
+test('el diagnóstico del banco mira el nivel PEOR servido', () => {
+  const c = cargarApp();
+  const rep = c.ev('repartoDelBanco');
+  /* La media puede estar perfecta y haber un nivel vacío. En ese nivel hay un
+     niño, y es el que se lleva el pozo mal repartido. */
+  const cojo = rep([4, 4, 4, 4, 4, 4, 4, 4, 4, 1].map(n => ({ nivel: n })), 6);
+  assert.equal(cojo.flojo, 0, 'hay niveles a cero y no lo ve');
+  assert.ok(cojo.faltan >= 4);
+  const bueno = rep([1, 2, 3, 4, 5, 1, 2, 3, 4, 5].map(n => ({ nivel: n })), 6);
+  assert.equal(bueno.flojo, 2);
+  assert.equal(bueno.recomendado, 4);
+  assert.equal(bueno.faltan, 2);
+  /* Y un banco sin un solo nivel no es un banco mal repartido: es un pozo de
+     los de siempre, y no hay nada que reprocharle. */
+  const viejo = rep([{}, {}, {}], 6);
+  assert.equal(viejo.reparte, false);
+  assert.equal(viejo.cuenta[0], 3);
 });
 
 test('una misión nunca se queda sin retos por culpa del filtro', () => {

@@ -67,7 +67,7 @@ async function cloudGenerarRetos(peticion, onProgreso) {
   const porNivel = !!peticion.porNivel;
   const NIVELES = 5;
   const cuantos = porNivel
-    ? Math.max(1, Math.min(5, Number(peticion.n) || 2)) * NIVELES
+    ? Math.max(1, Math.min(8, Number(peticion.n) || 4)) * NIVELES
     : Math.max(1, Math.min(20, Number(peticion.n) || 1));
   const nivelDe = i => porNivel ? (i % NIVELES) + 1 : (Number(peticion.nivel) || 0);
   const avisar = (hechos, fase) => { if (typeof onProgreso === 'function') onProgreso(hechos, cuantos, fase); };

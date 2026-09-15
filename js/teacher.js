@@ -2269,7 +2269,38 @@ function cfgBancoRetos(body) {
     </div>
 
     <p class="cfg-hint">${meta.icon} <strong>${meta.label}</strong> · «${meta.name}» —
-    ${bank.length ? `${bank.length} reto(s). Con 6 o más, el alumno no repetirá dentro de una misión.` : 'Sin retos todavía.'}</p>
+    ${bank.length ? `${bank.length} reto(s). Con ${ECO().missionQuestions} o más, el alumno no repetirá dentro de una misión.` : 'Sin retos todavía.'}</p>
+
+    ${(() => {
+      /* ── Cómo está repartido, dicho en números ──
+         El docente no puede adivinar que cada alumno tira solo de dos niveles
+         y que por tanto su reserva es el doble de lo que haya por nivel. Si
+         no se le dice, genera diez retos, los ve repartidos en el panel y da
+         por hecho que el pozo adapta. */
+      const r = repartoDelBanco(bank, ECO().missionQuestions);
+      if (!bank.length) return '';
+      if (!r.reparte) {
+        return `<p class="cfg-hint">Ninguno tiene nivel, así que <strong>valen para todos</strong>:
+          se juegan igual, pero toda la clase ve lo mismo. Para que el pozo reparta por
+          dificultad, ponles nivel abajo o genera una tanda con «Repartir por niveles».</p>`;
+      }
+      const reserva = r.flojo * 2;
+      const hueco = ECO().missionQuestions + 2;
+      return `<div class="cfg-reparto${reserva >= hueco ? ' cfg-reparto-ok' : ''}">
+        <strong>Reparto por niveles</strong>
+        <ul class="cfg-reparto-lista">${[1, 2, 3, 4, 5].map(n =>
+          `<li><span>Nivel ${n}</span><b>${r.cuenta[n]}</b></li>`).join('')}${
+          r.cuenta[0] ? `<li><span>Para todos</span><b>${r.cuenta[0]}</b></li>` : ''}</ul>
+        <p class="cfg-hint">Cada alumno tira de <strong>dos niveles</strong>, el suyo y el de al
+        lado. El peor servido tiene ${r.flojo}, así que hay quien juega con una reserva de
+        <strong>${reserva}</strong> para una expedición de ${ECO().missionQuestions}.
+        ${reserva >= hueco
+          ? 'Le sobra: no se saldrá de lo suyo.'
+          : `<strong>Se le queda corta</strong>: la gasta entera y empieza a recibir retos por
+             encima de su nivel. Le faltan ${r.faltan} en el nivel más flojo — con
+             ${r.recomendado} en cada uno (${r.recomendado * 5} en el estrato) deja de pasar.`}</p>
+      </div>`;
+    })()}
 
     ${(() => {
       const pares = retosParecidos(branch);
@@ -3629,7 +3660,20 @@ function cfgIA(body) {
          repartido. Es la única forma de que un pozo escrito por el docente
          adapte como los de fábrica. */
       const on = ATLAS_CONFIG.iaPorNivel !== false;
-      const porNivel = Math.max(1, Math.min(5, ATLAS_CONFIG.iaPorNivelN || 2));
+      /* El valor de fábrica es el RECOMENDADO, no el barato: un pozo generado
+         con el mínimo se queda corto y el docente no tiene forma de saberlo
+         hasta que ve a un niño repitiendo retos. */
+      const rec = porNivelRecomendado(ECO().missionQuestions);
+      const porNivel = Math.max(1, Math.min(8, ATLAS_CONFIG.iaPorNivelN || rec));
+      /* Lo que ya hay en ese estrato: la recomendación es para el pozo
+         entero, no para la tanda de hoy. Quien ya tiene doce no necesita
+         otros veinte. */
+      const elegidoP = String(ATLAS_CONFIG.iaPozo || (pozos[0] || {}).id || '').split('/');
+      const brHoy = (ATLAS_CONFIG.sites || []).find(x => x.id === elegidoP[0]);
+      const pozoHoy = brHoy && (brHoy.branches || []).find(x => x.id === elegidoP[1]);
+      const yaHay = repartoDelBanco(
+        pozoHoy && (pozoHoy.bank || {})[ATLAS_CONFIG.iaEstrato || 'recordar'],
+        ECO().missionQuestions);
       return field('Repartir por niveles',
         `<input type="checkbox" id="ia-por-nivel"${on ? ' checked' : ''}>`,
         on ? 'Se escriben los cinco niveles de dificultad del estrato, rotando 1·2·3·4·5. '
@@ -3639,10 +3683,24 @@ function cfgIA(body) {
            + 'el motor adaptativo no tendrá entre qué elegir y la clase entera verá lo mismo.')
         + (on
           ? field('Cuántos por nivel',
-            `<input type="number" id="ia-por-nivel-n" min="1" max="5" value="${porNivel}">`,
-            `Son ${porNivel * 5} retos en total (${porNivel} de cada nivel), unos ${
-              (porNivel * 5 * 0.6).toFixed(0)} céntimos. Con dos por nivel el pozo ya adapta; ` +
-            'con cuatro, un alumno puede hacer dos expediciones sin repetir ninguno.')
+            `<input type="number" id="ia-por-nivel-n" min="1" max="8" value="${porNivel}">`,
+            /* ── La recomendación, con la cuenta hecha ──
+               Un docente no puede adivinar que la reserva de un alumno es el
+               doble de lo que pone por nivel, ni que con la reserva justa el
+               reparto se estira hacia arriba. Así que se le dice, con su
+               expedición y con lo que ya tiene en ese estrato. */
+            `Son <strong>${porNivel * 5} retos</strong> (${porNivel} de cada nivel), unos ${
+              Math.round(porNivel * 5 * 0.6)} céntimos.` +
+            ` Cada alumno tira de <strong>dos niveles</strong> —el suyo y el de al lado—, así que ` +
+            `con ${porNivel} por nivel su reserva son <strong>${porNivel * 2} retos</strong> ` +
+            `y la expedición son ${ECO().missionQuestions}.` +
+            (yaHay.conNivel
+              ? ` En este estrato ya tienes ${yaHay.conNivel} con nivel (${yaHay.flojo} en el peor servido).`
+              : '') +
+            (porNivel * 2 >= ECO().missionQuestions + 2
+              ? ' Le sobra: no se saldrá de lo suyo.'
+              : ` <strong>Se le queda corta</strong>: la gasta entera y el reparto se estira hacia ` +
+                `arriba. Con ${rec} por nivel (${rec * 5} retos) deja de pasar.`))
           : field('Cuántos', `<input type="number" id="ia-cuantos" min="1" max="20" value="${ATLAS_CONFIG.iaCuantos || 10}">`,
             'Diez cuestan unos 6 céntimos. El currículo va cacheado, así que las tandas siguientes de la misma área cuestan menos.'));
     })()}
@@ -3780,7 +3838,7 @@ function cfgIA(body) {
   /* Estos dos sí repintan: al marcarlos cambia el campo de al lado —«cuántos»
      pasa a ser «cuántos por nivel»— y el texto que dice lo que va a costar. */
   onInput('#ia-por-nivel', e => cfgSave('iaPorNivel', !!e.target.checked, false), 'change');
-  onInput('#ia-por-nivel-n', e => cfgSave('iaPorNivelN', Math.max(1, Math.min(5, +e.target.value || 2)), false));
+  onInput('#ia-por-nivel-n', e => cfgSave('iaPorNivelN', Math.max(1, Math.min(8, +e.target.value || 4)), false));
 
   const guardarClave = $('#ia-guardar-clave');
   if (guardarClave) guardarClave.addEventListener('click', () => {
@@ -3834,7 +3892,7 @@ function cfgIA(body) {
        «cuántos de cada nivel»: cloud.js multiplica por cinco. */
     const porNivel = !!($('#ia-por-nivel') || {}).checked;
     const cuantos = porNivel
-      ? Math.max(1, Math.min(5, +(($('#ia-por-nivel-n') || {}).value) || 2))
+      ? Math.max(1, Math.min(8, +(($('#ia-por-nivel-n') || {}).value) || porNivelRecomendado(ECO().missionQuestions)))
       : Math.max(1, Math.min(20, +$('#ia-cuantos').value || 10));
     setTeacherConfig('iaPozo', destino);
     setTeacherConfig('iaEstrato', estrato);
