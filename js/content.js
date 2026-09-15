@@ -442,13 +442,50 @@ function bandOf(g) { return gradeInfo(g).band; }
 function terse(g) { return bandOf(g) === 1; }
 
 const NAMES = ['Bruno', 'Kira', 'Tobías', 'Vega', 'Nilo', 'Mara'];
-const TREASURES = ['monedas de plata', 'gemas verdes', 'mapas antiguos', 'vasijas pintadas', 'brújulas de latón', 'fósiles brillantes'];
+/* Un nombre que NO sea alguno de los que ya están en el enunciado. Sin esto
+   salía «Bruno guarda 581 brújulas y Bruno desentierra 311 más», que a un
+   niño de ocho años le cuesta más que la propia suma. */
+const otroNombre = (...fuera) => pick(NAMES.filter(n => !fuera.includes(n)));
+/* Los tesoros llevan su género, porque «¿Cuántas mapas antiguos?» y
+   «¿Cuántas fósiles brillantes?» son las dos preguntas que salían antes: la
+   lista mezcla masculinos y femeninos y el enunciado decía «Cuántas» siempre.
+   Un niño de ocho años que todavía descifra no necesita además tropezar con
+   una concordancia mal hecha. */
+const TREASURES = [
+  { n: 'monedas de plata',   f: true  },
+  { n: 'gemas verdes',       f: true  },
+  { n: 'mapas antiguos',     f: false },
+  { n: 'vasijas pintadas',   f: true  },
+  { n: 'brújulas de latón',  f: true  },
+  { n: 'fósiles brillantes', f: false }
+];
+/* «Cuántas» o «Cuántos», según el tesoro que haya tocado. */
+const cuantos = t => (t.f ? 'Cuántas' : 'Cuántos');
+
+/* ── La rampa de dificultad, y por qué no llegaba arriba ──
+
+   La fórmula era `0,4 + 0,15 × nivel`, que vale 1,00 en el nivel 4: a partir
+   de ahí el resultado ya era el techo del curso y el 5 daba EXACTAMENTE lo
+   mismo que el 4. El motor adaptativo podía subir a un alumno al nivel 5 y no
+   pasaba nada, que es precisamente el caso de quien necesita ampliación.
+
+   Con `0,32 + 0,136 × nivel` los cinco niveles son distintos y el 5 cae
+   EXACTAMENTE en el techo del curso, que sigue siendo infranqueable: un
+   alumno de 4.º no ve números de 5.º por mucho que vaya sobrado. El curso lo
+   decide el currículo, no una racha de aciertos.
+
+       nivel 1 → 45,6 %   nivel 2 → 59,2 %   nivel 3 → 72,8 %
+       nivel 4 → 86,4 %   nivel 5 → 100 % del techo del curso */
+function rampaTier(techo, tier, suelo) {
+  const n = Math.min(5, Math.max(1, Number(tier) || 1));
+  return Math.max(suelo, Math.min(techo, Math.round(techo * (0.32 + 0.136 * n))));
+}
 
 /* ═══════════════ POZO 1 · NUMERACIÓN ═══════════════
    El techo numérico lo marca el curso; el tier solo afina dentro de él. */
 function numTop(grade, tier) {
   const techo = { 1: 100, 2: 1000, 3: 10000, 4: 10000, 5: 100000, 6: 1000000 }[grade] || 10000;
-  return Math.max(20, Math.min(techo, Math.round(techo * (0.4 + 0.15 * tier))));
+  return rampaTier(techo, tier, 20);
 }
 
 const numeracion = {
@@ -479,7 +516,40 @@ const numeracion = {
       { i: 4, label: 'decenas de millar' }
     ].filter(p => p.i < digits.length);
     const p = pick(places);
-    const correct = Number(digits[p.i]);
+    const cifra = Number(digits[p.i]);
+
+    /* ── Niveles 4 y 5: cuánto VALE, no qué cifra es ──
+       Señalar la cifra de las centenas se resuelve contando posiciones con el
+       dedo, sin entender nada. Preguntar cuánto vale obliga a leer la cantidad
+       —«el 5 aquí vale quinientos»—, que es exactamente lo que pide OAOA:
+       operar con cantidades y no con cifras.
+
+       Y la trampa es la buena: entre las opciones está la cifra suelta (5),
+       que es el error de quien lee posiciones en vez de cantidades. */
+    /* Las unidades quedan fuera a propósito: «¿cuánto vale el 7 en las
+       unidades?» es 7, o sea la misma cifra, y entonces la trampa —la cifra
+       suelta— sería la respuesta correcta. Ahí no hay nada que aprender. */
+    const altos = places.filter(x => x.i >= 1 && Number(digits[x.i]) > 0);
+    if (tier >= 4 && altos.length) {
+      const q = pick(altos);
+      const cif = Number(digits[q.i]);
+      const valor = cif * Math.pow(10, q.i);
+      const otros = places.filter(x => x.i !== q.i)
+        .map(x => Number(digits[x.i]) * Math.pow(10, x.i)).filter(v => v > 0);
+      const { options, answer } = buildOptions(
+        valor, [cif, valor * 10, valor / 10].concat(otros).filter(v => v > 0 && Number.isInteger(v)),
+        fmtNum);
+      return {
+        skill: 'valor_posicional',
+        question: `En la bóveda hay grabado el número ${fmtNum(n)}. ¿Cuánto VALE la cifra ${cif} que está en el lugar de las ${q.label}?`,
+        options, answer,
+        hint1: 'No es la cifra que ves: es la cantidad que representa en ese lugar.',
+        hint2: `${fmtNum(n)} es ${porValores(n)}. Busca el trozo que empieza por ${cif}.`,
+        explanation: `En ${fmtNum(n)}, ese ${cif} está en las ${q.label}, así que vale ${fmtNum(valor)}.`
+      };
+    }
+
+    const correct = cifra;
     const { options, answer } = buildOptions(correct, digits.map(Number).concat([ri(0, 9), ri(0, 9)]));
     return {
       skill: 'valor_posicional',
@@ -549,7 +619,7 @@ const numeracion = {
     const { options, answer } = buildOptions(correct, nearMisses(correct).concat([Math.abs(a - b)]), fmtNum);
     return {
       skill: 'problema_suma',
-      question: `La expedición ya tenía ${fmtNum(a)} ${t} y en la nueva cámara encuentra ${fmtNum(b)} más. ¿Cuántas ${t} hay ahora en total?`,
+      question: `La expedición ya tenía ${fmtNum(a)} ${t.n} y en la nueva cámara encuentra ${fmtNum(b)} más. ¿${cuantos(t)} ${t.n} hay ahora en total?`,
       options, answer,
       /* Cazar palabras clave («en total» = sumar) es lo que OAOA descarta
          expresamente: funciona hasta que el problema se pone interesante.
@@ -589,7 +659,7 @@ const numeracion = {
 function sumTop(grade, tier) {
   const techo = { 1: 20, 2: 100, 3: 1000, 4: 1000, 5: 10000, 6: 100000 }[grade] || 1000;
   /* el tier afina dentro del techo del curso, nunca por encima de él */
-  return Math.max(10, Math.min(techo, Math.round(techo * (0.4 + 0.15 * tier))));
+  return rampaTier(techo, tier, 10);
 }
 
 const sumas_llevando = {
@@ -598,6 +668,30 @@ const sumas_llevando = {
     const max = sumTop(g, tier);
     const a = ri(bandOf(g) === 1 ? 1 : 10, max), b = ri(bandOf(g) === 1 ? 1 : 10, max);
     const correct = a + b;
+
+    /* ── Niveles 4 y 5: el sumando que falta ──
+       Sumar dos números con números más grandes es la misma tarea con más
+       cifras, y para quien ya suma bien no añade nada. Preguntar cuál es el
+       sumando que falta —«? + 47 = 120»— sí: obliga a pensar en partes y todo
+       en vez de ejecutar una suma, que es el modelo de barras del que OAOA
+       saca la resolución de problemas.
+
+       Se pide la parte que falta, no el todo, y la trampa es el propio todo:
+       quien lee «suma» y opera sin mirar, suma los dos que ve. */
+    if (tier >= 4 && !terse(g)) {
+      const { options, answer } = buildOptions(
+        a, nearMisses(a).concat([correct, correct + b]), fmtNum);
+      return {
+        skill: 'suma_llevada',
+        question: `El reloj de engranajes marca ${fmtNum(correct)} y una de sus dos ruedas se ha borrado. `
+                + `La que queda marca ${fmtNum(b)}. ¿Qué número tenía la otra?`,
+        options, answer,
+        hint1: `El todo es ${fmtNum(correct)} y una parte es ${fmtNum(b)}. Busca la otra parte.`,
+        hint2: `Cuenta hacia arriba desde ${fmtNum(b)} hasta ${fmtNum(correct)}: lo que subas es lo que falta.`,
+        explanation: `${fmtNum(a)} + ${fmtNum(b)} = ${fmtNum(correct)}, así que la rueda borrada marcaba ${fmtNum(a)}.`
+      };
+    }
+
     const { options, answer } = buildOptions(correct, nearMisses(correct), fmtNum);
     return {
       skill: 'suma_llevada',
@@ -705,17 +799,46 @@ const sumas_llevando = {
     const g = grade || DEFAULT_GRADE;
     const max = sumTop(g, tier);
     const t = pick(TREASURES);
+
+    /* ── Nivel 5: dos pasos y de signos distintos ──
+       Juntar tres cantidades es el mismo gesto tres veces. Juntar y luego
+       quitar obliga a decidir QUÉ operación pide cada trozo del enunciado, que
+       es donde se atasca de verdad quien ya calcula bien.
+
+       Las falsas son las dos maneras reales de equivocarse: sumarlo todo sin
+       leer, y quitar antes de juntar. Ninguna sale de mover una cifra. */
+    if (bandOf(g) >= 2 && tier >= 5) {
+      const a = ri(Math.floor(max / 2), max);
+      const b = ri(Math.floor(max / 4), Math.floor(max / 2));
+      const perdidas = ri(10, Math.max(11, Math.floor((a + b) / 4)));
+      const correct = a + b - perdidas;
+      const who = otroNombre('Bruno');
+      const { options, answer } = buildOptions(
+        correct, [a + b + perdidas, a + b, a - perdidas + b - perdidas].concat(nearMisses(correct)),
+        fmtNum);
+      return {
+        skill: 'problema_suma',
+        question: `Bruno guarda ${fmtNum(a)} ${t.n} y ${who} desentierra ${fmtNum(b)} más. `
+                + `De vuelta al campamento se les caen ${fmtNum(perdidas)} por el camino. `
+                + `¿${cuantos(t)} ${t.n} llegan?`,
+        options, answer,
+        hint1: 'Son dos cosas distintas: primero juntan y después pierden. No lo hagas todo de una vez.',
+        hint2: `Junta ${fmtNum(a)} y ${fmtNum(b)}; a ese todo quítale la parte que se cae.`,
+        explanation: `${fmtNum(a)} + ${fmtNum(b)} = ${fmtNum(a + b)}, y ${fmtNum(a + b)} − ${fmtNum(perdidas)} = ${fmtNum(correct)}.`
+      };
+    }
+
     const a = ri(Math.floor(max / 2), max);
     const b = ri(Math.floor(max / 2), max);
     const c = (bandOf(g) >= 2 && tier >= 4) ? ri(10, 99) : 0;
     const correct = a + b + c;
     const { options, answer } = buildOptions(correct, nearMisses(correct), fmtNum);
-    const who = pick(NAMES);
+    const who = otroNombre('Bruno', 'Tobías');
     return {
       skill: 'problema_suma',
       question: terse(g)
         ? `Bruno lleva ${a} monedas y Tobías ${b}.\n¿Cuántas hay entre los dos?`
-        : `Bruno guarda ${fmtNum(a)} ${t} en la mochila y Tobías desentierra ${fmtNum(b)}${c ? ` y ${who} aporta ${c} más` : ''}. ¿Cuántas ${t} llevan al campamento?`,
+        : `Bruno guarda ${fmtNum(a)} ${t.n} en la mochila y Tobías desentierra ${fmtNum(b)}${c ? ` y ${who} aporta ${c} más` : ''}. ¿${cuantos(t)} ${t.n} llevan al campamento?`,
       options, answer,
       hint1: 'Junta todas las cantidades. Puedes ir por partes: primero dos y al resultado la otra.',
       hint2: `Por valores: las centenas con las centenas y las decenas con las decenas, y luego se juntan los trozos.`,
@@ -857,11 +980,11 @@ const fracciones = {
     const { options, answer } = buildOptions(correct, [total - correct, Math.floor(total / 2), correct + f.d, total]);
     return {
       skill: 'fraccion_de_cantidad',
-      question: `La expedición lleva ${total} ${t} y debe dejar ${f.uni} (${f.txt}) en el campamento. ¿Cuántas ${t} deja?`,
+      question: `La expedición lleva ${total} ${t.n} y debe dejar ${f.uni} (${f.txt}) en el campamento. ¿${cuantos(t)} ${t.n} deja?`,
       options, answer,
       hint1: `Primero divide ${total} entre ${f.d} para saber cuánto vale cada parte.`,
       hint2: `${total} ÷ ${f.d} = ${mult}. Ahora toma ${f.n} parte${f.n > 1 ? 's' : ''}: ${f.n} × ${mult}.`,
-      explanation: `${f.uni} de ${total} → ${total} ÷ ${f.d} = ${mult}, y ${f.n} × ${mult} = ${correct} ${t}.`
+      explanation: `${f.uni} de ${total} → ${total} ÷ ${f.d} = ${mult}, y ${f.n} × ${mult} = ${correct} ${t.n}.`
     };
   },
 

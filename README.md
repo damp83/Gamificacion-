@@ -1671,6 +1671,44 @@ empieza el reto y la bitácora.
 > La racha se apaga en silencio a propósito. Lo que separa esto de las plataformas
 > comerciales es precisamente eso, y es lo que lo hace defendible en un claustro.
 
+## Ampliación: la parte de arriba del dial
+
+El motor adaptativo sube a un alumno hasta el nivel 5, y durante mucho tiempo
+**ahí no había nada**. La rampa numérica valía `0,4 + 0,15 × nivel`, que llega
+a 1,00 en el nivel 4: el 5 daba exactamente lo mismo que el 4. Y de los usos
+del nivel en los generadores, casi todos eran `tier <= 2`, un interruptor
+fácil/no-fácil. El sistema sabía bajar y no sabía subir.
+
+Ahora los cinco niveles son distintos y el 5 cae **exactamente** en el techo
+del curso, que sigue siendo infranqueable: un alumno de 4.º no ve números de
+5.º por muy sobrado que vaya. Eso lo decide el currículo, no una racha de
+aciertos.
+
+| Nivel | 1 | 2 | 3 | 4 | 5 |
+|---|---|---|---|---|---|
+| **% del techo del curso** | 45,6 | 59,2 | 72,8 | 86,4 | **100** |
+| **Sumas en 4.º** | 456 | 592 | 728 | 864 | 1.000 |
+
+> **Pero un número más grande no es más difícil.** 8.500 y 10.000 son la misma
+> operación. Lo que sube de verdad en los niveles 4 y 5 es **la estructura de
+> la tarea**:
+
+| Estrato | Hasta el nivel 3 | En los niveles 4 y 5 |
+|---|---|---|
+| **Numeración · Recordar** | «¿Qué **cifra** ocupa las centenas?» — se resuelve contando posiciones con el dedo | «¿Cuánto **vale** esa cifra?» — obliga a leer la cantidad. Y la cifra suelta está entre las falsas, que es el error de quien lee posiciones en vez de cantidades |
+| **Sumas · Recordar** | `458 + 237 = ?` | El **sumando que falta**: «el reloj marca 828 y una rueda se ha borrado; la otra marca 762». Partes y todo, no ejecutar una suma |
+| **Sumas · Aplicar** | Juntar dos o tres cantidades | **Dos pasos de signos distintos**: juntan y luego pierden. Obliga a decidir qué operación pide cada trozo del enunciado |
+
+Las falsas de estos retos son los errores reales, no números movidos al azar:
+la cifra suelta, el total cuando se pedía la parte, y sumarlo todo sin leer el
+final. Y las pistas siguen hablando OAOA — hay una prueba que pasa el
+reglamento por los textos de los cinco niveles.
+
+> **Lo que sigue faltando**, y conviene saberlo: no hay un *suelo* de
+> dificultad (solo techo), y el dominio que abre el estrato siguiente solo se
+> puede **bajar** de 0,8, nunca subir. A quien va sobrado no se le puede
+> exigir más antes de avanzar.
+
 ## Adaptaciones para el alumnado ACNEAE
 
 En una clase de veintidós hay tres o cuatro con adaptación, y hasta ahora el
