@@ -14,6 +14,8 @@
 const { test } = require('node:test');
 const assert = require('node:assert');
 const { cargarApp } = require('./cargar.js');
+const leerFuente = f => require('node:fs').readFileSync(
+  require('node:path').join(__dirname, '..', f), 'utf8');
 
 const gen = c => c.ev('BUILTIN_GENERATORS');
 /* Los generadores llevan azar: se tira varias veces y se mira el conjunto. */
@@ -181,4 +183,89 @@ test('nadie sale dos veces en el mismo enunciado', () => {
   for (let i = 0; i < 40; i++) {
     assert.notEqual(c.ev('otroNombre')('Bruno'), 'Bruno');
   }
+});
+
+/* ── El suelo de dificultad ──
+   Había techo y no había suelo: el motor podía bajarle el nivel a quien no lo
+   necesitaba —una mala tarde, un día de fiebre— y dejarlo excavando por debajo
+   de lo suyo hasta que remontara la media móvil. Para quien va sobrado, eso
+   son varias sesiones aburridas por una racha que no dice nada de él. */
+
+function conAdap(c, adap) {
+  c.ev('createState')('Ana');
+  c.ev('S.profile.grade = 4;');
+  c.ev('S.profile.adaptacion = ' + JSON.stringify(adap) + ';');
+  return c;
+}
+const machacar = (c, acierta, veces) => {
+  c.ev('S.adaptive.last10 = [];');
+  for (let i = 0; i < (veces || 25); i++) c.ev('recordFirstTry')(acierta, acierta ? 3000 : 9000);
+  return c.ev('S.adaptive.tier');
+};
+
+test('sin suelo, una mala racha baja hasta el nivel 1', () => {
+  const c = conAdap(cargarApp(), { activa: false });
+  c.ev('S.adaptive.tier = 4;');
+  assert.equal(machacar(c, false), 1);
+});
+
+test('con suelo, una mala racha no le quita la dificultad que necesita', () => {
+  const c = conAdap(cargarApp(), { activa: true, suelo: 3 });
+  c.ev('S.adaptive.tier = 4;');
+  assert.equal(machacar(c, false), 3, 'el suelo tiene que frenar la bajada');
+  assert.equal(machacar(c, true), 5, 'y subir sigue sin impedirse');
+});
+
+test('el suelo levanta también la entrada a un estrato nuevo', () => {
+  /* La amortiguación de entrada protege de la ansiedad al estrenar un estrato.
+     Un docente que pone suelo ha dicho que a ESTE niño esa protección le
+     sobra: es una decisión sobre un alumno concreto y pesa más que un valor
+     por defecto pensado para todos. */
+  const c = conAdap(cargarApp(), { activa: true, suelo: 5 });
+  const rama = c.ev('playableBranchIds()')[0];
+  const orden = c.ev('STRATA_ORDER');
+  c.ev('S.adaptive.tier = 5;');
+  assert.equal(c.ev('entryTier')(rama, orden[0]), 5, 'la amortiguación no puede bajar del suelo');
+
+  const d = conAdap(cargarApp(), { activa: false });
+  d.ev('S.adaptive.tier = 5;');
+  assert.equal(d.ev('entryTier')(rama, orden[0]), 3, 'sin suelo, la entrada sigue amortiguada');
+});
+
+test('si suelo y techo se contradicen, manda el techo', () => {
+  /* Equivocarse hacia abajo deja a un niño aburrido; equivocarse hacia arriba
+     lo deja hundido. Ante dos palancas que se pelean, gana la segura. */
+  const c = conAdap(cargarApp(), { activa: true, suelo: 5, techo: 2 });
+  c.ev('S.adaptive.tier = 3;');
+  assert.equal(machacar(c, true), 2, 'no puede superar el techo ni con suelo alto');
+  assert.equal(c.ev('nivelPermitido')(5), 2);
+  assert.equal(c.ev('nivelPermitido')(1), 2, 'el suelo lo empuja, el techo lo frena, y queda en 2');
+});
+
+test('todo lo que fija la dificultad pasa por un único sitio', () => {
+  /* Tres sitios decidiendo el nivel son tres sitios que un día dejan de
+     coincidir. Aquí ya pasó: la Cámara del Guardián se saltaba el techo del
+     alumno, así que su prueba era más dura que todo lo que había jugado. */
+  const c = cargarApp();
+  assert.equal(typeof c.ev('nivelPermitido'), 'function');
+  const g = leerFuente('js/game.js');
+  assert.match(g, /function entryTier[\s\S]{0,900}nivelPermitido\(/);
+  assert.match(g, /const tier = nivelPermitido\(S\.adaptive\.tier \+/, 'la Cámara también');
+  const s = leerFuente('js/state.js');
+  assert.match(s, /S\.adaptive\.tier = nivelPermitido\(S\.adaptive\.tier\);/, 'y el motor');
+});
+
+test('la Cámara del Guardián no se salta el techo del alumno', () => {
+  const c = conAdap(cargarApp(), { activa: true, techo: 2 });
+  c.ev('S.adaptive.tier = 2;');
+  /* El refuerzo de la Cámara sube un punto; el techo lo recorta igual. */
+  assert.equal(c.ev('nivelPermitido')(c.ev('S.adaptive.tier') + 1), 2);
+});
+
+test('la tarjeta del estrato le dice SU puerta, no la de todos', () => {
+  /* Si el docente se la ha movido, prometerle el 80 en la única pantalla
+     donde mira cuánto le falta sería mentirle. */
+  const p = leerFuente('js/play.js');
+  assert.match(p, /dominioParaAbrir\(\)/, 'el porcentaje sale de su puerta');
+  assert.ok(!/≥80%/.test(p), 'no puede quedar ningún 80 escrito a mano');
 });

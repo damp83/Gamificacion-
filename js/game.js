@@ -20,9 +20,10 @@ function entryTier(branchId, stratumId) {
   const st = getStratum(branchId, stratumId);
   const cap = ENTRY_TIER_CAP[st.attempts];
   const base = cap === undefined ? S.adaptive.tier : Math.min(S.adaptive.tier, cap);
-  /* Y el techo del alumno, si lo tiene, por encima de todo lo demás. */
-  const a = typeof miAdaptacion === 'function' ? miAdaptacion() : { activa: false };
-  return (a.activa && a.techo) ? Math.min(base, enteroSano(a.techo, 5, 1, 5)) : base;
+  /* Y la adaptación del alumno por encima de todo lo demás: su techo recorta
+     la entrada, y su suelo la levanta aunque la amortiguación quisiera bajarla.
+     La regla vive en un solo sitio, `nivelPermitido`. */
+  return typeof nivelPermitido === 'function' ? nivelPermitido(base) : base;
 }
 
 function startMission(branchId, stratumId, kind) {
@@ -335,7 +336,10 @@ function startGuardian(branchId) {
   const def = branchDef(branchId);
   const strata = est.strata;
   const total = Math.max(4, Math.min(20, g.questions || 10));
-  const tier = Math.min(5, S.adaptive.tier + (g.tierBoost || 0));
+  /* La Cámara sube un punto sobre lo que lleve, pero sin saltarse su techo:
+     la prueba que acredita un pozo no puede ser más dura para él que todo lo
+     que ha jugado hasta llegar. */
+  const tier = nivelPermitido(S.adaptive.tier + (g.tierBoost || 0));
 
   mission = {
     kind: 'guardian',

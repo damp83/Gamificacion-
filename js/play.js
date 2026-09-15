@@ -454,9 +454,13 @@ function openBranch(branchId) {
          convierte una puerta cerrada sin motivo aparente en un objetivo
          claro, que es la diferencia entre insistir y abandonar. */
       const arriba = i > 0 ? strata[STRATA_ORDER[i - 1]] : null;
+      /* El porcentaje sale de SU puerta, no de un 80 escrito a mano: si el
+         docente se la ha bajado o subido, prometerle aquí el 80 de todos sería
+         mentirle en la única pantalla donde mira cuánto le falta. */
+      const puerta = Math.round(dominioParaAbrir() * 100);
       detail = (arriba && (arriba.altas || 0) === 1)
         ? '<small>¡Ya casi! Vuelve a superar el estrato de arriba una vez más y este se abre</small>'
-        : '<small>Se abre al dominar (≥80%) el estrato de arriba, dos veces seguidas</small>';
+        : `<small>Se abre al dominar (≥${puerta}%) el estrato de arriba, dos veces seguidas</small>`;
     } else {
       detail = `<div class="mastery-bar"><div class="mastery-fill${st.mastery >= 0.8 ? ' gold' : ''}" style="width:${masteryPct}%"></div></div>
         <small>Dominio: ${masteryPct}%${st.mastery >= 0.9 ? ' · ya excavado (PE al 10%)' : ''}${cover > 0.2 ? ' · cubierto de arena' : ''}</small>`;

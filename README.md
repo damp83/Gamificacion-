@@ -1704,10 +1704,33 @@ la cifra suelta, el total cuando se pedía la parte, y sumarlo todo sin leer el
 final. Y las pistas siguen hablando OAOA — hay una prueba que pasa el
 reglamento por los textos de los cinco niveles.
 
-> **Lo que sigue faltando**, y conviene saberlo: no hay un *suelo* de
-> dificultad (solo techo), y el dominio que abre el estrato siguiente solo se
-> puede **bajar** de 0,8, nunca subir. A quien va sobrado no se le puede
-> exigir más antes de avanzar.
+### Y las dos palancas que faltaban
+
+Había **techo y no había suelo**: el motor podía bajarle el nivel a quien no lo
+necesitaba —una mala tarde, un día de fiebre— y dejarlo excavando por debajo de
+lo suyo hasta que remontara la media móvil. Ahora hay **suelo**, y se salta
+además la amortiguación de los primeros días en un estrato nuevo: esa
+amortiguación protege de la ansiedad al estrenar un nivel cognitivo, y un
+docente que pone suelo ha dicho que a *ese* niño le sobra.
+
+Y la **puerta al estrato siguiente** se puede subir hasta el 95&nbsp;%, no solo
+bajar hasta el 50. Para quien avanza sin consolidar: afianzar antes de bajar,
+mientras sigue jugando ahí retos más difíciles.
+
+> **Si suelo y techo se contradicen, manda el techo.** Equivocarse hacia abajo
+> deja a un niño aburrido; equivocarse hacia arriba lo deja hundido.
+
+> **Y subirla tampoco cambia lo que significa dominar.** Con la puerta en el
+> 90&nbsp;%, un alumno con 0,85 **sigue apareciendo como dominado** en su
+> informe y en la tabla de criterios; lo que tiene cerrado es el estrato
+> siguiente, y eso es otra cosa. Él lo ve escrito en la tarjeta del estrato,
+> **con su porcentaje y no con el de todos**.
+
+Todo lo que fija la dificultad —el motor al subir y bajar, la entrada a un
+estrato nuevo y la Cámara del Guardián— pasa ahora por una sola función,
+`nivelPermitido()`. Tres sitios decidiendo el nivel son tres sitios que un día
+dejan de coincidir: aquí ya había pasado, y la Cámara se saltaba el techo del
+alumno.
 
 ## Adaptaciones para el alumnado ACNEAE
 
@@ -1725,8 +1748,9 @@ dice que siga intentándolo.
 |---|---|
 | **Retos por expedición** | Quien se cansa al cuarto reto no aprende nada de los dos últimos: los falla por cansancio y la app lo apunta como si no lo supiera |
 | **Lectura en voz alta** | Con «siempre», un toque sin querer en su Campamento no puede quitársela para el resto del curso |
-| **Nivel de dificultad máximo** | Impide que una racha con suerte le suba a un nivel donde se hunde y del que tarda tres sesiones en bajar. **Bajar nunca se le impide** |
-| **Dominio que abre el estrato siguiente** | Entre el 50 % y el 80 %. Es la palanca que más le cambia el curso |
+| **Nivel de dificultad máximo** | Impide que una racha con suerte le suba a un nivel donde se hunde y del que tarda tres sesiones en bajar |
+| **Nivel de dificultad mínimo** | Para quien se aburre: una mala tarde no puede quitarle la dificultad que necesita. Se salta también la amortiguación de los primeros días en un estrato nuevo. **Si chocan los dos, manda el techo** |
+| **Dominio que abre el estrato siguiente** | Entre el 50 % y el 95 %. Es la palanca que más le cambia el curso: **bajarla** para quien no va a llegar al 80, **subirla** para quien avanza sin consolidar |
 | **Qué adaptación es** | Texto libre para tu registro. No sale en el informe de la familia ni en ninguna pantalla del alumno |
 
 ### Abre la puerta, no cambia lo que significa dominar

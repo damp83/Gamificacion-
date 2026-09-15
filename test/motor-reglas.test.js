@@ -101,20 +101,25 @@ test('una sesión floja en medio rompe la racha y hay que volver a confirmar', (
   assert.equal(est(c, POZO, 'comprender').status, 'locked');
 });
 
-test('el listón no ha subido: sigue siendo el 0,8 de siempre', () => {
-  /* Lo que se pide es repetir la medida, no acertar más. Subir el umbral
-     sería otra decisión, y no es esta. */
+test('el listón de TODOS sigue siendo el 0,8 de siempre', () => {
+  /* Lo que se pide para abrir es repetir la medida, no acertar más. La puerta
+     se puede mover para UN alumno con adaptación —hacia abajo para quien no va
+     a llegar, hacia arriba para quien avanza sin consolidar—, pero el valor
+     por defecto no se toca: mover el listón de la clase entera sería otra
+     decisión, y no es esta. */
   const st = require('node:fs').readFileSync(
     require('node:path').join(__dirname, '..', 'js', 'state.js'), 'utf8');
   assert.match(st, /const ALTAS_PARA_ABRIR = 2;/);
-  /* La puerta pasa por `dominioParaAbrir`, que devuelve 0,8 para todo el
-     mundo salvo que ese alumno tenga una adaptación. Bajarla para quien la
-     necesita es otra cosa que subirla para todos. */
   assert.match(st, /st\.altas = st\.mastery >= dominioParaAbrir\(S\)/);
   const i = st.indexOf('function dominioParaAbrir');
   const cuerpo = st.slice(i, st.indexOf('\n}\n', i));
   assert.match(cuerpo, /if \(!a\.activa \|\| !a\.dominio\) return 0\.8;/, 'sin adaptación, 0,8');
-  assert.match(cuerpo, /Math\.min\(0\.8, Math\.max\(0\.5, n\)\)/, 'y nunca por encima de 0,8');
+  assert.match(cuerpo, /Math\.min\(0\.95, Math\.max\(0\.5, n\)\)/, 'y la horquilla, entre 0,5 y 0,95');
+  /* Y «dominado» —lo que se lleva al informe y a la evaluación— sigue siendo
+     0,8 para todo el mundo, tenga adaptación o no. Eso no se mueve. */
+  assert.match(st, /if \(st\.mastery >= 0\.8\) st\.status = 'mastered';/);
+  assert.ok(!/status = 'mastered'[\s\S]{0,60}dominioParaAbrir/.test(st),
+    'el estado de dominado no puede depender de la puerta de nadie');
   assert.ok(!/mastery >= 0\.8[5-9]/.test(st), 'nadie ha subido el umbral por la puerta de atrás');
 });
 

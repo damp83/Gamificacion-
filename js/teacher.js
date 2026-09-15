@@ -625,7 +625,12 @@ function panelDeAdaptacion(clave, ficha) {
   const eco = ECO();
   if (previo) openDiaryKey(previo); else closeDiary();
 
+  /* Arriba para quien avanza sin consolidar, abajo para quien no va a llegar
+     al 80. El de todos va en medio y marcado, que es el sitio donde debe
+     quedarse mientras nadie tenga un motivo para moverlo. */
   const dominios = [
+    { v: 0.95, t: '95 % — afianzar antes de avanzar' },
+    { v: 0.9, t: '90 %' }, { v: 0.85, t: '85 %' },
     { v: 0, t: 'El de todos: 80 %' },
     { v: 0.75, t: '75 %' }, { v: 0.7, t: '70 %' }, { v: 0.65, t: '65 %' },
     { v: 0.6, t: '60 %' }, { v: 0.55, t: '55 %' }, { v: 0.5, t: '50 %' }
@@ -659,16 +664,27 @@ function panelDeAdaptacion(clave, ficha) {
       ${field('Nivel de dificultad máximo', `<select id="ad-techo">
         <option value="0"${!a.techo ? ' selected' : ''}>Sin techo (1 a 5)</option>
         ${[1, 2, 3, 4].map(n => `<option value="${n}"${a.techo === n ? ' selected' : ''}>Hasta ${n}</option>`).join('')}
-      </select>`, 'Impide que una racha con suerte le suba a un nivel donde se hunde y del que tarda tres sesiones en bajar. Bajar nunca se le impide.')}
+      </select>`, 'Impide que una racha con suerte le suba a un nivel donde se hunde y del que tarda tres sesiones en bajar.')}
+
+      ${field('Nivel de dificultad mínimo', `<select id="ad-suelo">
+        <option value="0"${!a.suelo ? ' selected' : ''}>Sin suelo (1 a 5)</option>
+        ${[2, 3, 4, 5].map(n => `<option value="${n}"${a.suelo === n ? ' selected' : ''}>Desde ${n}</option>`).join('')}
+      </select>`, 'Para quien se aburre: una mala tarde no puede quitarle la dificultad que necesita. '
+        + 'También se salta la amortiguación de los primeros días en un estrato nuevo. '
+        + 'Si chocan los dos, manda el techo.')}
 
       ${field('Dominio que le abre el estrato siguiente', `<select id="ad-dominio">
         ${dominios.map(d => `<option value="${d.v}"${a.dominio === d.v ? ' selected' : ''}>${d.t}</option>`).join('')}
-      </select>`, 'Es la palanca que más cambia su curso. Para quien no va a llegar al 80 %, ese listón no es exigente: es un techo, y se pasa el año en el mismo estrato jugando lo mismo.')}
+      </select>`, 'Es la palanca que más cambia su curso. BAJARLA, para quien no va a llegar al 80 %: ese listón no es exigente, es un techo, y se pasa el año en el mismo estrato jugando lo mismo. SUBIRLA, para quien avanza sin consolidar: le pide afianzar antes de bajar al siguiente, mientras sigue jugando ahí retos más difíciles.')}
 
-      <p class="cfg-warn">Esto abre la puerta, <strong>no cambia lo que significa dominar</strong>:
+      <p class="cfg-warn">Esto mueve la puerta, <strong>no cambia lo que significa dominar</strong>:
       en su informe y en la tabla de criterios sigue apareciendo lo que de verdad ha demostrado,
       con el 80 % de todos. Dejarle avanzar y decir la verdad sobre su dominio son dos cosas
-      distintas, y aquí solo se hace la primera.</p>
+      distintas, y aquí solo se hace la primera.
+      <br><br>En las dos direcciones: <strong>si la subes</strong>, puede aparecer como dominado
+      en el informe y tener el estrato siguiente todavía cerrado. Es coherente —le estás pidiendo
+      afianzar antes de bajar— y él lo ve escrito en la tarjeta del estrato, con su porcentaje y
+      no con el de todos.</p>
 
       ${field('Qué adaptación es', `<textarea id="ad-nota" rows="3"
         placeholder="Dislexia. Enunciados leídos y sesiones cortas. Acordado en la reunión de octubre.">${esc(a.nota || '')}</textarea>`,
@@ -698,6 +714,7 @@ function panelDeAdaptacion(clave, ficha) {
   };
   num('#ad-retos', 'retos');
   num('#ad-techo', 'techo');
+  num('#ad-suelo', 'suelo');
   num('#ad-dominio', 'dominio');
   const voz = caja.querySelector('#ad-voz');
   if (voz) voz.addEventListener('change', e => escribir('voz', e.target.value));

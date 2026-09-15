@@ -1795,14 +1795,13 @@ function recordFirstTry(correct, responseMs) {
 
   const acc = rollingAccuracy();
   if (S.adaptive.last10.length >= 6) {
-    /* El techo de la adaptación manda sobre la subida: una racha con suerte no
-       puede dejar a un alumno en un nivel donde se hunde y del que tarda tres
-       sesiones en bajar. Bajar, en cambio, nunca se impide. */
-    const a = miAdaptacion();
-    const tope = (a.activa && a.techo) ? enteroSano(a.techo, 5, 1, 5) : 5;
-    if (acc > 0.85 && S.adaptive.tier < tope) S.adaptive.tier++;
-    else if (acc < 0.60 && S.adaptive.tier > 1) S.adaptive.tier--;
-    if (S.adaptive.tier > tope) S.adaptive.tier = tope;
+    /* Subir y bajar los decide la precisión; hasta dónde, la adaptación. El
+       techo impide que una racha con suerte lo deje en un nivel donde se
+       hunde, y el suelo impide que una mala tarde le quite la dificultad que
+       necesita para no aburrirse. */
+    if (acc > 0.85) S.adaptive.tier++;
+    else if (acc < 0.60) S.adaptive.tier--;
+    S.adaptive.tier = nivelPermitido(S.adaptive.tier);
   }
   saveState();
 }
@@ -1908,9 +1907,35 @@ const ADAPTACION_DEFECTO = {
   retos: 0,        /* retos por expedición; 0 = los de la clase */
   voz: '',         /* 'siempre' | 'nunca' | '' = lo que decida él */
   techo: 0,        /* nivel máximo de dificultad; 0 = sin techo */
+  suelo: 0,        /* nivel mínimo; 0 = sin suelo */
   dominio: 0,      /* el que le abre el estrato siguiente; 0 = el 0,8 de todos */
   nota: ''         /* qué adaptación es, para el registro del docente */
 };
+
+/* ── El nivel que este alumno puede tener ──
+   Todo lo que fije la dificultad pasa por aquí, y no por tres sitios que un
+   día dejarán de coincidir: el motor al subir y bajar, la entrada a un
+   estrato nuevo y la Cámara del Guardián.
+
+   El TECHO es el límite duro y gana siempre: si alguien deja un suelo por
+   encima de un techo —dos palancas que se contradicen— manda el techo, porque
+   equivocarse hacia abajo deja a un niño aburrido y equivocarse hacia arriba
+   lo deja hundido.
+
+   El SUELO gana sobre la amortiguación de entrada, y es deliberado: esa
+   amortiguación protege de la ansiedad al estrenar un estrato, y un docente
+   que ha puesto suelo ha dicho que a ESTE niño esa protección le sobra. Es
+   una decisión sobre un alumno concreto, y por eso pesa más que un valor por
+   defecto pensado para todos. */
+function nivelPermitido(n, estado) {
+  const a = adaptacionDe(estado || S);
+  let v = enteroSano(n, 1, 1, 5);
+  const techo = (a.activa && a.techo) ? enteroSano(a.techo, 5, 1, 5) : 5;
+  const suelo = (a.activa && a.suelo) ? enteroSano(a.suelo, 1, 1, 5) : 1;
+  if (v < suelo) v = suelo;
+  if (v > techo) v = techo;
+  return v;
+}
 
 function adaptacionDe(estado) {
   const a = (estado && estado.profile && estado.profile.adaptacion) || null;
@@ -1940,11 +1965,24 @@ function retosDeExpedicion(kind) {
 function dominioParaAbrir(estado) {
   const a = adaptacionDe(estado || S);
   if (!a.activa || !a.dominio) return 0.8;
-  /* Entre 0,5 y 0,8: por debajo de la mitad no es una adaptación, es abrir
-     el camino a quien todavía no ha aprendido nada de ese estrato. */
+  /* Entre 0,5 y 0,95.
+
+     Abajo, 0,5: por debajo de la mitad no es una adaptación, es abrir el
+     camino a quien todavía no ha aprendido nada de ese estrato.
+
+     Arriba, 0,95: pedir más que eso es una puerta que no se abre nunca, y una
+     puerta que no se abre nunca no es exigencia, es un castigo. Subirla sirve
+     para quien va sobrado y avanza por encima sin consolidar: le pide afianzar
+     antes de bajar al estrato siguiente, mientras sigue jugando ahí retos más
+     difíciles.
+
+     Ojo a lo que esto NO cambia, en las dos direcciones: «dominado» sigue
+     siendo el 0,8 de todos en el informe y en la tabla de criterios. Con la
+     puerta subida, un alumno puede aparecer como dominado y tener el estrato
+     siguiente todavía cerrado — es coherente y hay que decirlo, no esconderlo. */
   const n = Number(a.dominio);
   if (!Number.isFinite(n)) return 0.8;
-  return Math.min(0.8, Math.max(0.5, n));
+  return Math.min(0.95, Math.max(0.5, n));
 }
 
 /* ── Cuántas actividades hay de cada criterio ──

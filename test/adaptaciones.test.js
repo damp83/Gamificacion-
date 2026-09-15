@@ -106,16 +106,48 @@ test('poner el techo por debajo del nivel actual le baja ya, sin esperar diez re
 
 /* ── La puerta al estrato siguiente ── */
 
-test('la puerta baja hasta donde diga el docente, pero nunca por debajo del 50 %', () => {
+test('la puerta se mueve entre el 50 % y el 95 %, y nada más', () => {
+  /* Abajo, para quien no va a llegar al 80 y se pasaría el curso en el mismo
+     estrato. Arriba, para quien avanza sin consolidar: afianzar antes de
+     bajar. Los dos extremos tienen tope, y por lo mismo: por debajo del 50 no
+     es adaptar sino regalar el camino, y por encima del 95 es una puerta que
+     no se abre nunca, que no es exigencia sino castigo. */
   const c = cargarApp();
   conAdaptacion(c, { activa: true, dominio: 0.65 });
   assert.equal(c.ev('dominioParaAbrir()'), 0.65);
   conAdaptacion(c, { activa: true, dominio: 0.2 });
   assert.equal(c.ev('dominioParaAbrir()'), 0.5, 'por debajo de la mitad no es adaptar, es regalar el camino');
-  conAdaptacion(c, { activa: true, dominio: 0.95 });
-  assert.equal(c.ev('dominioParaAbrir()'), 0.8, 'tampoco se le puede poner MÁS listón que al resto');
+  conAdaptacion(c, { activa: true, dominio: 0.9 });
+  assert.equal(c.ev('dominioParaAbrir()'), 0.9, 'a quien va sobrado se le puede pedir más');
+  conAdaptacion(c, { activa: true, dominio: 0.99 });
+  assert.equal(c.ev('dominioParaAbrir()'), 0.95, 'una puerta que no se abre nunca no es exigencia');
   conAdaptacion(c, { activa: true, dominio: 'mucho' });
   assert.equal(c.ev('dominioParaAbrir()'), 0.8, 'un valor inservible cae en el de todos');
+});
+
+test('subir la puerta tampoco cambia lo que significa dominar', () => {
+  /* Es la misma línea que al bajarla, y en la dirección contraria: con la
+     puerta en 0,9, un alumno con 0,85 SIGUE estando dominado en su informe y
+     en la tabla de criterios. Lo que tiene cerrado es el estrato siguiente, y
+     eso es otra cosa. */
+  const c = cargarApp();
+  conAdaptacion(c, { activa: true, dominio: 0.9 });
+  const rama = c.ev('playableBranchIds()')[0];
+  const orden = c.ev('STRATA_ORDER');
+  /* Por el camino real: dos sesiones con un 85 % dejan el dominio en 0,85. */
+  c.ev('updateMastery')(rama, orden[0], 0.85);
+  c.ev('updateMastery')(rama, orden[0], 0.85);
+  const st = c.ev('getStratum')(rama, orden[0]);
+  assert.ok(st.mastery >= 0.8 && st.mastery < 0.9, `dominio inesperado: ${st.mastery}`);
+  assert.equal(st.status, 'mastered', 'con 0,85 está dominado, diga lo que diga su puerta');
+  assert.equal(st.ever_mastered, true, 'y cuenta para el trimestre, como el de todos');
+  assert.equal(st.altas, 0, 'pero no suma un alta: su puerta está en 0,9');
+
+  /* Y con la puerta en el 80 de todos, el mismo 0,85 sí abre. */
+  const d = conAdaptacion(cargarApp(), { activa: false });
+  d.ev('updateMastery')(rama, orden[0], 0.85);
+  d.ev('updateMastery')(rama, orden[0], 0.85);
+  assert.equal(d.ev('getStratum')(rama, orden[0]).altas, 1);
 });
 
 test('con la puerta bajada, el estrato siguiente se abre y deja de repetir el mismo pozo', () => {
