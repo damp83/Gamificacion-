@@ -3981,7 +3981,10 @@ function cfgIA(body) {
       nuevos.length ? ` · ${rep.distintos} concepto${rep.distintos === 1 ? '' : 's'}: ${rep.texto}` : ''}${
       iaDescartados.length ? `, ${iaDescartados.length} tirados por las comprobaciones` : ''}.${
       sinComprobar ? ` ⚠️ ${sinComprobar} sin comprobar: léelos con más cuidado.` : ''}${
-      r.corte ? ` ⚠️ Se paró antes de acabar: ${r.corte}` : ''}${
+      r.cortados && !r.parado
+        ? ` ${r.cortados} se pasaron de los 30 segundos y se saltaron; el resto entró.`
+        : ''}${
+      r.parado && r.corte ? ` ⚠️ Se paró antes de acabar: ${r.corte}` : ''}${
       r.usados ? ` (${r.usados.entrada + r.usados.cacheados} tokens de entrada, ${r.usados.salida} de salida)` : ''}`;
     renderTeacherConfig();
   });

@@ -97,6 +97,22 @@ async function cloudGenerarRetos(peticion, onProgreso) {
   const evitarConceptos = Array.isArray(peticion.conceptosYaEnElPozo)
     ? peticion.conceptosYaEnElPozo.slice() : [];
   let corte = null;
+  /* ── Un corte de 30 s no es el final de la tanda ──
+     Appwrite corta toda ejecución síncrona a los 30 segundos, y cuánto tarda
+     el modelo en escribir un reto varía de una llamada a otra. Esto abortaba
+     la tanda ENTERA en cuanto una se pasaba: se pedían veinte retos, la cuarta
+     llamada tardaba de más y el docente se quedaba con tres, sin que las
+     dieciséis siguientes —que probablemente habrían entrado— llegaran a
+     intentarse.
+
+     Ahora se salta ese reto y se sigue con el siguiente, que además es de otro
+     nivel y otro enunciado. Lo que no se hace es insistir: un corte cuesta
+     dinero igual —el modelo terminó su trabajo, lo que no llegó fue la
+     respuesta—, así que dos cortes SEGUIDOS quieren decir que no es mala
+     suerte sino que el encargo no cabe en treinta segundos, y ahí se para y se
+     dice. Un corte suelto entre retos buenos no para nada. */
+  const CORTES_SEGUIDOS_MAX = 2;
+  let cortesSeguidos = 0, cortados = 0, parado = false;
   for (let i = 0; i < cuantos; i++) {
     avisar(i, 'escribiendo');
     const nivel = nivelDe(i);
@@ -106,10 +122,14 @@ async function cloudGenerarRetos(peticion, onProgreso) {
     if (!r.ok) {
       /* Si ya hay retos escritos, no se tiran: están pagados. Se sigue con lo
          que haya y se dice qué pasó. */
-      if (!buenos.length && !descartados.length) return r;
+      if (!buenos.length && !descartados.length && r.reason !== 'tope') return r;
       corte = r.texto;
+      if (r.reason === 'tope' && ++cortesSeguidos < CORTES_SEGUIDOS_MAX) { cortados++; continue; }
+      if (r.reason === 'tope') cortados++;
+      parado = true;
       break;
     }
+    cortesSeguidos = 0;
     suma(r.usados);
     for (const x of (r.retos || [])) {
       /* La función ya lo estampa, pero una función sin actualizar devolvería
@@ -124,7 +144,7 @@ async function cloudGenerarRetos(peticion, onProgreso) {
   }
 
   if (!buenos.length) {
-    return { ok: true, retos: [], descartados, usados: gastado, corte };
+    return { ok: true, retos: [], descartados, usados: gastado, corte, cortados, parado };
   }
 
   /* ── La comprobación, en tandas ──
@@ -148,7 +168,7 @@ async function cloudGenerarRetos(peticion, onProgreso) {
     for (const d of (r.descartados || [])) descartados.push(d);
   }
 
-  return { ok: true, retos: supervivientes, descartados, usados: gastado, corte };
+  return { ok: true, retos: supervivientes, descartados, usados: gastado, corte, cortados, parado };
 }
 
 /* Una llamada a la función, con la clave del docente pegada al cuerpo.
@@ -226,9 +246,10 @@ async function ejecutarGenerador(id, cuerpo) {
        que hay que bajar es el esfuerzo, no el número. */
     if (/timed out|timeout/i.test(m)) {
       return { ok: false, reason: 'tope',
-        texto: 'Appwrite ha cortado la llamada a los 30 segundos, que es su tope y no se puede subir. '
-             + 'Vuelve a intentarlo: si se repite, el modelo está tardando de más con este currículo '
-             + '—prueba a mandar solo el bloque del área que estás trabajando, no el documento entero—.' };
+        texto: 'Appwrite corta toda llamada a los 30 segundos, y ese tope no se puede subir: el ajuste '
+             + '«Timeout» de la función es otra cosa. Dos seguidas quieren decir que al modelo no le da '
+             + 'tiempo con este currículo: manda solo el bloque del área que estás trabajando en vez del '
+             + 'documento entero, y vuelve a darle.' };
     }
     /* ── Se cayó el transporte, no la función ──
        «Load failed» es lo que dice Safari cuando aborta una petición: la

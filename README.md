@@ -753,6 +753,34 @@ mayor parte de la factura, con razón —la segunda pasada, la que vuelve a
 resolver cada reto para comprobar que la respuesta marcada es la buena, ya va
 a esfuerzo bajo.
 
+### Un corte de 30 segundos no es el final de la tanda
+
+Appwrite corta **toda ejecución síncrona a los 30 segundos**, y ese tope no se
+puede subir: el ajuste *Timeout* de la función es otra cosa (ese sí hay que
+subirlo a 300, y es donde se atasca todo el mundo al desplegar). Por eso los
+retos se piden de uno en uno.
+
+Lo que tarda el modelo en escribir un reto **varía de una llamada a otra**, así
+que un corte suelto es normal. Y la tanda entera se abortaba en cuanto pasaba:
+el reintento solo cubre los errores de red, y el corte no es uno. Se pedían
+veinte retos, la cuarta llamada tardaba de más y el docente se quedaba con
+**tres**, sin que las dieciséis siguientes llegaran siquiera a intentarse.
+
+Ahora:
+
+| | |
+|---|---|
+| **Un corte suelto** | Se salta ese reto y la tanda sigue con el siguiente, que además es de otro nivel y otro enunciado |
+| **Dos cortes seguidos** | Para y lo dice. No es mala suerte: es que el encargo no cabe en treinta segundos |
+| **Cortes repartidos** | El contador se pone a cero con cada reto que entra, así que una tanda larga no se para sola por mala suerte |
+
+El límite existe porque **un corte se paga igual**: el modelo terminó su
+trabajo, lo que no llegó fue la respuesta. Insistir dieciocho veces con un
+currículo que no cabe es tirar el dinero del docente.
+
+> Si te pasa con dos seguidas, lo que hay que recortar es el **currículo**:
+> manda solo el bloque del área que estás trabajando, no el documento entero.
+
 > **Cuidado al tocar el prompt.** El caché es un acierto de **prefijo**: basta
 > con meter en el mensaje de sistema una sola cosa que cambie entre llamadas
 > —la hora, el nivel, la lista de evitados— para que deje de coincidir y no se

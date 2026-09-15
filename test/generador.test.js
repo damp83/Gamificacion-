@@ -625,8 +625,12 @@ test('lo ya escrito no se tira si una llamada falla a mitad', () => {
   /* Está pagado. Perder ocho retos buenos porque el noveno dio un 429 sería
      cobrarle al docente el fallo de la red. */
   const cloud = leer('js/cloud.js');
-  assert.match(cloud, /if \(!buenos\.length && !descartados\.length\) return r;/);
+  assert.match(cloud, /if \(!buenos\.length && !descartados\.length && r\.reason !== 'tope'\) return r;/);
   assert.match(cloud, /corte = r\.texto;/, 'y se dice que se paró antes de acabar');
+  /* Y un corte de 30 s ni siquiera para la tanda: se salta ese reto y sigue.
+     Lo que pasa de verdad con una tanda cortada está probado, corriendo el
+     bucle entero, en `test/tanda-cortes.test.js`. */
+  assert.match(cloud, /cortesSeguidos < CORTES_SEGUIDOS_MAX/);
 });
 
 test('un reto que no se pudo comprobar llega marcado, no colado', () => {
@@ -656,7 +660,12 @@ test('el encargo dice qué retos NO repetir', () => {
 
 test('el tope de Appwrite se explica por su nombre, no como «la función falló»', () => {
   const cloud = leer('js/cloud.js');
-  assert.match(cloud, /30 segundos, que es su tope y no se puede subir/);
+  assert.match(cloud, /corta toda llamada a los 30 segundos/);
+  assert.match(cloud, /ese tope no se puede subir/);
+  /* Y que no se confunda con el ajuste «Timeout» de la función, que es otra
+     cosa: confundirlos manda al docente a cambiar un número que no arregla
+     nada, y es justo lo que hace todo el mundo. */
+  assert.match(cloud, /«Timeout» de la función es otra cosa/);
   assert.match(cloud, /timed out\|timeout/, 'se reconoce el mensaje de Appwrite');
 });
 
