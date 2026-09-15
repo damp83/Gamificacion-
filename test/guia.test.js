@@ -73,6 +73,7 @@ test('los pasos opcionales no cuentan como pendientes', () => {
   c.ev('setTeacherConfig')('roster', [{ name: 'Vega', grade: 4 }]);
   c.ev("const m = loadDiaries(); m['u:vega'] = defaultState('Vega'); saveDiaries(m);");
   c.ev('ATLAS_CONFIG_META.backupAt = Date.now(); saveConfigMeta();');
+  c.ev('setTeacherConfig')('teacherPin', '7391');
   assert.equal(c.ev('pasosGuiaPendientes()'), 0,
     'con lo obligatorio hecho no puede quedar nada pendiente');
 });
@@ -83,6 +84,7 @@ test('la tarjeta de la sala de mapas se encoge, pero no se va', () => {
   const c = cargarApp();
   c.ev('setTeacherConfig')('roster', [{ name: 'Vega', grade: 4 }]);
   c.ev("const m = loadDiaries(); m['u:vega'] = defaultState('Vega'); saveDiaries(m);");
+  c.ev('setTeacherConfig')('teacherPin', '7391');
   c.ev('ATLAS_CONFIG_META.backupAt = Date.now(); ATLAS_CONFIG_META.guiaAt = Date.now(); saveConfigMeta();');
   c.ev('renderGuiaDocente()');
   const caja = "$('#teacher-guia')";
@@ -108,6 +110,7 @@ test('abrirla la da por vista, y entonces deja de presentarse como nueva', () =>
   /* Con todo hecho y ya vista, se encoge; sin haberla visto, no. */
   c.ev('setTeacherConfig')('roster', [{ name: 'Vega', grade: 4 }]);
   c.ev("const m = loadDiaries(); m['u:vega'] = defaultState('Vega'); saveDiaries(m);");
+  c.ev('setTeacherConfig')('teacherPin', '7391');
   c.ev('ATLAS_CONFIG_META.backupAt = Date.now(); saveConfigMeta();');
   c.ev('renderGuiaDocente()');
   assert.equal(c.ev("$('#teacher-guia').classList.contains('teacher-guia-mini')"), true);
@@ -143,4 +146,76 @@ test('la pantalla está registrada y se pinta al entrar en ella', () => {
   assert.ok(c.ev('SCREENS').includes('guia'), 'sin registrar, show() no la enseñaría');
   const u = leer('js/ui.js');
   assert.match(u, /screenId === 'guia'.*renderGuia\(\)/s);
+});
+
+/* ── El PIN de fábrica ──
+   El de fábrica está escrito en `js/config.js`, que se descarga en la tablet
+   de cada niño y está en el repositorio público: lo puede leer cualquiera que
+   mire el código, alumnos incluidos. Cambiarlo no lo vuelve secreto —seguirá
+   estando en el código—, pero el de fábrica es peor que uno cambiado: lo
+   conoce quien haya visto otro despliegue, sin mirar nada. */
+
+test('sigue con el PIN de fábrica hasta que se cambia', () => {
+  const c = cargarApp();
+  assert.equal(c.ev('ATLAS_CONFIG.teacherPin'), c.ev('PIN_DE_FABRICA'),
+    'de fábrica tienen que coincidir, si no la prueba no prueba nada');
+  assert.equal(paso(c, 'pin').hecho, false);
+  assert.match(paso(c, 'pin').falta, /fábrica/);
+
+  c.ev('setTeacherConfig')('teacherPin', '7391');
+  const p = paso(c, 'pin');
+  assert.equal(p.hecho, true);
+  assert.match(p.ya, /este equipo/, 'tiene que decir que solo vale aquí');
+});
+
+test('se compara con PIN_DE_FABRICA, no con los ajustes de fábrica', () => {
+  /* Es la diferencia que hace que el aviso siga sirviendo: quien cambie el
+     PIN en el código y vuelva a publicar haría que ATLAS_DEFAULTS fuese ya el
+     suyo, y entonces este paso saldría SIN HACER para siempre y para todo el
+     mundo, que es justo al revés de lo que se quiere. */
+  const c = cargarApp();
+  c.ev("ATLAS_DEFAULTS.teacherPin = '7391'; applyOverlay({});");
+  assert.equal(paso(c, 'pin').hecho, true,
+    'un despliegue con el PIN cambiado en el código no puede seguir avisando');
+
+  const a = leer('js/aula.js');
+  assert.match(a, /PIN_DE_FABRICA/);
+  assert.ok(!/ATLAS_DEFAULTS\.teacherPin/.test(a),
+    'compararlo con ATLAS_DEFAULTS rompe el aviso en cuanto alguien despliegue');
+});
+
+test('solo se pone en rojo cuando hay algo detrás', () => {
+  /* A quien está probando la plataforma un martes por la tarde no hay que
+     ponerle nada en rojo: es la misma regla que la copia de seguridad, que
+     solo molesta si de verdad hay trabajo que perder. */
+  const c = cargarApp();
+  assert.equal(paso(c, 'pin').urgente, false, 'sin clase ni diarios no urge');
+
+  const d = cargarApp();
+  d.ev('setTeacherConfig')('roster', [{ name: 'Vega', grade: 4 }]);
+  assert.equal(paso(d, 'pin').urgente, true, 'con una clase apuntada sí urge');
+
+  const e = cargarApp();
+  e.ev("const m = loadDiaries(); m['u:vega'] = defaultState('Vega'); saveDiaries(m);");
+  assert.equal(paso(e, 'pin').urgente, true, 'con diarios en el equipo también');
+});
+
+test('el paso dice que cambiarlo en el panel no llega a las demás tablets', () => {
+  /* Es lo que más se malentiende del PIN, y callarlo deja a un docente
+     creyendo que ha cerrado una puerta que sigue abierta en veinte tablets. */
+  const c = cargarApp();
+  const p = paso(c, 'pin');
+  assert.match(p.como, /SOLO para este equipo/);
+  assert.match(p.como, /js\/config\.js/);
+  assert.match(p.como, /volver a publicar/);
+  /* Y por qué importa: que el de fábrica se puede leer. */
+  assert.match(p.como, /lo puede leer cualquiera/i);
+});
+
+test('cambiar el PIN es obligatorio, no una sugerencia', () => {
+  const c = cargarApp();
+  assert.ok(!paso(c, 'pin').opcional, 'no puede ser opcional');
+  const antes = c.ev('pasosGuiaPendientes()');
+  c.ev('setTeacherConfig')('teacherPin', '7391');
+  assert.equal(c.ev('pasosGuiaPendientes()'), antes - 1, 'cambiarlo tiene que descontar un paso');
 });

@@ -1260,6 +1260,25 @@ function pasosGuia() {
       ya: copia === 0 ? 'guardada hoy' : copia === 1 ? 'hace 1 día' : `hace ${copia} días`,
       falta: 'nunca se ha guardado ninguna' },
 
+    /* ── El PIN ──
+       No se compara con ATLAS_DEFAULTS sino con PIN_DE_FABRICA, y la
+       diferencia importa: quien cambie el PIN en el código y vuelva a
+       publicar haría que ATLAS_DEFAULTS fuese ya el suyo, y entonces este
+       paso saldría sin hacer para siempre, para todo el mundo.
+
+       Urge solo cuando hay algo detrás —una clase apuntada o diarios en este
+       equipo—: a quien está probando la plataforma un martes por la tarde no
+       hay que ponerle nada en rojo. */
+    { id: 'pin', hecho: String(ATLAS_CONFIG.teacherPin) !== String(PIN_DE_FABRICA),
+      ir: 'acceso', urgente: String(ATLAS_CONFIG.teacherPin) === String(PIN_DE_FABRICA)
+                             && (alumnos > 0 || diarios > 0),
+      que: 'Cambia el PIN de fábrica',
+      como: 'El de fábrica está escrito en el código que se descarga en la tablet de cada niño, '
+          + 'así que lo puede leer cualquiera. Cambiarlo aquí vale SOLO para este equipo: para '
+          + 'cambiarlo en todos hay que tocar js/config.js y volver a publicar.',
+      ya: 'cambiado en este equipo',
+      falta: 'sigues con el de fábrica, y está en el código público' },
+
     { id: 'equipos', hecho: equipos > 0, ir: 'equipos', opcional: true,
       que: 'Reparte las cuadrillas',
       como: 'Equipos cooperativos con un rol para cada uno, que rotan al terminar la semana.',

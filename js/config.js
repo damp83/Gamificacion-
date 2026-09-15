@@ -11,7 +11,18 @@
    copia guardada. Sin este número, «ya está arreglado» y «a mí no me pasa» son
    indistinguibles. Va junto al nombre de la caché del service worker, y una
    prueba comprueba que no se separen. */
-const ATLAS_VERSION = 'v128';
+const ATLAS_VERSION = 'v129';
+
+/* ── El PIN con el que se publica este proyecto ──
+   Existe para una sola cosa: poder avisar de «sigues con el de fábrica». No
+   se toca nunca. Quien despliegue cambia `teacherPin` de abajo y deja este
+   valor como está; si se cambiaran los dos, el aviso no volvería a saltar
+   para nadie y el docente siguiente se quedaría sin enterarse.
+
+   Que el PIN se pueda leer del código es cierto con cualquier valor —esto no
+   lo arregla—, pero el de fábrica es peor que uno cambiado: lo conoce
+   cualquiera que haya visto otro despliegue de Atlas, sin mirar nada. */
+const PIN_DE_FABRICA = '2026';
 
 const ATLAS_DEFAULTS = {
 
