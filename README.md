@@ -1992,6 +1992,28 @@ nivel hay un niño.
 > retos se guardan sin ella y se avisa una vez, en vez de callar que el reparto
 > no va a funcionar.
 
+## Dos «sin curso» con significados opuestos
+
+`branchFitsGrade` recibía el curso del alumno, y tenía dos formas de no
+recibirlo que querían decir cosas contrarias:
+
+| Se le pasa | Quiere decir |
+|---|---|
+| Nada | El curso del que está jugando |
+| `null` | **Todos los cursos** — el desplegable de «Dirigir la clase», donde el docente elige el tema y aún no hay ningún alumno en pantalla |
+
+La segunda no existía: `grade || DEFAULT_GRADE` convertía el `null` en 4.º.
+
+Un docente de 2.º abría «Preguntar de» y solo encontraba los pozos que **además**
+sirven a 4.º —los de fábrica—, mientras que los suyos, los que acababa de crear
+para su clase, no aparecían. Y como no podía elegir, cada alumno caía en lo que
+decidiera el automático, que con todo a cero es siempre el primero del catálogo:
+Matemáticas, una y otra vez.
+
+> Lo que un **alumno** ve sigue filtrado por su curso, y hay una prueba que lo
+> fija: un niño de 4.º no puede empezar a ver pozos de 2.º porque el desplegable
+> del docente los liste.
+
 ## El curso que se quedaba congelado
 
 Al abrir el diario de un alumno, el nombre se corregía desde la lista de clase

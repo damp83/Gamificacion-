@@ -2046,6 +2046,18 @@ function branchesOf(site)        { return (site.branches || []); }
 /* ¿Sirve este pozo al curso del alumno? Sin `grades` declarado, sirve a todos:
    así los pozos que cree el docente valen para su clase sin configurar nada. */
 function branchFitsGrade(b, grade) {
+  /* ── `null` es «sin filtrar por curso», y NO es lo mismo que no pasar nada ──
+     No pasar nada significa «el curso del que está jugando». `null` lo usa el
+     desplegable de «Dirigir la clase», donde el docente elige de qué pozo
+     preguntar y todavía no hay ningún alumno en pantalla: ahí tienen que salir
+     todos.
+
+     Iba sin este caso, y `null || DEFAULT_GRADE` lo convertía en 4.º sin que
+     nadie lo viera. Un docente de 2.º abría el desplegable y solo encontraba
+     los pozos que además sirven a 4.º —los de fábrica—, mientras que los suyos,
+     los que acababa de crear para su clase, no aparecían. Y como no podía
+     elegir, cada alumno caía en el primero del catálogo: siempre Matemáticas. */
+  if (grade === null) return true;
   if (!b.grades || !b.grades.length) return true;
   return b.grades.includes(grade || DEFAULT_GRADE);
 }
