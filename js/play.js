@@ -10,6 +10,24 @@
    ═══════════════════════════════════════════════════════════ */
 
 /* ── Mapa ── */
+/* ── «Ese estrato aún no tiene retos preparados» ──
+   Era mentira, y de las caras. Al mirar el cuaderno de un alumno, `startMission`
+   devuelve null a propósito —jugar ahí sería jugar por él—, y los cuatro sitios
+   que lo llaman interpretaban ese null como «no hay contenido». Un docente con
+   sesenta y tres retos aprobados tocaba el estrato, leía que no había ninguno y
+   se iba a buscar un fallo de sincronización que no existía.
+
+   El null decía DOS cosas distintas con la misma cara. Aquí se separa la
+   primera, que es la que sabemos con certeza antes de preguntar nada. */
+function noSeJuegaEnElCuadernoDeOtro() {
+  if (!enModoLectura()) return false;
+  const quien = ($('#lectura-quien') || {}).textContent || '';
+  toast(quien
+    ? `Estás viendo el cuaderno de ${quien}: aquí no se juega, sería jugar por ${quien}.`
+    : 'Estás viendo el cuaderno de un alumno en solo lectura: aquí no se juega.');
+  return true;
+}
+
 function renderMap() {
   renderHud();
   const pct = Math.round(mapRevealPct() * 100);
@@ -99,6 +117,7 @@ function renderMap() {
         : `«${meta.name}» de ${esc(b.name)} se está cubriendo de arena… Un repaso rápido lo redescubrirá. (+10–15 ${ico('coin')})`}</p></div>
       <button class="btn btn-secondary" id="btn-bazar">Repasar</button></div>`;
     $('#btn-bazar').addEventListener('click', () => {
+      if (noSeJuegaEnElCuadernoDeOtro()) return;
       if (!startMission(target.branchId, target.stratumId, 'bazar')) { toast('Ese encargo ya no está disponible.'); return; }
       renderMissionScreen();
       show('mission');
@@ -294,6 +313,7 @@ function pintarSeguir(destino) {
       ${ico('pickaxe')} ${empezado ? 'Seguir excavando' : 'Empezar a excavar'}</button>`;
 
   $('#btn-seguir').addEventListener('click', () => {
+    if (noSeJuegaEnElCuadernoDeOtro()) return;
     if (!startMission(destino.branchId, destino.stratumId)) {
       toast('Ese estrato no tiene retos todavía.');
       return;
@@ -475,6 +495,7 @@ function openBranch(branchId) {
 
     if (!row.disabled) {
       row.addEventListener('click', () => {
+        if (noSeJuegaEnElCuadernoDeOtro()) return;
         if (!startMission(branchId, sId, 'expedition')) {
           toast('Ese estrato aún no tiene retos preparados.');
           return;
@@ -577,6 +598,7 @@ function openGuardianHall(branchId) {
   entrar.id = 'guardian-enter';
   entrar.innerHTML = 'Entrar en la cámara ' + ico('idol');
   entrar.addEventListener('click', () => {
+    if (noSeJuegaEnElCuadernoDeOtro()) return;
     if (!startGuardian(branchId)) { toast('La cámara no está abierta ahora mismo.'); openBranch(branchId); return; }
     renderMissionScreen();
     show('mission');

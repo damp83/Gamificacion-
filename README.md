@@ -1992,6 +1992,29 @@ nivel hay un niño.
 > retos se guardan sin ella y se avisa una vez, en vez de callar que el reparto
 > no va a funcionar.
 
+## Un `null` que decía dos cosas distintas
+
+Al mirar el cuaderno de un alumno, `startMission` devuelve `null` **a
+propósito**: jugar ahí sería jugar por él, y su dominio es lo que decide qué se
+le abre después. Pero devuelve `null` también cuando el estrato está vacío, y
+los cuatro sitios que lo llaman trataban las dos cosas igual.
+
+El resultado: un docente con **sesenta y tres retos aprobados** abría el
+cuaderno de un alumno, tocaba el estrato, leía «Ese estrato aún no tiene retos
+preparados» y se iba a buscar un fallo de sincronización que no existía. El
+mismo `null`, dos verdades, y la que se enseñaba era la falsa.
+
+Cada sitio se inventaba además un motivo distinto: «no tiene retos», «ese
+encargo ya no está disponible», «la cámara no está abierta ahora mismo». Ninguno
+era verdad en consulta.
+
+Ahora los cuatro preguntan antes lo único que se sabe con certeza sin mirar
+nada: si estamos en el cuaderno de otro. Y entonces lo dicen con su nombre.
+
+> La tarjeta del estrato ya lo estaba diciendo bien: se dibujaba con su barra de
+> dominio, que es lo que se pinta **cuando hay contenido**. El único que mentía
+> era el aviso al tocarla.
+
 ## «Lo he creado en el portátil y en el iPad no está»
 
 Los ajustes de la clase —yacimientos, pozos, méritos— **suben solos** con cada
