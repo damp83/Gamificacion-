@@ -257,7 +257,9 @@ export default async ({ req, res, log, error }) => {
     log(`generados ${crudos.length}`);
 
     /* ── 2. El validador, antes de gastar la segunda pasada ── */
-    const v1 = validarTanda(crudos, { materia: p.materia });
+    /* El nivel PEDIDO viaja al validador: es el que se estampa en el reto,
+       por encima del que el modelo diga haber escrito. */
+    const v1 = validarTanda(crudos, { materia: p.materia, nivel: p.nivel });
     log(`pasan la validación ${v1.buenos.length}, se tiran ${v1.descartados.length}`);
     if (!v1.buenos.length) {
       return res.json({ ok: true, retos: [], descartados: v1.descartados, usados: uso(gen) });

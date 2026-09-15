@@ -239,6 +239,7 @@ propia tabla, una fila por reto. No están en los ajustes, y hay dos razones:
    | `materia` | String | 16 | no | |
    | `curso` | Integer | | no | |
    | `skill` | String | 48 | sí | |
+   | `nivel` | Integer | | no | |
    | `question` | String | 600 | sí | |
    | `options` | String | 200 | sí | **sí** |
    | `answer` | Integer | | sí | |
@@ -251,6 +252,12 @@ propia tabla, una fila por reto. No están en los ajustes, y hay dos razones:
    | `updated_at` | String | 20 | no | |
 
    `estado` es `cola` (escrito, sin revisar) o `banco` (aprobado, jugándose).
+
+   `nivel` es el punto del dial 1-5 en el que se escribió el reto, y **0
+   significa «para todos»**. Es la columna que hace que un pozo tuyo adapte:
+   sin ella los retos se guardan igual y se juegan igual, pero la clase entera
+   ve lo mismo. Si tu tabla es anterior y no la tienes, la app lo detecta, los
+   guarda sin nivel y te avisa una vez; añadirla luego no pierde nada.
 
 3. Índices: uno por `aula`, y otro compuesto por `aula` + `estado`. Sin el
    primero, listar los retos de una clase falla en cuanto haya unos cientos.
@@ -1763,6 +1770,65 @@ estrato nuevo y la Cámara del Guardián— pasa ahora por una sola función,
 `nivelPermitido()`. Tres sitios decidiendo el nivel son tres sitios que un día
 dejan de coincidir: aquí ya había pasado, y la Cámara se saltaba el techo del
 alumno.
+
+## El dial, también en los pozos que escribe el docente
+
+Todo lo anterior vivía dentro de los generadores de fábrica. Un pozo escrito
+por el docente —con la IA o a mano— **no adaptaba nada**: `makeQuestion` recibía
+el nivel del alumno y en la rama del banco no lo miraba. Diez retos generados
+para «Recordar» eran los mismos diez para el que va sobrado y para el que va
+justo, en distinto orden.
+
+Era un hueco raro de ver, porque todo lo demás sí funcionaba: el motor medía el
+nivel de cada alumno, lo actualizaba tras cada reto y lo enseñaba en el panel.
+Simplemente, con un pozo del docente **no tenía entre qué elegir**.
+
+Ahora un reto lleva **nivel**, y el generador escribe los cinco de una tanda.
+
+### Cómo se escriben
+
+«Repartir por niveles» pide los cinco rotando `1·2·3·4·5·1·2…`, y el orden no
+es cosmético: una tanda se corta —se acabó el saldo, el iPad apagó la pantalla—
+y rotando, lo que quedó cubre el dial entero. Escribiendo primero todos los del
+nivel 1, media tanda deja un pozo que solo sabe ponerse fácil.
+
+Al modelo se le dice lo que costó aprender arriba: **no se sube de nivel
+poniendo números más grandes**. El encargo describe qué cambia en cada escalón
+—el 4 cambia la forma de la pregunta, el 5 mete el segundo paso— y le exige no
+salirse del estrato: un «recordar» de nivel 5 sigue siendo recordar.
+
+> Y el nivel que se guarda es **el pedido, no el que el modelo dice haber
+> escrito**. Se le pide en la respuesta para obligarle a comprometerse con uno
+> mientras redacta, pero su autoevaluación no es una medida.
+
+### Cómo se reparten
+
+| El alumno está en | Recibe |
+|---|---|
+| Nivel 1 | Los del 1, luego los del 2. Nunca el 5 mientras queden más cerca |
+| Nivel 3 | Los del 3, abriéndose al 2 y al 4 según se le acaban |
+| Nivel 5 | Los del 5 y el 4 |
+
+La franja se ensancha sola: se calcula sobre los **no usados**, así que nunca
+deja al niño con la pantalla en blanco por mucho que se filtre. Un pozo donde
+ningún reto sea de su nivel se le sirve igual.
+
+Dos decisiones que no son obvias, y que hay una prueba para cada una:
+
+- **Un reto sin nivel vale para cualquiera**, no es «un nivel 3». Es lo que
+  trae todo lo escrito a mano y todo lo generado antes de esto. Tratarlo como
+  un 3 habría escondido los retos del docente a media clase el día de
+  estrenarlo, y son justo los que él quiere que salgan.
+- **Pasarse hacia arriba cuesta más que quedarse corto.** Un reto fácil de más
+  aburre un minuto; uno difícil de más, con el niño solo delante de la tablet y
+  sin nadie a quien preguntar, lo hunde. Es la misma regla que ya decide el
+  techo frente al suelo.
+
+> **La tabla `retos` necesita una columna `nivel`** (Integer, opcional). Quien
+> creó la suya antes no la tiene, y perder por eso una tanda pagada sería
+> convertir una mejora en una avería: si Appwrite se queja de esa columna, los
+> retos se guardan sin ella y se avisa una vez, en vez de callar que el reparto
+> no va a funcionar.
 
 ## Adaptaciones para el alumnado ACNEAE
 

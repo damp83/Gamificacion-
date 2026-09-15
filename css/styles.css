@@ -2113,6 +2113,13 @@ img.feedback-quien {
 .ia-mover { align-items: center; gap: .5rem; flex-wrap: wrap; }
 .ia-mover select { min-height: 44px; }
 
+/* El nivel de un reto, donde se lee de un vistazo: en la cabecera de la
+   tarjeta de revisión y en la ficha del editor manual. */
+.ia-nivel { background: var(--brass-light); color: var(--ink); border-radius: 999px;
+  padding: .05rem .5rem; font-weight: 700; white-space: nowrap; }
+.cfg-q-nivel { align-items: center; gap: .5rem; margin-top: .4rem; }
+.cfg-q-nivel select { min-height: 44px; flex: 1; }
+
 .cfg-invisible {
   background: var(--brass-tint); border-left: 4px solid var(--brass);
   border-radius: var(--r-md); padding: .6rem .8rem; margin: .5rem 0 0;

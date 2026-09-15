@@ -57,7 +57,19 @@ async function cloudGenerarRetos(peticion, onProgreso) {
       texto: 'Falta el ID de la función en Acceso y nube. Está en Appwrite → Functions.' };
   }
 
-  const cuantos = Math.max(1, Math.min(20, Number(peticion.n) || 1));
+  /* ── Los cinco niveles de una tanda ──
+     Con `porNivel`, `n` deja de ser «cuántos retos» y pasa a ser «cuántos por
+     nivel»: se piden n×5 y el nivel va rotando 1,2,3,4,5,1,2… No es capricho
+     el orden. Una tanda se puede cortar a la mitad —se acabó el saldo, el
+     iPad apagó la pantalla— y rotando, lo que queda cubre el dial entero.
+     Escribiendo los cinco del nivel 1 primero, una tanda cortada por la mitad
+     deja un pozo que solo sabe ponerse fácil. */
+  const porNivel = !!peticion.porNivel;
+  const NIVELES = 5;
+  const cuantos = porNivel
+    ? Math.max(1, Math.min(5, Number(peticion.n) || 2)) * NIVELES
+    : Math.max(1, Math.min(20, Number(peticion.n) || 1));
+  const nivelDe = i => porNivel ? (i % NIVELES) + 1 : (Number(peticion.nivel) || 0);
   const avisar = (hechos, fase) => { if (typeof onProgreso === 'function') onProgreso(hechos, cuantos, fase); };
 
   const buenos = [], descartados = [];
@@ -83,8 +95,9 @@ async function cloudGenerarRetos(peticion, onProgreso) {
   let corte = null;
   for (let i = 0; i < cuantos; i++) {
     avisar(i, 'escribiendo');
+    const nivel = nivelDe(i);
     const r = await ejecutarConReintento(id,
-      Object.assign({}, peticion, { paso: 'generar', n: 1, evitar, evitarConceptos }),
+      Object.assign({}, peticion, { paso: 'generar', n: 1, nivel, evitar, evitarConceptos }),
       (n, de) => avisar(i, `reintentando (${n} de ${de})`));
     if (!r.ok) {
       /* Si ya hay retos escritos, no se tiran: están pagados. Se sigue con lo
@@ -95,6 +108,10 @@ async function cloudGenerarRetos(peticion, onProgreso) {
     }
     suma(r.usados);
     for (const x of (r.retos || [])) {
+      /* La función ya lo estampa, pero una función sin actualizar devolvería
+         retos sin nivel y la tanda entera saldría «para todos». El nivel lo
+         sabe quien lo pide, así que se pone aquí también. */
+      if (nivel) x.nivel = nivel;
       buenos.push(x);
       evitar.push(x.question);
       if (x.skill && !evitarConceptos.includes(x.skill)) evitarConceptos.push(x.skill);
@@ -669,6 +686,9 @@ function filaDeReto(r, aulaId, estado) {
     materia: t(r.materia, 16),
     curso: Number(r.curso) || 0,
     skill: t(r.skill, 48),
+    /* 0 = «para todos»: los escritos a mano y los de antes de que el dial
+       existiera. No se manda como texto: se filtra por él al servir. */
+    nivel: Number(r.nivel) || 0,
     question: t(r.question, 600),
     options: (Array.isArray(r.options) ? r.options : []).map(o => t(o, 200)),
     answer: Number(r.answer) || 0,
@@ -693,6 +713,9 @@ async function cloudCrearRetos(lista, estado) {
 
   const c = ATLAS_CONFIG.appwrite;
   const creados = [], fallidos = [];
+  /* Se levanta si alguno hubo que guardarlo sin nivel: quien llama lo dice en
+     pantalla una vez, en vez de callarse que el dial no va a funcionar. */
+  let faltaNivel = false;
   for (const r of lista) {
     const fila = filaDeReto(r, aulaId, estado);
     try {
@@ -710,7 +733,29 @@ async function cloudCrearRetos(lista, estado) {
         const doc = await CLOUD.db.createDocument(
           c.databaseId, c.retosCollectionId, 'unique()', fila);
         creados.push(doc);
-      } catch (e2) { fallidos.push({ reto: r, error: errorNube(e2) }); }
+      } catch (e2) {
+        /* ── Tercer intento, sin la columna `nivel` ──
+           `nivel` llegó después que la tabla, y quien la creó antes no la
+           tiene. Obligar a añadirla en la consola de Appwrite para poder
+           seguir guardando retos convierte una mejora en una avería: el
+           docente que no la añada perdería la tanda entera, pagada.
+
+           Así que si Appwrite se queja de ESA columna, se manda sin ella.
+           El reto se guarda igual y se juega igual; lo único que pierde es
+           el reparto por niveles, que es justamente lo que aún no tiene. */
+        if (!/nivel/i.test((e2 && e2.message) || '')) {
+          fallidos.push({ reto: r, error: errorNube(e2) });
+          continue;
+        }
+        const sinNivel = Object.assign({}, fila);
+        delete sinNivel.nivel;
+        try {
+          const doc = await CLOUD.db.createDocument(
+            c.databaseId, c.retosCollectionId, 'unique()', sinNivel);
+          creados.push(doc);
+          faltaNivel = true;
+        } catch (e3) { fallidos.push({ reto: r, error: errorNube(e3) }); }
+      }
     }
   }
   /* El motivo del PRIMER fallo sube con el resultado. Sin esto, quien llama
@@ -721,7 +766,7 @@ async function cloudCrearRetos(lista, estado) {
   const primero = fallidos.length ? fallidos[0].error : null;
   return {
     ok: !!creados.length || !lista.length,
-    creados, fallidos,
+    creados, fallidos, faltaNivel,
     reason: primero ? primero.reason : undefined,
     texto: primero ? textoDeFalloAlCrear(primero) : undefined
   };
@@ -820,7 +865,7 @@ function limpiarFila(d) {
   return {
     $id: d.$id, estado: d.estado, aula: d.aula, owner: d.owner,
     siteId: d.siteId, branchId: d.branchId, estrato: d.estrato,
-    materia: d.materia, curso: d.curso, skill: d.skill,
+    materia: d.materia, curso: d.curso, skill: d.skill, nivel: Number(d.nivel) || 0,
     question: d.question, options: d.options || [], answer: d.answer,
     hint1: d.hint1, hint2: d.hint2, explanation: d.explanation,
     criterio: d.criterio, origen: d.origen, comprobado: d.comprobado

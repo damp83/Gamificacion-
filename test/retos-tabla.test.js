@@ -260,7 +260,16 @@ test('si los permisos por fila estorban, se crea sin ellos antes de rendirse', (
   const conPermisos = cuerpo.indexOf("'unique()', fila, permisosDeReto()");
   const sinPermisos = cuerpo.indexOf("'unique()', fila);");
   assert.ok(conPermisos > 0 && sinPermisos > conPermisos, 'primero con, después sin');
-  assert.match(cuerpo, /catch \(e2\) \{ fallidos\.push/, 'y solo entonces se da por fallido');
+
+  /* Y un tercer intento, sin la columna `nivel`: llegó después que la tabla,
+     y quien la creó antes no la tiene. Obligar a añadirla para poder seguir
+     guardando retos convertiría una mejora en una avería —la tanda, pagada,
+     se perdería entera—, así que se manda sin ella y se avisa. */
+  const sinNivel = cuerpo.indexOf("'unique()', sinNivel");
+  assert.ok(sinNivel > sinPermisos, 'y en último lugar, sin la columna nivel');
+  assert.match(cuerpo, /if \(!\/nivel\/i\.test/, 'solo si la queja es de ESA columna');
+  assert.match(cuerpo, /catch \(e3\) \{ fallidos\.push/, 'y solo entonces se da por fallido');
+  assert.match(cuerpo, /faltaNivel = true/, 'y se levanta la bandera para poder decirlo');
 });
 
 test('el mensaje de Appwrite se enseña LITERAL, pase lo que pase', () => {
@@ -277,15 +286,16 @@ test('el mensaje de Appwrite se enseña LITERAL, pase lo que pase', () => {
 });
 
 test('el diagnóstico enseña qué columnas manda la app', () => {
-  /* Son diecinueve. Encontrar a ojo la que baila entre la consola y el
-     código es un suplicio; verlas en fila al lado del error, no. */
+  /* Son veinte. Encontrar a ojo la que baila entre la consola y el código es
+     un suplicio; verlas en fila al lado del error, no. */
   const c = cargarApp();
   c.ev('CLOUD').user = { $id: 'd1' };
   const cols = c.ev('columnasQueSeMandan')();
   assert.match(cols, /options \(String\[\]\)/, 'dice cuál es un array');
   assert.match(cols, /answer \(Integer\)/);
   assert.match(cols, /comprobado \(Boolean\)/);
-  assert.equal(cols.split(',').length, 19);
+  assert.match(cols, /nivel \(Integer\)/, 'y el nivel, que es la que suele faltar');
+  assert.equal(cols.split(',').length, 20);
 });
 
 test('los permisos de fila nunca nombran a un equipo', () => {

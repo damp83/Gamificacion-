@@ -64,10 +64,22 @@ function normalizarReto(crudo) {
     hint2: textoLimpio(crudo.hint2),
     explanation: textoLimpio(crudo.explanation),
     skill: textoLimpio(crudo.skill, 40),
+    /* En qué punto del dial 1-5 se escribió. 0 es «sin nivel», que NO es un
+       fallo: es lo que traen los retos escritos a mano y los de antes de que
+       esto existiera, y significa «vale para todos». */
+    nivel: nivelDeReto(crudo.nivel),
     /* De dónde dice el modelo que sale. No es una garantía: es lo que el
        docente lee para decidir si se lo cree. */
     criterio: textoLimpio(crudo.criterio, RETO_MAX_TEXTO)
   };
+}
+
+/* El dial va de 1 a 5, y cualquier otra cosa es «sin nivel». Se redondea en
+   vez de rechazarse: que el modelo escriba 3.0 no es motivo para tirar un
+   reto bueno. */
+function nivelDeReto(v) {
+  const n = Math.round(Number(v));
+  return Number.isFinite(n) && n >= 1 && n <= 5 ? n : 0;
 }
 
 /* ── Comparación de opciones ──
@@ -198,6 +210,16 @@ function validarRetoIA(crudo, opciones) {
     motivos.push(`La cuenta no sale: da ${ar.esperado} y está marcado ${ar.marcado}.`);
   }
 
+  /* ── El nivel lo pone quien lo pide, no quien lo escribe ──
+     Al modelo se le pide el nivel en la respuesta para OBLIGARLE a
+     comprometerse con uno mientras redacta —sin eso escribe cinco retos
+     idénticos y les pone etiquetas distintas—, pero lo que se guarda es el
+     nivel PEDIDO. Su autoevaluación no es una medida: si la tanda pidió un
+     nivel 2 y el modelo se cree que escribió un 4, el que manda es el 2.
+     Así el banco nunca tiene un nivel que nadie encargó. */
+  const pedido = nivelDeReto(cfg.nivel);
+  if (pedido) r.nivel = pedido;
+
   return { ok: motivos.length === 0, motivos, reto: r, aritmetica: ar };
 }
 
@@ -247,6 +269,54 @@ function oaoaParaElPrompt(curso) {
     '',
     `Estrategias que ${curso}.º ya tiene trabajadas, y de las que puedes tirar:`,
     bloques.join('\n')
+  ].join('\n');
+}
+
+/* ── Qué cambia entre el nivel 1 y el nivel 5 ──
+   El estrato dice QUÉ operación mental se pide —recordar, comprender,
+   aplicar, analizar—. El nivel dice CUÁNTO cuesta hacerla dentro de ese
+   estrato. Son dos ejes distintos y se cruzan: un «recordar» de nivel 5
+   sigue siendo recordar.
+
+   Este bloque existe porque sin él el modelo hace lo único evidente: poner
+   números más grandes. Y un número más grande no es más difícil —8.500 y
+   10.000 son la misma operación—. Lo que sube de verdad es la ESTRUCTURA de
+   la tarea, y eso hay que decírselo con ejemplos. */
+function nivelParaElPrompt(nivel) {
+  const escala = [
+    '',
+    'NIVEL 1 — el suelo. Un solo paso, números pequeños y redondos, el dato pedido ' +
+      'literal en el enunciado. Quien está aquí necesita reconocer que sabe hacerlo.',
+    'NIVEL 2 — un solo paso, sin redondear, con el dato aún explícito.',
+    'NIVEL 3 — el estándar del curso. Dos datos que combinar, o uno que hay que leer ' +
+      'del contexto en vez de copiarlo.',
+    'NIVEL 4 — cambia la FORMA de la pregunta, no el tamaño de los números. En vez de ' +
+      'pedir el resultado, pide el dato que falta para llegar a él; en vez de preguntar ' +
+      'QUÉ es, pregunta CUÁNTO VALE; en vez de dar el todo, da las partes.',
+    'NIVEL 5 — dos pasos, o una comparación entre tres cosas, o encontrar el error en ' +
+      'un procedimiento ya hecho. El niño tiene que decidir él qué se hace primero: el ' +
+      'enunciado no se lo dice.'
+  ];
+  const n = nivelDeReto(nivel);
+  if (!n) return '';
+  return [
+    'NIVEL DE DIFICULTAD: ' + n + ' de 5, dentro de ese estrato.',
+    '',
+    'El estrato dice QUÉ operación mental se pide. El nivel dice CUÁNTO cuesta hacerla.',
+    'Son dos cosas distintas: un «recordar» de nivel 5 SIGUE SIENDO recordar, no se',
+    'convierte en analizar. No cambies de estrato para subir de nivel.',
+    '',
+    'Y no subas de nivel poniendo números más grandes. 8.500 y 10.000 son la misma',
+    'operación con el mismo esfuerzo. Lo que sube es la estructura de la tarea:',
+    '',
+    escala[n],
+    '',
+    /* Sin esto, pedir cinco niveles del mismo concepto devuelve cinco veces la
+       misma pregunta con las cifras cambiadas: el niño que sube de nivel no
+       nota que ha subido, solo que los números son otros. */
+    'Escribe el reto PARA ESE NIVEL. Si el mismo concepto se te ha pedido en otro',
+    'nivel, este tiene que ser reconociblemente distinto en lo que se le pide al',
+    'niño, no solo en las cifras.'
   ].join('\n');
 }
 
@@ -316,6 +386,7 @@ function promptGenerador(p) {
   const usuario = [
     `Materia: ${materia.nombre}. Curso: ${curso}.º de Primaria.`,
     `Nivel cognitivo: ${estrato.label}${estrato.name ? ' (' + estrato.name + ')' : ''}.`,
+    nivelParaElPrompt(p.nivel),
     temaDelPozo.length
       ? `Pozo al que va: «${textoLimpio(temaDelPozo[0], 80)}»` +
         (pozo.yacimiento ? `, del yacimiento «${textoLimpio(pozo.yacimiento, 80)}»` : '') + '.\n' +
@@ -382,7 +453,7 @@ function esquemaRetos() {
         items: {
           type: 'object',
           additionalProperties: false,
-          required: ['question', 'options', 'answer', 'hint1', 'hint2', 'explanation', 'skill', 'criterio'],
+          required: ['question', 'options', 'answer', 'hint1', 'hint2', 'explanation', 'skill', 'nivel', 'criterio'],
           properties: {
             question: { type: 'string' },
             options: { type: 'array', items: { type: 'string' } },
@@ -391,6 +462,10 @@ function esquemaRetos() {
             hint2: { type: 'string' },
             explanation: { type: 'string' },
             skill: { type: 'string' },
+            /* Se le pide para que se comprometa con un nivel mientras redacta.
+               Lo que se guarda es el pedido, no este: ver `validarRetoIA`.
+               Sin `minimum`/`maximum`, que tiran la petición entera con un 400. */
+            nivel: { type: 'integer' },
             criterio: { type: 'string' }
           }
         }

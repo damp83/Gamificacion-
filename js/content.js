@@ -2086,6 +2086,59 @@ function branchPlayable(branch) {
    Los pozos de fábrica generan uno nuevo cada vez. Los del docente sacan del
    banco evitando repetir dentro de la misma misión, y barajan las opciones
    para que no se memorice la posición de la respuesta. */
+/* Los seis valores del dial, tal como se leen en el panel del docente. El 0
+   no es «sin poner»: es una decisión, «este vale para cualquiera», y es lo que
+   traen todos los retos escritos a mano. */
+const NIVELES_RETO = [
+  { n: 0, label: 'Para todos' },
+  { n: 1, label: '1 · lo más fácil' },
+  { n: 2, label: '2' },
+  { n: 3, label: '3 · el del curso' },
+  { n: 4, label: '4' },
+  { n: 5, label: '5 · lo más difícil' }
+];
+
+/* ── Lo lejos que le queda un reto a este alumno ──
+   El estrato dice qué operación mental se pide; el nivel, cuánto cuesta
+   hacerla. Un reto del banco lleva nivel desde que el generador de IA escribe
+   los cinco de una tanda, y aquí se usa para elegir cuál le toca a quién.
+
+   Dos decisiones que no son obvias:
+
+   · Un reto SIN nivel está a distancia 0, o sea, le vale a cualquiera. Es lo
+     que trae todo lo escrito a mano y todo lo generado antes de que el dial
+     existiera. Tratarlo como «nivel 3» habría escondido los retos del docente
+     a media clase el día que actualiza, y son justo los que él quiere que
+     salgan.
+
+   · Pasarse hacia ARRIBA cuesta más que quedarse corto. Un reto fácil de más
+     aburre un minuto; uno difícil de más, con el niño solo delante de la
+     tablet y sin nadie a quien preguntar, lo hunde. La misma regla que ya
+     decide el techo frente al suelo. */
+function distanciaNivel(nivel, tier) {
+  const n = Number(nivel) || 0;
+  if (!n) return 0;
+  const d = n - (Number(tier) || 3);
+  return d <= 0 ? -d : d * 1.35;
+}
+
+/* De los retos que quedan sin usar, los que le tocan a este alumno: los más
+   cercanos a su nivel, más una franja de uno para que no salga siempre el
+   mismo cuando el banco es pequeño.
+
+   Se calcula sobre los NO USADOS, así que nunca devuelve vacío teniendo
+   candidatos: según se agota su franja, la franja se abre sola hacia los
+   niveles de al lado. Un alumno de nivel 1 con diez retos repartidos empieza
+   por los dos fáciles, sigue por los del 2 y solo llega al 5 si se le acaba
+   el pozo entero. */
+function retosParaElNivel(bank, indices, tier) {
+  if (indices.length < 2) return indices;
+  const dist = i => distanciaNivel((bank[i] || {}).nivel, tier);
+  let cerca = Infinity;
+  for (const i of indices) cerca = Math.min(cerca, dist(i));
+  return indices.filter(i => dist(i) <= cerca + 1);
+}
+
 function makeQuestion(branch, stratumId, tier, usedIdx, grade) {
   const bank = ((branch.bank || {})[stratumId]) || [];
 
@@ -2103,14 +2156,14 @@ function makeQuestion(branch, stratumId, tier, usedIdx, grade) {
     if (!sinUsar.length) {
       return BUILTIN_GENERATORS[branch.id][stratumId](tier, grade || currentGrade());
     }
-    return servirDelBanco(branch, bank, pick(sinUsar), usedIdx);
+    return servirDelBanco(branch, bank, pick(retosParaElNivel(bank, sinUsar, tier)), usedIdx);
   }
 
   if (!bank.length) return null;
 
   let pool = bank.map((q, i) => i).filter(i => !(usedIdx || []).includes(i));
   if (!pool.length) pool = bank.map((q, i) => i);   /* banco agotado: se recicla */
-  return servirDelBanco(branch, bank, pick(pool), usedIdx);
+  return servirDelBanco(branch, bank, pick(retosParaElNivel(bank, pool, tier)), usedIdx);
 }
 
 /* Un reto del banco, listo para jugarse: las opciones barajadas para que no se
@@ -2132,6 +2185,8 @@ function servirDelBanco(branch, bank, idx, usedIdx) {
     hint1: q.hint1 || 'Léelo otra vez con calma: la pista está en el enunciado.',
     hint2: q.hint2 || 'Descarta primero las respuestas que seguro que no son.',
     explanation: q.explanation || `La respuesta correcta es «${correct}».`,
+    /* Para el que depura y para las pruebas: qué nivel tenía el que salió. */
+    nivel: Number(q.nivel) || 0,
     bankIndex: idx
   };
 }

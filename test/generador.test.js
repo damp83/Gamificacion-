@@ -175,7 +175,7 @@ test('las dos materias cubren conceptos reales del catálogo', () => {
   assert.equal(mates.filter(c => lengua.includes(c)).length, 0, 'no se solapan');
 });
 
-test('el esquema pide los ocho campos, y nada más', () => {
+test('el esquema pide los nueve campos, y nada más', () => {
   /* Esta prueba daba por bueno que el esquema obligara a cuatro opciones y a
      un índice de 0 a 3, con minItems/maxItems y minimum/maximum. Era mentira:
      el esquema de salida no admite esas restricciones y la API rechazaba la
@@ -188,8 +188,14 @@ test('el esquema pide los ocho campos, y nada más', () => {
   assert.equal(it.properties.options.type, 'array');
   assert.equal(it.properties.options.items.type, 'string');
   assert.equal(it.properties.answer.type, 'integer');
+  /* `nivel` se le pide para OBLIGARLE a comprometerse con uno mientras
+     redacta. No lleva minimum/maximum por lo mismo que `answer`: con ellos la
+     API rechaza la petición entera. El rango lo impone `nivelDeReto`. */
+  assert.equal(it.properties.nivel.type, 'integer');
+  assert.ok(!('minimum' in it.properties.nivel) && !('maximum' in it.properties.nivel),
+    'sin restricciones numéricas, que tiran la petición con un 400');
   assert.deepEqual(it.required.sort(),
-    ['answer', 'criterio', 'explanation', 'hint1', 'hint2', 'options', 'question', 'skill']);
+    ['answer', 'criterio', 'explanation', 'hint1', 'hint2', 'nivel', 'options', 'question', 'skill']);
 });
 
 test('lo que llega del modelo se recorta antes de mirarlo', () => {

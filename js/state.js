@@ -811,6 +811,10 @@ function retoParaElBanco(r) {
     hint2: r.hint2 || '',
     explanation: r.explanation || '',
     skill: r.skill || '',
+    /* El punto del dial 1-5 en el que se escribió, o 0 si vale para todos.
+       Sin esto el filtro por nivel no vería nada: el motor lee el banco, no
+       la tabla. */
+    nivel: Number(r.nivel) || 0,
     origen: r.origen || 'ia',
     /* Se conserva para poder borrarlo desde el panel sin buscarlo. */
     docId: r.$id || r.docId || ''

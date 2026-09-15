@@ -2306,7 +2306,13 @@ function cfgBancoRetos(body) {
           <textarea class="cfg-q-exp" data-qi="${qi}" rows="2" placeholder="Explicación tras responder (la lee quien falla)">${esc(q.explanation || '')}</textarea>
           <input type="text" class="cfg-q-h1" data-qi="${qi}" value="${esc(q.hint1 || '')}" placeholder="1ª pista de Kira (gratis)">
           <input type="text" class="cfg-q-h2" data-qi="${qi}" value="${esc(q.hint2 || '')}" placeholder="2ª pista de Kira (cuesta Doblones)">
-        </div>`).join('')}
+          <div class="cfg-row cfg-q-nivel">
+            <span class="cfg-label">Nivel</span>
+            <select class="cfg-q-niv" data-qi="${qi}">${
+              NIVELES_RETO.map(n => `<option value="${n.n}"${
+                (Number(q.nivel) || 0) === n.n ? ' selected' : ''}>${esc(n.label)}</option>`).join('')
+            }</select>
+          </div>`).join('')}
     </div>
 
     <button class="btn btn-secondary btn-small" id="cfg-add-q">➕ Añadir reto</button>
@@ -2366,6 +2372,8 @@ function cfgBancoRetos(body) {
   $$('.cfg-q-exp').forEach(el => onInput(el, e => guardarCampo(+e.target.dataset.qi, { explanation: e.target.value })));
   $$('.cfg-q-h1').forEach(el => onInput(el, e => guardarCampo(+e.target.dataset.qi, { hint1: e.target.value })));
   $$('.cfg-q-h2').forEach(el => onInput(el, e => guardarCampo(+e.target.dataset.qi, { hint2: e.target.value })));
+  $$('.cfg-q-niv').forEach(el => el.addEventListener('change', e =>
+    guardarCampo(+e.target.dataset.qi, { nivel: Number(e.target.value) || 0 })));
   $$('.cfg-q-opt').forEach(el => onInput(el, e => {
     const qi = +e.target.dataset.qi;
     const q = ((branch.bank || {})[cfgEditStratum] || [])[qi] || {};
@@ -3610,8 +3618,34 @@ function cfgIA(body) {
     ${field('Curso', `<select id="ia-curso">${
       GRADES.map(g => `<option value="${g.n}"${(ATLAS_CONFIG.iaCurso || ATLAS_CONFIG.defaultGrade) === g.n ? ' selected' : ''}>${esc(g.label)}</option>`).join('')
     }</select>`)}
-    ${field('Cuántos', `<input type="number" id="ia-cuantos" min="1" max="20" value="${ATLAS_CONFIG.iaCuantos || 10}">`,
-      'Diez cuestan unos 6 céntimos. El currículo va cacheado, así que las tandas siguientes de la misma área cuestan menos.')}
+    ${(() => {
+      /* ── Los cinco niveles de golpe ──
+         El estrato dice qué operación mental se pide; el nivel, cuánto cuesta
+         hacerla. Un pozo con diez retos de un solo nivel le da lo mismo al
+         que va sobrado que al que va justo: el motor mide el nivel de cada
+         alumno y luego no tiene entre qué elegir.
+
+         Con esto marcado se piden los cinco de una tacada y el pozo nace ya
+         repartido. Es la única forma de que un pozo escrito por el docente
+         adapte como los de fábrica. */
+      const on = ATLAS_CONFIG.iaPorNivel !== false;
+      const porNivel = Math.max(1, Math.min(5, ATLAS_CONFIG.iaPorNivelN || 2));
+      return field('Repartir por niveles',
+        `<input type="checkbox" id="ia-por-nivel"${on ? ' checked' : ''}>`,
+        on ? 'Se escriben los cinco niveles de dificultad del estrato, rotando 1·2·3·4·5. '
+           + 'Cada alumno recibe luego los de su nivel, y los de al lado cuando se le acaban. '
+           + 'Sin esto, los diez retos son los mismos para toda la clase.'
+           : '⚠️ Todos los retos saldrán sin nivel, o sea «para todos»: se juegan igual, pero '
+           + 'el motor adaptativo no tendrá entre qué elegir y la clase entera verá lo mismo.')
+        + (on
+          ? field('Cuántos por nivel',
+            `<input type="number" id="ia-por-nivel-n" min="1" max="5" value="${porNivel}">`,
+            `Son ${porNivel * 5} retos en total (${porNivel} de cada nivel), unos ${
+              (porNivel * 5 * 0.6).toFixed(0)} céntimos. Con dos por nivel el pozo ya adapta; ` +
+            'con cuatro, un alumno puede hacer dos expediciones sin repetir ninguno.')
+          : field('Cuántos', `<input type="number" id="ia-cuantos" min="1" max="20" value="${ATLAS_CONFIG.iaCuantos || 10}">`,
+            'Diez cuestan unos 6 céntimos. El currículo va cacheado, así que las tandas siguientes de la misma área cuestan menos.'));
+    })()}
     <button class="btn btn-primary btn-small" id="ia-generar"${
       (!nube || !conFuncion || !curr || iaGenerando) ? ' disabled' : ''}>${
       iaGenerando ? '⏳ ' + (iaProgreso || 'Escribiendo…') : '🤖 Generar retos'}</button>
@@ -3635,7 +3669,8 @@ function cfgIA(body) {
           <label class="ia-marca"><input type="checkbox" data-ia-marca="${esc(c.id)}"${
             marcados.has(c.id) ? ' checked' : ''}> </label>
           ${esc(conceptoLabel(c.skill))} · ${esc(c.pozoNombre || '')} · ${
-          esc((STRATA_META[c.estrato] || {}).label || c.estrato)}</div>
+          esc((STRATA_META[c.estrato] || {}).label || c.estrato)}${
+          Number(c.nivel) ? ` · <span class="ia-nivel">nivel ${Number(c.nivel)}</span>` : ''}</div>
         <p class="taller-rev-q">${esc(c.question)}</p>
         <ol class="taller-rev-ops">
           ${c.options.map((o, i) => `<li class="${i === c.answer ? 'taller-rev-ok' : ''}">${esc(o)}${
@@ -3651,6 +3686,9 @@ function cfgIA(body) {
           <select data-ia-estrato="${esc(c.id)}">${STRATA_ORDER.map(sId =>
             `<option value="${esc(sId)}"${sId === c.estrato ? ' selected' : ''}>${
               esc(STRATA_META[sId].icon + ' ' + STRATA_META[sId].label)}</option>`).join('')}</select>
+          <select data-ia-nivel="${esc(c.id)}">${NIVELES_RETO.map(n =>
+            `<option value="${n.n}"${n.n === (Number(c.nivel) || 0) ? ' selected' : ''}>${
+              esc(n.label)}</option>`).join('')}</select>
         </div>
         <p class="cfg-hint">Cambiar el <strong>pozo</strong> es mover el reto de sitio, sin más. Cambiar
         el <strong>estrato</strong> no cambia el reto: un enunciado escrito para reconocer no se convierte
@@ -3739,6 +3777,10 @@ function cfgIA(body) {
   onInput('#ia-estrato', e => cfgSave('iaEstrato', e.target.value, false), 'change');
   onInput('#ia-curso', e => cfgSave('iaCurso', +e.target.value, false), 'change');
   onInput('#ia-cuantos', e => cfgSave('iaCuantos', Math.max(1, Math.min(20, +e.target.value || 10)), false));
+  /* Estos dos sí repintan: al marcarlos cambia el campo de al lado —«cuántos»
+     pasa a ser «cuántos por nivel»— y el texto que dice lo que va a costar. */
+  onInput('#ia-por-nivel', e => cfgSave('iaPorNivel', !!e.target.checked, false), 'change');
+  onInput('#ia-por-nivel-n', e => cfgSave('iaPorNivelN', Math.max(1, Math.min(5, +e.target.value || 2)), false));
 
   const guardarClave = $('#ia-guardar-clave');
   if (guardarClave) guardarClave.addEventListener('click', () => {
@@ -3788,11 +3830,18 @@ function cfgIA(body) {
     const destino = String($('#ia-pozo').value || '');
     const estrato = $('#ia-estrato').value;
     const curso = +$('#ia-curso').value || ATLAS_CONFIG.defaultGrade;
-    const cuantos = Math.max(1, Math.min(20, +$('#ia-cuantos').value || 10));
+    /* Con el reparto por niveles, `n` deja de ser «cuántos retos» y pasa a ser
+       «cuántos de cada nivel»: cloud.js multiplica por cinco. */
+    const porNivel = !!($('#ia-por-nivel') || {}).checked;
+    const cuantos = porNivel
+      ? Math.max(1, Math.min(5, +(($('#ia-por-nivel-n') || {}).value) || 2))
+      : Math.max(1, Math.min(20, +$('#ia-cuantos').value || 10));
     setTeacherConfig('iaPozo', destino);
     setTeacherConfig('iaEstrato', estrato);
     setTeacherConfig('iaCurso', curso);
-    setTeacherConfig('iaCuantos', cuantos);
+    setTeacherConfig('iaPorNivel', porNivel);
+    if (porNivel) setTeacherConfig('iaPorNivelN', cuantos);
+    else setTeacherConfig('iaCuantos', cuantos);
     const pozo = destino.split('/');
     iaGenerando = true; iaEstado = ''; iaProgreso = ''; iaAviso = ''; renderTeacherConfig();
     /* Una tanda de diez son casi cinco minutos. Si el iPad apaga la pantalla
@@ -3809,7 +3858,7 @@ function cfgIA(body) {
        Balanza del Mercader» y salían de numeración, bien escritos y en el
        sitio equivocado, y el docente los movía uno a uno. */
     const r = await cloudGenerarRetos(
-      { materia, curso, estrato, n: cuantos, curriculo: iaCurriculo(materia, curso),
+      { materia, curso, estrato, n: cuantos, porNivel, curriculo: iaCurriculo(materia, curso),
         conceptosYaEnElPozo: yaEnElPozo, pozo: temaDelPozo(pozo[0], pozo[1]),
         /* Vienen de «Lo que conviene repasar»: el concepto que la clase falla
            y por qué interesa. El prompt los admitía desde el principio y no
@@ -3844,6 +3893,16 @@ function cfgIA(body) {
     if (typeof cloudCrearRetos === 'function') guardado = await cloudCrearRetos(nuevos, 'cola');
     if (guardado.ok) {
       añadirRetosACache((guardado.creados || []).map(limpiarFila));
+      /* Se han guardado, pero sin el nivel: la tabla es de antes de que el
+         dial existiera. Decirlo aquí y no callarlo, porque si no el docente
+         paga una tanda repartida en cinco niveles y se la encuentra entera
+         «para todos» sin saber por qué. */
+      if (guardado.faltaNivel) {
+        iaAviso = '⚠️ Los retos están guardados, pero SIN nivel: a la tabla «retos» de Appwrite '
+          + 'le falta la columna «nivel» (Integer, opcional). Añádela en la consola y vuelve a '
+          + 'generar, o ponle el nivel a mano a cada uno aquí abajo. Mientras tanto se juegan '
+          + 'igual, pero valen para todos y no reparten por dificultad.';
+      }
     } else {
       cfgSave('iaCola', (ATLAS_CONFIG.iaCola || []).concat(
         nuevos.map((x, i) => Object.assign({}, x, { id: 'ia' + Date.now() + '_' + i }))), false);
@@ -3883,8 +3942,8 @@ function cfgIA(body) {
     renderTeacherConfig();
   });
 
-  /* ── Mover de pozo o de estrato ──
-     Se guarda al soltar el desplegable. Los tres campos son de la fila, así
+  /* ── Mover de pozo, de estrato o de nivel ──
+     Se guarda al soltar el desplegable. Los cuatro campos son de la fila, así
      que es una escritura y un retoque de la caché: no hay que traer nada. */
   const mover = async (id, campos) => {
     const c = iaCola().find(x => x.id === id);
@@ -3902,6 +3961,8 @@ function cfgIA(body) {
     const [siteId, branchId] = String(e.target.value).split('/');
     mover(e.target.dataset.iaPozo, { siteId, branchId });
   }));
+  $$('[data-ia-nivel]').forEach(sel => sel.addEventListener('change', e =>
+    mover(sel.dataset.iaNivel, { nivel: Number(e.target.value) || 0 })));
   $$('[data-ia-estrato]').forEach(sel => sel.addEventListener('change', e =>
     mover(e.target.dataset.iaEstrato, { estrato: e.target.value })));
 
@@ -4044,7 +4105,7 @@ async function aprobarReto(id) {
     hint1: c.hint1, hint2: c.hint2, explanation: c.explanation,
     /* El concepto es lo que mantiene vivo el diagnóstico «Le está costando».
        Sin él el reto se jugaría igual y dejaría de contar para nada. */
-    skill: c.skill, origen: 'ia'
+    skill: c.skill, nivel: Number(c.nivel) || 0, origen: 'ia'
   }]);
   writeSites(l, false);
   cfgSave('iaCola', (ATLAS_CONFIG.iaCola || []).filter(x => x.id !== id), false);
